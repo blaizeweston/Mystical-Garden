@@ -67,6 +67,8 @@ var decision_interval := PackedInt32Array()
 var decided_at := PackedInt32Array()
 ## Fewest ticks between two decisions when an event brings one forward. MobSim sets it to the smart polling interval.
 var prompt_gap := 6
+## Supports spawned since the pool was made, for the protect-supports objective.
+var supports_spawned := 0
 var behaviour := PackedByteArray()
 var enemy_target := PackedByteArray()
 var ally_target := PackedByteArray()
@@ -208,6 +210,7 @@ func spawn_at(slot: int, request: Spawn, table: Species, tick: int, interval: in
 	dodge_until[slot] = 0
 	channel_until[slot] = 0
 	mana[slot] = table.mana_pool[request.species]
+	supports_spawned += int(table.support[request.species] != 0)
 	channel_from[slot] = 0
 	dodge_ready_at[slot] = 0
 	hurt_at[slot] = NEVER_SENSED

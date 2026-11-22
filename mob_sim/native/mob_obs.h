@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "mob_nav.h"
+#include "mob_sense.h"
 
 typedef enum { MO_BYTES, MO_INTS, MO_FLOATS } MoKind;
 
@@ -21,7 +22,7 @@ typedef enum {
     MC_DIMS, MC_FIELDS, MC_STRIDES, MC_SCALE_KIND, MC_SCALE_INVERSE, MC_REALS,
     MC_VISION, MC_HIT_RADIUS, MC_MAX_RANGE, MC_SUPPORT, MC_ROLE,
     MC_ATTACK_EXISTS, MC_ATTACK_MUTATION, MC_ATTACK_SHAPE, MC_ATTACK_RANGE, MC_ATTACK_AREA,
-    MC_ATTACK_WINDUP, MC_ATTACK_RECOVERY, MC_HOLD_TICKS, MC_TARGET_KIND,
+    MC_ATTACK_WINDUP, MC_ATTACK_RECOVERY, MC_HOLD_TICKS, MC_TARGET_KIND, MC_TRAITS,
     MC_COUNT
 } MoConfig;
 
@@ -29,11 +30,19 @@ typedef enum {
 typedef enum {
     MD_CAPACITY, MD_PLAYERS, MD_ALLIES, MD_ATTACKS, MD_SPECIES, MD_BEHAVIOURS, MD_SYMBOLS, MD_OBSERVATION,
     MD_BUCKETS, MD_ONE_SECOND, MD_ABILITIES, MD_COVER_SLOTS, MD_SHAPE_BUFF, MD_SHAPE_SUMMON, MD_TARGET_ALLY, MD_LEADER_FLAGS,
+    MD_HAZARD_SLOTS, MD_OWNER_PLAYERS, MD_FIELD_GROUND,
     MD_COUNT
 } MoDim;
 
 /* Values inside MC_REALS. */
 typedef enum { MR_CLIP, MR_WALL_RANGE, MR_COVER_CLEARANCE, MR_FACING_DOT, MR_NEVER_SEEN, MR_RANGED_ROLE, MR_TICK_RATE, MR_COUNT } MoReal;
+
+/* Per-species traits inside MC_TRAITS, MT_COUNT floats each. */
+typedef enum { MT_HEARING, MT_SMELL, MT_DARKVISION, MT_EVASION, MT_GLOW, MT_MANA_POOL, MT_CAN_DODGE, MT_FLY, MT_COUNT } MoTrait;
+
+/* Player stats inside MI_PARTY_STATS and MI_PARTY_TIMERS, matching MobParty.Stat and MobParty.Clocks. */
+typedef enum { MP_MELEE_DAMAGE, MP_RANGED_DAMAGE, MP_MELEE_RANGE, MP_RANGED_RANGE, MP_SPEED, MP_ATTACK_SPEED, MP_ARMOUR, MP_COUNT } MoPlayerStat;
+typedef enum { MPT_DODGE_READY, MPT_WINDUP_UNTIL, MPT_DODGE_UNTIL, MPT_COUNT } MoPlayerTimer;
 
 /* Live simulation arrays, in the order ai/mob_native_runtime.gd sends them each decision. */
 typedef enum {
@@ -44,11 +53,14 @@ typedef enum {
     MI_VISIBLE, MI_SEEN_X, MI_SEEN_Z, MI_SEEN_TICK, MI_ALLIES,
     MI_PARTY_PRESENT, MI_PARTY_ALIVE, MI_PARTY_HP, MI_PARTY_MAX_HP, MI_PARTY_VX, MI_PARTY_VZ,
     MI_TAKEN, MI_DEALT, MI_TAKEN_FROM, MI_DEALT_TO, MI_ENGAGED_AT,
+    MI_MANA, MI_CHANNEL_UNTIL, MI_DODGE_UNTIL, MI_DODGE_READY, MI_DOT_UNTIL, MI_ARMOUR,
+    MI_FIELD_X, MI_FIELD_Z, MI_FIELD_RADIUS, MI_FIELD_ACTIVATE, MI_FIELD_UNTIL, MI_FIELD_OWNER, MI_FIELD_FLAGS,
+    MI_PARTY_STATS, MI_PARTY_TIMERS,
     MI_COUNT
 } MoInput;
 
 /* Repeating observation blocks whose stride is needed. */
-typedef enum { MS_ABILITY, MS_ENEMY, MS_ALLY, MS_COVER, MS_COUNT } MoStride;
+typedef enum { MS_ABILITY, MS_ENEMY, MS_ALLY, MS_COVER, MS_HAZARD, MS_COUNT } MoStride;
 
 /* Field offsets inside one row, in the order ai/mob_native_runtime.gd resolves them. */
 typedef enum {
@@ -67,6 +79,12 @@ typedef enum {
     MF_A_SUPPORT, MF_A_BEHAVIOUR, MF_A_TARGET, MF_A_MESSAGE,
     MF_L_PRESENT, MF_L_DX, MF_L_DY, MF_L_DISTANCE, MF_L_HP, MF_L_HP_LOST, MF_L_DEALT, MF_L_ELITE, MF_L_MELEE, MF_L_RANGED,
     MF_L_SUPPORT, MF_L_BEHAVIOUR, MF_L_TARGET, MF_L_MESSAGE, MF_L_COOLDOWN,
+    MF_FLY_SPEED, MF_ARMOUR, MF_HEARING, MF_SMELL, MF_DARKVISION, MF_EVASION, MF_CAN_DODGE, MF_USES_MANA, MF_GLOW,
+    MF_RESOURCE, MF_DODGE_COOLDOWN, MF_CHANNELING, MF_DODGING, MF_LIGHT, MF_AIRBORNE,
+    MF_DOT,
+    MF_H_PRESENT, MF_H_DX, MF_H_DY, MF_H_RADIUS, MF_H_IMPACT, MF_H_HOSTILE, MF_H_INSIDE,
+    MF_E_MELEE_DAMAGE, MF_E_RANGED_DAMAGE, MF_E_MELEE_RANGE, MF_E_RANGED_RANGE, MF_E_SPEED, MF_E_ATTACK_SPEED,
+    MF_E_DODGE_COOLDOWN, MF_E_ARMOUR, MF_E_WINDING, MF_E_DODGING, MF_E_LIGHT,
     MF_COUNT
 } MoField;
 
@@ -80,7 +98,8 @@ int mo_observation_size(const MobObs *obs);
 
 MoKind mo_config_kind(int index);
 MoKind mo_input_kind(int index);
-/* items and lengths hold MI_COUNT entries. Writes one row per entry in MI_SLOTS. */
-MoResult mo_build(MobObs *obs, const MobNav *nav, const void *const *items, const int64_t *lengths, float *out);
+/* items and lengths hold MI_COUNT entries. Writes one row per entry in MI_SLOTS. sense supplies light levels;
+ * without it every point counts as fully lit. */
+MoResult mo_build(MobObs *obs, const MobNav *nav, const MobSense *sense, const void *const *items, const int64_t *lengths, float *out);
 
 #endif

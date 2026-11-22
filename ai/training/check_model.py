@@ -14,7 +14,7 @@ from mob_schema import HEAD_NAMES, MobSchema
 
 OUT = Path(__file__).resolve().parent / "out"
 PARITY_ROWS = 256
-EXPECTED_PARAMETERS = 274_537
+EXPECTED_PARAMETERS = 275_177
 SEED = 20261118
 
 
@@ -29,7 +29,7 @@ def write_fixtures(schema: MobSchema, failures: list[str]) -> None:
     policy = MobPolicy(schema).eval()
     critic = MobCritic(schema).eval()
     parameters = sum(p.numel() for p in policy.parameters())
-    check(schema.observation_size == 563, "the observation has 563 values", failures)
+    check(schema.observation_size == 568, "the observation has 568 values", failures)
     check(schema.logit_count == 41, "the action heads have 41 options", failures)
     check(parameters == EXPECTED_PARAMETERS, f"the policy has {parameters:,} parameters", failures)
 

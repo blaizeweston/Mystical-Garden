@@ -16,7 +16,7 @@ static const MoKind config_kinds[MC_COUNT] = {
     [MC_REALS] = MO_FLOATS, [MC_VISION] = MO_FLOATS, [MC_HIT_RADIUS] = MO_FLOATS, [MC_MAX_RANGE] = MO_FLOATS, [MC_SUPPORT] = MO_BYTES,
     [MC_ROLE] = MO_INTS, [MC_ATTACK_EXISTS] = MO_BYTES, [MC_ATTACK_MUTATION] = MO_INTS, [MC_ATTACK_SHAPE] = MO_BYTES,
     [MC_ATTACK_RANGE] = MO_FLOATS, [MC_ATTACK_AREA] = MO_FLOATS, [MC_ATTACK_WINDUP] = MO_INTS, [MC_ATTACK_RECOVERY] = MO_INTS,
-    [MC_HOLD_TICKS] = MO_INTS, [MC_TARGET_KIND] = MO_BYTES,
+    [MC_HOLD_TICKS] = MO_INTS, [MC_TARGET_KIND] = MO_BYTES, [MC_TRAITS] = MO_FLOATS,
 };
 
 static const MoKind input_kinds[MI_COUNT] = {
@@ -30,6 +30,10 @@ static const MoKind input_kinds[MI_COUNT] = {
     [MI_SEEN_TICK] = MO_INTS, [MI_ALLIES] = MO_INTS, [MI_PARTY_PRESENT] = MO_BYTES, [MI_PARTY_ALIVE] = MO_BYTES, [MI_PARTY_HP] = MO_FLOATS,
     [MI_PARTY_MAX_HP] = MO_FLOATS, [MI_PARTY_VX] = MO_FLOATS, [MI_PARTY_VZ] = MO_FLOATS, [MI_TAKEN] = MO_FLOATS, [MI_DEALT] = MO_FLOATS,
     [MI_TAKEN_FROM] = MO_FLOATS, [MI_DEALT_TO] = MO_FLOATS, [MI_ENGAGED_AT] = MO_INTS,
+    [MI_MANA] = MO_FLOATS, [MI_CHANNEL_UNTIL] = MO_INTS, [MI_DODGE_UNTIL] = MO_INTS, [MI_DODGE_READY] = MO_INTS,
+    [MI_DOT_UNTIL] = MO_INTS, [MI_ARMOUR] = MO_BYTES, [MI_FIELD_X] = MO_FLOATS, [MI_FIELD_Z] = MO_FLOATS,
+    [MI_FIELD_RADIUS] = MO_FLOATS, [MI_FIELD_ACTIVATE] = MO_INTS, [MI_FIELD_UNTIL] = MO_INTS, [MI_FIELD_OWNER] = MO_BYTES,
+    [MI_FIELD_FLAGS] = MO_BYTES, [MI_PARTY_STATS] = MO_FLOATS, [MI_PARTY_TIMERS] = MO_INTS,
 };
 
 MoKind mo_config_kind(int index) { return config_kinds[index]; }
@@ -45,6 +49,7 @@ struct MobObs {
     float *vision, *hit_radius, *max_range, *attack_range, *attack_area;
     uint8_t *support, *attack_exists, *attack_shape, *target_kind;
     int *role, *attack_mutation, *attack_windup, *attack_recovery, *hold_ticks;
+    float *traits;
     float *seen_hp, *seen_max_hp, *seen_vx, *seen_vz;
     int *last_visible;
 };
@@ -52,6 +57,7 @@ struct MobObs {
 typedef struct {
     MobObs *o;
     const MobNav *nav;
+    const MobSense *sense;
     float *out;
     int base;
     double vision;
@@ -65,6 +71,10 @@ typedef struct {
     const int *stun_until, *root_until, *slow_until, *haste_until, *seen_tick, *allies, *engaged_at;
     const float *xz, *hp, *max_hp, *speed, *damage, *reach_bonus, *intelligence, *seen_x, *seen_z;
     const float *party_hp, *party_max_hp, *party_vx, *party_vz, *taken, *dealt, *taken_from, *dealt_to;
+    const float *mana, *field_x, *field_z, *field_radius, *party_stats;
+    const int *channel_until, *dodge_until, *dodge_ready, *dot_until, *field_activate, *field_until, *party_timers;
+    const uint8_t *armour, *field_owner, *field_flags;
+    int field_count;
     int targeting[8];
 } Ctx;
 
@@ -86,6 +96,7 @@ void mo_destroy(MobObs *obs) {
     free(obs->attack_windup);
     free(obs->attack_recovery);
     free(obs->hold_ticks);
+    free(obs->traits);
     free(obs->seen_hp);
     free(obs->seen_max_hp);
     free(obs->seen_vx);
@@ -119,7 +130,8 @@ MoResult mo_create(const void *const *items, const int64_t *lengths, MobObs **ou
         lengths[MC_ROLE] != species || lengths[MC_ATTACK_EXISTS] != attack_cells || lengths[MC_ATTACK_MUTATION] != attack_cells ||
         lengths[MC_ATTACK_SHAPE] != attack_cells || lengths[MC_ATTACK_RANGE] != attack_cells || lengths[MC_ATTACK_AREA] != attack_cells ||
         lengths[MC_ATTACK_WINDUP] != attack_cells || lengths[MC_ATTACK_RECOVERY] != attack_cells ||
-        lengths[MC_HOLD_TICKS] != dim[MD_BEHAVIOURS] || lengths[MC_TARGET_KIND] != dim[MD_BEHAVIOURS]) {
+        lengths[MC_HOLD_TICKS] != dim[MD_BEHAVIOURS] || lengths[MC_TARGET_KIND] != dim[MD_BEHAVIOURS] ||
+        lengths[MC_TRAITS] != (int64_t)species * MT_COUNT || dim[MD_HAZARD_SLOTS] <= 0) {
         return MO_ERR_ARGUMENT;
     }
     const int *fields = items[MC_FIELDS];
@@ -148,6 +160,7 @@ MoResult mo_create(const void *const *items, const int64_t *lengths, MobObs **ou
     o->attack_recovery = copy_table(items[MC_ATTACK_RECOVERY], attack_cells, sizeof(int));
     o->hold_ticks = copy_table(items[MC_HOLD_TICKS], dim[MD_BEHAVIOURS], sizeof(int));
     o->target_kind = copy_table(items[MC_TARGET_KIND], dim[MD_BEHAVIOURS], 1);
+    o->traits = copy_table(items[MC_TRAITS], (int64_t)species * MT_COUNT, sizeof(float));
     size_t sensed = (size_t)capacity * (size_t)players;
     o->seen_hp = calloc(sensed, sizeof(float));
     o->seen_max_hp = calloc(sensed, sizeof(float));
@@ -156,7 +169,7 @@ MoResult mo_create(const void *const *items, const int64_t *lengths, MobObs **ou
     o->last_visible = malloc((size_t)capacity * sizeof(int));
     if (!o->scale_kind || !o->scale_inverse || !o->vision || !o->hit_radius || !o->max_range || !o->support || !o->role ||
         !o->attack_exists || !o->attack_mutation || !o->attack_shape || !o->attack_range || !o->attack_area || !o->attack_windup ||
-        !o->attack_recovery || !o->hold_ticks || !o->target_kind || !o->seen_hp || !o->seen_max_hp || !o->seen_vx || !o->seen_vz ||
+        !o->attack_recovery || !o->hold_ticks || !o->target_kind || !o->traits || !o->seen_hp || !o->seen_max_hp || !o->seen_vx || !o->seen_vz ||
         !o->last_visible) {
         mo_destroy(o);
         return MO_ERR_MEMORY;
@@ -447,7 +460,7 @@ static void write_cover(Ctx *c, int slot) {
     if (player >= 0 && c->seen_tick[slot * o->dim[MD_PLAYERS] + player] >= 0 && targetable(c, player)) {
         int row = slot * o->dim[MD_PLAYERS] + player;
         for (int i = 0; i < count; i++) {
-            blocked[i] = (uint8_t)(mn_line_clear(c->nav, c->seen_x[row], c->seen_z[row], points_x[i], points_z[i], 0.0f) == 0);
+            blocked[i] = (uint8_t)(mn_sight_clear(c->nav, c->seen_x[row], c->seen_z[row], points_x[i], points_z[i], 0.0f) == 0);
         }
     }
     int chosen = 0;
@@ -461,7 +474,106 @@ static void write_cover(Ctx *c, int slot) {
     }
 }
 
-MoResult mo_build(MobObs *o, const MobNav *nav, const void *const *items, const int64_t *lengths, float *out) {
+static inline float trait(const MobObs *o, int kind, MoTrait which) { return o->traits[kind * MT_COUNT + which]; }
+
+static inline double light_at(const Ctx *c, float x, float z) { return c->sense != NULL ? (double)ms_light_at(c->sense, x, z) : 1.0; }
+
+/* Traits, mana, dodge, light and flight: the mechanics the simulation added for schema v2. */
+static void write_mechanics(Ctx *c, int slot, int kind) {
+    const MobObs *o = c->o;
+    const int *f = o->field;
+    int flies = trait(o, kind, MT_FLY) != 0.0f;
+    put(c, f[MF_FLY_SPEED], flies ? (double)c->speed[slot] : 0.0);
+    put(c, f[MF_ARMOUR], c->armour[slot] != 0);
+    put(c, f[MF_HEARING], trait(o, kind, MT_HEARING));
+    put(c, f[MF_SMELL], trait(o, kind, MT_SMELL));
+    put(c, f[MF_DARKVISION], trait(o, kind, MT_DARKVISION));
+    put(c, f[MF_EVASION], trait(o, kind, MT_EVASION));
+    put(c, f[MF_CAN_DODGE], trait(o, kind, MT_CAN_DODGE) != 0.0f);
+    float pool = trait(o, kind, MT_MANA_POOL);
+    put(c, f[MF_USES_MANA], pool > 0.0f);
+    put(c, f[MF_GLOW], trait(o, kind, MT_GLOW));
+    put(c, f[MF_RESOURCE], pool > 0.0f ? (double)c->mana[slot] / (double)pool : 1.0);
+    if (trait(o, kind, MT_CAN_DODGE) != 0.0f) put(c, f[MF_DODGE_COOLDOWN], seconds(c, non_negative(c->dodge_ready[slot] - c->tick)));
+    put(c, f[MF_CHANNELING], c->tick < c->channel_until[slot]);
+    put(c, f[MF_DODGING], c->tick < c->dodge_until[slot]);
+    put(c, f[MF_LIGHT], light_at(c, c->xz[slot * 2], c->xz[slot * 2 + 1]));
+    put(c, f[MF_AIRBORNE], flies);
+    put(c, f[MF_DOT], c->tick < c->dot_until[slot]);
+}
+
+/* The nearest ground areas that have not ended, closest edge first, ties by index, as MobFields.nearest. Distances
+ * use single precision like Godot's Vector2, so the GDScript reference picks the same areas. */
+static void write_hazards(Ctx *c, int slot, int kind) {
+    const MobObs *o = c->o;
+    const int *f = o->field;
+    int wanted = o->dim[MD_HAZARD_SLOTS];
+    int chosen[8];
+    double edge[8];
+    int found = 0;
+    if (wanted > 8) wanted = 8;
+    float mx = c->xz[slot * 2], mz = c->xz[slot * 2 + 1];
+    for (int index = 0; index < c->field_count; index++) {
+        if (c->tick >= c->field_until[index]) continue;
+        float dx = mx - c->field_x[index], dz = mz - c->field_z[index];
+        double distance = (double)sqrtf(dx * dx + dz * dz) - (double)c->field_radius[index];
+        int at = found < wanted ? found++ : wanted;
+        if (at == wanted) {
+            if (distance >= edge[wanted - 1]) continue;
+            at = wanted - 1;
+        }
+        while (at > 0 && edge[at - 1] > distance) {
+            edge[at] = edge[at - 1];
+            chosen[at] = chosen[at - 1];
+            at--;
+        }
+        edge[at] = distance;
+        chosen[at] = index;
+    }
+    int flies = trait(o, kind, MT_FLY) != 0.0f;
+    for (int i = 0; i < found; i++) {
+        int index = chosen[i];
+        int shift = i * o->stride[MS_HAZARD];
+        float dx = c->field_x[index] - mx, dz = c->field_z[index] - mz;
+        float radius = c->field_radius[index];
+        int ground = (c->field_flags[index] & o->dim[MD_FIELD_GROUND]) != 0;
+        put(c, f[MF_H_PRESENT] + shift, 1.0);
+        put(c, f[MF_H_DX] + shift, dx);
+        put(c, f[MF_H_DY] + shift, dz);
+        put(c, f[MF_H_RADIUS] + shift, radius);
+        put(c, f[MF_H_IMPACT] + shift, seconds(c, non_negative(c->field_activate[index] - c->tick)));
+        put(c, f[MF_H_HOSTILE] + shift, c->field_owner[index] == o->dim[MD_OWNER_PLAYERS] && !(ground && flies));
+        put(c, f[MF_H_INSIDE] + shift, (double)dx * dx + (double)dz * dz <= (double)radius * radius);
+    }
+}
+
+/* Player combat stats, which a mob knows once it has sensed the player; wind-ups and dodges only while in sight. */
+static void write_player_stats(Ctx *c, int slot) {
+    const MobObs *o = c->o;
+    const int *f = o->field;
+    int players = o->dim[MD_PLAYERS];
+    for (int player = 0; player < players; player++) {
+        int row = slot * players + player;
+        if (c->party_present[player] == 0 || c->seen_tick[row] < 0) continue;
+        int shift = player * o->stride[MS_ENEMY];
+        const float *stat = c->party_stats + player * MP_COUNT;
+        const int *timer = c->party_timers + player * MPT_COUNT;
+        int sees = c->visible[row] != 0 && targetable(c, player);
+        put(c, f[MF_E_MELEE_DAMAGE] + shift, stat[MP_MELEE_DAMAGE]);
+        put(c, f[MF_E_RANGED_DAMAGE] + shift, stat[MP_RANGED_DAMAGE]);
+        put(c, f[MF_E_MELEE_RANGE] + shift, stat[MP_MELEE_RANGE]);
+        put(c, f[MF_E_RANGED_RANGE] + shift, stat[MP_RANGED_RANGE]);
+        put(c, f[MF_E_SPEED] + shift, stat[MP_SPEED]);
+        put(c, f[MF_E_ATTACK_SPEED] + shift, stat[MP_ATTACK_SPEED]);
+        put(c, f[MF_E_ARMOUR] + shift, stat[MP_ARMOUR]);
+        put(c, f[MF_E_DODGE_COOLDOWN] + shift, seconds(c, non_negative(timer[MPT_DODGE_READY] - c->tick)));
+        put(c, f[MF_E_WINDING] + shift, sees && c->tick < timer[MPT_WINDUP_UNTIL]);
+        put(c, f[MF_E_DODGING] + shift, sees && c->tick < timer[MPT_DODGE_UNTIL]);
+        put(c, f[MF_E_LIGHT] + shift, light_at(c, c->seen_x[row], c->seen_z[row]));
+    }
+}
+
+MoResult mo_build(MobObs *o, const MobNav *nav, const MobSense *sense, const void *const *items, const int64_t *lengths, float *out) {
     if (o == NULL || nav == NULL || items == NULL || lengths == NULL) return MO_ERR_STATE;
     int capacity = o->dim[MD_CAPACITY], players = o->dim[MD_PLAYERS], attacks = o->dim[MD_ATTACKS], allies = o->dim[MD_ALLIES];
     int buckets = o->dim[MD_BUCKETS];
@@ -470,6 +582,7 @@ MoResult mo_build(MobObs *o, const MobNav *nav, const void *const *items, const 
         MI_ALIVE, MI_GENERATION, MI_SPECIES, MI_FLAGS, MI_MUTATIONS, MI_LEADER, MI_LEADER_GENERATION, MI_HP, MI_MAX_HP, MI_SPEED, MI_DAMAGE,
         MI_REACH_BONUS, MI_INTELLIGENCE, MI_BEHAVIOUR, MI_ENEMY_TARGET, MI_ALLY_TARGET, MI_MESSAGE_A, MI_MESSAGE_B, MI_BEHAVIOUR_SINCE,
         MI_READY_AT, MI_STUN_UNTIL, MI_ROOT_UNTIL, MI_SLOW_UNTIL, MI_HASTE_UNTIL, MI_ENGAGED_AT,
+        MI_MANA, MI_CHANNEL_UNTIL, MI_DODGE_UNTIL, MI_DODGE_READY, MI_DOT_UNTIL, MI_ARMOUR,
     };
     for (size_t i = 0; i < sizeof(per_slot) / sizeof(per_slot[0]); i++) {
         if (lengths[per_slot[i]] != cells) return MO_ERR_ARGUMENT;
@@ -481,7 +594,13 @@ MoResult mo_build(MobObs *o, const MobNav *nav, const void *const *items, const 
     if (lengths[MI_CLOCK] != 2 || lengths[MI_XZ] != cells * 2 || lengths[MI_COOLDOWN_UNTIL] != cells * attacks ||
         lengths[MI_VISIBLE] != sensed || lengths[MI_SEEN_X] != sensed || lengths[MI_SEEN_Z] != sensed || lengths[MI_SEEN_TICK] != sensed ||
         lengths[MI_ALLIES] != cells * allies || lengths[MI_TAKEN] != cells * buckets || lengths[MI_DEALT] != cells * buckets ||
-        lengths[MI_TAKEN_FROM] != sensed * buckets || lengths[MI_DEALT_TO] != sensed * buckets || lengths[MI_ACTIVE] > cells) {
+        lengths[MI_TAKEN_FROM] != sensed * buckets || lengths[MI_DEALT_TO] != sensed * buckets || lengths[MI_ACTIVE] > cells ||
+        lengths[MI_PARTY_STATS] != (int64_t)players * MP_COUNT || lengths[MI_PARTY_TIMERS] != (int64_t)players * MPT_COUNT) {
+        return MO_ERR_ARGUMENT;
+    }
+    int64_t fields = lengths[MI_FIELD_X];
+    if (lengths[MI_FIELD_Z] != fields || lengths[MI_FIELD_RADIUS] != fields || lengths[MI_FIELD_ACTIVATE] != fields ||
+        lengths[MI_FIELD_UNTIL] != fields || lengths[MI_FIELD_OWNER] != fields || lengths[MI_FIELD_FLAGS] != fields) {
         return MO_ERR_ARGUMENT;
     }
     const int *slots = items[MI_SLOTS];
@@ -490,7 +609,7 @@ MoResult mo_build(MobObs *o, const MobNav *nav, const void *const *items, const 
         if (slots[i] < 0 || slots[i] >= capacity) return MO_ERR_ARGUMENT;
     }
     const int *clock = items[MI_CLOCK];
-    Ctx c = {.o = o, .nav = nav, .out = out, .tick = clock[0], .bucket = clock[1], .active = items[MI_ACTIVE], .active_count = (int)lengths[MI_ACTIVE],
+    Ctx c = {.o = o, .nav = nav, .sense = sense, .out = out, .tick = clock[0], .bucket = clock[1], .active = items[MI_ACTIVE], .active_count = (int)lengths[MI_ACTIVE],
              .alive = items[MI_ALIVE], .flags = items[MI_FLAGS], .behaviour = items[MI_BEHAVIOUR], .enemy_target = items[MI_ENEMY_TARGET],
              .ally_target = items[MI_ALLY_TARGET], .message_a = items[MI_MESSAGE_A], .message_b = items[MI_MESSAGE_B], .visible = items[MI_VISIBLE],
              .party_present = items[MI_PARTY_PRESENT], .party_alive = items[MI_PARTY_ALIVE], .generation = items[MI_GENERATION],
@@ -502,7 +621,12 @@ MoResult mo_build(MobObs *o, const MobNav *nav, const void *const *items, const 
              .damage = items[MI_DAMAGE], .reach_bonus = items[MI_REACH_BONUS], .intelligence = items[MI_INTELLIGENCE], .seen_x = items[MI_SEEN_X],
              .seen_z = items[MI_SEEN_Z], .party_hp = items[MI_PARTY_HP], .party_max_hp = items[MI_PARTY_MAX_HP], .party_vx = items[MI_PARTY_VX],
              .party_vz = items[MI_PARTY_VZ], .taken = items[MI_TAKEN], .dealt = items[MI_DEALT], .taken_from = items[MI_TAKEN_FROM],
-             .dealt_to = items[MI_DEALT_TO]};
+             .dealt_to = items[MI_DEALT_TO], .mana = items[MI_MANA], .channel_until = items[MI_CHANNEL_UNTIL],
+             .dodge_until = items[MI_DODGE_UNTIL], .dodge_ready = items[MI_DODGE_READY], .dot_until = items[MI_DOT_UNTIL],
+             .armour = items[MI_ARMOUR], .field_x = items[MI_FIELD_X], .field_z = items[MI_FIELD_Z], .field_radius = items[MI_FIELD_RADIUS],
+             .field_activate = items[MI_FIELD_ACTIVATE], .field_until = items[MI_FIELD_UNTIL], .field_owner = items[MI_FIELD_OWNER],
+             .field_flags = items[MI_FIELD_FLAGS], .party_stats = items[MI_PARTY_STATS], .party_timers = items[MI_PARTY_TIMERS],
+             .field_count = (int)fields};
     memset(out, 0, (size_t)rows * (size_t)o->dim[MD_OBSERVATION] * sizeof(float));
     for (int i = 0; i < c.active_count; i++) {
         int target = c.enemy_target[c.active[i]];
@@ -523,6 +647,9 @@ MoResult mo_build(MobObs *o, const MobNav *nav, const void *const *items, const 
         write_intent(&c, slot, kind);
         write_mates(&c, slot);
         write_counts(&c, slot);
+        write_mechanics(&c, slot, kind);
+        write_hazards(&c, slot, kind);
+        write_player_stats(&c, slot);
         float query = (float)slot;
         mn_wall_rays(nav, &query, 1, o->real[MR_WALL_RANGE], walls);
         for (int ray = 0; ray < rays; ray++) put(&c, o->field[MF_WALLS] + ray, walls[ray]);

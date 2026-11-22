@@ -17,6 +17,8 @@ var species: Species
 var perception: Perception
 ## The native world that builds masks and runs the scripted brain. Set by MobSim.
 var world: RefCounted
+## Ground areas (MobFields), read by observations. Set by MobSim.
+var fields: RefCounted
 
 var slots := PackedInt32Array()
 ## slots.size() * contract.mask_size bytes, in head order. Nonzero means the option is legal.

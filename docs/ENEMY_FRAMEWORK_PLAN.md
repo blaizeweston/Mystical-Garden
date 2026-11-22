@@ -229,7 +229,7 @@ Each phase ends with evidence and a review before the next starts.
 | 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Done: parts 1 to 3 on 2026-11-21, the legacy comparison on 2026-11-22 | Arena files only |
 | 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Done 2026-11-22 in four parts | Arena files only |
 | 5 | Arena speed, presentation of the new mechanics (replicated to guests), and elite kits with the gate elite run by the framework. Bosses keep scripted plans for now. Done 2026-11-22 in three parts: speed, presentation, elite kits | Arena files only |
-| 6 | Schema v2, rewards v2, training loop, curriculum and evaluation | None |
+| 6 | Schema v2, rewards v2, a stronger stand-in party, a resumable training loop, curriculum with self-play, and evaluation. Part A (schema v2) done 2026-11-22 | None |
 | 7 | Live toggles, with Legacy enemies and darkness off by default | Small hooks: settings, `tick_enemies`, spawning, guest snapshots, fog of war. Approved step by step |
 | 8 | After acceptance: New enemies become the default, then legacy enemy code is removed | Approved separately |
 
@@ -571,3 +571,25 @@ Checks: a new arena check runs a Gallhorn gate elite with a Rootbound-only roste
 ### Phase 5 summary
 
 All three parts are in: the arena runs faster (lazy route fields and arena-side savings), the new mechanics are drawn on the host and replicated to guests, and the gate elite runs on the framework with its elite kit. Bosses keep their scripted plans. Phase 3 part 4, the comparison with legacy enemies, was done afterwards (see the Phase 3 record).
+
+## Phase 6 record
+
+Decisions (2026-11-22): build in the order schema v2, rewards v2, stand-in party, training loop, curriculum and evaluation. Godot workers and the Python trainer exchange files. Train in the simulation against stand-in players until the enemies reliably beat them, then self-play: a learned player net against the mob net, with opponents drawn from a pool of past checkpoints and some scripted stand-ins kept in the mix. Training must be easy to start and stop, resume after pauses and reboots, and survive power loss without corrupting data. Long runs are started by the user, not during development; this phase ends with a short proof run and a time estimate.
+
+### Part A: schema v2
+
+Built 2026-11-22. `ai/schema.json` is version 2. Every input that the framework now has data for is live; the observation grows from 563 to 568 values and the policy has 275,177 parameters. A model trained on version 1 cannot be loaded (none exists).
+
+| Inputs | Source |
+|---|---|
+| Own traits: flight speed, armour, evasion, hearing, smell and darkvision ranges, can dodge, uses mana, glow radius | Species traits and the mob's armour |
+| Own state: mana fraction, dodge cooldown, channeling, dodging, light level where it stands, flying, damage over time | The pool and the light grid |
+| The two nearest ground areas: position, radius, time until active, whether it harms this mob, whether the mob stands in it | The field registry (`MobFields`); ground areas do not harm flyers |
+| Each player: melee and ranged damage and reach, speed, attacks per second, armour, dodge cooldown, winding up, dodging, light level | `MobParty.set_stats` and `set_timers`, published by the host. Wind-ups and dodges show only while the player is in sight |
+| Critic only: the objective, the share of supports spawned this episode still alive | The pool's support count |
+
+Still masked, because nothing supplies them yet: the party profile, player resistances, and player buffs and debuffs.
+
+Both builders changed together: `native/mob_obs.c` (which now reads the light grid directly) and `ai/mob_observation_builder.gd`. Nearest areas are chosen by edge distance in single precision on both sides. Cover sight now uses the sight grid, matching perception. The arena publishes each player's weapon damage, reach and attack rate once a second; dodge and wind-up timers are not published there yet.
+
+Checks: the native and GDScript observations agree to within 1e-7 over 6,552 rows by day and 9,687 rows at night with player stats and changing timers. Every suite, the arena checks, the multiplayer check and the bench pass.

@@ -36,6 +36,10 @@ const UNLOCKS := Species.UNLOCK_SIGNATURE | Species.UNLOCK_COUNTER
 ## The gate elite chases 8% faster than its species, and has its signature from this floor, as in the game.
 const ELITE_PURSUIT := 1.08
 const ELITE_SIGNATURE_FLOOR := 3
+## Player combat stats are read from the game's weapon stats this often, in ticks.
+const STATS_TICKS := 60
+## Weapons that reach farther than this count as ranged in the published stats.
+const RANGED_REACH := 3.0
 
 var game: Node
 var config: Config
@@ -259,6 +263,19 @@ func _publish_party() -> void:
 		var velocity: Vector3 = game.combat_velocity.get(peer, Vector3.ZERO)
 		var health: float = PlayerVitals.current_hp(record) if game.Life.alive(record) else 0.0
 		sim.party.set_player(player, Vector2(record.pos.x, record.pos.z), Vector2(velocity.x, velocity.z), health, PlayerVitals.maximum_hp(record))
+		if sim.clock.tick % STATS_TICKS == 0:
+			_publish_stats(player, record)
+
+
+## The player's weapon as combat stats for observations. Dodge and wind-up timers are not published yet.
+func _publish_stats(player: int, record: Dictionary) -> void:
+	var weapon: Dictionary = game.weapon_stats(record)
+	var damage := float(weapon.get("damage", 0.0))
+	var reach := float(weapon.get("reach", 0.0))
+	var ranged := reach > RANGED_REACH
+	var per_second := 1000.0 / maxf(1.0, float(weapon.get("interval", 1000)))
+	sim.party.set_stats(player, PackedFloat32Array([0.0 if ranged else damage, damage if ranged else 0.0, 0.0 if ranged else reach,
+		reach if ranged else 0.0, float(game.WALK_SPEED), per_second, 0.0]))
 
 
 ## The game resolves a hit before the simulation sees it. A dodge restores a hit the mob survived, and a

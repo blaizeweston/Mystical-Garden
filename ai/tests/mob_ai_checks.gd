@@ -79,12 +79,12 @@ func check(condition: bool, label: String) -> void:
 
 func test_schema(schema: Schema) -> void:
 	check(schema.errors.is_empty(), "the schema loads without errors " + str(schema.errors))
-	check(schema.observation_size == 563, "the observation has 563 values")
+	check(schema.observation_size == 568, "the observation has 568 values")
 	check(schema.global_size == 52, "the critic state has 52 values")
 	var encoder_sizes := {}
 	for block in schema.ordered_blocks:
 		encoder_sizes[block.encoder] = int(encoder_sizes.get(block.encoder, 0)) + block.stride * block.repeat
-	check(encoder_sizes == {"self": 151, "enemy": 136, "ally": 234, "leader": 42}, "each encoder receives the agreed size")
+	check(encoder_sizes == {"self": 156, "enemy": 136, "ally": 234, "leader": 42}, "each encoder receives the agreed size")
 	var builder := Builder.new(schema)
 	check(builder.errors.is_empty(), "every live field has a source and no masked field does " + str(builder.errors))
 	var file := FileAccess.open(LAYOUT, FileAccess.WRITE)
@@ -152,23 +152,38 @@ func neural_arena(schema: Schema, count: int, seed_value: int) -> Arena:
 	return arena
 
 
-func test_native_observations(schema: Schema) -> void:
-	var arena := Arena.new(2222, LOCKSTEP_MOBS)
+## With dark set, the encounter is at night with lit players, and the players publish combat stats and
+## changing dodge and wind-up timers, so light levels and player stats are compared too.
+func test_native_observations(schema: Schema, dark := false) -> void:
+	var arena := Arena.new(2222 if not dark else 3333, LOCKSTEP_MOBS)
 	var brain := LockstepBrain.new()
 	brain.builder = Builder.new(schema)
 	brain.runtime = Runtime.new(schema, arena.sim.locomotion.world)
 	brain.event_log = arena.sim.events
 	arena.sim.brain = brain
+	var party = arena.sim.party
+	if dark:
+		arena.sim.set_darkness(true, 0.1)
+		for player in party.count:
+			party.set_stats(player, PackedFloat32Array([10.0 + player, 6.0, 2.0 + player * 0.5, 8.0, 4.5, 1.1, 0.1 * player]))
 	for tick in LOCKSTEP_TICKS:
 		arena.before_tick()
+		if dark:
+			var lights := PackedFloat32Array()
+			for player in party.count:
+				lights.append_array(PackedFloat32Array([party.x[player], party.z[player], 5.5, 1.0]))
+				var now: int = arena.sim.clock.tick
+				party.set_timers(player, now + (tick * 7 + player * 13) % 90, now + (tick + player) % 40 - 20, now + (tick * 3 + player) % 30 - 15)
+			arena.sim.perception.lights = lights
 		arena.sim.tick()
 		arena.after_tick()
-	report["observation_rows_compared"] = brain.rows
-	report["observation_max_difference"] = brain.worst
-	check(brain.rows > 1000, "the native and GDScript builders compared %d observation rows" % brain.rows)
-	check(brain.mismatched_sizes == 0, "both builders return the same number of values")
-	check(brain.worst < OBSERVATION_LIMIT, "native observations match GDScript (largest difference %.8f at value %d)" % [brain.worst, brain.worst_index % maxi(1, schema.observation_size)])
-	check(brain.global_size == schema.global_size, "the critic state builds alongside the observations")
+	var label := " at night with player stats" if dark else ""
+	report["observation_rows_compared" + ("_dark" if dark else "")] = brain.rows
+	report["observation_max_difference" + ("_dark" if dark else "")] = brain.worst
+	check(brain.rows > 1000, "the native and GDScript builders compared %d observation rows%s" % [brain.rows, label])
+	check(brain.mismatched_sizes == 0, "both builders return the same number of values" + label)
+	check(brain.worst < OBSERVATION_LIMIT, "native observations match GDScript%s (largest difference %.8f at value %d)" % [label, brain.worst, brain.worst_index % maxi(1, schema.observation_size)])
+	check(brain.global_size == schema.global_size, "the critic state builds alongside the observations" + label)
 
 
 func test_arena(schema: Schema) -> void:
@@ -343,6 +358,7 @@ func run() -> void:
 	test_refuses_wrong_model(schema)
 	test_observation_values(schema)
 	test_native_observations(schema)
+	test_native_observations(schema, true)
 	test_repeatable(schema)
 	test_arena(schema)
 	print("AI_REPORT ", JSON.stringify(report))

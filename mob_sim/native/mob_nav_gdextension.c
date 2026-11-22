@@ -185,7 +185,7 @@ static void m_obs_build(World *world, const void *const *args, void *result) {
     if (ready) values = lengths[MI_SLOTS] * mo_observation_size(world->obs);
     GDExtensionConstTypePtr resize_args[] = {&values};
     floats_resize(result, resize_args, &resized, 1);
-    if (values > 0 && resized == 0 && mo_build(world->obs, world->nav, items, lengths, floats_at(result, 0)) != MO_OK) {
+    if (values > 0 && resized == 0 && mo_build(world->obs, world->nav, world->sense, items, lengths, floats_at(result, 0)) != MO_OK) {
         values = 0;
         floats_resize(result, resize_args, &resized, 1);
     }

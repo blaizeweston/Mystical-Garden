@@ -81,6 +81,8 @@ func _init(slots: int, awake_brain: Brain = null) -> void:
 	_asleep_batch = Batch.new(contract, clock, pool, party, species, perception)
 	_awake_batch.world = locomotion.world
 	_asleep_batch.world = locomotion.world
+	_awake_batch.fields = fields
+	_asleep_batch.fields = fields
 	if locomotion.world == null or rules.configure_native(locomotion.world) != OK:
 		push_error("The native decision helpers could not be configured.")
 

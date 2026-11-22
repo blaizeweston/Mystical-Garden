@@ -11,6 +11,14 @@ var vz := PackedFloat32Array()
 var hp := PackedFloat32Array()
 var max_hp := PackedFloat32Array()
 var attackers := PackedInt32Array()
+## Combat stats per player, set by the host with set_stats: STAT_COUNT floats each, in Stat order.
+enum Stat { MELEE_DAMAGE, RANGED_DAMAGE, MELEE_RANGE, RANGED_RANGE, SPEED, ATTACK_SPEED, ARMOUR }
+const STAT_COUNT := 7
+var stats := PackedFloat32Array()
+## Per player, in ticks: when its dodge is ready, when its current wind-up ends, when its current dodge ends.
+enum Clocks { DODGE_READY, WINDUP_UNTIL, DODGE_UNTIL }
+const TIMER_COUNT := 3
+var timers := PackedInt32Array()
 
 
 func _init(players: int) -> void:
@@ -23,6 +31,23 @@ func _init(players: int) -> void:
 		table.fill(0.0)
 	attackers.resize(players)
 	attackers.fill(0)
+	stats.resize(players * STAT_COUNT)
+	stats.fill(0.0)
+	timers.resize(players * TIMER_COUNT)
+	timers.fill(0)
+
+
+## Publishes one player's combat stats: damage and range of its melee and ranged attacks, move speed, attacks
+## per second and armour (the share of damage it ignores).
+func set_stats(slot: int, values: PackedFloat32Array) -> void:
+	for index in mini(values.size(), STAT_COUNT):
+		stats[slot * STAT_COUNT + index] = values[index]
+
+
+func set_timers(slot: int, dodge_ready: int, windup_until: int, dodge_until: int) -> void:
+	timers[slot * TIMER_COUNT + Clocks.DODGE_READY] = dodge_ready
+	timers[slot * TIMER_COUNT + Clocks.WINDUP_UNTIL] = windup_until
+	timers[slot * TIMER_COUNT + Clocks.DODGE_UNTIL] = dodge_until
 
 
 func set_player(slot: int, at: Vector2, velocity: Vector2, health: float, health_max: float) -> void:

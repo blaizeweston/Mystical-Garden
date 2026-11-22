@@ -11,6 +11,8 @@ const History = preload("res://ai/mob_history.gd")
 const Pool = preload("res://mob_sim/mob_pool.gd")
 const Schema = preload("res://ai/mob_schema.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
+const Fields = preload("res://mob_sim/mob_fields.gd")
+const Tables = preload("res://mob_sim/definitions/definition_tables.gd")
 
 const MATE_LABELS := ["present", "dx", "dy", "distance", "hp_fraction", "hp_lost_1s", "damage_dealt_1s", "is_elite",
 	"role_melee", "role_ranged", "role_support", "behaviour", "enemy_target", "message"]
@@ -31,6 +33,13 @@ const FIELD_KEYS := [
 		"downed", "facing_me", "has_sight_of_me", "damage_they_dealt_me", "damage_i_dealt_them", "allies_targeting"]],
 	["ally", MATE_LABELS],
 	["leader", MATE_LABELS + ["ability_cooldown"]],
+	["self_capabilities", ["fly_speed", "armour", "hearing_range", "smell_range", "darkvision_range", "evasion", "can_dodge",
+		"uses_mana", "glow_radius"]],
+	["self_dynamic", ["resource_fraction", "dodge_cooldown", "channeling", "dodging", "light_level", "is_airborne"]],
+	["self_status", ["damage_over_time"]],
+	["context_hazard", ["present", "dx", "dy", "radius", "time_to_impact", "hostile", "mob_is_inside"]],
+	["enemy", ["melee_damage", "ranged_damage", "melee_range", "ranged_range", "speed", "attack_speed", "dodge_cooldown", "armour",
+		"winding_up", "dodging", "light_level"]],
 ]
 
 var schema: Schema
@@ -95,19 +104,29 @@ func _configure(batch: Batch) -> bool:
 	var dims := PackedInt32Array([pool.capacity, contract.players, contract.allies, pool.attacks, table.count, contract.behaviour_count,
 		contract.message_symbols, schema.observation_size, History.BUCKETS, History.ONE_SECOND_BUCKETS, schema.blocks.self_ability.repeat,
 		schema.blocks.context_cover.repeat, Species.Shape.BUFF, Species.Shape.SUMMON, Contract.TargetKind.ALLY,
-		Pool.FLAG_LEADER | Pool.FLAG_ELITE])
+		Pool.FLAG_LEADER | Pool.FLAG_ELITE, schema.blocks.context_hazard.repeat, Fields.Owner.PLAYERS, Fields.FLAG_GROUND])
 	var strides := PackedInt32Array([schema.blocks.self_ability.stride, schema.blocks.enemy.stride, schema.blocks.ally.stride,
-		schema.blocks.context_cover.stride])
+		schema.blocks.context_cover.stride, schema.blocks.context_hazard.stride])
 	var reals := PackedFloat32Array([schema.clip, Builder.WALL_RANGE, Builder.COVER_CLEARANCE, Builder.FACING_DOT,
 		Builder.NEVER_SEEN_SECONDS, Builder.RANGED_ROLE_REACH, Clock.TICKS_PER_SECOND])
 	var status: int = world.obs_configure([dims, _field_offsets(), strides, schema.scale_kind, schema.scale_inverse, reals,
 		table.vision, table.hit_radius, table.max_range, table.support, roles,
 		table.attack_exists, table.attack_mutation, table.attack_shape, table.attack_range, table.attack_area,
-		table.attack_windup, table.attack_recovery, hold, contract.target_kind])
+		table.attack_windup, table.attack_recovery, hold, contract.target_kind, traits(table)])
 	if status != OK:
 		error = "The native observation builder refused its configuration."
 	_configured = status == OK
 	return _configured
+
+
+## Per species, in MoTrait order: hearing, smell, darkvision, evasion, glow, mana pool, can dodge, flies.
+static func traits(table: Species) -> PackedFloat32Array:
+	var tables = Tables.shared()
+	var result := PackedFloat32Array()
+	for kind in table.count:
+		result.append_array(PackedFloat32Array([tables.species_hearing[kind], tables.species_smell[kind], tables.species_darkvision[kind],
+			tables.species_evasion[kind], table.glow[kind], table.mana_pool[kind], table.can_dodge[kind], table.layer[kind]]))
+	return result
 
 
 ## Returns one observation row per mob in batch.slots.
@@ -126,4 +145,7 @@ func build(batch: Batch, events: Events) -> PackedFloat32Array:
 		pool.ready_at, pool.cooldown_until, pool.stun_until, pool.root_until, pool.slow_until, pool.haste_until,
 		senses.visible, senses.seen_x, senses.seen_z, senses.seen_tick, senses.allies,
 		party.present, party.alive, party.hp, party.max_hp, party.vx, party.vz,
-		history.taken, history.dealt, history.taken_from, history.dealt_to, history.engaged_at])
+		history.taken, history.dealt, history.taken_from, history.dealt_to, history.engaged_at,
+		pool.mana, pool.channel_until, pool.dodge_until, pool.dodge_ready_at, pool.dot_until, pool.armour,
+		batch.fields.x, batch.fields.z, batch.fields.radius, batch.fields.activate, batch.fields.until, batch.fields.owner, batch.fields.flags,
+		party.stats, party.timers])

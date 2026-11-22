@@ -10,6 +10,9 @@ const History = preload("res://ai/mob_history.gd")
 const Pool = preload("res://mob_sim/mob_pool.gd")
 const Schema = preload("res://ai/mob_schema.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
+const Fields = preload("res://mob_sim/mob_fields.gd")
+const Party = preload("res://mob_sim/mob_party.gd")
+const Tables = preload("res://mob_sim/definitions/definition_tables.gd")
 
 const WALL_RANGE := 12.0
 const COVER_RADII := [3.0, 6.0]
@@ -46,6 +49,7 @@ var _archetype: Schema.Block
 var _counts: Schema.Block
 var _walls: Schema.Block
 var _cover: Schema.Block
+var _hazard: Schema.Block
 var _enemy: Schema.Block
 var _ally: Schema.Block
 var _leader: Schema.Block
@@ -68,6 +72,7 @@ func _init(model_schema: Schema) -> void:
 	_counts = schema.blocks.context_counts
 	_walls = schema.blocks.context_walls
 	_cover = schema.blocks.context_cover
+	_hazard = schema.blocks.context_hazard
 	_enemy = schema.blocks.enemy
 	_ally = schema.blocks.ally
 	_leader = schema.blocks.leader
@@ -80,22 +85,27 @@ func _init(model_schema: Schema) -> void:
 
 ## Every live schema field must have a source here, and no masked field may have one.
 func _bind_all() -> void:
-	_bind(_caps, ["walk_speed", "size", "max_hp", "vision_range", "auto_damage", "auto_range", "auto_cooldown"])
+	_bind(_caps, ["walk_speed", "size", "max_hp", "vision_range", "auto_damage", "auto_range", "auto_cooldown", "fly_speed", "armour",
+		"hearing_range", "smell_range", "darkvision_range", "evasion", "can_dodge", "uses_mana", "glow_radius"])
 	_bind(_ability, ["exists", "damage", "range", "cooldown_total", "cooldown_remaining", "effect_sign", "area_radius", "windup_time"])
 	_bind(_dyn, ["hp_fraction", "hp_change_1s", "hp_change_3s", "damage_dealt_1s", "damage_dealt_3s", "auto_cooldown_remaining",
-		"time_since_behaviour_change", "behaviour_progress", "time_in_combat", "time_since_sight_lost", "is_leader", "intelligence"])
-	_bind(_status, ["stunned", "slowed", "rooted", "buffed"])
+		"time_since_behaviour_change", "behaviour_progress", "time_in_combat", "time_since_sight_lost", "is_leader", "intelligence",
+		"resource_fraction", "dodge_cooldown", "channeling", "dodging", "light_level", "is_airborne"])
+	_bind(_status, ["stunned", "slowed", "rooted", "buffed", "damage_over_time"])
 	_bind(_intent, ["behaviour", "target"])
 	_bind(_archetype, ["archetype"])
 	_bind(_counts, ["allies_nearby", "enemies_nearby", "enemy_total_hp", "enemy_hp_fraction", "ally_total_hp", "ally_hp_fraction"])
 	_bind(_walls, ["wall_distance"])
 	_bind(_cover, ["present", "dx", "dy", "distance", "blocks_target_sight"])
+	_bind(_hazard, ["present", "dx", "dy", "radius", "time_to_impact", "hostile", "mob_is_inside"])
 	_bind(_enemy, ["present", "visible", "time_since_seen", "dx", "dy", "distance", "relative_vx", "relative_vy", "hp_fraction", "max_hp",
-		"downed", "facing_me", "has_sight_of_me", "damage_they_dealt_me", "damage_i_dealt_them", "allies_targeting"])
+		"downed", "facing_me", "has_sight_of_me", "damage_they_dealt_me", "damage_i_dealt_them", "allies_targeting", "melee_damage",
+		"ranged_damage", "melee_range", "ranged_range", "speed", "attack_speed", "dodge_cooldown", "armour", "winding_up", "dodging",
+		"light_level"])
 	_bind(_ally, MATE_FIELDS)
 	_bind(_leader, MATE_FIELDS + ["ability_cooldown"])
 	_bind(_player, ["present", "alive", "x", "z", "vx", "vz", "hp_fraction", "max_hp"])
-	_bind(_totals, ["alive_by_archetype", "mob_total_hp", "party_total_hp", "episode_time"])
+	_bind(_totals, ["alive_by_archetype", "mob_total_hp", "party_total_hp", "episode_time", "objective_progress"])
 	for label: String in MATE_FIELDS:
 		_ally_at.append(_ally.at(label))
 		_leader_at.append(_leader.at(label))
@@ -194,6 +204,87 @@ func _write_row(batch: Batch, index: int, slot: int, walls: PackedFloat32Array, 
 	for ray in rays:
 		_put(base + _walls.offset + _at("context_walls.wall_distance") + ray, walls[index * rays + ray])
 	_write_cover(batch, base, slot)
+	_write_mechanics(batch, base, slot, kind, tick)
+	_write_hazards(batch, base, slot, kind, tick)
+	_write_player_stats(batch, base, slot, tick)
+
+
+## Traits, mana, dodge, light and flight, as write_mechanics in native/mob_obs.c.
+func _write_mechanics(batch: Batch, base: int, slot: int, kind: int, tick: int) -> void:
+	var pool := batch.pool
+	var table := batch.species
+	var tables = Tables.shared()
+	var flies: bool = table.layer[kind] != 0
+	var full: float = table.mana_pool[kind]
+	_put(base + _caps.offset + _at("self_capabilities.fly_speed"), pool.speed[slot] if flies else 0.0)
+	_put(base + _caps.offset + _at("self_capabilities.armour"), float(pool.armour[slot] != 0))
+	_put(base + _caps.offset + _at("self_capabilities.hearing_range"), tables.species_hearing[kind])
+	_put(base + _caps.offset + _at("self_capabilities.smell_range"), tables.species_smell[kind])
+	_put(base + _caps.offset + _at("self_capabilities.darkvision_range"), tables.species_darkvision[kind])
+	_put(base + _caps.offset + _at("self_capabilities.evasion"), tables.species_evasion[kind])
+	_put(base + _caps.offset + _at("self_capabilities.can_dodge"), float(table.can_dodge[kind] != 0))
+	_put(base + _caps.offset + _at("self_capabilities.uses_mana"), float(full > 0.0))
+	_put(base + _caps.offset + _at("self_capabilities.glow_radius"), table.glow[kind])
+	var at := base + _dyn.offset
+	_put(at + _at("self_dynamic.resource_fraction"), pool.mana[slot] / full if full > 0.0 else 1.0)
+	if table.can_dodge[kind] != 0:
+		_put(at + _at("self_dynamic.dodge_cooldown"), Clock.to_seconds(maxi(0, pool.dodge_ready_at[slot] - tick)))
+	_put(at + _at("self_dynamic.channeling"), float(tick < pool.channel_until[slot]))
+	_put(at + _at("self_dynamic.dodging"), float(tick < pool.dodge_until[slot]))
+	_put(at + _at("self_dynamic.light_level"), batch.perception.nav.sense_light_at(pool.xz[slot * 2], pool.xz[slot * 2 + 1]))
+	_put(at + _at("self_dynamic.is_airborne"), float(flies))
+	_put(base + _status.offset + _at("self_status.damage_over_time"), float(tick < pool.dot_until[slot]))
+
+
+## The nearest ground areas that have not ended, closest edge first and ties by index, as write_hazards in
+## native/mob_obs.c. Distances use Vector2, which is single precision like the native code.
+func _write_hazards(batch: Batch, base: int, slot: int, kind: int, tick: int) -> void:
+	var fields = batch.fields
+	var at := Vector2(batch.pool.xz[slot * 2], batch.pool.xz[slot * 2 + 1])
+	var found := []
+	for index in fields.count():
+		if tick < fields.until[index]:
+			found.append([at.distance_to(Vector2(fields.x[index], fields.z[index])) - fields.radius[index], index])
+	found.sort()
+	var flies: bool = batch.species.layer[kind] != 0
+	for chosen in mini(found.size(), _hazard.repeat):
+		var index: int = found[chosen][1]
+		var write := base + _hazard.offset + chosen * _hazard.stride
+		var offset := Vector2(fields.x[index], fields.z[index]) - at
+		var radius: float = fields.radius[index]
+		var ground: bool = fields.flags[index] & Fields.FLAG_GROUND != 0
+		_put(write + _at("context_hazard.present"), 1.0)
+		_put(write + _at("context_hazard.dx"), offset.x)
+		_put(write + _at("context_hazard.dy"), offset.y)
+		_put(write + _at("context_hazard.radius"), radius)
+		_put(write + _at("context_hazard.time_to_impact"), Clock.to_seconds(maxi(0, fields.activate[index] - tick)))
+		_put(write + _at("context_hazard.hostile"), float(fields.owner[index] == Fields.Owner.PLAYERS and not (ground and flies)))
+		_put(write + _at("context_hazard.mob_is_inside"), float(offset.x * offset.x + offset.y * offset.y <= radius * radius))
+
+
+## Player combat stats, known once a player is sensed; wind-ups and dodges only while in sight.
+func _write_player_stats(batch: Batch, base: int, slot: int, tick: int) -> void:
+	var party := batch.party
+	var senses := batch.perception
+	for player in batch.contract.players:
+		var row := slot * batch.contract.players + player
+		if party.present[player] == 0 or senses.seen_tick[row] < 0:
+			continue
+		var at := base + _enemy.offset + player * _enemy.stride
+		var stat := player * Party.STAT_COUNT
+		var timer := player * Party.TIMER_COUNT
+		var sees := senses.sees(slot, player)
+		_put(at + _at("enemy.melee_damage"), party.stats[stat + Party.Stat.MELEE_DAMAGE])
+		_put(at + _at("enemy.ranged_damage"), party.stats[stat + Party.Stat.RANGED_DAMAGE])
+		_put(at + _at("enemy.melee_range"), party.stats[stat + Party.Stat.MELEE_RANGE])
+		_put(at + _at("enemy.ranged_range"), party.stats[stat + Party.Stat.RANGED_RANGE])
+		_put(at + _at("enemy.speed"), party.stats[stat + Party.Stat.SPEED])
+		_put(at + _at("enemy.attack_speed"), party.stats[stat + Party.Stat.ATTACK_SPEED])
+		_put(at + _at("enemy.armour"), party.stats[stat + Party.Stat.ARMOUR])
+		_put(at + _at("enemy.dodge_cooldown"), Clock.to_seconds(maxi(0, party.timers[timer + Party.Clocks.DODGE_READY] - tick)))
+		_put(at + _at("enemy.winding_up"), float(sees and tick < party.timers[timer + Party.Clocks.WINDUP_UNTIL]))
+		_put(at + _at("enemy.dodging"), float(sees and tick < party.timers[timer + Party.Clocks.DODGE_UNTIL]))
+		_put(at + _at("enemy.light_level"), senses.nav.sense_light_at(senses.seen_x[row], senses.seen_z[row]))
 
 
 func _write_capabilities(batch: Batch, base: int, slot: int, kind: int) -> void:
@@ -410,7 +501,7 @@ func _write_cover(batch: Batch, base: int, slot: int) -> void:
 		var queries := PackedFloat32Array()
 		for point in points:
 			queries.append_array(PackedFloat32Array([batch.perception.seen_x[row], batch.perception.seen_z[row], point.x, point.y, 0.0]))
-		var clear: PackedByteArray = nav.line_clear_batch(queries)
+		var clear: PackedByteArray = nav.sight_clear_batch(queries)
 		for index in points.size():
 			blocked[index] = int(clear[index] == 0)
 	var chosen := 0
@@ -461,6 +552,12 @@ func build_global(batch: Batch) -> PackedFloat32Array:
 	_global(row, _totals.offset + _at("totals.mob_total_hp"), mob_hp)
 	_global(row, _totals.offset + _at("totals.party_total_hp"), party_hp)
 	_global(row, _totals.offset + _at("totals.episode_time"), Clock.to_seconds(batch.clock.tick))
+	# Protect the supports: the share of supports spawned this episode that are still alive.
+	var supports := 0
+	for slot in batch.pool.active:
+		supports += int(batch.species.support[batch.pool.species[slot]] != 0)
+	var spawned := batch.pool.supports_spawned
+	_global(row, _totals.offset + _at("totals.objective_progress"), float(supports) / spawned if spawned > 0 else 1.0)
 	return row
 
 

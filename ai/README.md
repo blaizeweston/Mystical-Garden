@@ -30,4 +30,4 @@ The checks use the private Python environment in `Documents\Godot\toolchain\mob-
 ## Not built yet
 
 - The training loop, reward calculation and the bridge between Godot and Python.
-- Intelligence handicaps other than sampling temperature, and the party profile.
+- Intelligence handicaps other than sampling temperature, the party profile, and player resistances and buffs (still masked in schema v2).
