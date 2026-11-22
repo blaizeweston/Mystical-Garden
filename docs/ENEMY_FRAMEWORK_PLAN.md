@@ -228,7 +228,7 @@ Each phase ends with evidence and a review before the next starts.
 | 2 | Native executors, decisions, perception and movement speeds, with parity tests; senses with a light grid; status system. Done 2026-11-21 | None |
 | 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Parts 1 to 3 done 2026-11-21; the legacy comparison remains | Arena files only |
 | 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Done 2026-11-22 in four parts | Arena files only |
-| 5 | Arena speed, presentation of the new mechanics (replicated to guests), and elite kits with the gate elite run by the framework. Bosses keep scripted plans for now. Parts A (speed) and B (presentation) done 2026-11-22 | Arena files only |
+| 5 | Arena speed, presentation of the new mechanics (replicated to guests), and elite kits with the gate elite run by the framework. Bosses keep scripted plans for now. Done 2026-11-22 in three parts: speed, presentation, elite kits | Arena files only |
 | 6 | Schema v2, rewards v2, training loop, curriculum and evaluation | None |
 | 7 | Live toggles, with Legacy enemies and darkness off by default | Small hooks: settings, `tick_enemies`, spawning, guest snapshots, fog of war. Approved step by step |
 | 8 | After acceptance: New enemies become the default, then legacy enemy code is removed | Approved separately |
@@ -504,3 +504,17 @@ Darkness is applied first, so effects and mana bars are never drawn for an enemy
 **Guests.** The host captures a small state per enemy slot (flags for flying, channeling, dodging, glowing, mana and seen, plus a mana byte) and sends each guest its own copy every 6 ticks through `receive_arena_presentation`, an arena-only unreliable RPC on the arena world. Each guest's copy carries that guest's own seen bits, so guests now see darkness and hidden enemies too. The packet is versioned (4-byte header, 2 bytes per slot) and a guest refuses a packet of another version or size. The game's own packets are unchanged.
 
 Checks: a new arena check covers the packet round trip, refusal of bad packets, and hover, the channel glow and mana bars on the host's models. The multiplayer check now requires the guest to receive presentation packets showing a flyer and a caster's mana (80 packets in a 8-second run). Headed screenshots of day and dusk rounds show hovering wasps, mana bars and the player's light.
+
+### Part C: elite kits and the framework-run gate elite
+
+Built 2026-11-22. An elite is its species' kit with the elite size bonuses the data already defines (wider sweeps, larger radii), plus its signature: always in training, and from floor 3 in the arena, as in the game.
+
+**Gate elite in the arena.** With a framework brain chosen, the simulation's last slot is the gate elite, spawned with the leader and elite flags. The game keeps the elite as encounter member -1, with a scout-shaped body (`elite_enemy.gd` `state`) and its position, wind-up and timers on `game.tactics`. The bridge gains a small set of lookups (`actor`, `actor_alive`, `actor_token`, `game_slot`) that return the elite's body for its slot, kept in step with the tactics once per game tick. So the arena's ability code locks, releases, hits, summons and pulses for the elite through the same path as for scouts. After each lock and release, `after_lock` and `after_release` copy the attack onto the tactics, as the game's own elite code does. The elite locks without a scout observation, and its attack is claimed directly, again as the game does. While the framework runs the elite, the game's leader code rests; bosses and the Heart's Briar still use it.
+
+Also covered: the elite chases 8% faster than its species, as in the game; a Graft Thief or Glasscap elite runs the game's own grab, escape and feint like the scouts of those species; hits on the elite are credited to the right player; dodge and channel defences apply to it; its model hovers, glows, shows mana and hides in darkness through the presentation layer (the stage's `foe` model); and bots at night target it only when they see it. "Current game AI" keeps the scripted elite for comparison.
+
+Checks: a new arena check runs a Gallhorn gate elite with a Rootbound-only roster. The elite is a leader-flagged elite mob with its signature, the simulation moves it, it winds up and releases both its basic charge and its signature angled charge through the game, and the party kills it through the game's own death handling. A simulation check shows an elite Rootbound's sweep is wider (2.49 against 2.25 radians). Every suite, the multiplayer check and the affected game suites pass. The arena bench is unchanged within noise (scripted 14.0x).
+
+### Phase 5 summary
+
+All three parts are in: the arena runs faster (lazy route fields and arena-side savings), the new mechanics are drawn on the host and replicated to guests, and the gate elite runs on the framework with its elite kit. Bosses keep their scripted plans. Phase 3 part 4, the comparison with legacy enemies, is still outstanding, and is a natural first step before Phase 6 training.

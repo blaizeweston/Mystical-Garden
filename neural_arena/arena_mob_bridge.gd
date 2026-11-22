@@ -23,6 +23,8 @@ const EnemyBehaviors = preload("res://enemy_behaviors.gd")
 const Glasscap = preload("res://glasscap_feint.gd")
 const Thief = preload("res://thief_escape.gd")
 const Tactics = preload("res://wilds_skill_tactics.gd")
+const Campaign = preload("res://campaign.gd")
+const Elite = preload("res://elite_enemy.gd")
 
 const MS_PER_TICK := 1000.0 / 60.0
 const MOBILITY_SPEED := 1.18
@@ -31,6 +33,9 @@ const NO_HITTER := -1
 ## Legacy play-style score at which a signature move becomes available.
 const PLAYSTYLE_SCORE := 6
 const UNLOCKS := Species.UNLOCK_SIGNATURE | Species.UNLOCK_COUNTER
+## The gate elite chases 8% faster than its species, and has its signature from this floor, as in the game.
+const ELITE_PURSUIT := 1.08
+const ELITE_SIGNATURE_FLOOR := 3
 
 var game: Node
 var config: Config
@@ -39,6 +44,10 @@ var sim: Sim
 var light: ArenaLight
 var error := ""
 var capacity := 0
+## The simulation's last slot is the gate elite, which the game keeps as encounter member -1.
+var leader_slot := -1
+## The elite's body is brought in step with the game's tactics once per game tick, then reused.
+var _elite_synced_at := -1
 var _tokens := PackedInt64Array()
 var _hitters := PackedInt32Array()
 var _written := PackedVector3Array()
@@ -58,7 +67,8 @@ var _speed_tick := -1
 func _init(world: Node, settings: Config) -> void:
 	game = world
 	config = settings
-	capacity = int(game.EncounterConfig.MAX_SCOUTS)
+	capacity = int(game.EncounterConfig.MAX_SCOUTS) + 1
+	leader_slot = capacity - 1
 
 
 static func available() -> bool:
@@ -116,8 +126,77 @@ func peer_of(party_slot: int) -> int:
 
 
 func note_hit(target: int, peer: int) -> void:
+	target = leader_slot if target == -1 else target
 	if target >= 0 and target < capacity:
 		_hitters[target] = _party_slot(peer)
+
+
+## The game's encounter slot for a simulation slot: -1 for the gate elite.
+func game_slot(slot: int) -> int:
+	return -1 if slot == leader_slot else slot
+
+
+## Whether the framework runs the gate elite: an ordinary elite (not a boss, not the Heart's Briar) is alive.
+func drives_elite() -> bool:
+	return sim != null and game.tactics.boss_kind < 0 and game.participation.route() != Campaign.HEART and game.encounter.alive(-1)
+
+
+## The game's record for an enemy: a scout, or the gate elite's body kept in step with the game's tactics.
+func actor(slot: int) -> Dictionary:
+	if slot == leader_slot:
+		return _elite_body() if drives_elite() else {}
+	return game.encounter.scout(slot) if slot < game.encounter.scout_count() else {}
+
+
+func actor_alive(slot: int) -> bool:
+	return drives_elite() if slot == leader_slot else slot < game.encounter.scout_count() and game.encounter.alive(slot)
+
+
+func actor_token(slot: int) -> int:
+	return game.encounter.spawn_identity(-1) if slot == leader_slot else game.encounter.token(slot)
+
+
+## After a wind-up locks: the gate elite's tactics show the attack, as the game's elite code does.
+func after_lock(slot: int, body: Dictionary) -> void:
+	if slot != leader_slot:
+		return
+	game.tactics.landing = body.attack.to
+	game.tactics.begin_attack(str(body.mode), int(body.windup), float(body.attack.radius))
+
+
+## After a release: the gate elite's tactics take the body's position, follow-up and ready time.
+func after_release(slot: int, body: Dictionary) -> void:
+	if slot != leader_slot:
+		return
+	game.tactics.position = body.pos
+	game.tactics.winding_up = int(body.get("windup", 0)) > 0
+	if game.tactics.winding_up:
+		game.tactics.strike_at = int(body.windup)
+	else:
+		game.tactics.stop_attack()
+		game.tactics.active_radius = 0
+		game.tactics.ready_at = int(body.get("ready", game.tactics.ready_at))
+	game.tactics.recovery_bonus = 0
+
+
+## The elite's body, with what the game changes on its tactics (position, control, a cancelled wind-up).
+func _elite_body() -> Dictionary:
+	var body: Dictionary = Elite.state(game)
+	var now := CombatClock.now()
+	if now == _elite_synced_at:
+		return body
+	_elite_synced_at = now
+	var tactics = game.tactics
+	body.pos = tactics.position
+	body.rooted_until = tactics.rooted_until
+	body.stagger_until = tactics.stagger_until
+	body.haste_until = tactics.haste_until
+	body.mutations = game.enemy_mutations
+	body.engaged = tactics.engaged
+	if not tactics.winding_up:
+		body.windup = 0
+		body.ready = maxi(int(body.get("ready", 0)), int(tactics.ready_at))
+	return body
 
 
 func party_health() -> PackedFloat32Array:
@@ -190,30 +269,29 @@ func _apply_defences(slot: int, health: float) -> float:
 	var tick := sim.clock.tick
 	if tick < pool.dodge_until[slot]:
 		sim.damage_mob(slot, pool.hp[slot] - health, _hitters[slot])
-		game.encounter.set_hp(slot, ceili(pool.hp[slot]))
+		game.encounter.set_hp(game_slot(slot), ceili(pool.hp[slot]))
 		return pool.hp[slot]
 	if sim.actions.channeling(slot, tick):
 		var extra := minf((pool.hp[slot] - health) * (sim.status.channel_damage_taken[pool.species[slot]] - 1.0), health - 1.0)
 		if extra >= 1.0:
-			health -= game.encounter.apply_damage(slot, int(extra), game.encounter.token(slot))
+			health -= game.encounter.apply_damage(game_slot(slot), int(extra), actor_token(slot))
 	return health
 
 
 func _mirror_slot(slot: int, next: int, now: int) -> void:
 	var pool := sim.pool
-	var live: bool = slot < game.encounter.scout_count() and game.encounter.alive(slot)
-	if not live:
+	if not actor_alive(slot):
 		if pool.alive[slot] != 0:
 			sim.damage_mob(slot, pool.hp[slot], _hitters[slot], false)
 		return
-	var token: int = game.encounter.token(slot)
+	var token: int = actor_token(slot)
 	if pool.alive[slot] == 0 or _tokens[slot] != token:
 		if pool.alive[slot] != 0:
 			sim.damage_mob(slot, pool.hp[slot], NO_HITTER, false)
 		if not _adopt(slot, token):
 			return
-	var scout: Dictionary = game.encounter.scout(slot)
-	var health := float(game.encounter.hp(slot))
+	var scout: Dictionary = actor(slot)
+	var health := float(game.encounter.hp(game_slot(slot)))
 	if health < pool.hp[slot]:
 		health = _apply_defences(slot, health)
 	if health < pool.hp[slot]:
@@ -224,8 +302,9 @@ func _mirror_slot(slot: int, next: int, now: int) -> void:
 	if pool.alive[slot] == 0:
 		return
 	pool.max_hp[slot] = maxf(1.0, float(scout.get("max_hp", health)))
-	pool.mutations[slot] = (pool.mutations[slot] & ~UNLOCKS) | _unlocks(int(scout.kind), game.participation.floor(),
-		_party_evidence | _denial_bits(scout))
+	var floor_number: int = game.participation.floor()
+	pool.mutations[slot] = (pool.mutations[slot] & ~UNLOCKS) | _unlocks(int(scout.kind), floor_number, _party_evidence | _denial_bits(scout)) \
+		| (Species.UNLOCK_SIGNATURE if slot == leader_slot and floor_number >= ELITE_SIGNATURE_FLOOR else 0)
 	var at: Vector3 = scout.pos
 	if not at.is_equal_approx(_written[slot]):
 		place(slot, at)
@@ -248,11 +327,13 @@ func _mirror_slot(slot: int, next: int, now: int) -> void:
 
 
 func _adopt(slot: int, token: int) -> bool:
-	var scout: Dictionary = game.encounter.scout(slot)
+	var scout: Dictionary = actor(slot)
 	var request := Pool.Spawn.new()
 	request.species = int(scout.kind)
 	request.at = Vector2(scout.pos.x, scout.pos.z)
-	request.hp = float(game.encounter.hp(slot))
+	request.hp = float(game.encounter.hp(game_slot(slot)))
+	if slot == leader_slot:
+		request.flags = Pool.FLAG_LEADER | Pool.FLAG_ELITE
 	request.damage = float(game.Director.Balance.scout_hit(game, game.Enemies.get_kind(int(scout.kind)), scout))
 	request.mutations = int(scout.get("mutations", 0))
 	request.intelligence = config.intelligence
@@ -266,13 +347,22 @@ func _adopt(slot: int, token: int) -> bool:
 
 ## Runs the game's own thief and feint behaviour. Returns true while it owns the enemy this tick.
 func _host_turn(slot: int, delta: float, now: int) -> bool:
-	if slot >= game.encounter.scout_count() or not game.encounter.alive(slot):
+	if not actor_alive(slot):
 		return false
-	var scout: Dictionary = game.encounter.scout(slot)
+	var scout: Dictionary = actor(slot)
 	var kind := int(scout.get("kind", -1))
 	if kind != Thief.KIND and kind != Glasscap.KIND:
 		return false
-	return EnemyBehaviors.tick(game, scout, delta, now)
+	var owned := EnemyBehaviors.tick(game, scout, delta, now)
+	if owned and slot == leader_slot:
+		# The game's elite code copies a thief's escape and grab back onto its tactics the same way.
+		game.tactics.position = scout.pos
+		if int(scout.get("windup", 0)) > 0 and not game.tactics.winding_up:
+			game.tactics.winding_up = true
+			game.tactics.attack_mode = scout.mode
+			game.tactics.strike_at = int(scout.windup)
+			game.tactics.landing = scout.attack.to
+	return owned
 
 
 ## Signature moves follow the same play-style scores and floors the legacy variants use.
@@ -317,7 +407,7 @@ func _speed(scout: Dictionary, now: int) -> float:
 	if not _speed_cache.has(kind):
 		_speed_cache[kind] = game.Director.speed(game, float(game.Enemies.get_kind(kind).speed))
 	var mask := int(scout.get("mutations", 0))
-	return float(_speed_cache[kind]) * Frost.motion_scale(scout, now) \
+	return float(_speed_cache[kind]) * Frost.motion_scale(scout, now) * (ELITE_PURSUIT if scout.get("gate_elite", false) else 1.0) \
 		* (MOBILITY_SPEED if mask & Catalog.MOBILITY else 1.0) * (JUVENILE_SPEED if mask & Catalog.JUVENILE else 1.0)
 
 
@@ -327,7 +417,7 @@ func _ticks_until(deadline: int, now: int) -> int:
 
 func _write_back() -> void:
 	for slot in sim.pool.active:
-		var scout: Dictionary = game.encounter.scout(slot)
+		var scout: Dictionary = actor(slot)
 		if scout.is_empty() or int(scout.windup) > 0 or _host_owned[slot] != 0:
 			continue
 		var at := Vector3(sim.pool.xz[slot * 2], 0.0, sim.pool.xz[slot * 2 + 1])
@@ -335,3 +425,6 @@ func _write_back() -> void:
 		_written[slot] = at
 		if sim.pool.engaged[slot] != 0:
 			scout.engaged = true
+		if slot == leader_slot:
+			game.tactics.position = at
+			game.tactics.engaged = game.tactics.engaged or sim.pool.engaged[slot] != 0

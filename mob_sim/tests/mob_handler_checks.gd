@@ -34,6 +34,7 @@ func _initialize() -> void:
 	test_side_sting()
 	test_second_beat()
 	test_lantern()
+	test_elite_kit()
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)
 
@@ -233,3 +234,23 @@ func test_lantern() -> void:
 	release(sim, lure)
 	var hits := sim.events.read_since(cursor).filter(func(event: Dictionary) -> bool: return event.kind == Events.Kind.HIT)
 	check(hits.size() == 1 and absf(float(hits[0].from_x)) > 1.0, "the pull comes from the lantern set beside the Lure")
+
+
+## Elites use their species' kit with the elite size bonuses: a wider sweep for an elite Rootbound.
+func test_elite_kit() -> void:
+	var sim := make_sim()
+	var plain := add_mob(sim, "rootbound", Vector2(0, 0))
+	var request := Pool.Spawn.new()
+	request.species = sim.species.ids.find("rootbound")
+	request.at = Vector2(4, 0)
+	request.hp = 60.0
+	request.damage = 2.0
+	request.flags = Pool.FLAG_ELITE | Pool.FLAG_LEADER
+	var elite := sim.spawn(request)
+	place_player(sim, Vector2(0, 2), [plain, elite])
+	var spans := []
+	for slot in [plain, elite]:
+		var release = sim.abilities.preview(slot, BASIC, 0)
+		release.build(sim.species.tables, sim.locomotion.world, 0.0, sim.pool.flags[slot] & Pool.FLAG_ELITE != 0, false)
+		spans.append(release.areas[0].span)
+	check(sim.pool.is_leader(elite) and spans[1] > spans[0], "an elite's sweep is wider than its species' (%.2f against %.2f)" % [spans[1], spans[0]])

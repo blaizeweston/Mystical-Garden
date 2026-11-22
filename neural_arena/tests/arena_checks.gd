@@ -349,6 +349,46 @@ func test_presentation() -> void:
 	await close_world(world)
 
 
+## The gate elite under the framework: a leader-flagged elite mob in the simulation, driven by its kit with
+## its signature, moving and attacking through the game's own elite record while the game's leader code rests.
+func test_elite() -> void:
+	var config := make_config(Config.SCRIPTED_BRAIN, {"rootbound": 2}, 1)
+	config.elite = "gallhorn"
+	var world := make_world(config)
+	var driven := false
+	var flagged := false
+	var signature := false
+	var moved := false
+	var winding_seen := false
+	var start := Vector3.INF
+	var elite_used := {}
+	for tick in REPEAT_TICKS:
+		world.step_once()
+		var bridge = world.bridge
+		if bridge == null or bridge.sim == null:
+			continue
+		var pool = bridge.sim.pool
+		var slot: int = bridge.leader_slot
+		if bridge.drives_elite():
+			driven = true
+			if not start.is_finite():
+				start = world.tactics.position
+			moved = moved or world.tactics.position.distance_to(start) > 1.0
+		if pool.alive[slot] != 0:
+			flagged = flagged or (pool.flags[slot] & 3) == 3
+			signature = signature or pool.mutations[slot] & bridge.sim.species.UNLOCK_SIGNATURE != 0
+			winding_seen = winding_seen or (pool.windup_until[slot] > 0 and world.tactics.winding_up)
+		for ability: String in bridge.sim.abilities.used:
+			if ability.begins_with("gallhorn"):
+				elite_used[ability] = bridge.sim.abilities.used[ability]
+	print("ELITE driven ", driven, " moved ", moved, " used ", elite_used, " elite health ", world.enemy_health())
+	check(driven and flagged, "the gate elite is a leader-flagged elite mob in the simulation")
+	check(signature, "the gate elite has its signature from floor 3")
+	check(moved, "the simulation moves the gate elite")
+	check(winding_seen and not elite_used.is_empty(), "the gate elite winds up and releases its kit through the game")
+	await close_world(world)
+
+
 func test_round_outcomes() -> void:
 	var config := make_config(Config.GAME_AI, {"colossus": 12, "gallhorn": 8}, 1)
 	config.floor_number = 40
@@ -485,6 +525,7 @@ func run() -> void:
 	await test_darkness()
 	await test_fields()
 	await test_presentation()
+	await test_elite()
 	await test_round_outcomes()
 	await test_species()
 	await test_classes()

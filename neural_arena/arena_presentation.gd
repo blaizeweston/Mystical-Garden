@@ -89,12 +89,15 @@ func draw(world: Node, guest: bool) -> void:
 		func(slot: int) -> float: return _glow(stage, slot))
 	var now := Time.get_ticks_msec() / 1000.0
 	var bar_used := {}
-	for slot in mini(flags.size(), stage.support_models.size()):
-		var root: Node3D = stage.support_models[slot]
+	for slot in flags.size():
+		var found := DarknessView.view(stage, slot)
+		if found.is_empty():
+			continue
+		var root: Node3D = found[0]
 		if not root.visible:
 			continue
 		var bits := flags[slot]
-		var actor: Dictionary = stage.scout_models[slot]
+		var actor: Dictionary = found[1]
 		var model: Node3D = actor.get("model")
 		if bits & FLYING != 0 and model != null:
 			model.position.y += HOVER_HEIGHT + sin(now * 2.0 + slot) * HOVER_BOB
@@ -160,7 +163,8 @@ func _glow(stage: Node, slot: int) -> float:
 	if slot >= flags.size() or flags[slot] & GLOWING == 0:
 		return 0.0
 	var tables = Tables.shared()
-	var kind := int(stage.scout_models[slot].get("kind", -1))
+	var found := DarknessView.view(stage, slot)
+	var kind := int(found[1].get("kind", -1)) if not found.is_empty() else -1
 	return tables.species_glow[kind] if tables != null and kind >= 0 and kind < tables.species_glow.size() else 0.0
 
 

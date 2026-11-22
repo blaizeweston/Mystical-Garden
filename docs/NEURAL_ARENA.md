@@ -167,7 +167,7 @@ Run `python tools/test_workflow.py document --project . --engine <godot>` after 
 ## Current limits
 
 - The net is untrained, so its fights show the system working rather than good tactics. The training loop is not built yet.
-- The gate elite stays on its scripted behaviour.
+- With "Current game AI" the gate elite keeps its scripted behaviour; with a framework brain the framework runs it.
 - Arena characters carry no affinity cores, so bots make no player fields for the enemies to learn from yet.
 - Some species specials are not driven by the net yet.
 - A round holds at most 20 enemies plus a leader.

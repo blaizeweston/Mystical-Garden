@@ -103,7 +103,7 @@ func act(now: int) -> void:
 
 func _still_valid(target: int) -> bool:
 	if target == -1:
-		return game.enemy_health() > 0
+		return game.enemy_health() > 0 and (not _in_darkness() or game.bridge.player_sees(peer, game.bridge.leader_slot))
 	if target < 0 or target >= game.encounter.scout_count() or game.encounter.hp(target) <= 0:
 		return false
 	return not _in_darkness() or game.bridge.player_sees(peer, target)
@@ -120,6 +120,9 @@ func _pick_target(player: Dictionary) -> int:
 		return game.closest_enemy(player.pos)
 	var best := INF
 	var chosen := -2
+	if game.enemy_health() > 0 and game.bridge.player_sees(peer, game.bridge.leader_slot):
+		best = player.pos.distance_squared_to(game.tactics.position)
+		chosen = -1
 	for slot in game.encounter.scout_count():
 		if game.encounter.hp(slot) <= 0 or not game.bridge.player_sees(peer, slot):
 			continue
@@ -127,8 +130,8 @@ func _pick_target(player: Dictionary) -> int:
 		if distance < best:
 			best = distance
 			chosen = slot
-	if chosen >= 0:
-		_last_seen = game.encounter.scout(chosen).pos
+	if chosen >= -1:
+		_last_seen = game.tactics.position if chosen == -1 else game.encounter.scout(chosen).pos
 		_last_seen_tick = _tick
 	return chosen
 

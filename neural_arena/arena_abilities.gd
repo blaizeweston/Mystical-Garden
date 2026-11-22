@@ -77,7 +77,7 @@ func begin(slot: int, attack: int, player: int, tick: int) -> bool:
 	var at := pool.species[slot] * Species.ATTACKS + attack
 	var row: int = species.attack_row[at]
 	var peer: int = bridge.peer_of(player)
-	var scout: Dictionary = game.encounter.scout(slot)
+	var scout: Dictionary = bridge.actor(slot)
 	if row < 0 or peer == 0 or scout.is_empty() or int(scout.windup) > 0:
 		return false
 	var tables = species.tables
@@ -94,14 +94,17 @@ func begin(slot: int, attack: int, player: int, tick: int) -> bool:
 	var windup_ms := maxi(int(tables.row_min_windup_ms[row]), int(game.Director.windup(game, int(tables.row_windup_ms[row]))))
 	var mode := _mode(slot, definition, row)
 	var plan := _presentation(release, mode, row)
-	var observation := ScoutBehavior.attack_observation(slot, game.encounter.token(slot), game.participation.epoch(), peer, scout.pos,
-		victim, mode, species.attack_range[at] + pool.reach_bonus[slot], int(scout.ready), now, PlayerLifecycle.generation(game.players[peer]))
+	# The gate elite locks without a scout observation, as the game's own elite code does.
+	var observation := {} if slot == bridge.leader_slot else ScoutBehavior.attack_observation(slot, bridge.actor_token(slot),
+		game.participation.epoch(), peer, scout.pos, victim, mode, species.attack_range[at] + pool.reach_bonus[slot], int(scout.ready), now,
+		PlayerLifecycle.generation(game.players[peer]))
 	scout.cast_target = peer
 	Attacks.lock(game, scout, mode, _v3(release.aim), now + windup_ms, plan, observation)
 	scout.erase("approach_done")
 	scout.erase("approach")
 	scout.erase("approach_used")
 	EnemyBehaviors.telegraph(game, scout, now)
+	bridge.after_lock(slot, scout)
 	_pending[slot] = release
 	if rules.actions != null:
 		rules.actions.spend(slot, attack)
@@ -215,9 +218,9 @@ func tick_windups(tick: int) -> void:
 	releases.clear()
 	var now := CombatClock.now()
 	for slot in pool.active.duplicate():
-		var scout: Dictionary = game.encounter.scout(slot)
+		var scout: Dictionary = bridge.actor(slot)
 		var release: Release = _pending.get(slot)
-		if scout.is_empty() or not game.encounter.alive(slot):
+		if scout.is_empty() or not bridge.actor_alive(slot):
 			_pending.erase(slot)
 			continue
 		if int(scout.windup) <= 0:
@@ -231,19 +234,22 @@ func tick_windups(tick: int) -> void:
 		if release == null:
 			# A move the game itself started, such as a Graft Thief's loot grab, releases through the game.
 			var definition: Dictionary = game.Enemies.get_kind(int(scout.kind))
-			Frost.with_attacker(game, slot, ScoutBehavior.release.bind(game, scout, definition, now, scout.get("attack", {}), int(scout.windup)))
+			Frost.with_attacker(game, bridge.game_slot(slot), ScoutBehavior.release.bind(game, scout, definition, now, scout.get("attack", {}), int(scout.windup)))
 			if not game.participation.active():
 				return
+			bridge.after_release(slot, scout)
 			if not Vector2(scout.pos.x, scout.pos.z).is_equal_approx(Vector2(pool.xz[slot * 2], pool.xz[slot * 2 + 1])):
 				bridge.place(slot, scout.pos)
 			continue
-		var attack: Dictionary = Attacks.claim_scout_attack(game.encounter, scout, game.participation.epoch(), now,
-			scout.get("attack", {}), int(scout.windup))
+		var attack: Dictionary = _claim_elite(scout) if slot == bridge.leader_slot else Attacks.claim_scout_attack(game.encounter, scout,
+			game.participation.epoch(), now, scout.get("attack", {}), int(scout.windup))
 		_pending.erase(slot)
 		_settle(slot, release, tick, now, scout, attack)
 		if attack.is_empty():
+			bridge.after_release(slot, scout)
 			continue
 		_resolve(release, now, scout, attack)
+		bridge.after_release(slot, scout)
 		releases.append(release)
 		var ability_id: String = Loader.shared().abilities[species.tables.row_ability[release.row]].id
 		used[ability_id] = int(used.get(ability_id, 0)) + 1
@@ -252,6 +258,14 @@ func tick_windups(tick: int) -> void:
 			return
 	if not _pulses.is_empty():
 		_tick_pulses(now)
+
+
+## The gate elite's locked attack, claimed once. Its body carries no scout observation to check.
+static func _claim_elite(body: Dictionary) -> Dictionary:
+	var attack: Dictionary = body.get("attack", {})
+	body.windup = 0
+	body.erase("attack")
+	return attack
 
 
 ## Recovery and cooldown. The bridge copies the real enemy's ready time into the simulation each tick.
@@ -365,7 +379,7 @@ func _tick_pulses(now: int) -> void:
 	var kept: Array = []
 	for entry in _pulses:
 		var release: Release = entry[0]
-		if not game.encounter.alive(release.slot) or pool.generation[release.slot] != release.generation:
+		if not bridge.actor_alive(release.slot) or pool.generation[release.slot] != release.generation:
 			continue
 		if now < int(entry[3]):
 			kept.append(entry)

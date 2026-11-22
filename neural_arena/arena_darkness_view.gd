@@ -21,6 +21,29 @@ var _base := {}
 var _applied := {}
 
 
+## The model root and actor record for an enemy slot. Scout slots use the stage's support models; the
+## slot after them is the gate elite. Returns an empty array for any other slot.
+static func view(stage: Node, slot: int) -> Array:
+	var scouts: int = stage.support_models.size()
+	if slot < scouts:
+		return [stage.support_models[slot], stage.scout_models[slot]]
+	if slot == scouts and stage.foe != null:
+		return [stage.foe, stage.foe_model]
+	return []
+
+
+## Hides an enemy's model and the markers drawn with it.
+static func hide(stage: Node, slot: int) -> void:
+	var scouts: int = stage.support_models.size()
+	if slot < scouts:
+		stage.support_models[slot].visible = false
+		stage.support_rings[slot].visible = false
+		stage.support_binds[slot].visible = false
+	elif slot == scouts and stage.foe != null:
+		stage.foe.visible = false
+		stage.attack_ring.visible = false
+
+
 ## Call after the game has drawn the frame. sees(slot) says whether the viewer sees an enemy, and
 ## glow(slot) gives the radius of the light an enemy gives off. hide_unseen hides the rest.
 func apply(world: Node, enabled: bool, ambient: float, hide_unseen: bool, sees: Callable, glow: Callable) -> void:
@@ -43,18 +66,19 @@ func apply(world: Node, enabled: bool, ambient: float, hide_unseen: bool, sees: 
 		if is_instance_valid(avatar) and avatar.visible:
 			_place_light("player_%d" % id, stage, avatar.global_position + Vector3.UP * PLAYER_LIGHT_HEIGHT, ArenaLight.PLAYER_LIGHT,
 				PLAYER_LIGHT_ENERGY, PLAYER_LIGHT_COLOR, used)
-	for slot in stage.support_models.size():
-		var model: Node3D = stage.support_models[slot]
+	for slot in stage.support_models.size() + 1:
+		var found := view(stage, slot)
+		if found.is_empty():
+			continue
+		var model: Node3D = found[0]
 		if not model.visible:
 			continue
 		if hide_unseen and not sees.call(slot):
-			model.visible = false
-			stage.support_rings[slot].visible = false
-			stage.support_binds[slot].visible = false
+			hide(stage, slot)
 			continue
 		var radius: float = glow.call(slot)
 		if radius > 0.0:
-			var kind := int(stage.scout_models[slot].get("kind", 0))
+			var kind := int(found[1].get("kind", 0))
 			_place_light("enemy_%d" % slot, stage, model.global_position + Vector3.UP * GLOW_HEIGHT, radius, GLOW_ENERGY,
 				Color(Catalog.get_kind(kind).glow), used)
 	for key in _lights.keys():

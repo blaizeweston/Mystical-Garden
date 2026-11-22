@@ -466,7 +466,9 @@ func tick_enemies(delta: float, now: int) -> void:
 	if bridge == null:
 		super(delta, now)
 	else:
-		LeaderBehavior.tick(self, delta, now)
+		# The framework runs an ordinary gate elite; the game's own leader code keeps anything else.
+		if not bridge.drives_elite():
+			LeaderBehavior.tick(self, delta, now)
 		if round_running and participation.active():
 			bridge.tick(now, delta)
 	if profile:

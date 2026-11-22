@@ -26,7 +26,7 @@ static func _v2(point: Vector3) -> Vector2:
 
 
 func _scout(slot: int) -> Dictionary:
-	return game.encounter.scout(slot) if slot >= 0 and slot < game.encounter.scout_count() else {}
+	return bridge.actor(slot) if slot >= 0 else {}
 
 
 func tick() -> int:
@@ -45,7 +45,7 @@ func position(slot: int) -> Vector2:
 
 
 func alive(slot: int) -> bool:
-	return slot >= 0 and slot < game.encounter.scout_count() and game.encounter.alive(slot)
+	return slot >= 0 and bridge.actor_alive(slot)
 
 
 func reach(slot: int) -> float:
