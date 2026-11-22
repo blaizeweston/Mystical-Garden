@@ -36,7 +36,7 @@ class DryAbilities extends Abilities:
 		if not in_reach(slot, attack, player) or attackers[player] >= rules.max_attackers:
 			return false
 		var at := pool.species[slot] * Species.ATTACKS + attack
-		if species.attack_sight[at] != 0 and locomotion.world.line_clear(pool.xz[slot * 2], pool.xz[slot * 2 + 1],
+		if species.attack_sight[at] != 0 and locomotion.world.sight_clear(pool.xz[slot * 2], pool.xz[slot * 2 + 1],
 				party.x[player], party.z[player], 0.0) == 0:
 			return false
 		attackers[player] += 1

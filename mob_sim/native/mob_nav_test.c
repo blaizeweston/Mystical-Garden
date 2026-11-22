@@ -226,8 +226,57 @@ static void test_bad_input(void) {
     mn_destroy(nav);
 }
 
+/* A moat at x = 20 blocks the ground layer but not the air layer; the barriers block both. */
+static void test_air_layer(void) {
+    static uint8_t ground[W * H], air[W * H];
+    memset(ground, 0, sizeof(ground));
+    memset(air, 0, sizeof(air));
+    for (int z = 4; z < H - 4; z++) {
+        for (int x = 4; x < W - 4; x++) {
+            air[x + z * W] = 1;
+            ground[x + z * W] = x < 36 || x > 44;
+        }
+    }
+    const float rects[] = {5.0f, 26.0f, 35.0f, 27.0f};
+    MobNav *nav = mn_create(2, 1);
+    check(nav != NULL && mn_bake(nav, W, H, 0.0f, 0.0f, ground, rects, 1) == MN_OK, "a moat room bakes");
+    check(mn_bake_air(nav, air, 3) == MN_ERR_ARGUMENT, "an air mask of the wrong size is refused");
+    check(mn_bake_air(nav, air, W * H) == MN_OK, "the air layer bakes");
+    const float target[] = {30.0f, 10.0f};
+    mn_set_targets(nav, target, 1);
+    const float agents[MN_AGENT_STRIDE * 2] = {
+        1, 10, 10, 4, 0.34f, 0.5f, 0, MN_MODE_SEEK, 0, 0,
+        1, 10, 12, 4, 0.34f, 0.5f, 0, MN_MODE_SEEK, 0, 0,
+    };
+    mn_agents_load(nav, agents, 2);
+    const uint8_t layers[] = {0, 1};
+    check(mn_set_layers(nav, layers, 2) == MN_OK, "layers can be set");
+    float xz[4];
+    int flyer_arrived = 0;
+    for (int i = 0; i < 900; i++) {
+        mn_tick(nav, 1.0f / 60.0f);
+        mn_positions(nav, xz);
+        flyer_arrived |= hypotf(xz[2] - 30.0f, xz[3] - 10.0f) <= 0.6f;
+    }
+    check(xz[0] < 18.0f, "a walker cannot cross the moat");
+    check(flyer_arrived, "a flyer crosses the moat");
+    const float dash[] = {1, 10.0f, 30.0f};
+    mn_agents_displace(nav, dash, 1);
+    mn_positions(nav, xz);
+    check(xz[3] < 26.0f, "a flyer's dash still stops at a barrier");
+    mn_bake(nav, W, H, 0.0f, 0.0f, ground, rects, 1);
+    mn_set_targets(nav, target, 1);
+    const float back[] = {1, 10.0f, 12.0f, 0.34f, 1.0f};
+    mn_agents_place(nav, back, 1);
+    for (int i = 0; i < 900; i++) mn_tick(nav, 1.0f / 60.0f);
+    mn_positions(nav, xz);
+    check(xz[2] < 18.0f, "without an air layer a flyer walks");
+    mn_destroy(nav);
+}
+
 int main(void) {
     test_clearance();
+    test_air_layer();
     test_line_of_sight();
     test_flow_field();
     uint64_t first = crowd_hash();

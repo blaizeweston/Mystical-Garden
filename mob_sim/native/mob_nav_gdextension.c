@@ -449,6 +449,19 @@ static void m_command_agents(World *world, const void *const *args, void *result
     else *(int64_t *)result = mn_agents_command(world->nav, float_data(args[0]), (int)(values / MN_COMMAND_STRIDE));
 }
 
+static void m_bake_air(World *world, const void *const *args, void *result) {
+    int64_t length = byte_count(args[0]);
+    if (world->nav == NULL) *(int64_t *)result = MN_ERR_STATE;
+    else *(int64_t *)result = mn_bake_air(world->nav, length > 0 ? bytes_at(args[0], 0) : NULL, length);
+}
+
+static void m_set_layers(World *world, const void *const *args, void *result) {
+    int64_t length = byte_count(args[0]);
+    if (world->nav == NULL) *(int64_t *)result = MN_ERR_STATE;
+    else if (length > INT32_MAX) *(int64_t *)result = MN_ERR_ARGUMENT;
+    else *(int64_t *)result = mn_set_layers(world->nav, length > 0 ? bytes_at(args[0], 0) : NULL, (int)length);
+}
+
 static void m_place_agents(World *world, const void *const *args, void *result) {
     int64_t values = float_count(args[0]);
     if (world->nav == NULL) *(int64_t *)result = MN_ERR_STATE;
@@ -471,6 +484,25 @@ static void m_line_clear_batch(World *world, const void *const *args, void *resu
     if (count > 0 && resized == 0) {
         mn_line_clear_batch(world->nav, float_data(args[0]), (int)count, bytes_at_mutable(result, 0));
     }
+}
+
+static void m_sight_clear_batch(World *world, const void *const *args, void *result) {
+    int64_t values = float_count(args[0]);
+    int64_t count = values % MN_SIGHT_STRIDE == 0 && world->nav != NULL ? values / MN_SIGHT_STRIDE : 0, resized = 0;
+    GDExtensionConstTypePtr resize_args[] = {&count};
+    bytes_resize(result, resize_args, &resized, 1);
+    if (count > 0 && resized == 0) {
+        mn_sight_clear_batch(world->nav, float_data(args[0]), (int)count, bytes_at_mutable(result, 0));
+    }
+}
+
+static void m_air_clearance(World *world, const void *const *args, void *result) {
+    *(double *)result = world->nav != NULL ? (double)mn_air_clearance(world->nav, (float)arg_float(args, 0), (float)arg_float(args, 1)) : -1.0;
+}
+
+static void m_sight_clear(World *world, const void *const *args, void *result) {
+    *(int64_t *)result = world->nav != NULL ? mn_sight_clear(world->nav, (float)arg_float(args, 0), (float)arg_float(args, 1),
+        (float)arg_float(args, 2), (float)arg_float(args, 3), (float)arg_float(args, 4)) : 0;
 }
 
 static void m_nearest_batch(World *world, const void *const *args, void *result) {
@@ -533,11 +565,17 @@ static const Method methods[] = {
     {"bake", m_bake, KIND_INT, 6, {KIND_INT, KIND_INT, KIND_FLOAT, KIND_FLOAT, KIND_BYTES, KIND_FLOATS},
      {"floor_width", "floor_height", "origin_x", "origin_z", "floor_mask", "rects"}},
     {"set_targets", m_set_targets, KIND_INT, 1, {KIND_FLOATS}, {"xz"}},
+    {"bake_air", m_bake_air, KIND_INT, 1, {KIND_BYTES}, {"air_mask"}},
+    {"set_layers", m_set_layers, KIND_INT, 1, {KIND_BYTES}, {"layers"}},
     {"load_agents", m_load_agents, KIND_INT, 1, {KIND_FLOATS}, {"data"}},
     {"command_agents", m_command_agents, KIND_INT, 1, {KIND_FLOATS}, {"data"}},
     {"place_agents", m_place_agents, KIND_INT, 1, {KIND_FLOATS}, {"data"}},
     {"displace_agents", m_displace_agents, KIND_INT, 1, {KIND_FLOATS}, {"data"}},
     {"line_clear_batch", m_line_clear_batch, KIND_BYTES, 1, {KIND_FLOATS}, {"queries"}},
+    {"sight_clear_batch", m_sight_clear_batch, KIND_BYTES, 1, {KIND_FLOATS}, {"queries"}},
+    {"air_clearance", m_air_clearance, KIND_FLOAT, 2, {KIND_FLOAT, KIND_FLOAT}, {"x", "z"}},
+    {"sight_clear", m_sight_clear, KIND_INT, 5, {KIND_FLOAT, KIND_FLOAT, KIND_FLOAT, KIND_FLOAT, KIND_FLOAT},
+     {"x0", "z0", "x1", "z1", "radius"}},
     {"nearest_batch", m_nearest_batch, KIND_FLOATS, 3, {KIND_FLOATS, KIND_FLOAT, KIND_INT}, {"slots", "radius", "count"}},
     {"wall_rays", m_wall_rays, KIND_FLOATS, 2, {KIND_FLOATS, KIND_FLOAT}, {"slots", "max_distance"}},
     {"obs_configure", m_obs_configure, KIND_INT, 1, {KIND_ARRAY}, {"config"}},

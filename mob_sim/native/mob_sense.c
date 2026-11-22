@@ -371,7 +371,7 @@ static MsResult alert_neighbours(Pass *p, int newly_count) {
         }
     }
     if (pair_count == 0) return SK_OK;
-    mn_line_clear_batch(p->nav, s->queries, pair_count, s->clear);
+    mn_sight_clear_batch(p->nav, s->queries, pair_count, s->clear);
     for (int index = 0; index < pair_count; index++) {
         if (s->clear[index] == 0) continue;
         int source = s->pairs[index * 2], other = s->pairs[index * 2 + 1];
@@ -447,7 +447,7 @@ MsResult ms_update(MobSense *s, MobNav *nav, const void *const *items, const int
         }
     }
     if (query_count > 0) {
-        mn_line_clear_batch(nav, s->queries, query_count, s->clear);
+        mn_sight_clear_batch(nav, s->queries, query_count, s->clear);
         for (int index = 0; index < query_count; index++) {
             int at = s->owners[index], slot = at / players, player = at % players;
             if (s->clear[index] != 0) {

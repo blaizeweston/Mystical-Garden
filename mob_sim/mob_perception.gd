@@ -186,7 +186,7 @@ func update_reference(tick: int) -> void:
 				pool.last_sensed[slot] = tick
 	if owners.is_empty():
 		return
-	var clear: PackedByteArray = nav.line_clear_batch(queries)
+	var clear: PackedByteArray = nav.sight_clear_batch(queries)
 	for index in owners.size():
 		var at := owners[index]
 		var slot := at / players
@@ -232,7 +232,7 @@ func _alert_neighbours(sources: PackedInt32Array, tick: int) -> void:
 			pairs.append(other)
 	if pairs.is_empty():
 		return
-	var clear: PackedByteArray = nav.line_clear_batch(queries)
+	var clear: PackedByteArray = nav.sight_clear_batch(queries)
 	for index in clear.size():
 		if clear[index] == 0:
 			continue

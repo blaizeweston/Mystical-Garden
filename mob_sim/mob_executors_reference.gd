@@ -246,7 +246,7 @@ func _find_cover(slot: int, player: int) -> void:
 	cover_found[slot] = 0
 	if points.is_empty():
 		return
-	var clear: PackedByteArray = locomotion.world.line_clear_batch(queries)
+	var clear: PackedByteArray = locomotion.world.sight_clear_batch(queries)
 	var best := INF
 	for index in points.size():
 		var distance := origin.distance_squared_to(points[index])

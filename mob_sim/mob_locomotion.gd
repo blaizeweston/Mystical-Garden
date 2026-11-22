@@ -31,6 +31,10 @@ var targets := PackedFloat32Array()
 var _goal_key := PackedInt64Array()
 var _goal_used := PackedInt32Array()
 var _tick := 0
+## Per species, 1 for flyers. MobSim sets it from the species table.
+var species_layer := PackedByteArray()
+## Per slot, the layer the core moves the mob on.
+var layers := PackedByteArray()
 
 
 func _init(mob_pool: Pool, mob_party: Party, contract: Contract) -> void:
@@ -47,6 +51,8 @@ func _init(mob_pool: Pool, mob_party: Party, contract: Contract) -> void:
 	_goal_key.fill(-1)
 	_goal_used.resize(goal_count)
 	_goal_used.fill(-1)
+	layers.resize(pool.capacity)
+	layers.fill(0)
 
 
 ## Prepares the map. Every slot starts empty.
@@ -56,6 +62,10 @@ func bake(field: RefCounted) -> int:
 	var status: int = NavWorld.bake(world, field)
 	if status != OK:
 		return status
+	# NavWorld.bake also bakes the air layer, which moves flyers and carries every mob's sight across water
+	# and low obstacles. Its route fields are only kept current while something flies.
+	layers.fill(0)
+	world.set_layers(layers)
 	var rows := PackedFloat32Array()
 	rows.resize(pool.capacity * AGENT_ROW)
 	rows.fill(0.0)
@@ -64,9 +74,20 @@ func bake(field: RefCounted) -> int:
 
 
 func place(slot: int) -> void:
+	_set_layer(slot, species_layer[pool.species[slot]] if pool.species[slot] < species_layer.size() else 0)
 	world.place_agents(PackedFloat32Array([slot, pool.xz[slot * 2], pool.xz[slot * 2 + 1], Species.BODY_RADIUS, 1.0]))
 	commands[slot * STRIDE + AT_ACTIVE] = 1.0
 	hold(slot)
+
+
+func flies(slot: int) -> bool:
+	return layers[slot] != 0
+
+
+func _set_layer(slot: int, layer: int) -> void:
+	if layers[slot] != layer:
+		layers[slot] = layer
+		world.set_layers(layers)
 
 
 func remove(slot: int) -> void:

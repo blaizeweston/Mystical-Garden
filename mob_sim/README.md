@@ -18,7 +18,7 @@ The replacement enemy framework and its native core. Only the Neural Arena runs 
 | `mob_release.gd` | A release's areas from its kit row, and the hit test for each |
 | `abilities/` | Behaviour handlers, their registry and the training simulation's handler port |
 | `native/build.ps1` | Builds and tests the core, then links `bin/mob_nav.dll` |
-| `mob_nav_world.gd` | Loads the extension and bakes it from a configured `Battlefield` |
+| `mob_nav_world.gd` | Loads the extension and bakes it from a configured `Battlefield`: the walking grid, and the air grid that flyers move on and all sight uses |
 | `mob_sim.gd` and the other `mob_*.gd` files | The mob architecture layers described in the migration guide |
 | `mob_contract.json` | Behaviours, action heads, slot counts and rule values |
 | `definitions/` | Typed enemy definitions, the loader and the table compiler |
@@ -42,6 +42,7 @@ godot --headless --path . --script res://mob_sim/tests/mob_sense_checks.gd
 godot --headless --path . --script res://mob_sim/tests/mob_status_checks.gd
 godot --headless --path . --script res://mob_sim/tests/mob_handler_checks.gd
 godot --headless --path . --script res://mob_sim/tests/mob_action_checks.gd
+godot --headless --path . --script res://mob_sim/tests/mob_layer_checks.gd
 godot --headless --path . --script res://mob_sim/tests/mob_sim_bench.gd
 ./mob_sim/tests/run_bench.ps1
 ./mob_sim/tests/run_throughput.ps1 -Processes 12

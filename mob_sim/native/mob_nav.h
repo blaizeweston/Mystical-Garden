@@ -48,6 +48,13 @@ void mn_destroy(MobNav *nav);
 MnResult mn_bake(MobNav *nav, int floor_w, int floor_h, float origin_x, float origin_z,
                  const uint8_t *floor_mask, const float *rects, int rect_count);
 
+/* Bakes the air layer from a second floor mask of the same size, sharing the barriers. Flying agents step,
+ * route and displace on it while staying in the shared crowd for neighbour queries. A NULL mask removes it.
+ * Rebaking the ground removes it too. */
+MnResult mn_bake_air(MobNav *nav, const uint8_t *air_mask, int64_t length);
+/* One byte per agent slot: 0 walks on the ground layer, 1 flies on the air layer. */
+MnResult mn_set_layers(MobNav *nav, const uint8_t *layers, int count);
+
 MnResult mn_set_targets(MobNav *nav, const float *xz, int count);
 MnResult mn_agents_load(MobNav *nav, const float *data, int count);
 MnResult mn_agents_command(MobNav *nav, const float *data, int count);
@@ -59,6 +66,10 @@ MnResult mn_tick(MobNav *nav, float dt);
 
 /* Writes one byte per query. */
 void mn_line_clear_batch(const MobNav *nav, const float *queries, int count, uint8_t *out);
+/* Sight lines: like mn_line_clear, but on the air layer when one is baked, so sight crosses water and low
+ * obstacles and only tall cover blocks it, as in the game's combat sight. */
+int mn_sight_clear(const MobNav *nav, float x0, float z0, float x1, float z1, float radius);
+void mn_sight_clear_batch(const MobNav *nav, const float *queries, int count, uint8_t *out);
 /* Writes k slots per query, nearest first, padded with -1. Ties resolve by slot. */
 MnResult mn_nearest_batch(MobNav *nav, const float *slots, int count, float radius, int k, float *out);
 /* Writes MN_WALL_RAYS distances per slot to the first blocked point, capped at max_distance. */
@@ -69,6 +80,8 @@ void mn_positions(const MobNav *nav, float *out_xz);
 
 int mn_line_clear(const MobNav *nav, float x0, float z0, float x1, float z1, float radius);
 float mn_clearance(const MobNav *nav, float x, float z);
+/* Clearance on the air layer, or on the ground when no air layer is baked. */
+float mn_air_clearance(const MobNav *nav, float x, float z);
 /* Remaining route length from a point to a target, or a negative value when unreachable. */
 float mn_path_cost(const MobNav *nav, int target, float x, float z);
 

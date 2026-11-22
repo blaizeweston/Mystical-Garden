@@ -60,6 +60,7 @@ func _init(slots: int, awake_brain: Brain = null) -> void:
 	pool.prompt_gap = int(contract.rules.decision_ticks_smart)
 	events = Events.new()
 	locomotion = Locomotion.new(pool, party, contract)
+	locomotion.species_layer = species.layer
 	perception = Perception.new(pool, party, species, contract, locomotion.world)
 	rules = Rules.new(contract, pool, party, species, perception, events)
 	actions = Actions.new(contract, pool, party, species, perception, locomotion)
@@ -174,7 +175,9 @@ func apply_status(slot: int, kind: Status, ticks: int, scale: float = 1.0) -> vo
 		Status.STUN:
 			pool.stun_until[slot] = maxi(pool.stun_until[slot], until)
 		Status.ROOT:
-			pool.root_until[slot] = maxi(pool.root_until[slot], until)
+			# Flyers cannot be rooted.
+			if species.layer[pool.species[slot]] == 0:
+				pool.root_until[slot] = maxi(pool.root_until[slot], until)
 		Status.SLOW:
 			pool.slow_until[slot] = maxi(pool.slow_until[slot], until)
 			pool.slow_scale[slot] = clampf(scale, 0.0, 1.0)

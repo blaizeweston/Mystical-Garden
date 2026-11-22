@@ -86,7 +86,7 @@ func begin(slot: int, attack: int, player: int, tick: int) -> bool:
 	var at := pool.species[slot] * Species.ATTACKS + attack
 	var x := pool.xz[slot * 2]
 	var z := pool.xz[slot * 2 + 1]
-	if species.attack_sight[at] != 0 and locomotion.world.line_clear(x, z, party.x[player], party.z[player], 0.0) == 0:
+	if species.attack_sight[at] != 0 and locomotion.world.sight_clear(x, z, party.x[player], party.z[player], 0.0) == 0:
 		return false
 	var release := preview(slot, attack, player)
 	if not gate(release, tick):

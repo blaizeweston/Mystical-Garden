@@ -81,6 +81,10 @@ struct MobNav {
     uint8_t *mode;
     uint8_t *active;
     uint8_t *sight;
+    /* Per agent: nonzero flies on the air layer. */
+    uint8_t *layer;
+    /* The air layer's grids and fields. It holds no agents of its own. */
+    struct MobNav *air;
     int *hash_start;
     int *hash_items;
     int hash_stale;
@@ -135,7 +139,9 @@ void mn_destroy(MobNav *nav) {
     free(nav->mode);
     free(nav->active);
     free(nav->sight);
+    free(nav->layer);
     free(nav->hash_items);
+    mn_destroy(nav->air);
     free(nav);
 }
 
@@ -160,10 +166,11 @@ MobNav *mn_create(int max_agents, int max_targets) {
     nav->mode = calloc(n, 1);
     nav->active = calloc(n, 1);
     nav->sight = calloc(n, 1);
+    nav->layer = calloc(n, 1);
     nav->hash_items = calloc(n, sizeof(int));
     if (!nav->fields || !nav->x || !nav->z || !nav->next_x || !nav->next_z || !nav->speed ||
         !nav->radius || !nav->stop || !nav->offset_x || !nav->offset_z || !nav->target ||
-        !nav->mode || !nav->active || !nav->sight || !nav->hash_items) {
+        !nav->mode || !nav->active || !nav->sight || !nav->layer || !nav->hash_items) {
         mn_destroy(nav);
         return NULL;
     }
@@ -472,6 +479,8 @@ MnResult mn_bake(MobNav *nav, int floor_w, int floor_h, float origin_x, float or
         return MN_ERR_ARGUMENT;
     }
     release_grids(nav);
+    mn_destroy(nav->air);
+    nav->air = NULL;
     nav->floor_w = floor_w;
     nav->floor_h = floor_h;
     nav->fine_w = floor_w * 2;
@@ -551,7 +560,51 @@ MnResult mn_set_targets(MobNav *nav, const float *xz, int count) {
         }
     }
     nav->target_count = count;
+    if (nav->air != NULL) mn_set_targets(nav->air, xz, count);
     return MN_OK;
+}
+
+MnResult mn_bake_air(MobNav *nav, const uint8_t *air_mask, int64_t length) {
+    if (nav == NULL || !nav->baked) return MN_ERR_STATE;
+    if (air_mask != NULL && length != (int64_t)nav->floor_w * nav->floor_h) return MN_ERR_ARGUMENT;
+    mn_destroy(nav->air);
+    nav->air = NULL;
+    if (air_mask == NULL) return MN_OK;
+    MobNav *air = mn_create(1, nav->max_targets);
+    if (air == NULL) return MN_ERR_MEMORY;
+    MnResult status = mn_bake(air, nav->floor_w, nav->floor_h, nav->origin_x, nav->origin_z, air_mask, nav->rects, nav->rect_count);
+    if (status == MN_OK && nav->target_count > 0) {
+        float *xz = malloc((size_t)nav->target_count * 2 * sizeof(float));
+        if (xz == NULL) {
+            status = MN_ERR_MEMORY;
+        } else {
+            for (int i = 0; i < nav->target_count; i++) {
+                xz[i * 2] = nav->fields[i].x;
+                xz[i * 2 + 1] = nav->fields[i].z;
+            }
+            status = mn_set_targets(air, xz, nav->target_count);
+            free(xz);
+        }
+    }
+    if (status != MN_OK) {
+        mn_destroy(air);
+        return status;
+    }
+    nav->air = air;
+    return MN_OK;
+}
+
+MnResult mn_set_layers(MobNav *nav, const uint8_t *layers, int count) {
+    if (nav == NULL) return MN_ERR_STATE;
+    if (count < 0 || count > nav->max_agents || (count > 0 && layers == NULL)) return MN_ERR_ARGUMENT;
+    for (int i = 0; i < count; i++) nav->layer[i] = layers[i] != 0;
+    nav->hash_stale = 1;
+    return MN_OK;
+}
+
+/* The grids an agent moves on: the air layer for a flyer when one is baked, otherwise the ground. */
+static inline const MobNav *grid_for(const MobNav *nav, int slot) {
+    return nav->layer[slot] != 0 && nav->air != NULL ? nav->air : nav;
 }
 
 static int valid_mode(float value) {
@@ -629,13 +682,14 @@ MnResult mn_agents_displace(MobNav *nav, const float *data, int count) {
         const float *row = data + i * MN_DISPLACE_STRIDE;
         int slot = (int)row[0];
         if (!nav->active[slot]) continue;
+        const MobNav *grid = grid_for(nav, slot);
         float x = nav->x[slot], z = nav->z[slot], dx = row[1] - x, dz = row[2] - z;
         float body = nav->radius[slot] + SKIN;
         int steps = 1 + (int)(sqrtf(dx * dx + dz * dz) / 0.1f);
         for (int s = 1; s <= steps; s++) {
             float t = (float)s / (float)steps;
             float nx = nav->x[slot] + dx * t, nz = nav->z[slot] + dz * t;
-            if (clear_at(nav, nx, nz) < body) break;
+            if (clear_at(grid, nx, nz) < body) break;
             x = nx;
             z = nz;
         }
@@ -767,7 +821,8 @@ static void separation(const MobNav *nav, int slot, float *out_x, float *out_z) 
             int c = ix + iz * nav->hash_w;
             for (int k = nav->hash_start[c]; k < nav->hash_start[c + 1]; k++) {
                 int other = nav->hash_items[k];
-                if (other == slot) continue;
+                /* Flyers and walkers pass over each other. */
+                if (other == slot || nav->layer[other] != nav->layer[slot]) continue;
                 float dx = x - nav->x[other], dz = z - nav->z[other];
                 float d2 = dx * dx + dz * dz;
                 if (d2 >= SEPARATION * SEPARATION) continue;
@@ -893,11 +948,12 @@ static void step_agent(MobNav *nav, int slot, float dt) {
     nav->next_x[slot] = x;
     nav->next_z[slot] = z;
     if (nav->mode[slot] == MN_MODE_HOLD) return;
+    const MobNav *grid = grid_for(nav, slot);
     const Field *field = NULL;
     if (nav->mode[slot] != MN_MODE_DIRECT) {
         int picked = pick_target(nav, slot);
         if (picked < 0) return;
-        field = &nav->fields[picked];
+        field = &grid->fields[picked];
     }
     float step = nav->speed[slot] * dt, dir_x = 0.0f, dir_z = 0.0f, travel = step;
     if (nav->mode[slot] == MN_MODE_DIRECT) {
@@ -914,14 +970,14 @@ static void step_agent(MobNav *nav, int slot, float dt) {
         if (distance <= nav->stop[slot]) return;
         travel = min_float(step, distance - nav->stop[slot]);
         if ((nav->tick + (uint64_t)slot) % LOS_REFRESH == 0) {
-            nav->sight[slot] = (uint8_t)mn_line_clear(nav, x, z, goal_x, goal_z, nav->radius[slot] + LOS_MARGIN);
+            nav->sight[slot] = (uint8_t)mn_line_clear(grid, x, z, goal_x, goal_z, nav->radius[slot] + LOS_MARGIN);
         }
-        if (nav->sight[slot] || !flow_sample(nav, field, x, z, &dir_x, &dir_z)) {
+        if (nav->sight[slot] || !flow_sample(grid, field, x, z, &dir_x, &dir_z)) {
             dir_x = distance > 1e-5f ? dx / distance : 0.0f;
             dir_z = distance > 1e-5f ? dz / distance : 0.0f;
         }
     } else {
-        if (flow_sample(nav, field, x, z, &dir_x, &dir_z)) {
+        if (flow_sample(grid, field, x, z, &dir_x, &dir_z)) {
             dir_x = -dir_x;
             dir_z = -dir_z;
         } else {
@@ -938,7 +994,7 @@ static void step_agent(MobNav *nav, int slot, float dt) {
     float length = sqrtf(vx * vx + vz * vz);
     int moves = 1 + (int)(length / FINE_CELL);
     for (int i = 0; i < moves; i++) {
-        resolve_move(nav, nav->radius[slot], &x, &z, vx / (float)moves, vz / (float)moves);
+        resolve_move(grid, nav->radius[slot], &x, &z, vx / (float)moves, vz / (float)moves);
     }
     nav->next_x[slot] = x;
     nav->next_z[slot] = z;
@@ -948,6 +1004,15 @@ MnResult mn_tick(MobNav *nav, float dt) {
     if (nav == NULL || !nav->baked) return MN_ERR_STATE;
     if (!isfinite(dt) || dt < 0.0f || dt > 1.0f) return MN_ERR_ARGUMENT;
     update_fields(nav);
+    if (nav->air != NULL) {
+        /* The air layer's fields are kept current only while something flies. */
+        for (int i = 0; i < nav->agent_count; i++) {
+            if (nav->active[i] && nav->layer[i]) {
+                update_fields(nav->air);
+                break;
+            }
+        }
+    }
     rebuild_hash(nav);
     for (int i = 0; i < nav->agent_count; i++) {
         if (nav->active[i]) step_agent(nav, i, dt);
@@ -974,9 +1039,10 @@ MnResult mn_wall_rays(const MobNav *nav, const float *slots, int count, float ma
         for (int ray = 0; ray < MN_WALL_RAYS; ray++) {
             float reached = max_distance;
             if (slot >= 0 && slot < nav->agent_count) {
+                const MobNav *grid = grid_for(nav, slot);
                 float t = 0.0f;
                 while (t < max_distance) {
-                    float c = clear_at(nav, nav->x[slot] + ray_x[ray] * t, nav->z[slot] + ray_z[ray] * t);
+                    float c = clear_at(grid, nav->x[slot] + ray_x[ray] * t, nav->z[slot] + ray_z[ray] * t);
                     if (c <= 0.0f) {
                         reached = t;
                         break;
@@ -995,6 +1061,18 @@ void mn_line_clear_batch(const MobNav *nav, const float *queries, int count, uin
         const float *q = queries + i * MN_SIGHT_STRIDE;
         out[i] = (uint8_t)mn_line_clear(nav, q[0], q[1], q[2], q[3], q[4]);
     }
+}
+
+float mn_air_clearance(const MobNav *nav, float x, float z) {
+    return mn_clearance(nav != NULL && nav->air != NULL ? nav->air : nav, x, z);
+}
+
+int mn_sight_clear(const MobNav *nav, float x0, float z0, float x1, float z1, float radius) {
+    return mn_line_clear(nav != NULL && nav->air != NULL ? nav->air : nav, x0, z0, x1, z1, radius);
+}
+
+void mn_sight_clear_batch(const MobNav *nav, const float *queries, int count, uint8_t *out) {
+    mn_line_clear_batch(nav != NULL && nav->air != NULL ? nav->air : nav, queries, count, out);
 }
 
 int mn_agent_count(const MobNav *nav) { return nav != NULL ? nav->agent_count : 0; }

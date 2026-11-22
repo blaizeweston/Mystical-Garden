@@ -1,7 +1,7 @@
 extends RefCounted
 ## Movement, senses, defence and resource traits for one species.
 ## Escort rules for supports stay in the enemy catalog.
-## Senses, dodge and mana are live. Flight takes effect later in Phase 4; its layer is provisional until then.
+## Senses, dodge, mana and flight are live.
 
 const Enums = preload("res://mob_sim/definitions/definition_enums.gd")
 const Reader = preload("res://mob_sim/definitions/definition_reader.gd")

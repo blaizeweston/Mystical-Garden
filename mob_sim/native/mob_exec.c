@@ -448,7 +448,7 @@ static void find_cover(const Run *r, int slot, int player) {
     }
     e->cover_found[slot] = 0;
     if (count == 0) return;
-    mn_line_clear_batch(r->nav, e->cover_queries, count, e->cover_clear);
+    mn_sight_clear_batch(r->nav, e->cover_queries, count, e->cover_clear);
     double best = INFINITY;
     for (int index = 0; index < count; index++) {
         V2 point = v2(e->cover_points[index * 2], e->cover_points[index * 2 + 1]);

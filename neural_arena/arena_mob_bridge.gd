@@ -212,7 +212,8 @@ func _mirror_slot(slot: int, next: int, now: int) -> void:
 	pool.speed[slot] = _speed(scout, now)
 	pool.ready_at[slot] = next + _ticks_until(int(scout.ready), now)
 	pool.stun_until[slot] = next + _ticks_until(int(scout.get("stagger_until", 0)), now)
-	pool.root_until[slot] = next + _ticks_until(int(scout.rooted_until), now)
+	# Flyers cannot be rooted.
+	pool.root_until[slot] = 0 if sim.species.layer[pool.species[slot]] != 0 else next + _ticks_until(int(scout.rooted_until), now)
 	pool.haste_until[slot] = next + _ticks_until(int(scout.get("haste_until", 0)), now)
 	if bool(scout.get("engaged", false)):
 		pool.engaged[slot] = 1

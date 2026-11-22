@@ -141,7 +141,10 @@ func audit() -> void:
 	for slot in sim.pool.active:
 		if sim.pool.windup_until[slot] > 0:
 			counted[sim.pool.aim_player[slot]] += 1
-		if sim.locomotion.world.clearance(sim.pool.xz[slot * 2], sim.pool.xz[slot * 2 + 1]) < Species.BODY_RADIUS:
+		var x: float = sim.pool.xz[slot * 2]
+		var z: float = sim.pool.xz[slot * 2 + 1]
+		var room: float = sim.locomotion.world.air_clearance(x, z) if sim.locomotion.flies(slot) else sim.locomotion.world.clearance(x, z)
+		if room < Species.BODY_RADIUS:
 			clip_count += 1
 	for player in sim.contract.players:
 		max_attackers_seen = maxi(max_attackers_seen, counted[player])

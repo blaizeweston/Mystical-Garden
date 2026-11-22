@@ -227,7 +227,7 @@ Each phase ends with evidence and a review before the next starts.
 | 1 | Folder structure, definitions, loader, validator, table compiler, per-system timers, benchmark budgets and the baseline | None |
 | 2 | Native executors, decisions, perception and movement speeds, with parity tests; senses with a light grid; status system. Done 2026-11-21 | None |
 | 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Parts 1 to 3 done 2026-11-21; the legacy comparison remains | Arena files only |
-| 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Part 1 (mana, channeling, dodge) done 2026-11-21 | Arena files only |
+| 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Parts 1 (mana, channeling, dodge) and 2 (flying) done 2026-11-22 | Arena files only |
 | 5 | Dedicated framework presentation. Elite kits. Bosses keep scripted plans for now | Arena files only |
 | 6 | Schema v2, rewards v2, training loop, curriculum and evaluation | None |
 | 7 | Live toggles, with Legacy enemies and darkness off by default | Small hooks: settings, `tick_enemies`, spawning, guest snapshots, fog of war. Approved step by step |
@@ -415,3 +415,19 @@ In the arena the game resolves hits before the simulation sees them, so the brid
 The contract now has 15 behaviours, so the observation grows from 555 to 563 values and the policy from 274,032 to 274,537 parameters. The mana and dodge inputs stay masked until schema v2 in Phase 6.
 
 Checks: `mob_sim/tests/mob_action_checks.gd` (31 checks). Native and reference masks and scripted choices still match in the parity test. A new arena check saw casters spend mana and channel (252 channel ticks) and agile mobs dodge real hits (19 dodges). Speed stays above target: 415x real time at 20 mobs and 101x at 100.
+
+### Part 2: flying
+
+Built 2026-11-22. The Orchid and the Wicker Wasp fly.
+
+| Rule | How |
+|---|---|
+| Where flyers go | Anywhere a walker can, and also over water and low obstacles. Only tall cover (the cover that stops shots), the arena edge and barriers stop them |
+| Movement | The native core bakes a second grid, the air layer, from `NavWorld.air_mask`. Each agent has a layer. Flyers route, step and dash on the air grid but stay in the shared crowd, so neighbour queries, ally sensing and alerts still find them. Flyers and walkers do not push each other. The air layer's route fields are only updated while something flies |
+| Sight | Every mob's sight now uses the air grid: it crosses water and low obstacles, and only tall cover blocks it, matching the game's combat sight. Before, the walking grid made water block sight. Cover search and ranged-attack sight follow the same rule. A rock walkers can step over but that stops shots no longer blocks sight |
+| Roots | Flyers cannot be rooted, in the simulation and in the arena |
+| Hits | Stay 2.5D: players hit flyers as before. A flyer over water is out of melee reach |
+
+The air grid is built per piece of cover, so it costs about 14 ms on a real arena map, once per round (the walking grid takes about 60 ms). Ground hazards and player fields are Part 4; they will skip flyers there.
+
+Checks: `mob_sim/tests/mob_layer_checks.gd` (15 checks) and new native tests (a moat that walkers cannot cross and flyers can, with barriers still stopping a flyer's dash). Parity, the neural net's wall-clip audit and every earlier suite pass. A new arena check saw flyers fight real players for 12,810 mob-ticks with 8 attacks, never rooted and never outside the air layer. Speed: 416x real time at 20 mobs and 148x at 100.

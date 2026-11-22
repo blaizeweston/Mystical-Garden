@@ -1,6 +1,7 @@
 extends SceneTree
 ## Proves the arena's safety, repeatability, combat and time controls. Run through run_arena.ps1.
 
+const MobNavWorld = preload("res://mob_sim/mob_nav_world.gd")
 const Characters = preload("res://neural_arena/arena_characters.gd")
 const CombatClock = preload("res://combat_clock.gd")
 const Config = preload("res://neural_arena/arena_config.gd")
@@ -198,6 +199,45 @@ func test_actions() -> void:
 	await close_world(world)
 
 
+## Flyers against the real game: they move on the air layer, fight, are never rooted, and the game leaves
+## them where the simulation put them.
+func test_flying() -> void:
+	var world := make_world(make_config(Config.SCRIPTED_BRAIN, {"wasp": 4, "orchid": 3, "rootbound": 2}, 1))
+	var flyer_ticks := 0
+	var rooted := 0
+	var lost := 0
+	var timed := false
+	var used := {}
+	for tick in REPEAT_TICKS * 2:
+		world.step_once()
+		if world.bridge == null:
+			continue
+		var sim = world.bridge.sim
+		if not timed:
+			timed = true
+			var began := Time.get_ticks_usec()
+			var floor: PackedByteArray = MobNavWorld.floor_mask(world.bridge.game.battlefield)
+			var middle := Time.get_ticks_usec()
+			MobNavWorld.air_mask(world.bridge.game.battlefield, floor)
+			print("AIR_MASK_MS floor ", (middle - began) / 1000.0, " air ", (Time.get_ticks_usec() - middle) / 1000.0)
+		for slot in sim.pool.active:
+			if not sim.locomotion.flies(slot):
+				continue
+			flyer_ticks += 1
+			rooted += int(sim.pool.root_until[slot] > sim.clock.tick)
+			lost += int(sim.locomotion.world.air_clearance(sim.pool.xz[slot * 2], sim.pool.xz[slot * 2 + 1]) < 0.0)
+		used = sim.abilities.used
+	var released := 0
+	for ability: String in used:
+		released += int(used[ability]) if ability.begins_with("wasp") or ability.begins_with("orchid") else 0
+	print("FLYING flyer ticks ", flyer_ticks, " releases ", released, " rooted ", rooted, " outside ", lost, " used ", used)
+	check(flyer_ticks > 0, "flyers take part in real combat")
+	check(released > 0, "flyers attack in real combat")
+	check(rooted == 0, "flyers are never rooted")
+	check(lost == 0, "the game never moves a flyer outside the air layer")
+	await close_world(world)
+
+
 func test_round_outcomes() -> void:
 	var config := make_config(Config.GAME_AI, {"colossus": 12, "gallhorn": 8}, 1)
 	config.floor_number = 40
@@ -330,6 +370,7 @@ func run() -> void:
 	await test_kits()
 	await test_handlers()
 	await test_actions()
+	await test_flying()
 	await test_round_outcomes()
 	await test_species()
 	await test_classes()
