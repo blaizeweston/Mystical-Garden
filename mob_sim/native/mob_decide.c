@@ -11,6 +11,8 @@
 #define KEEP_TARGET_BONUS 1.1
 #define LONG_RANGE 3.0
 #define VAULT_ATTACK 2
+#define HURT_DODGE_TICKS 12
+#define SAFE_CHANNEL_DISTANCE 7.0
 
 static const MdKind config_kinds[DC_COUNT] = {
     [DC_DIMS] = DK_INTS, [DC_HEAD_OFFSETS] = DK_INTS, [DC_AVAILABLE] = DK_BYTES, [DC_LEADER_ONLY] = DK_BYTES,
@@ -18,6 +20,7 @@ static const MdKind config_kinds[DC_COUNT] = {
     [DC_SUPPORT] = DK_BYTES, [DC_SKIRMISHER] = DK_BYTES, [DC_MAX_RANGE] = DK_FLOATS,
     [DC_ATTACK_EXISTS] = DK_BYTES, [DC_ATTACK_MUTATION] = DK_INTS, [DC_ATTACK_ESCORT] = DK_BYTES,
     [DC_ATTACK_DELIVERY] = DK_BYTES, [DC_ATTACK_RANGE] = DK_FLOATS, [DC_ATTACK_MIN_RANGE] = DK_FLOATS,
+    [DC_MANA_POOL] = DK_FLOATS, [DC_MANA_LOW] = DK_FLOATS, [DC_CAN_DODGE] = DK_BYTES, [DC_ATTACK_MANA_COST] = DK_FLOATS,
 };
 
 static const MdKind input_kinds[DI_COUNT] = {
@@ -27,7 +30,8 @@ static const MdKind input_kinds[DI_COUNT] = {
     [DI_COOLDOWN_UNTIL] = DK_INTS, [DI_WINDUP_UNTIL] = DK_INTS, [DI_VISIBLE] = DK_BYTES, [DI_SEEN_X] = DK_FLOATS,
     [DI_SEEN_Z] = DK_FLOATS, [DI_SEEN_TICK] = DK_INTS, [DI_ALLIES] = DK_INTS, [DI_PARTY_PRESENT] = DK_BYTES,
     [DI_PARTY_ALIVE] = DK_BYTES, [DI_PARTY_X] = DK_FLOATS, [DI_PARTY_Z] = DK_FLOATS, [DI_MASKS] = DK_BYTES,
-    [DI_COMMAND_PLAYER] = DK_BYTES, [DI_COMMAND_UNTIL] = DK_INTS,
+    [DI_COMMAND_PLAYER] = DK_BYTES, [DI_COMMAND_UNTIL] = DK_INTS, [DI_MANA] = DK_FLOATS, [DI_DODGE_READY] = DK_INTS,
+    [DI_ROOT_UNTIL] = DK_INTS, [DI_STUN_UNTIL] = DK_INTS, [DI_HURT_AT] = DK_INTS,
 };
 
 MdKind md_config_kind(int index) { return config_kinds[index]; }
@@ -38,9 +42,9 @@ struct MobDecide {
     int head_offset[DK_HEAD_COUNT];
     uint8_t *available, *leader_only, *target_kind, *delivery;
     int *attack_slot;
-    uint8_t *support, *skirmisher, *attack_exists, *attack_escort, *attack_delivery;
+    uint8_t *support, *skirmisher, *attack_exists, *attack_escort, *attack_delivery, *can_dodge;
     int *attack_mutation;
-    float *max_range, *attack_range, *attack_min_range;
+    float *max_range, *attack_range, *attack_min_range, *mana_pool, *mana_low, *attack_mana_cost;
     int *assigned;
 };
 
@@ -50,8 +54,8 @@ typedef struct {
     const int *slots, *active, *generation, *species, *mutations, *leader, *leader_generation;
     const int *ready_at, *cooldown_until, *windup_until, *seen_tick, *allies;
     const uint8_t *alive, *flags, *enemy_target, *visible, *party_present, *party_alive, *masks, *command_player;
-    const int *command_until;
-    const float *xz, *seen_x, *seen_z, *party_x, *party_z;
+    const int *command_until, *dodge_ready, *root_until, *stun_until, *hurt_at;
+    const float *xz, *seen_x, *seen_z, *party_x, *party_z, *mana;
     int64_t slot_count, active_count;
 } View;
 
@@ -66,6 +70,7 @@ void md_destroy(MobDecide *d) {
     free(d->available); free(d->leader_only); free(d->target_kind); free(d->delivery); free(d->attack_slot);
     free(d->support); free(d->skirmisher); free(d->attack_exists); free(d->attack_escort); free(d->attack_delivery);
     free(d->attack_mutation); free(d->max_range); free(d->attack_range); free(d->attack_min_range); free(d->assigned);
+    free(d->mana_pool); free(d->mana_low); free(d->can_dodge); free(d->attack_mana_cost);
     free(d);
 }
 
@@ -83,7 +88,9 @@ MdResult md_create(const void *const *items, const int64_t *lengths, MobDecide *
             || lengths[DC_TARGET_KIND] != behaviours || lengths[DC_ATTACK_SLOT] != behaviours || lengths[DC_DELIVERY] != behaviours
             || lengths[DC_SUPPORT] != species || lengths[DC_SKIRMISHER] != species || lengths[DC_MAX_RANGE] != species
             || lengths[DC_ATTACK_EXISTS] != pairs || lengths[DC_ATTACK_MUTATION] != pairs || lengths[DC_ATTACK_ESCORT] != pairs
-            || lengths[DC_ATTACK_DELIVERY] != pairs || lengths[DC_ATTACK_RANGE] != pairs || lengths[DC_ATTACK_MIN_RANGE] != pairs) {
+            || lengths[DC_ATTACK_DELIVERY] != pairs || lengths[DC_ATTACK_RANGE] != pairs || lengths[DC_ATTACK_MIN_RANGE] != pairs
+            || lengths[DC_MANA_POOL] != species || lengths[DC_MANA_LOW] != species || lengths[DC_CAN_DODGE] != species
+            || lengths[DC_ATTACK_MANA_COST] != pairs) {
         free(d);
         return DK_ERR_ARGUMENT;
     }
@@ -101,10 +108,15 @@ MdResult md_create(const void *const *items, const int64_t *lengths, MobDecide *
     d->attack_delivery = copy_table(items[DC_ATTACK_DELIVERY], pairs, 1);
     d->attack_range = copy_table(items[DC_ATTACK_RANGE], pairs, sizeof(float));
     d->attack_min_range = copy_table(items[DC_ATTACK_MIN_RANGE], pairs, sizeof(float));
+    d->mana_pool = copy_table(items[DC_MANA_POOL], species, sizeof(float));
+    d->mana_low = copy_table(items[DC_MANA_LOW], species, sizeof(float));
+    d->can_dodge = copy_table(items[DC_CAN_DODGE], species, 1);
+    d->attack_mana_cost = copy_table(items[DC_ATTACK_MANA_COST], pairs, sizeof(float));
     d->assigned = calloc((size_t)d->dim[DD_PLAYERS] + 1, sizeof(int));
     if (!d->available || !d->leader_only || !d->target_kind || !d->attack_slot || !d->delivery || !d->support || !d->skirmisher
             || !d->max_range || !d->attack_exists || !d->attack_mutation || !d->attack_escort || !d->attack_delivery
-            || !d->attack_range || !d->attack_min_range || !d->assigned) {
+            || !d->attack_range || !d->attack_min_range || !d->assigned || !d->mana_pool || !d->mana_low || !d->can_dodge
+            || !d->attack_mana_cost) {
         md_destroy(d);
         return DK_ERR_MEMORY;
     }
@@ -127,7 +139,9 @@ static int bind(View *v, const MobDecide *d, const void *const *items, const int
     if (lengths[DI_TICK] != 1 || lengths[DI_ALIVE] != capacity || lengths[DI_XZ] != (int64_t)capacity * 2
             || lengths[DI_COOLDOWN_UNTIL] != (int64_t)capacity * d->dim[DD_ATTACKS] || lengths[DI_SEEN_TICK] != (int64_t)capacity * players
             || lengths[DI_ALLIES] != (int64_t)capacity * d->dim[DD_ALLIES] || lengths[DI_PARTY_X] != players
-            || lengths[DI_COMMAND_PLAYER] != capacity || lengths[DI_COMMAND_UNTIL] != capacity) {
+            || lengths[DI_COMMAND_PLAYER] != capacity || lengths[DI_COMMAND_UNTIL] != capacity || lengths[DI_MANA] != capacity
+            || lengths[DI_DODGE_READY] != capacity || lengths[DI_ROOT_UNTIL] != capacity || lengths[DI_STUN_UNTIL] != capacity
+            || lengths[DI_HURT_AT] != capacity) {
         return 0;
     }
     memset(v, 0, sizeof(*v));
@@ -143,6 +157,8 @@ static int bind(View *v, const MobDecide *d, const void *const *items, const int
     BIND(seen_tick, DI_SEEN_TICK, int); BIND(allies, DI_ALLIES, int); BIND(party_present, DI_PARTY_PRESENT, uint8_t);
     BIND(party_alive, DI_PARTY_ALIVE, uint8_t); BIND(party_x, DI_PARTY_X, float); BIND(party_z, DI_PARTY_Z, float);
     BIND(masks, DI_MASKS, uint8_t); BIND(command_player, DI_COMMAND_PLAYER, uint8_t); BIND(command_until, DI_COMMAND_UNTIL, int);
+    BIND(mana, DI_MANA, float); BIND(dodge_ready, DI_DODGE_READY, int); BIND(root_until, DI_ROOT_UNTIL, int);
+    BIND(stun_until, DI_STUN_UNTIL, int); BIND(hurt_at, DI_HURT_AT, int);
     for (int64_t i = 0; i < v->slot_count; i++) {
         if (v->slots[i] < 0 || v->slots[i] >= capacity) return 0;
     }
@@ -186,6 +202,7 @@ static int attack_ready(const View *v, int slot, int attack) {
     const MobDecide *d = v->d;
     int at = v->species[slot] * d->dim[DD_ATTACKS] + attack;
     if (d->attack_exists[at] == 0 || (d->attack_mutation[at] != 0 && (v->mutations[slot] & d->attack_mutation[at]) == 0)) return 0;
+    if (v->mana[slot] < d->attack_mana_cost[at]) return 0;
     if (v->tick < v->ready_at[slot] || v->tick < v->cooldown_until[slot * d->dim[DD_ATTACKS] + attack] || v->windup_until[slot] > 0) return 0;
     /* Escort rule: 0 any time, 1 only without a fighting ally, 2 only with one. */
     int escort = d->attack_escort[at];
@@ -199,6 +216,14 @@ static int behaviour_legal(const View *v, int slot, int behaviour, int has_enemy
     int kind = d->target_kind[behaviour];
     if ((kind == DK_TARGET_ENEMY || kind == DK_TARGET_ABILITY) && !has_enemy) return 0;
     if (kind == DK_TARGET_ALLY && !has_ally) return 0;
+    if (behaviour == d->dim[DD_DODGE]) {
+        return d->can_dodge[v->species[slot]] != 0 && v->tick >= v->dodge_ready[slot] && v->windup_until[slot] <= 0
+            && v->tick >= v->stun_until[slot] && v->tick >= v->root_until[slot];
+    }
+    if (behaviour == d->dim[DD_CHANNEL]) {
+        float full = d->mana_pool[v->species[slot]];
+        return full > 0.0f && v->mana[slot] < full && v->windup_until[slot] <= 0;
+    }
     int attack = d->attack_slot[behaviour];
     if (attack < 0) return 1;
     int wanted = d->delivery[behaviour];
@@ -308,19 +333,41 @@ static int first_ally(const View *v, int slot) {
     return 0;
 }
 
+static double nearest_seen(const View *v, int slot) {
+    double nearest = INFINITY;
+    for (int player = 0; player < v->d->dim[DD_PLAYERS]; player++) {
+        if (sees(v, slot, player)) nearest = fmin(nearest, distance_to(v, slot, v->party_x[player], v->party_z[player]));
+    }
+    return nearest;
+}
+
 static void decide_slot(const View *v, uint8_t *out, int64_t index, int slot) {
     const MobDecide *d = v->d;
+    if (allowed(v, index, d->dim[DD_DODGE]) && v->tick - v->hurt_at[slot] <= HURT_DODGE_TICKS) {
+        write_intent(out, index, d->dim[DD_DODGE], 0, 0, 0);
+        return;
+    }
     int player = pick_target(v, index, slot);
     if (player < 0) {
-        write_intent(out, index, d->dim[DD_IDLE], 0, 0, 0);
+        write_intent(out, index, allowed(v, index, d->dim[DD_CHANNEL]) ? d->dim[DD_CHANNEL] : d->dim[DD_IDLE], 0, 0, 0);
         return;
     }
     int head = player + 1;
+    int kind = v->species[slot];
+    if (v->mana[slot] < d->mana_low[kind] && allowed(v, index, d->dim[DD_CHANNEL])) {
+        if (nearest_seen(v, slot) > SAFE_CHANNEL_DISTANCE) {
+            write_intent(out, index, d->dim[DD_CHANNEL], 0, 0, 0);
+            return;
+        }
+        if (allowed(v, index, d->dim[DD_FLEE])) {
+            write_intent(out, index, d->dim[DD_FLEE], head, 0, 0);
+            return;
+        }
+    }
     if (!sees(v, slot, player)) {
         write_intent(out, index, d->dim[DD_SEARCH], head, 0, 0);
         return;
     }
-    int kind = v->species[slot];
     int manoeuvre = choose_manoeuvre(v, slot, kind);
     double distance = distance_to(v, slot, v->party_x[player], v->party_z[player]);
     int vault_at = kind * d->dim[DD_ATTACKS] + VAULT_ATTACK;

@@ -174,6 +174,30 @@ func test_handlers() -> void:
 	await close_world(world)
 
 
+## Mana and dodging against the real game: casters spend mana and channel, agile mobs dodge real hits.
+func test_actions() -> void:
+	var world := make_world(make_config(Config.SCRIPTED_BRAIN, {"nightbloom": 3, "bellcap": 1, "thornmaw": 4, "graft_thief": 1,
+		"rootbound": 4}, 3))
+	var channel_ticks := 0
+	var dodges := 0
+	var spent := false
+	for tick in REPEAT_TICKS * 2:
+		world.step_once()
+		if world.bridge == null:
+			continue
+		var sim = world.bridge.sim
+		var pool = sim.pool
+		for slot in pool.active:
+			channel_ticks += int(sim.actions.channeling(slot, sim.clock.tick))
+			dodges += int(pool.dodge_until[slot] == sim.clock.tick + sim.species.dodge_ticks[pool.species[slot]])
+			spent = spent or (sim.species.mana_pool[pool.species[slot]] > 0.0 and pool.mana[slot] < sim.species.mana_pool[pool.species[slot]])
+	print("ACTIONS channel ticks ", channel_ticks, " dodges ", dodges)
+	check(spent, "casters spend mana in real combat")
+	check(channel_ticks > 0, "a caster channels to refill its mana")
+	check(dodges > 0, "an agile mob dodges in real combat")
+	await close_world(world)
+
+
 func test_round_outcomes() -> void:
 	var config := make_config(Config.GAME_AI, {"colossus": 12, "gallhorn": 8}, 1)
 	config.floor_number = 40
@@ -305,6 +329,7 @@ func run() -> void:
 	await test_combat()
 	await test_kits()
 	await test_handlers()
+	await test_actions()
 	await test_round_outcomes()
 	await test_species()
 	await test_classes()

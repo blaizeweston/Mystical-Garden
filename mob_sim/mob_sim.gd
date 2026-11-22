@@ -20,6 +20,7 @@ const Species = preload("res://mob_sim/mob_species.gd")
 const SystemTimers = preload("res://mob_sim/perf/system_timers.gd")
 const StatusSystem = preload("res://mob_sim/mob_status.gd")
 const SimHandlerPort = preload("res://mob_sim/abilities/sim_handler_port.gd")
+const Actions = preload("res://mob_sim/mob_actions.gd")
 
 enum Status { STUN, ROOT, SLOW, HASTE }
 
@@ -37,6 +38,8 @@ var abilities: Abilities
 var executors: RefCounted
 ## Damage over time, dodge windows, channeling and armour.
 var status: StatusSystem
+## Mana, channeling and dodging.
+var actions: Actions
 ## Per-system timing. Set timers.enabled to measure; results never depend on it.
 var timers := SystemTimers.new()
 ## Decides for mobs that are awake.
@@ -59,6 +62,8 @@ func _init(slots: int, awake_brain: Brain = null) -> void:
 	locomotion = Locomotion.new(pool, party, contract)
 	perception = Perception.new(pool, party, species, contract, locomotion.world)
 	rules = Rules.new(contract, pool, party, species, perception, events)
+	actions = Actions.new(contract, pool, party, species, perception, locomotion)
+	rules.actions = actions
 	status = StatusSystem.new(pool, species.count)
 	abilities = Abilities.new(pool, party, species, rules, events, locomotion)
 	abilities.port = SimHandlerPort.new(self)
@@ -112,6 +117,7 @@ func damage_mob(slot: int, amount: float, source_player: int = -1, scaled: bool 
 	if slot < 0 or slot >= pool.capacity or pool.alive[slot] == 0 or amount <= 0.0:
 		return 0.0
 	pool.prompt_decision(slot, clock.tick)
+	pool.hurt_at[slot] = clock.tick
 	if scaled:
 		amount = status.scale_damage(slot, amount, clock.tick)
 	if amount <= 0.0:
@@ -236,6 +242,7 @@ func _decide(now: int) -> void:
 		if now < pool.next_decision[slot]:
 			continue
 		pool.mark_decided(slot, now)
+		actions.settle(slot, now)
 		if now - pool.last_sensed[slot] >= sleep_ticks:
 			asleep.append(slot)
 		else:

@@ -10,6 +10,10 @@ const ASSIGNED_LIMIT := 3.0
 const UNSEEN_PENALTY := 3.0
 const KEEP_TARGET_BONUS := 1.1
 const LONG_RANGE := 3.0
+## A mob that can dodge sidesteps when it was hurt this recently.
+const HURT_DODGE_TICKS := 12
+## A mob low on mana channels only when no visible player is this close; otherwise it flees first.
+const SAFE_CHANNEL_DISTANCE := 7.0
 
 var _bound := false
 var _idle := 0
@@ -21,6 +25,9 @@ var _ability_1 := 0
 var _ability_2 := 0
 var _ability_3 := 0
 var _defend := 0
+var _flee := -1
+var _dodge := -1
+var _channel := -1
 var _circle_left := 0
 var _circle_right := 0
 var _keep_range := 0
@@ -47,6 +54,9 @@ func _bind(contract: Contract) -> void:
 	_ability_2 = contract.id("ability_2")
 	_ability_3 = contract.id("ability_3")
 	_defend = contract.id("defend_ally")
+	_flee = contract.id("flee")
+	_dodge = contract.id("dodge")
+	_channel = contract.id("channel")
 	_circle_left = contract.manoeuvres.find("circle_left")
 	_circle_right = contract.manoeuvres.find("circle_right")
 	_keep_range = contract.manoeuvres.find("keep_max_range")
@@ -60,15 +70,25 @@ func _count_assignments(batch: Batch) -> void:
 
 
 func _decide_slot(batch: Batch, index: int, slot: int) -> void:
+	if _legal(batch, index, _dodge) and batch.clock.tick - batch.pool.hurt_at[slot] <= HURT_DODGE_TICKS:
+		batch.write_intent(index, _dodge, 0, 0, 0)
+		return
 	var player := _pick_target(batch, index, slot)
 	if player < 0:
-		batch.write_intent(index, _idle, 0, 0, 0)
+		batch.write_intent(index, _channel if _legal(batch, index, _channel) else _idle, 0, 0, 0)
 		return
 	var head := player + 1
+	var kind := batch.pool.species[slot]
+	if batch.pool.mana[slot] < batch.species.mana_low[kind] and _legal(batch, index, _channel):
+		if _nearest_seen(batch, slot) > SAFE_CHANNEL_DISTANCE:
+			batch.write_intent(index, _channel, 0, 0, 0)
+			return
+		if _legal(batch, index, _flee):
+			batch.write_intent(index, _flee, head, 0, 0)
+			return
 	if not batch.perception.sees(slot, player):
 		batch.write_intent(index, _search, head, 0, 0)
 		return
-	var kind := batch.pool.species[slot]
 	var manoeuvre := _manoeuvre(batch, slot, kind)
 	var distance := batch.pool.distance_to(slot, batch.party.x[player], batch.party.z[player])
 	var vault_at := kind * Species.ATTACKS + 2
@@ -84,6 +104,18 @@ func _decide_slot(batch: Batch, index: int, slot: int) -> void:
 		batch.write_intent(index, _defend, head, ally, 0)
 		return
 	batch.write_intent(index, _approach, head, 0, manoeuvre)
+
+
+func _legal(batch: Batch, index: int, behaviour: int) -> bool:
+	return behaviour >= 0 and batch.allowed(index, Contract.Head.BEHAVIOUR, behaviour)
+
+
+func _nearest_seen(batch: Batch, slot: int) -> float:
+	var nearest := INF
+	for player in batch.contract.players:
+		if batch.perception.sees(slot, player):
+			nearest = minf(nearest, batch.pool.distance_to(slot, batch.party.x[player], batch.party.z[player]))
+	return nearest
 
 
 func _pick_target(batch: Batch, index: int, slot: int) -> int:

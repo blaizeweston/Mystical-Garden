@@ -14,6 +14,7 @@ The replacement enemy framework and its native core. Only the Neural Arena runs 
 | `native/mob_sense.c` | Perception, ally slots, light, hearing and smell |
 | `*_reference.gd` | GDScript versions of the native systems, kept for the parity test |
 | `mob_status.gd` | Damage over time, dodge windows, channeling and armour |
+| `mob_actions.gd` | Mana spending and channeling, and dodging, started when a committed behaviour changes |
 | `mob_release.gd` | A release's areas from its kit row, and the hit test for each |
 | `abilities/` | Behaviour handlers, their registry and the training simulation's handler port |
 | `native/build.ps1` | Builds and tests the core, then links `bin/mob_nav.dll` |
@@ -40,6 +41,7 @@ godot --headless --path . --script res://mob_sim/tests/mob_native_parity.gd
 godot --headless --path . --script res://mob_sim/tests/mob_sense_checks.gd
 godot --headless --path . --script res://mob_sim/tests/mob_status_checks.gd
 godot --headless --path . --script res://mob_sim/tests/mob_handler_checks.gd
+godot --headless --path . --script res://mob_sim/tests/mob_action_checks.gd
 godot --headless --path . --script res://mob_sim/tests/mob_sim_bench.gd
 ./mob_sim/tests/run_bench.ps1
 ./mob_sim/tests/run_throughput.ps1 -Processes 12

@@ -82,7 +82,7 @@
 			{"name": "buffed", "scale": "flag"}
 		]},
 		{"name": "self_intent", "encoder": "self", "fields": [
-			{"name": "behaviour", "scale": "flag", "size": 14},
+			{"name": "behaviour", "scale": "flag", "size": 15},
 			{"name": "target", "scale": "flag", "size": 12}
 		]},
 		{"name": "self_archetype", "encoder": "self", "fields": [
@@ -166,7 +166,7 @@
 			{"name": "role_melee", "scale": "flag"},
 			{"name": "role_ranged", "scale": "flag"},
 			{"name": "role_support", "scale": "flag"},
-			{"name": "behaviour", "scale": "flag", "size": 14},
+			{"name": "behaviour", "scale": "flag", "size": 15},
 			{"name": "enemy_target", "scale": "flag", "size": 5},
 			{"name": "message", "scale": "flag", "size": 8}
 		]},
@@ -182,7 +182,7 @@
 			{"name": "role_melee", "scale": "flag"},
 			{"name": "role_ranged", "scale": "flag"},
 			{"name": "role_support", "scale": "flag"},
-			{"name": "behaviour", "scale": "flag", "size": 14},
+			{"name": "behaviour", "scale": "flag", "size": 15},
 			{"name": "enemy_target", "scale": "flag", "size": 5},
 			{"name": "message", "scale": "flag", "size": 8},
 			{"name": "ability_cooldown", "scale": "seconds", "size": 3}

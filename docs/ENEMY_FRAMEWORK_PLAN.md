@@ -227,7 +227,7 @@ Each phase ends with evidence and a review before the next starts.
 | 1 | Folder structure, definitions, loader, validator, table compiler, per-system timers, benchmark budgets and the baseline | None |
 | 2 | Native executors, decisions, perception and movement speeds, with parity tests; senses with a light grid; status system. Done 2026-11-21 | None |
 | 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Parts 1 to 3 done 2026-11-21; the legacy comparison remains | Arena files only |
-| 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields | Arena files only |
+| 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Part 1 (mana, channeling, dodge) done 2026-11-21 | Arena files only |
 | 5 | Dedicated framework presentation. Elite kits. Bosses keep scripted plans for now | Arena files only |
 | 6 | Schema v2, rewards v2, training loop, curriculum and evaluation | None |
 | 7 | Live toggles, with Legacy enemies and darkness off by default | Small hooks: settings, `tick_enemies`, spawning, guest snapshots, fog of war. Approved step by step |
@@ -395,3 +395,23 @@ Checks: `mob_sim/tests/mob_handler_checks.gd` (30 checks) covers every handler i
 ### Still to do in Phase 3
 
 **Part 4, comparison with legacy.** Run legacy enemies and framework enemies with the scripted brain on the same seeds, and compare damage per minute, time to kill, hit rate and ability use per species.
+
+## Phase 4 record
+
+### Part 1: mana, channeling and dodging
+
+Built 2026-11-21. `mob_sim/mob_actions.gd` owns both mechanics. MobRules calls it when a committed behaviour changes, so nothing is visited per tick.
+
+| Mechanic | Rules |
+|---|---|
+| Mana | The 11 caster species have a pool of 100. Each kit's basic cast costs 25 and its signature and counter 35, so four casts empty the pool. A wind-up spends the cost when it starts, and an attack the mob cannot afford is masked |
+| Channel | A new behaviour at the end of the contract, so existing ids keep their values. It is legal for a caster below full mana. The mob holds still for at least a second, refills at its species rate (15 to 25 per second) and takes 1.5 times the damage. Changing behaviour ends it. The refill is settled lazily, when the mob decides or changes behaviour |
+| Dodge | Now available to Thornmaw, Wicker Wasp and Graft Thief. It sidesteps across the nearest known threat, or straight away if both sides are blocked, then ignores hits for 220 to 260 ms. Cooldowns are 3.5 to 4.5 seconds. Dodging cuts through the current behaviour's hold but not a wind-up, and is illegal while stunned or rooted. The next decision comes when the dodge ends |
+
+The scripted brain, in GDScript and natively, dodges within 12 ticks of being hurt. A caster that runs low (below its dearest cast) channels if no visible player is within 7 units, and flees first if one is. A caster that knows of no player channels until full.
+
+In the arena the game resolves hits before the simulation sees them, so the bridge applies both mechanics afterwards. A dodge restores a hit the mob survived. A channel adds its extra damage but never takes the last point of health, so the game's own death handling always runs. A lethal hit during a dodge still kills; avoiding it needs a hook in the game's hit code, which waits for Phase 7.
+
+The contract now has 15 behaviours, so the observation grows from 555 to 563 values and the policy from 274,032 to 274,537 parameters. The mana and dodge inputs stay masked until schema v2 in Phase 6.
+
+Checks: `mob_sim/tests/mob_action_checks.gd` (31 checks). Native and reference masks and scripted choices still match in the parity test. A new arena check saw casters spend mana and channel (252 channel ticks) and agile mobs dodge real hits (19 dodges). Speed stays above target: 415x real time at 20 mobs and 101x at 100.

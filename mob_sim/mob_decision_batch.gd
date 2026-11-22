@@ -47,7 +47,8 @@ func native_inputs(chosen_masks: PackedByteArray = PackedByteArray()) -> Array:
 	return [PackedInt32Array([clock.tick]), slots, pool.active, pool.alive, pool.generation, pool.species, pool.mutations, pool.flags,
 		pool.leader, pool.leader_generation, pool.xz, pool.enemy_target, pool.ready_at, pool.cooldown_until, pool.windup_until,
 		perception.visible, perception.seen_x, perception.seen_z, perception.seen_tick, perception.allies,
-		party.present, party.alive, party.x, party.z, chosen_masks, pool.command_player, pool.command_until]
+		party.present, party.alive, party.x, party.z, chosen_masks, pool.command_player, pool.command_until,
+		pool.mana, pool.dodge_ready_at, pool.root_until, pool.stun_until, pool.hurt_at]
 
 
 func allowed(index: int, head: int, option: int) -> bool:

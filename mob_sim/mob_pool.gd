@@ -99,6 +99,13 @@ var dot_next := PackedInt32Array()
 var armour := PackedByteArray()
 var dodge_until := PackedInt32Array()
 var channel_until := PackedInt32Array()
+## Mana as of channel_from while channeling, or the current mana otherwise. MobActions owns it.
+var mana := PackedFloat32Array()
+## Tick the current channel started or was last settled.
+var channel_from := PackedInt32Array()
+var dodge_ready_at := PackedInt32Array()
+## Last tick the mob lost health or dodged a hit.
+var hurt_at := PackedInt32Array()
 ## A short move before a wind-up, set by an ability handler. Executors walk there until it ends.
 var approach_until := PackedInt32Array()
 var approach_x := PackedFloat32Array()
@@ -121,13 +128,13 @@ func _init(slots: int, attack_slots: int) -> void:
 		table.fill(0)
 	for table: PackedInt32Array in [generation, species, mutations, leader, leader_generation, next_decision, decision_interval, decided_at,
 			hold_until, behaviour_since, ready_at, windup_until, stun_until, root_until, slow_until, haste_until, last_sensed,
-			dot_until, dot_next, dodge_until, channel_until, approach_until, command_until]:
+			dot_until, dot_next, dodge_until, channel_until, approach_until, command_until, channel_from, dodge_ready_at, hurt_at]:
 		table.resize(slots)
 		table.fill(0)
 	cooldown_until.resize(slots * attack_slots)
 	cooldown_until.fill(0)
 	for table: PackedFloat32Array in [spawn_x, spawn_z, hp, max_hp, speed, damage, reach_bonus, windup_scale, recovery_scale,
-			intelligence, slow_scale, aim_x, aim_z, dot_dps, approach_x, approach_z, command_via_x, command_via_z]:
+			intelligence, slow_scale, aim_x, aim_z, dot_dps, approach_x, approach_z, command_via_x, command_via_z, mana]:
 		table.resize(slots)
 		table.fill(0.0)
 	xz.resize(slots * 2)
@@ -200,6 +207,10 @@ func spawn_at(slot: int, request: Spawn, table: Species, tick: int, interval: in
 	armour[slot] = int(request.mutations & Catalog.BARK != 0 or request.armoured)
 	dodge_until[slot] = 0
 	channel_until[slot] = 0
+	mana[slot] = table.mana_pool[request.species]
+	channel_from[slot] = 0
+	dodge_ready_at[slot] = 0
+	hurt_at[slot] = NEVER_SENSED
 	approach_until[slot] = 0
 	command_player[slot] = NO_PLAYER
 	command_until[slot] = 0
@@ -252,7 +263,7 @@ func distance_to(slot: int, x: float, z: float) -> float:
 
 
 func state_hash() -> int:
-	return hash([xz, hp, alive, behaviour, enemy_target, windup_until, ready_at])
+	return hash([xz, hp, alive, behaviour, enemy_target, windup_until, ready_at, mana])
 
 
 func _rebuild_active() -> void:

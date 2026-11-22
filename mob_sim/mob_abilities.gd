@@ -92,6 +92,8 @@ func begin(slot: int, attack: int, player: int, tick: int) -> bool:
 	if not gate(release, tick):
 		return false
 	_pending[slot] = release
+	if rules.actions != null:
+		rules.actions.spend(slot, attack)
 	var aim := release.aim
 	var ticks := maxi(maxi(MIN_WINDUP_TICKS, species.attack_min_windup[at]), roundi(species.attack_windup[at] * pool.windup_scale[slot]))
 	party.attackers[player] += 1

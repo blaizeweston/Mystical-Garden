@@ -317,3 +317,7 @@ func _do_block_enemy(slot: int, tick: int) -> void:
 
 func _do_dodge(slot: int, _tick: int) -> void:
 	locomotion.hold(slot)
+
+
+func _do_channel(slot: int, _tick: int) -> void:
+	locomotion.hold(slot)

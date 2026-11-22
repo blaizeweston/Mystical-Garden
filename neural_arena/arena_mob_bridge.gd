@@ -162,6 +162,23 @@ func _publish_party() -> void:
 		sim.party.set_player(player, Vector2(record.pos.x, record.pos.z), Vector2(velocity.x, velocity.z), health, PlayerVitals.maximum_hp(record))
 
 
+## The game resolves a hit before the simulation sees it. A dodge restores a hit the mob survived, and a
+## channel adds its extra damage, though never the last point of health, which only the game's own hits take
+## so its death handling runs.
+func _apply_defences(slot: int, health: float) -> float:
+	var pool := sim.pool
+	var tick := sim.clock.tick
+	if tick < pool.dodge_until[slot]:
+		sim.damage_mob(slot, pool.hp[slot] - health, _hitters[slot])
+		game.encounter.set_hp(slot, ceili(pool.hp[slot]))
+		return pool.hp[slot]
+	if sim.actions.channeling(slot, tick):
+		var extra := minf((pool.hp[slot] - health) * (sim.status.channel_damage_taken[pool.species[slot]] - 1.0), health - 1.0)
+		if extra >= 1.0:
+			health -= game.encounter.apply_damage(slot, int(extra), game.encounter.token(slot))
+	return health
+
+
 func _mirror_slot(slot: int, next: int, now: int) -> void:
 	var pool := sim.pool
 	var live: bool = slot < game.encounter.scout_count() and game.encounter.alive(slot)
@@ -177,6 +194,8 @@ func _mirror_slot(slot: int, next: int, now: int) -> void:
 			return
 	var scout: Dictionary = game.encounter.scout(slot)
 	var health := float(game.encounter.hp(slot))
+	if health < pool.hp[slot]:
+		health = _apply_defences(slot, health)
 	if health < pool.hp[slot]:
 		# The game already applied armour and every other defence, so the simulation copies the result unscaled.
 		sim.damage_mob(slot, pool.hp[slot] - health, _hitters[slot], false)

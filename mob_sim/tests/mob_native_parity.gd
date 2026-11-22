@@ -142,6 +142,7 @@ func _decide_both(sim, reference_brain, now: int, totals: Dictionary) -> String:
 		if now < sim.pool.next_decision[slot]:
 			continue
 		sim.pool.mark_decided(slot, now)
+		sim.actions.settle(slot, now)
 		if now - sim.pool.last_sensed[slot] >= sim.sleep_ticks:
 			asleep.append(slot)
 		else:

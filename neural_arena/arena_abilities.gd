@@ -103,6 +103,8 @@ func begin(slot: int, attack: int, player: int, tick: int) -> bool:
 	scout.erase("approach_used")
 	EnemyBehaviors.telegraph(game, scout, now)
 	_pending[slot] = release
+	if rules.actions != null:
+		rules.actions.spend(slot, attack)
 	party.attackers[player] += 1
 	pool.windup_until[slot] = tick + maxi(MIN_WINDUP_TICKS, ceili((int(scout.windup) - now) / MS_PER_TICK))
 	pool.windup_attack[slot] = attack

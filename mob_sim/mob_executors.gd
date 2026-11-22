@@ -20,6 +20,7 @@ const BEHAVIOUR_KINDS := {
 	"idle_wander": Kind.IDLE, "search": Kind.SEARCH, "approach": Kind.APPROACH,
 	"melee_attack": Kind.ATTACK, "ranged_attack": Kind.ATTACK, "ability_1": Kind.ATTACK, "ability_2": Kind.ATTACK, "ability_3": Kind.ATTACK,
 	"flee": Kind.FLEE, "take_cover": Kind.COVER, "hide": Kind.COVER, "defend_ally": Kind.DEFEND, "block_enemy": Kind.BLOCK, "dodge": Kind.HOLD,
+	"channel": Kind.HOLD,
 }
 ## Floats per attack proposal: slot, attack, player, then a fallback movement row.
 const PROPOSAL_STRIDE := 3 + Locomotion.STRIDE

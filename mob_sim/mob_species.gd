@@ -33,6 +33,15 @@ var vision := PackedFloat32Array()
 var preferred_range := PackedFloat32Array()
 var max_range := PackedFloat32Array()
 var group_alert_radius := 0.0
+## Mana pool per species; zero for species without mana.
+var mana_pool := PackedFloat32Array()
+var mana_per_tick := PackedFloat32Array()
+## Mana below the dearest cast in the species' kit, where the scripted brain looks for a safe channel.
+var mana_low := PackedFloat32Array()
+var can_dodge := PackedByteArray()
+var dodge_distance := PackedFloat32Array()
+var dodge_ticks := PackedInt32Array()
+var dodge_cooldown := PackedInt32Array()
 
 var attack_exists := PackedByteArray()
 var attack_shape := PackedByteArray()
@@ -48,6 +57,7 @@ var attack_min_windup := PackedInt32Array()
 var attack_recovery := PackedInt32Array()
 var attack_cooldown := PackedInt32Array()
 var attack_lead := PackedFloat32Array()
+var attack_mana_cost := PackedFloat32Array()
 ## Row in the compiled definition tables, or -1 for an empty slot.
 var attack_row := PackedInt32Array()
 var tables: RefCounted
@@ -72,7 +82,7 @@ func _allocate() -> void:
 	for table: PackedInt32Array in [attack_mutation, attack_windup, attack_min_windup, attack_recovery, attack_cooldown]:
 		table.resize(total)
 		table.fill(0)
-	for table: PackedFloat32Array in [attack_range, attack_min_range, attack_area, attack_lead]:
+	for table: PackedFloat32Array in [attack_range, attack_min_range, attack_area, attack_lead, attack_mana_cost]:
 		table.resize(total)
 		table.fill(0.0)
 	attack_row.resize(total)
@@ -97,6 +107,22 @@ func _compile(kind: int, definition: Dictionary, aggro_radius: float) -> void:
 		reach = tables.row_reach[tables.row(kind, Enums.Slot.BASIC)]
 	preferred_range.append(reach * 0.85)
 	max_range.append(reach)
+	_compile_traits(kind)
+
+
+func _compile_traits(kind: int) -> void:
+	var pool_size: float = tables.species_mana_pool[kind] if tables != null else 0.0
+	mana_pool.append(pool_size)
+	mana_per_tick.append(tables.species_mana_channel[kind] / Clock.TICKS_PER_SECOND if tables != null else 0.0)
+	var dearest := 0.0
+	for slot in ATTACKS:
+		dearest = maxf(dearest, attack_mana_cost[kind * ATTACKS + slot])
+	mana_low.append(minf(dearest, pool_size))
+	var cooldown: int = tables.species_dodge_cooldown_ms[kind] if tables != null else 0
+	can_dodge.append(int(cooldown > 0))
+	dodge_distance.append(tables.species_dodge_distance[kind] if tables != null else 0.0)
+	dodge_ticks.append(Clock.from_ms(float(tables.species_dodge_ms[kind])) if tables != null else 0)
+	dodge_cooldown.append(Clock.from_ms(float(cooldown)))
 
 
 func _set_attack(kind: int, slot: int, row: int) -> void:
@@ -128,6 +154,7 @@ func _set_attack(kind: int, slot: int, row: int) -> void:
 	attack_recovery[at] = Clock.from_ms(float(tables.row_recovery_ms[row]))
 	attack_cooldown[at] = Clock.from_ms(float(tables.row_cooldown_ms[row])) if tables.row_cooldown_ms[row] > 0 else 0
 	attack_lead[at] = tables.row_lead[row]
+	attack_mana_cost[at] = tables.row_mana_cost[row]
 
 
 ## The coarse shape the brain and the observations see.

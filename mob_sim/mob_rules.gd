@@ -9,6 +9,7 @@ const Party = preload("res://mob_sim/mob_party.gd")
 const Perception = preload("res://mob_sim/mob_perception.gd")
 const Pool = preload("res://mob_sim/mob_pool.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
+const Actions = preload("res://mob_sim/mob_actions.gd")
 
 var contract: Contract
 var pool: Pool
@@ -16,10 +17,14 @@ var party: Party
 var species: Species
 var perception: Perception
 var events: Events
+## Mana, channeling and dodging. MobSim sets it; without it mobs never dodge or channel and casts are free.
+var actions: Actions
 var hold_ticks := PackedInt32Array()
 var max_attackers := 0
 var messages_enabled := false
 var rejected := 0
+var _dodge := -1
+var _channel := -1
 
 
 func _init(rules_contract: Contract, mob_pool: Pool, mob_party: Party, table: Species, senses: Perception, event_log: Events) -> void:
@@ -33,11 +38,15 @@ func _init(rules_contract: Contract, mob_pool: Pool, mob_party: Party, table: Sp
 	messages_enabled = bool(contract.rules.messages_enabled)
 	for milliseconds in contract.hold_ms:
 		hold_ticks.append(Clock.from_ms(milliseconds))
+	_dodge = contract.id("dodge")
+	_channel = contract.id("channel")
 
 
 func attack_ready(slot: int, attack: int, tick: int) -> bool:
 	var kind := pool.species[slot]
 	if not species.has_attack(kind, attack, pool.mutations[slot]):
+		return false
+	if actions != null and not actions.can_afford(slot, attack):
 		return false
 	if tick < pool.ready_at[slot] or tick < pool.cooldown_until[slot * pool.attacks + attack] or pool.windup_until[slot] > 0:
 		return false
@@ -71,10 +80,19 @@ func configure_native(world: RefCounted) -> int:
 		contract.manoeuvre_count, contract.message_symbols, int(messages_enabled), contract.mask_size, Pool.FLAG_LEADER | Pool.FLAG_ELITE,
 		contract.id("idle_wander"), contract.id("search"), contract.id("approach"), contract.id("melee_attack"), contract.id("ranged_attack"),
 		contract.id("ability_1"), contract.id("ability_2"), contract.id("ability_3"), contract.id("defend_ally"),
-		contract.manoeuvres.find("circle_left"), contract.manoeuvres.find("circle_right"), contract.manoeuvres.find("keep_max_range")])
+		contract.manoeuvres.find("circle_left"), contract.manoeuvres.find("circle_right"), contract.manoeuvres.find("keep_max_range"),
+		_dodge if actions != null else -1, _channel if actions != null else -1, contract.id("flee")])
 	return world.decide_configure([dims, contract.head_offsets, contract.available, contract.leader_only, contract.target_kind,
 		contract.attack_slot, contract.delivery, species.support, species.skirmisher, species.max_range, species.attack_exists,
-		species.attack_mutation, species.attack_escort, species.attack_delivery, species.attack_range, species.attack_min_range])
+		species.attack_mutation, species.attack_escort, species.attack_delivery, species.attack_range, species.attack_min_range,
+		species.mana_pool, species.mana_low, species.can_dodge, species.attack_mana_cost if actions != null else _free_casts()])
+
+
+func _free_casts() -> PackedFloat32Array:
+	var free := PackedFloat32Array()
+	free.resize(species.attack_mana_cost.size())
+	free.fill(0.0)
+	return free
 
 
 ## Fills batch.masks natively. build_masks_reference holds the same rules in GDScript.
@@ -134,6 +152,10 @@ func _behaviour_legal(slot: int, behaviour: int, has_enemy: bool, has_ally: bool
 		return false
 	if kind == Contract.TargetKind.ALLY and not has_ally:
 		return false
+	if behaviour == _dodge:
+		return actions != null and actions.can_dodge(slot, tick)
+	if behaviour == _channel:
+		return actions != null and species.mana_pool[pool.species[slot]] > 0.0 and actions.can_channel(slot)
 	var attack := contract.attack_slot[behaviour]
 	if attack < 0:
 		return true
@@ -168,9 +190,11 @@ func _commit_slot(batch: Batch, index: int, slot: int, tick: int) -> void:
 			manoeuvre = 0
 	pool.message_a[slot] = _message(batch, index, Contract.Head.MESSAGE_A, batch.intents[at + Contract.Head.MESSAGE_A])
 	pool.message_b[slot] = _message(batch, index, Contract.Head.MESSAGE_B, batch.intents[at + Contract.Head.MESSAGE_B])
-	if pool.windup_until[slot] > 0 or tick < pool.hold_until[slot]:
+	# A dodge cuts through the current behaviour's hold, but not through a wind-up.
+	if pool.windup_until[slot] > 0 or (tick < pool.hold_until[slot] and behaviour != _dodge):
 		return
-	if behaviour != pool.behaviour[slot] or enemy != pool.enemy_target[slot] or ally != pool.ally_target[slot]:
+	var previous := pool.behaviour[slot]
+	if behaviour != previous or enemy != pool.enemy_target[slot] or ally != pool.ally_target[slot]:
 		pool.hold_until[slot] = tick + hold_ticks[behaviour]
 		pool.behaviour_since[slot] = tick
 		events.push(Events.Kind.INTENT, tick, slot, pool.generation[slot], behaviour, enemy)
@@ -178,6 +202,8 @@ func _commit_slot(batch: Batch, index: int, slot: int, tick: int) -> void:
 	pool.enemy_target[slot] = enemy
 	pool.ally_target[slot] = ally
 	pool.manoeuvre[slot] = manoeuvre
+	if behaviour != previous and actions != null:
+		actions.on_change(slot, previous, behaviour, tick)
 
 
 func _message(batch: Batch, index: int, head: int, symbol: int) -> int:

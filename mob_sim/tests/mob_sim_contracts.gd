@@ -100,11 +100,12 @@ func events_of(sim: Sim, kind: int, cursor := 0) -> Array[Dictionary]:
 func test_contract() -> void:
 	var contract := Contract.new()
 	check(contract.errors.is_empty(), "the contract loads without errors")
-	check(contract.behaviour_count == 14, "the contract defines 14 behaviours")
-	check(contract.head_sizes == PackedInt32Array([14, 5, 8, 5, 4, 4]), "the action heads have the agreed sizes")
-	check(contract.mask_size == 40, "the action heads total 40 options")
+	check(contract.behaviour_count == 15, "the contract defines 15 behaviours")
+	check(contract.head_sizes == PackedInt32Array([15, 5, 8, 5, 4, 4]), "the action heads have the agreed sizes")
+	check(contract.mask_size == 41, "the action heads total 41 options")
 	check(contract.available[contract.id("hide")] == 0, "hide is unavailable until darkness exists")
-	check(contract.available[contract.id("dodge")] == 0, "dodge is unavailable until mobs can dodge")
+	check(contract.available[contract.id("dodge")] != 0 and contract.available[contract.id("channel")] != 0,
+		"dodge and channel are available; species traits decide who may use them")
 	var sim := make_sim(1)
 	for index in contract.behaviour_count:
 		check(sim.executors.has_executor(index), "behaviour %s has an executor" % contract.names[index])
