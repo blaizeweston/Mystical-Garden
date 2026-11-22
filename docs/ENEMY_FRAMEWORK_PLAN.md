@@ -227,7 +227,7 @@ Each phase ends with evidence and a review before the next starts.
 | 1 | Folder structure, definitions, loader, validator, table compiler, per-system timers, benchmark budgets and the baseline | None |
 | 2 | Native executors, decisions, perception and movement speeds, with parity tests; senses with a light grid; status system. Done 2026-11-21 | None |
 | 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Parts 1 to 3 done 2026-11-21; the legacy comparison remains | Arena files only |
-| 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Parts 1 (mana, channeling, dodge), 2 (flying) and 3 (darkness in the arena) done 2026-11-22 | Arena files only |
+| 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Done 2026-11-22 in four parts | Arena files only |
 | 5 | Dedicated framework presentation. Elite kits. Bosses keep scripted plans for now | Arena files only |
 | 6 | Schema v2, rewards v2, training loop, curriculum and evaluation | None |
 | 7 | Live toggles, with Legacy enemies and darkness off by default | Small hooks: settings, `tick_enemies`, spawning, guest snapshots, fog of war. Approved step by step |
@@ -448,3 +448,20 @@ Built 2026-11-22. The arena setup screen and `--darkness=day|dusk|night` choose 
 Limits: guests in a multiplayer arena see every enemy and no darkness until darkness is replicated (Phase 7). The live game's fog of war is adapted in Phase 7 with the live toggle.
 
 Checks: `mob_sim/tests/mob_darkness_checks.gd` (15 checks), including native and reference hiding choosing the same spot and masks agreeing at night. A new arena check runs a night round: senses on, hiding legal, players lose and regain enemies (6,987 unseen and 11,083 seen player-enemy pairs over 1,800 ticks), the Lantern Lure's lantern is published, and the view hides exactly the enemies the local player cannot see. Night rounds with the same roster still clear, taking 14.4 seconds on average against 11.8 in daylight, and the multiplayer check passes. Darkness costs nothing measurable: enemies take 0.36 ms per tick at night against 0.37 in daylight.
+
+### Part 4: hazards and player fields
+
+Built 2026-11-22. `mob_sim/mob_fields.gd` keeps every timed ground area in flat arrays: hazards mobs leave for players, and fields players leave for mobs. Each entry has a centre, radius, start and end tick, owner and a ground flag, so the schema v2 inputs (nearest areas, time to impact, standing inside) can read them cheaply in Phase 6.
+
+| Source | How |
+|---|---|
+| Training | Mob hazards register themselves when MobAbilities places them. `MobSim.add_player_field` places player fields that burn (damage per second through `damage_mob`), slow and root the mobs inside, four times a second. Ground fields do not touch flyers. Training scenarios will use it for the stand-in party's skills in Phase 6 |
+| Neural Arena | `neural_arena/arena_fields.gd` publishes the game's enemy hazards and the players' fields (fire and void fields, gravity wells, thorn lines, read from the game's own warning hints) every 6 ticks. The game keeps applying their effects; the simulation never applies host areas twice |
+
+Limits: the arena's characters carry no affinity cores, so arena bots make no player fields yet, and only enemy hazards appear there. Flyers in the arena still take the game's own ground-field effects (Burning, slows), since those are applied in the game's hit code; immunity there needs the Phase 7 hook, as does a dodge that avoids a lethal hit.
+
+Checks: `mob_sim/tests/mob_field_checks.gd` (15 checks): burning, slows and roots, flyers passing over ground fields, expiry, nearest areas, host publishing, and mob hazards registering in a training run. A new arena check sees enemy hazards reach the registry (9,536 hazard-ticks against the game's 9,651; the gap is the publish interval). Speed stays above target: 400x real time at 20 mobs and 144x at 100; the registry adds about 0.001 ms per tick.
+
+### Phase 4 summary
+
+All four parts are in: mana with channeling, dodging, flying with sight over water, darkness in the arena, and hazards and player fields. New behaviours: `channel` (new) and `dodge` and `hide` (now legal). The net's inputs for these mechanics stay masked until schema v2 in Phase 6. Phase 3 part 4, the comparison with legacy enemies, is still outstanding.

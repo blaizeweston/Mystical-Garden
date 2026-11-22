@@ -285,6 +285,28 @@ func test_darkness() -> void:
 	await close_world(world)
 
 
+## Ground areas against the real game: enemy hazards and player fields reach the simulation's registry.
+func test_fields() -> void:
+	var world := make_world(make_config(Config.SCRIPTED_BRAIN, {"orchid": 3, "spore_widow": 2, "rootbound": 3}, 2))
+	var hazards := 0
+	var player_fields := 0
+	var game_hazards := 0
+	for tick in REPEAT_TICKS:
+		world.step_once()
+		game_hazards += world.enemy_hazards.size()
+		if world.bridge == null:
+			continue
+		var fields = world.bridge.sim.fields
+		for index in fields.count():
+			if fields.owner[index] == 0:
+				hazards += 1
+			else:
+				player_fields += 1
+	print("FIELDS hazard ticks ", hazards, " player field ticks ", player_fields, " game hazard ticks ", game_hazards)
+	check(game_hazards > 0 and hazards > 0, "enemy hazards reach the simulation's registry")
+	await close_world(world)
+
+
 func test_round_outcomes() -> void:
 	var config := make_config(Config.GAME_AI, {"colossus": 12, "gallhorn": 8}, 1)
 	config.floor_number = 40
@@ -419,6 +441,7 @@ func run() -> void:
 	await test_actions()
 	await test_flying()
 	await test_darkness()
+	await test_fields()
 	await test_round_outcomes()
 	await test_species()
 	await test_classes()

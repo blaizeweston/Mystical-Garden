@@ -4,6 +4,7 @@ extends RefCounted
 
 const ArenaAbilities = preload("res://neural_arena/arena_abilities.gd")
 const ArenaLight = preload("res://neural_arena/arena_light.gd")
+const ArenaFields = preload("res://neural_arena/arena_fields.gd")
 const Catalog = preload("res://enemy_catalog.gd")
 const CombatClock = preload("res://combat_clock.gd")
 const Config = preload("res://neural_arena/arena_config.gd")
@@ -141,6 +142,7 @@ func tick(now: int, delta: float = 1.0 / 60.0) -> void:
 	for slot in capacity:
 		_mirror_slot(slot, next, now)
 	light.update(sim, next)
+	ArenaFields.publish(game, sim, next, now)
 	sim.tick()
 	if game.participation.active():
 		_write_back()

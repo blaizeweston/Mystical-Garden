@@ -60,6 +60,8 @@ var handlers := HandlerRegistry.new()
 var port: RefCounted
 ## The release planned at each wind-up, by slot.
 var _pending := {}
+## Where hazards are registered for observation. MobSim sets it.
+var fields: RefCounted
 
 
 func _init(mob_pool: Pool, mob_party: Party, table: Species, game_rules: Rules, event_log: Events, mover: Locomotion) -> void:
@@ -281,6 +283,8 @@ func _place_hazards(release: Release, effect: int, tick: int) -> void:
 		release.hazards.append(hazard)
 		if resolve_hits:
 			hazards.append(hazard)
+			if fields != null:
+				fields.add(0, hazard.point, hazard.radius, hazard.activate, hazard.until)
 
 
 func _tick_hazards(tick: int) -> void:

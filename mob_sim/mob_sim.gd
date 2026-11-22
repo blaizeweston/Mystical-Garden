@@ -21,6 +21,7 @@ const SystemTimers = preload("res://mob_sim/perf/system_timers.gd")
 const StatusSystem = preload("res://mob_sim/mob_status.gd")
 const SimHandlerPort = preload("res://mob_sim/abilities/sim_handler_port.gd")
 const Actions = preload("res://mob_sim/mob_actions.gd")
+const Fields = preload("res://mob_sim/mob_fields.gd")
 
 enum Status { STUN, ROOT, SLOW, HASTE }
 
@@ -40,6 +41,8 @@ var executors: RefCounted
 var status: StatusSystem
 ## Mana, channeling and dodging.
 var actions: Actions
+## Hazards mobs leave for players and fields players leave for mobs.
+var fields: Fields
 ## Per-system timing. Set timers.enabled to measure; results never depend on it.
 var timers := SystemTimers.new()
 ## Decides for mobs that are awake.
@@ -66,8 +69,10 @@ func _init(slots: int, awake_brain: Brain = null) -> void:
 	actions = Actions.new(contract, pool, party, species, perception, locomotion)
 	rules.actions = actions
 	status = StatusSystem.new(pool, species.count)
+	fields = Fields.new(pool, species)
 	abilities = Abilities.new(pool, party, species, rules, events, locomotion)
 	abilities.port = SimHandlerPort.new(self)
+	abilities.fields = fields
 	executors = Executors.new(contract, pool, party, species, perception, abilities, locomotion)
 	brain = awake_brain if awake_brain != null else ScriptedBrain.new()
 	idle_brain = ScriptedBrain.new()
@@ -210,12 +215,33 @@ func tick() -> void:
 	locomotion.step(now)
 
 
-## Applies the damage over time due this tick through damage_mob, so armour, dodges and deaths apply.
+## Applies the damage over time and the player fields due this tick. Damage goes through damage_mob, so
+## armour, dodges and deaths apply.
 func tick_status(now: int) -> void:
-	if status.burning.is_empty():
+	if not status.burning.is_empty():
+		for entry in status.due(now):
+			damage_mob(int(entry[0]), float(entry[1]), int(entry[2]) if int(entry[2]) != Pool.NO_PLAYER else -1)
+	if fields.count() == 0 or now % Fields.APPLY_TICKS != 0:
 		return
-	for entry in status.due(now):
-		damage_mob(int(entry[0]), float(entry[1]), int(entry[2]) if int(entry[2]) != Pool.NO_PLAYER else -1)
+	fields.prune(now)
+	for touch in fields.due(now):
+		var slot: int = touch[0]
+		if float(touch[3]) < 1.0:
+			apply_status(slot, Status.SLOW, Fields.HOLD_TICKS, float(touch[3]))
+		if bool(touch[4]):
+			apply_status(slot, Status.ROOT, Fields.HOLD_TICKS)
+		if float(touch[1]) > 0.0:
+			damage_mob(slot, float(touch[1]), int(touch[2]))
+
+
+## Places a field a player made, which the simulation applies to the mobs inside it: damage per second,
+## a slow (a speed scale below 1) and a root. Ground fields do not touch flyers. For training scenarios;
+## a host that applies its own fields publishes them through fields.publish instead.
+func add_player_field(at: Vector2, radius: float, duration_ms: int, player := -1, per_second := 0.0, slow_scale := 1.0,
+		roots := false, ground := true, delay_ms := 0) -> int:
+	var starts := clock.tick + Clock.from_ms(float(delay_ms))
+	return fields.add(Fields.Owner.PLAYERS, at, radius, starts, starts + Clock.from_ms(float(duration_ms)), ground, player,
+		per_second, slow_scale, roots)
 
 
 ## The same steps as tick(), charged to each system. Kept separate so untimed ticks pay nothing.

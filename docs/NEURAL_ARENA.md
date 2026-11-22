@@ -169,6 +169,7 @@ Run `python tools/test_workflow.py document --project . --engine <godot>` after 
 - The net is untrained, so its fights show the system working rather than good tactics. The training loop is not built yet.
 - The gate elite stays on its scripted behaviour.
 - Darkness is drawn only on the host; guests see every enemy until it is replicated.
+- Arena characters carry no affinity cores, so bots make no player fields for the enemies to learn from yet.
 - Some species specials are not driven by the net yet.
 - A round holds at most 20 enemies plus a leader.
 - The arena button does not appear in exported builds.
