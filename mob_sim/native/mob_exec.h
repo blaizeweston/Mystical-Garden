@@ -55,10 +55,17 @@ enum { ME_MODE_HOLD, ME_MODE_SEEK, ME_MODE_FLEE, ME_MODE_DIRECT };
 /* Each attempt is slot, attack, player, then the movement row to use if begin refuses it. */
 #define ME_REQUEST_STRIDE (3 + ME_STRIDE)
 
+/* Inputs for me_speeds, which fills the speed column of the movement commands. */
+typedef enum {
+    EV_TICK, EV_ACTIVE, EV_SPEED, EV_WINDUP_UNTIL, EV_STUN_UNTIL, EV_ROOT_UNTIL, EV_SLOW_UNTIL, EV_SLOW_SCALE, EV_HASTE_UNTIL, EV_COMMANDS,
+    EV_COUNT
+} MeSpeedInput;
+
 typedef struct MobExec MobExec;
 
 MeKind me_config_kind(int index);
 MeKind me_input_kind(int index);
+MeKind me_speed_input_kind(int index);
 /* items and lengths hold EC_COUNT entries. */
 MeResult me_create(const void *const *items, const int64_t *lengths, MobExec **out);
 void me_destroy(MobExec *exec);
@@ -66,5 +73,9 @@ void me_destroy(MobExec *exec);
 int64_t me_output_size(const MobExec *exec);
 /* items and lengths hold EI_COUNT entries. */
 MeResult me_run(MobExec *exec, const MobNav *nav, const void *const *items, const int64_t *lengths, float *out);
+
+/* Writes the commands with each active mob's speed after wind-ups, stuns, roots, slows and haste,
+ * matching MobLocomotion.speeds_reference. Writes capacity * ME_STRIDE floats. */
+MeResult me_speeds(const MobExec *exec, const void *const *items, const int64_t *lengths, float *out);
 
 #endif

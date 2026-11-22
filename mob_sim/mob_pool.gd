@@ -27,6 +27,8 @@ class Spawn:
 	var leader := -1
 	var intelligence := 1.0
 	var ready_delay_ticks := 0
+	## Armoured regardless of mutations, from the species' traits.
+	var armoured := false
 
 
 var capacity := 0
@@ -78,23 +80,33 @@ var slow_until := PackedInt32Array()
 var haste_until := PackedInt32Array()
 var engaged := PackedByteArray()
 var last_sensed := PackedInt32Array()
+## Status fields owned by MobStatus. Damage over time per second, when it ends, who caused it and the next application.
+var dot_dps := PackedFloat32Array()
+var dot_until := PackedInt32Array()
+var dot_source := PackedByteArray()
+var dot_next := PackedInt32Array()
+## Nonzero when damage taken is scaled by the shared armour ratio, from the Bark mutation or the species.
+var armour := PackedByteArray()
+var dodge_until := PackedInt32Array()
+var channel_until := PackedInt32Array()
 
 
 func _init(slots: int, attack_slots: int) -> void:
 	capacity = slots
 	attacks = attack_slots
 	for table: PackedByteArray in [alive, flags, behaviour, enemy_target, ally_target, manoeuvre, message_a, message_b,
-			windup_attack, aim_player, engaged]:
+			windup_attack, aim_player, engaged, dot_source, armour]:
 		table.resize(slots)
 		table.fill(0)
 	for table: PackedInt32Array in [generation, species, mutations, leader, leader_generation, next_decision, decision_interval,
-			hold_until, behaviour_since, ready_at, windup_until, stun_until, root_until, slow_until, haste_until, last_sensed]:
+			hold_until, behaviour_since, ready_at, windup_until, stun_until, root_until, slow_until, haste_until, last_sensed,
+			dot_until, dot_next, dodge_until, channel_until]:
 		table.resize(slots)
 		table.fill(0)
 	cooldown_until.resize(slots * attack_slots)
 	cooldown_until.fill(0)
 	for table: PackedFloat32Array in [spawn_x, spawn_z, hp, max_hp, speed, damage, reach_bonus, windup_scale, recovery_scale,
-			intelligence, slow_scale, aim_x, aim_z]:
+			intelligence, slow_scale, aim_x, aim_z, dot_dps]:
 		table.resize(slots)
 		table.fill(0.0)
 	xz.resize(slots * 2)
@@ -159,6 +171,13 @@ func spawn_at(slot: int, request: Spawn, table: Species, tick: int, interval: in
 	haste_until[slot] = 0
 	engaged[slot] = 0
 	last_sensed[slot] = NEVER_SENSED
+	dot_dps[slot] = 0.0
+	dot_until[slot] = 0
+	dot_source[slot] = NO_PLAYER
+	dot_next[slot] = 0
+	armour[slot] = int(request.mutations & Catalog.BARK != 0 or request.armoured)
+	dodge_until[slot] = 0
+	channel_until[slot] = 0
 	_rebuild_active()
 	return slot
 

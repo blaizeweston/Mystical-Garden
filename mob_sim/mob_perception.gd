@@ -1,14 +1,25 @@
 extends RefCounted
 ## What each mob currently senses. A player out of sight keeps the last position the mob knew.
+## update() and refresh_allies() run natively in native/mob_sense.c. The *_reference functions hold the
+## same sight-only rules in GDScript; tests/mob_native_parity.gd requires both to match while senses are off.
+## Senses (light, darkvision, hearing and smell) stay off until Phase 4 enables them with set_senses().
 
 const Clock = preload("res://mob_sim/mob_clock.gd")
 const Contract = preload("res://mob_sim/mob_contract.gd")
 const Party = preload("res://mob_sim/mob_party.gd")
 const Pool = preload("res://mob_sim/mob_pool.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
+const Tables = preload("res://mob_sim/definitions/definition_tables.gd")
+const NavWorld = preload("res://mob_sim/mob_nav_world.gd")
 
 const NEAREST_LIMIT := 12
 const ALERT_NEIGHBOURS := 16
+## The senses grid covers the same floor as the navigation map, at one cell per world unit.
+const SENSE_CELL := 1.0
+## Scent loses half its strength every six seconds and is ignored below a quarter strength.
+const SCENT_DECAY_TICKS := 6
+const SCENT_HALF_LIFE_SECONDS := 6.0
+const SCENT_THRESHOLD := 0.25
 
 var pool: Pool
 var party: Party
@@ -28,6 +39,14 @@ var seen_tick := PackedInt32Array()
 var allies := PackedInt32Array()
 var ally_generation := PackedInt32Array()
 var ally_away_since := PackedInt32Array()
+var senses_enabled := false
+## Noises this tick, as x, z, loudness and player. Cleared after each update.
+var noises := PackedFloat32Array()
+## Light sources as x, z, radius and intensity.
+var lights := PackedFloat32Array()
+## Light level where no source reaches, from 0 to 1.
+var ambient := 1.0
+var native_error := ""
 
 
 func _init(mob_pool: Pool, mob_party: Party, table: Species, contract: Contract, world: RefCounted) -> void:
@@ -57,6 +76,45 @@ func _init(mob_pool: Pool, mob_party: Party, table: Species, contract: Contract,
 	ally_generation.fill(0)
 	ally_away_since.resize(slots)
 	ally_away_since.fill(-1)
+	configure_native()
+
+
+## Turns light, darkvision, hearing and smell on or off. Off reproduces the reference sight exactly.
+func set_senses(enabled: bool) -> void:
+	senses_enabled = enabled
+	configure_native()
+
+
+func add_noise(x: float, z: float, loudness: float, player: int) -> void:
+	noises.append_array(PackedFloat32Array([x, z, loudness, player]))
+
+
+func configure_native() -> void:
+	native_error = ""
+	var tables = Tables.shared()
+	var darkvision := PackedFloat32Array()
+	var hearing := PackedFloat32Array()
+	var smell := PackedFloat32Array()
+	for kind in species.count:
+		darkvision.append(tables.species_darkvision[kind] if tables != null else 0.0)
+		hearing.append(tables.species_hearing[kind] if tables != null else 0.0)
+		smell.append(tables.species_smell[kind] if tables != null else 0.0)
+	var size := Vector2(NavWorld.FLOOR_SIZE) * NavWorld.FLOOR_CELL / SENSE_CELL
+	var dims := PackedInt32Array([pool.capacity, players, ally_count, species.count, refresh_ticks, ally_release_ticks,
+		ALERT_NEIGHBOURS, NEAREST_LIMIT, ceili(size.x), ceili(size.y), int(senses_enabled), SCENT_DECAY_TICKS])
+	var decay := pow(0.5, SCENT_DECAY_TICKS / float(Clock.TICKS_PER_SECOND) / SCENT_HALF_LIFE_SECONDS)
+	var reals := PackedFloat32Array([awareness_radius, ally_radius, species.group_alert_radius, NavWorld.ORIGIN.x, NavWorld.ORIGIN.y,
+		SENSE_CELL, decay, SCENT_THRESHOLD])
+	var status: int = nav.sense_configure([dims, reals, species.vision, darkvision, hearing, smell]) if nav != null else ERR_UNAVAILABLE
+	if status != OK:
+		native_error = "Native perception refused its configuration (%d)." % status
+		push_error(native_error)
+
+
+func _native_inputs(tick: int, slots: PackedInt32Array) -> Array:
+	return [PackedInt32Array([tick]), slots, pool.active, pool.alive, pool.generation, pool.species, pool.leader, pool.leader_generation,
+		pool.xz, pool.engaged, pool.last_sensed, visible, seen_x, seen_z, seen_tick, allies, ally_generation, ally_away_since,
+		party.present, party.alive, party.x, party.z, noises, lights, PackedFloat32Array([ambient])]
 
 
 func reset_slot(slot: int) -> void:
@@ -80,8 +138,29 @@ func ally(slot: int, index: int) -> int:
 	return allies[slot * ally_count + index]
 
 
-## Refreshes a staggered share of the mobs each tick so the cost stays even.
+## Refreshes a staggered share of the mobs each tick so the cost stays even, then applies hearing and smell.
 func update(tick: int) -> void:
+	var result: PackedByteArray = nav.sense_update(_native_inputs(tick, PackedInt32Array()))
+	noises.clear()
+	if result.is_empty():
+		push_error("Native perception refused this tick's input.")
+		return
+	var sensed := pool.capacity * players * 4
+	var at := 0
+	seen_x = result.slice(at, at + sensed).to_float32_array()
+	at += sensed
+	seen_z = result.slice(at, at + sensed).to_float32_array()
+	at += sensed
+	seen_tick = result.slice(at, at + sensed).to_int32_array()
+	at += sensed
+	pool.last_sensed = result.slice(at, at + pool.capacity * 4).to_int32_array()
+	at += pool.capacity * 4
+	visible = result.slice(at, at + pool.capacity * players)
+	at += pool.capacity * players
+	pool.engaged = result.slice(at, at + pool.capacity)
+
+
+func update_reference(tick: int) -> void:
 	var queries := PackedFloat32Array()
 	var owners := PackedInt32Array()
 	var newly_engaged := PackedInt32Array()
@@ -170,6 +249,19 @@ func _alert_neighbours(sources: PackedInt32Array, tick: int) -> void:
 
 ## An ally keeps its slot until it dies or stays out of range long enough.
 func refresh_allies(slots: PackedInt32Array, tick: int) -> void:
+	if slots.is_empty():
+		return
+	var result: PackedByteArray = nav.sense_allies(_native_inputs(tick, slots))
+	if result.is_empty():
+		push_error("Native perception refused this ally refresh.")
+		return
+	var size := pool.capacity * ally_count * 4
+	allies = result.slice(0, size).to_int32_array()
+	ally_generation = result.slice(size, size * 2).to_int32_array()
+	ally_away_since = result.slice(size * 2, size * 3).to_int32_array()
+
+
+func refresh_allies_reference(slots: PackedInt32Array, tick: int) -> void:
 	if slots.is_empty():
 		return
 	var query := PackedFloat32Array()

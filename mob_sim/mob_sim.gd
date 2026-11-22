@@ -18,6 +18,7 @@ const ScriptedBrain = preload("res://mob_sim/mob_scripted_brain.gd")
 const ReferenceScriptedBrain = preload("res://mob_sim/mob_scripted_brain_reference.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
 const SystemTimers = preload("res://mob_sim/perf/system_timers.gd")
+const StatusSystem = preload("res://mob_sim/mob_status.gd")
 
 enum Status { STUN, ROOT, SLOW, HASTE }
 
@@ -33,6 +34,8 @@ var rules: Rules
 var abilities: Abilities
 ## Native executors, or the GDScript reference after use_reference_executors().
 var executors: RefCounted
+## Damage over time, dodge windows, channeling and armour.
+var status: StatusSystem
 ## Per-system timing. Set timers.enabled to measure; results never depend on it.
 var timers := SystemTimers.new()
 ## Decides for mobs that are awake.
@@ -54,6 +57,7 @@ func _init(slots: int, awake_brain: Brain = null) -> void:
 	locomotion = Locomotion.new(pool, party, contract)
 	perception = Perception.new(pool, party, species, contract, locomotion.world)
 	rules = Rules.new(contract, pool, party, species, perception, events)
+	status = StatusSystem.new(pool, species.count)
 	abilities = Abilities.new(pool, party, species, rules, events, locomotion)
 	executors = Executors.new(contract, pool, party, species, perception, abilities, locomotion)
 	brain = awake_brain if awake_brain != null else ScriptedBrain.new()
@@ -98,9 +102,15 @@ func spawn_at(chosen: int, request: Pool.Spawn) -> int:
 	return slot
 
 
-## Applies resolved damage. Returns the health actually removed.
-func damage_mob(slot: int, amount: float, source_player: int = -1) -> float:
+## Applies damage. Returns the health actually removed. Dodges, armour and channeling scale it unless
+## scaled is false, which a host uses when its own combat rules already resolved the amount.
+func damage_mob(slot: int, amount: float, source_player: int = -1, scaled: bool = true) -> float:
 	if slot < 0 or slot >= pool.capacity or pool.alive[slot] == 0 or amount <= 0.0:
+		return 0.0
+	if scaled:
+		amount = status.scale_damage(slot, amount, clock.tick)
+	if amount <= 0.0:
+		events.push(Events.Kind.DODGED, clock.tick, slot, pool.generation[slot], source_player, 0, pool.xz[slot * 2], pool.xz[slot * 2 + 1])
 		return 0.0
 	var removed := minf(amount, pool.hp[slot])
 	pool.hp[slot] -= removed
@@ -123,11 +133,33 @@ func record_hit(slot: int, generation: int, player: int, amount: float) -> void:
 	events.push(Events.Kind.DAMAGE_DEALT, clock.tick, slot, generation, player, 0, party.x[player], party.z[player], amount)
 
 
-func apply_status(slot: int, status: Status, ticks: int, scale: float = 1.0) -> void:
+## Adds damage over time. Stacks add their damage per second; the longest duration wins.
+func apply_dot(slot: int, per_second: float, ticks: int, source_player: int = -1) -> void:
+	status.apply_dot(slot, per_second, ticks, source_player, clock.tick)
+
+
+## Makes a mob ignore hits for a few ticks.
+func start_dodge(slot: int, ticks: int) -> void:
+	if slot >= 0 and slot < pool.capacity and pool.alive[slot] != 0:
+		pool.dodge_until[slot] = clock.tick + ticks
+
+
+## Marks a mob as channeling, so it takes its species' channel damage multiplier until the channel ends.
+func start_channel(slot: int, ticks: int) -> void:
+	if slot >= 0 and slot < pool.capacity and pool.alive[slot] != 0:
+		pool.channel_until[slot] = clock.tick + ticks
+
+
+func stop_channel(slot: int) -> void:
+	if slot >= 0 and slot < pool.capacity:
+		pool.channel_until[slot] = 0
+
+
+func apply_status(slot: int, kind: Status, ticks: int, scale: float = 1.0) -> void:
 	if slot < 0 or slot >= pool.capacity or pool.alive[slot] == 0:
 		return
 	var until := clock.tick + ticks
-	match status:
+	match kind:
 		Status.STUN:
 			pool.stun_until[slot] = maxi(pool.stun_until[slot], until)
 		Status.ROOT:
@@ -150,7 +182,16 @@ func tick() -> void:
 	_decide(now)
 	executors.run(now)
 	abilities.tick_windups(now)
+	tick_status(now)
 	locomotion.step(now)
+
+
+## Applies the damage over time due this tick through damage_mob, so armour, dodges and deaths apply.
+func tick_status(now: int) -> void:
+	if status.burning.is_empty():
+		return
+	for entry in status.due(now):
+		damage_mob(int(entry[0]), float(entry[1]), int(entry[2]) if int(entry[2]) != Pool.NO_PLAYER else -1)
 
 
 ## The same steps as tick(), charged to each system. Kept separate so untimed ticks pay nothing.
@@ -164,6 +205,8 @@ func _timed_tick(now: int) -> void:
 	timers.lap(SystemTimers.System.EXECUTORS)
 	abilities.tick_windups(now)
 	timers.lap(SystemTimers.System.ABILITIES)
+	tick_status(now)
+	timers.lap(SystemTimers.System.STATUS)
 	locomotion.step(now)
 	timers.lap(SystemTimers.System.MOVEMENT)
 	timers.end_tick()
@@ -175,6 +218,7 @@ func state_hash() -> int:
 
 func _kill(slot: int, source_player: int) -> void:
 	abilities.cancel(slot)
+	status.clear_slot(slot)
 	events.push(Events.Kind.DEATH, clock.tick, slot, pool.generation[slot], source_player, 0, pool.xz[slot * 2], pool.xz[slot * 2 + 1])
 	locomotion.remove(slot)
 	pool.despawn(slot)

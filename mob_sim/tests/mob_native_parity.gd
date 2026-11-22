@@ -1,7 +1,10 @@
 extends SceneTree
 ## Proves the native simulation code matches its GDScript references on identical state, every tick:
+## - native/mob_sense.c perception and ally slots against MobPerception's *_reference functions, with
+##   senses off, which must match exactly;
 ## - native/mob_decide.c masks and scripted brain against MobRules.build_masks_reference and
 ##   mob_scripted_brain_reference.gd, which must match exactly;
+## - native/mob_exec.c movement speeds against MobLocomotion.speeds_reference, which must match exactly;
 ## - native/mob_exec.c executors against mob_executors_reference.gd, run in a dry mode that records
 ##   instead of acting. Modes, targets and attack starts must match exactly. Offsets may differ only in
 ##   the last bits, because Godot's and the native library's sine and cosine round differently.
@@ -83,7 +86,10 @@ func compare(seed_value: int, mobs: int, totals: Dictionary) -> void:
 		arena.before_tick()
 		sim.clock.advance()
 		var now: int = sim.clock.tick
-		sim.perception.update(now)
+		problem = _perceive_both(sim, now)
+		if not problem.is_empty():
+			problem = "tick %d: %s" % [tick, problem]
+			break
 		problem = _decide_both(sim, reference_brain, now, totals)
 		if not problem.is_empty():
 			problem = "tick %d: %s" % [tick, problem]
@@ -109,7 +115,16 @@ func compare(seed_value: int, mobs: int, totals: Dictionary) -> void:
 		totals.starts += native_started.size()
 		totals.ticks += 1
 		sim.abilities.tick_windups(now)
+		sim.tick_status(now)
+		var expected_speeds: PackedFloat32Array = sim.locomotion.commands.duplicate()
+		var saved: PackedFloat32Array = sim.locomotion.commands
+		sim.locomotion.commands = expected_speeds
+		sim.locomotion.speeds_reference(now)
+		sim.locomotion.commands = saved
 		sim.locomotion.step(now)
+		if sim.locomotion.commands != expected_speeds:
+			problem = "tick %d: movement speeds differ" % tick
+			break
 		arena.after_tick()
 	check(problem.is_empty(), "seed %d, %d mobs: native and reference executors agree for %d ticks%s" % [seed_value, mobs, TICKS,
 		"" if problem.is_empty() else " (%s)" % problem])
@@ -127,7 +142,9 @@ func _decide_both(sim, reference_brain, now: int, totals: Dictionary) -> String:
 			asleep.append(slot)
 		else:
 			awake.append(slot)
-	sim.perception.refresh_allies(awake, now)
+	var ally_problem := _allies_both(sim, awake, now)
+	if not ally_problem.is_empty():
+		return ally_problem
 	for pair in [[sim._awake_batch, awake, sim.brain], [sim._asleep_batch, asleep, sim.idle_brain]]:
 		var batch = pair[0]
 		if pair[1].is_empty():
@@ -147,6 +164,50 @@ func _decide_both(sim, reference_brain, now: int, totals: Dictionary) -> String:
 		sim.rules.commit(batch, now)
 		totals.decisions += batch.slots.size()
 	return ""
+
+
+const SENSED_FIELDS := ["visible", "seen_x", "seen_z", "seen_tick"]
+
+
+func _perceive_both(sim, now: int) -> String:
+	var before := _snapshot(sim)
+	sim.perception.update_reference(now)
+	var expected := _snapshot(sim)
+	_restore(sim, before)
+	sim.perception.update(now)
+	var actual := _snapshot(sim)
+	for key in expected:
+		if expected[key] != actual[key]:
+			return "perception %s differs" % key
+	return ""
+
+
+func _allies_both(sim, slots: PackedInt32Array, now: int) -> String:
+	var perception = sim.perception
+	var before := [perception.allies.duplicate(), perception.ally_generation.duplicate(), perception.ally_away_since.duplicate()]
+	perception.refresh_allies_reference(slots, now)
+	var expected := [perception.allies.duplicate(), perception.ally_generation.duplicate(), perception.ally_away_since.duplicate()]
+	perception.allies = before[0]
+	perception.ally_generation = before[1]
+	perception.ally_away_since = before[2]
+	perception.refresh_allies(slots, now)
+	if [perception.allies, perception.ally_generation, perception.ally_away_since] != expected:
+		return "ally slots differ"
+	return ""
+
+
+func _snapshot(sim) -> Dictionary:
+	var result := {"engaged": sim.pool.engaged.duplicate(), "last_sensed": sim.pool.last_sensed.duplicate()}
+	for key in SENSED_FIELDS:
+		result[key] = sim.perception.get(key).duplicate()
+	return result
+
+
+func _restore(sim, state: Dictionary) -> void:
+	sim.pool.engaged = state.engaged.duplicate()
+	sim.pool.last_sensed = state.last_sensed.duplicate()
+	for key in SENSED_FIELDS:
+		sim.perception.set(key, state[key].duplicate())
 
 
 func _difference(native: PackedFloat32Array, reference: PackedFloat32Array, native_targets: PackedFloat32Array,

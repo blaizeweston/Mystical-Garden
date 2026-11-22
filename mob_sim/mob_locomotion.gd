@@ -126,8 +126,13 @@ func displace(slot: int, x: float, z: float) -> void:
 
 func step(tick: int) -> void:
 	_tick = tick
-	for slot in pool.active:
-		commands[slot * STRIDE + AT_SPEED] = pool.speed[slot] * _speed_scale(slot, tick)
+	var timed: PackedFloat32Array = world.exec_speeds([PackedInt32Array([tick]), pool.active, pool.speed, pool.windup_until,
+		pool.stun_until, pool.root_until, pool.slow_until, pool.slow_scale, pool.haste_until, commands])
+	if timed.size() == commands.size():
+		commands = timed
+	else:
+		push_error("The native speed pass refused this tick's input.")
+		speeds_reference(tick)
 	for player in players:
 		targets[player * 2] = party.x[player]
 		targets[player * 2 + 1] = party.z[player]
@@ -135,6 +140,12 @@ func step(tick: int) -> void:
 	world.command_agents(commands)
 	world.tick(Clock.DT)
 	pool.xz = world.positions()
+
+
+## The speed pass in GDScript. native/mob_exec.c me_speeds matches it; the parity test compares both.
+func speeds_reference(tick: int) -> void:
+	for slot in pool.active:
+		commands[slot * STRIDE + AT_SPEED] = pool.speed[slot] * _speed_scale(slot, tick)
 
 
 func _speed_scale(slot: int, tick: int) -> float:

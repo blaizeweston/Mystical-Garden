@@ -149,18 +149,19 @@ func _mirror_slot(slot: int, next: int, now: int) -> void:
 	var live: bool = slot < game.encounter.scout_count() and game.encounter.alive(slot)
 	if not live:
 		if pool.alive[slot] != 0:
-			sim.damage_mob(slot, pool.hp[slot], _hitters[slot])
+			sim.damage_mob(slot, pool.hp[slot], _hitters[slot], false)
 		return
 	var token: int = game.encounter.token(slot)
 	if pool.alive[slot] == 0 or _tokens[slot] != token:
 		if pool.alive[slot] != 0:
-			sim.damage_mob(slot, pool.hp[slot], NO_HITTER)
+			sim.damage_mob(slot, pool.hp[slot], NO_HITTER, false)
 		if not _adopt(slot, token):
 			return
 	var scout: Dictionary = game.encounter.scout(slot)
 	var health := float(game.encounter.hp(slot))
 	if health < pool.hp[slot]:
-		sim.damage_mob(slot, pool.hp[slot] - health, _hitters[slot])
+		# The game already applied armour and every other defence, so the simulation copies the result unscaled.
+		sim.damage_mob(slot, pool.hp[slot] - health, _hitters[slot], false)
 	else:
 		pool.hp[slot] = health
 	if pool.alive[slot] == 0:

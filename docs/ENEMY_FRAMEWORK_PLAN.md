@@ -221,7 +221,7 @@ Each phase ends with evidence and a review before the next starts.
 |---|---|---|
 | 0 | Fix ward grants mixing clocks. Make the simulation test drive combat time | 10 ward files and one validation anchor file. Done 2026-11-21 |
 | 1 | Folder structure, definitions, loader, validator, table compiler, per-system timers, benchmark budgets and the baseline | None |
-| 2 | Spatial grid, per-slot cooldowns, status system, perception with senses and light grid in the native core | None |
+| 2 | Native executors, decisions, perception and movement speeds, with parity tests; senses with a light grid; status system. Done 2026-11-21 | None |
 | 3 | Ability shape kernels and effects. Port every regular species' kit. The arena's world port uses the real player-hit rules | Arena files only |
 | 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields | Arena files only |
 | 5 | Dedicated framework presentation. Elite kits. Bosses keep scripted plans for now | Arena files only |
@@ -281,3 +281,52 @@ Built 2026-11-21. No existing game files changed.
 
 - Legacy variants replace a species' attack for the whole spawn. In the framework they are signature abilities that unlock under the same rules, and the brain chooses when to use them.
 - Values marked provisional in `species.json` (senses, dodge, flight and mana) only take effect in Phase 4.
+
+## Phase 2 record
+
+Built 2026-11-21. No existing game files changed. The arena bridge, which is framework code, now passes already-resolved damage unscaled.
+
+### Native hot paths
+
+Each moved system keeps its GDScript version as a reference. `mob_sim/tests/mob_native_parity.gd` runs both on identical state every tick across three encounters (20, 60 and 100 mobs, 7,200 ticks).
+
+| System | Native file | Reference | Parity result |
+|---|---|---|---|
+| Executors | `native/mob_exec.c` | `mob_executors_reference.gd` | Modes, targets and 906 attack starts identical. 63 movement offsets differ by at most 5e-7, because Godot's and the native library's sine and cosine round differently |
+| Legal-action masks | `native/mob_decide.c` | `MobRules.build_masks_reference` | Identical |
+| Scripted brain | `native/mob_decide.c` | `mob_scripted_brain_reference.gd` | 32,896 decisions identical |
+| Perception and ally slots | `native/mob_sense.c` | `MobPerception.update_reference`, `refresh_allies_reference` | Identical with senses off |
+| Movement speeds | `native/mob_exec.c` | `MobLocomotion.speeds_reference` | Identical |
+
+Attack starts still go through `MobAbilities.begin`. The native executors only propose attacks that pass the rules depending on simulation state, with a fallback movement row, so host checks such as the arena's real-game sight test still apply in mob order.
+
+The native core already had a spatial hash, rebuilt only when mobs move, for neighbour searches and crowd separation. Native perception uses it directly, so no separate grid was needed.
+
+### Speed
+
+| Scenario | Phase 1 | Phase 2 | Target |
+|---|---|---|---|
+| Simulation, 20 mobs | 182x | 501x | 300x |
+| Simulation, 100 mobs | 34x | 140x | 100x |
+| Simulation tick, 100 mobs | 0.53 ms | 0.14 ms | |
+
+At 100 mobs the remaining time is decisions (0.05 ms, mostly the GDScript decision upkeep and commit), movement (0.05 ms, mostly the native navigation step) and executors (0.03 ms). Arena speed is unchanged at about 12x, because the arena's cost is in the real game's combat step, which Phase 5 addresses.
+
+### Senses
+
+`native/mob_sense.c` adds light, darkvision, hearing and smell, switched on with `MobPerception.set_senses(true)`. They stay off until Phase 4. `mob_sim/tests/mob_sense_checks.gd` (18 checks) covers them.
+
+- **Light:** the host supplies light sources and an ambient level. The light grid is rebuilt only when they change. Sight range is the species' sight scaled by the light at the player, but never below its darkvision.
+- **Hearing:** the host reports noises with a loudness. Every mob whose hearing reaches a noise learns its position, even through walls, and engages.
+- **Smell:** players leave a scent trail that halves every six seconds. Engaged mobs with smell follow the freshest trail within range when they cannot see the player.
+- **Design change with senses on:** engaged mobs no longer track unseen players within their awareness radius for free. They must see, hear or smell them. With senses off, that legacy tracking stays, so parity holds.
+
+### Status system
+
+`mob_status.gd` adds damage over time and damage modifiers. `mob_sim/tests/mob_status_checks.gd` (18 checks) covers it.
+
+- Damage over time stacks its damage per second, keeps the longest duration, lands four times a second, credits kills to the player who applied it, and costs nothing when no mob is burning.
+- Armour uses the shared balance's armour ratio and comes from the Bark mutation or a species trait. Dodge windows ignore hits and record a `DODGED` event. Channeling multiplies damage taken by the species' channel value.
+- `damage_mob` takes `scaled = false` for damage a host has already resolved. The arena bridge uses it so real-game armour is not applied twice.
+
+Per-slot cooldowns already exist in `MobPool.cooldown_until`, one per mob and attack slot. The definition tables carry each ability's cooldown, and Phase 3 applies them when kits replace the role-based attacks.

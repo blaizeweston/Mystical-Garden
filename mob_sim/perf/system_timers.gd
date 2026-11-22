@@ -3,9 +3,9 @@ extends RefCounted
 ## Reading the wall clock here is diagnostics only: it never feeds back into the simulation,
 ## so enabling it cannot change results, only add a few microseconds per tick.
 
-enum System { PERCEPTION, DECISION, EXECUTORS, ABILITIES, MOVEMENT }
+enum System { PERCEPTION, DECISION, EXECUTORS, ABILITIES, STATUS, MOVEMENT }
 
-const NAMES := ["perception", "decision", "executors", "abilities", "movement"]
+const NAMES := ["perception", "decision", "executors", "abilities", "status", "movement"]
 
 var enabled := false
 var ticks := 0

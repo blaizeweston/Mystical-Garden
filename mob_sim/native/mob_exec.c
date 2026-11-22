@@ -55,6 +55,13 @@ static const MeKind input_kinds[EI_COUNT] = {
 MeKind me_config_kind(int index) { return config_kinds[index]; }
 MeKind me_input_kind(int index) { return input_kinds[index]; }
 
+static const MeKind speed_kinds[EV_COUNT] = {
+    [EV_TICK] = ME_INTS, [EV_ACTIVE] = ME_INTS, [EV_SPEED] = ME_FLOATS, [EV_WINDUP_UNTIL] = ME_INTS, [EV_STUN_UNTIL] = ME_INTS,
+    [EV_ROOT_UNTIL] = ME_INTS, [EV_SLOW_UNTIL] = ME_INTS, [EV_SLOW_SCALE] = ME_FLOATS, [EV_HASTE_UNTIL] = ME_INTS, [EV_COMMANDS] = ME_FLOATS,
+};
+
+MeKind me_speed_input_kind(int index) { return speed_kinds[index]; }
+
 struct MobExec {
     int dim[ED_COUNT];
     uint8_t *executor, *support, *attack_exists, *attack_sight, *attack_lonely;
@@ -569,5 +576,35 @@ MeResult me_run(MobExec *e, const MobNav *nav, const void *const *items, const i
         }
     }
     out[command_floats + target_floats] = (float)r.request_count;
+    return ME_OK;
+}
+
+#define HASTE_SCALE 1.22
+
+MeResult me_speeds(const MobExec *e, const void *const *items, const int64_t *lengths, float *out) {
+    int capacity = e->dim[ED_CAPACITY];
+    int64_t floats = (int64_t)capacity * ME_STRIDE;
+    if (lengths[EV_TICK] != 1 || lengths[EV_COMMANDS] != floats || lengths[EV_SPEED] != capacity || lengths[EV_WINDUP_UNTIL] != capacity
+            || lengths[EV_STUN_UNTIL] != capacity || lengths[EV_ROOT_UNTIL] != capacity || lengths[EV_SLOW_UNTIL] != capacity
+            || lengths[EV_SLOW_SCALE] != capacity || lengths[EV_HASTE_UNTIL] != capacity) {
+        return ME_ERR_ARGUMENT;
+    }
+    int tick = ((const int *)items[EV_TICK])[0];
+    const int *active = items[EV_ACTIVE], *windup = items[EV_WINDUP_UNTIL], *stun = items[EV_STUN_UNTIL], *root = items[EV_ROOT_UNTIL];
+    const int *slow = items[EV_SLOW_UNTIL], *haste = items[EV_HASTE_UNTIL];
+    const float *speed = items[EV_SPEED], *slow_scale = items[EV_SLOW_SCALE];
+    memcpy(out, items[EV_COMMANDS], (size_t)floats * sizeof(float));
+    for (int64_t i = 0; i < lengths[EV_ACTIVE]; i++) {
+        int slot = active[i];
+        if (slot < 0 || slot >= capacity) return ME_ERR_ARGUMENT;
+        double scale;
+        if (windup[slot] > 0 || tick < stun[slot] || tick < root[slot]) {
+            scale = 0.0;
+        } else {
+            scale = tick < slow[slot] ? (double)slow_scale[slot] : 1.0;
+            if (tick < haste[slot]) scale *= HASTE_SCALE;
+        }
+        out[(size_t)slot * ME_STRIDE + ME_AT_SPEED] = (float)((double)speed[slot] * scale);
+    }
     return ME_OK;
 }

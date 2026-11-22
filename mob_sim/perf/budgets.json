@@ -4,8 +4,8 @@
 	"baseline_recorded": "2026-11-21",
 	"machine": "Development PC, RTX 4070 Super, one headless process",
 	"sim": {
-		"20": {"baseline": 182.5, "phase2_executors_and_decisions": 362, "floor": 270, "target": 300},
-		"100": {"baseline": 33.5, "phase2_executors_and_decisions": 81.5, "floor": 60, "target": 100}
+		"20": {"baseline": 182.5, "phase2": 501, "floor": 375, "target": 300},
+		"100": {"baseline": 33.5, "phase2": 140, "floor": 105, "target": 100}
 	},
 	"arena": {
 		"note": "Neural Arena with real combat: 20 mixed enemies, 4 bot players, 60 second rounds, seed 7, two rounds.",

@@ -9,6 +9,7 @@
 #include "mob_nav.h"
 #include "mob_obs.h"
 #include "mob_policy.h"
+#include "mob_sense.h"
 
 typedef struct { void *opaque; } StringNameStorage;
 typedef struct { void *opaque; } StringStorage;
@@ -20,6 +21,7 @@ typedef struct {
     MobPolicy *policy;
     MobExec *exec;
     MobDecide *decide;
+    MobSense *sense;
 } World;
 
 typedef enum { KIND_INT, KIND_FLOAT, KIND_BYTES, KIND_FLOATS, KIND_ARRAY, KIND_COUNT } Kind;
@@ -117,11 +119,13 @@ static void m_initialize(World *world, const void *const *args, void *result) {
     mp_destroy(world->policy);
     me_destroy(world->exec);
     md_destroy(world->decide);
+    ms_destroy(world->sense);
     world->nav = created;
     world->obs = NULL;
     world->policy = NULL;
     world->exec = NULL;
     world->decide = NULL;
+    world->sense = NULL;
     *(int64_t *)result = MN_OK;
 }
 
@@ -261,6 +265,71 @@ static void run_decide(World *world, const void *const *args, void *result, int 
 
 static void m_decide_masks(World *world, const void *const *args, void *result) { run_decide(world, args, result, 1); }
 static void m_decide_scripted(World *world, const void *const *args, void *result) { run_decide(world, args, result, 0); }
+
+static MoKind sense_config_kind(int index) { return (MoKind)ms_config_kind(index); }
+static MoKind sense_input_kind(int index) { return (MoKind)ms_input_kind(index); }
+
+static void m_sense_configure(World *world, const void *const *args, void *result) {
+    const void *items[SC_COUNT];
+    int64_t lengths[SC_COUNT];
+    if (!read_items(args[0], SC_COUNT, sense_config_kind, items, lengths)) {
+        *(int64_t *)result = SK_ERR_ARGUMENT;
+        return;
+    }
+    MobSense *created = NULL;
+    MsResult status = ms_create(items, lengths, &created);
+    if (status == SK_OK) {
+        ms_destroy(world->sense);
+        world->sense = created;
+    }
+    *(int64_t *)result = status;
+}
+
+/* Shared by the perception update and the ally refresh. Returns raw bytes, or an empty array on bad input. */
+static void run_sense(World *world, const void *const *args, void *result, int allies) {
+    const void *items[SI_COUNT];
+    int64_t lengths[SI_COUNT];
+    int64_t values = 0, resized = 0;
+    int ready = world->sense != NULL && world->nav != NULL && read_items(args[0], SI_COUNT, sense_input_kind, items, lengths);
+    if (ready) values = allies ? ms_allies_size(world->sense) : ms_update_size(world->sense);
+    GDExtensionConstTypePtr resize_args[] = {&values};
+    bytes_resize(result, resize_args, &resized, 1);
+    if (values <= 0 || resized != 0) return;
+    MsResult status = allies ? ms_allies(world->sense, world->nav, items, lengths, bytes_at_mutable(result, 0))
+                             : ms_update(world->sense, world->nav, items, lengths, bytes_at_mutable(result, 0));
+    if (status != SK_OK) {
+        values = 0;
+        bytes_resize(result, resize_args, &resized, 1);
+    }
+}
+
+static void m_sense_update(World *world, const void *const *args, void *result) { run_sense(world, args, result, 0); }
+static void m_sense_allies(World *world, const void *const *args, void *result) { run_sense(world, args, result, 1); }
+
+static void m_sense_light_at(World *world, const void *const *args, void *result) {
+    *(double *)result = world->sense != NULL ? ms_light_at(world->sense, (float)arg_float(args, 0), (float)arg_float(args, 1)) : 1.0;
+}
+
+static void m_sense_scent_at(World *world, const void *const *args, void *result) {
+    *(double *)result = world->sense != NULL
+        ? ms_scent_at(world->sense, (int)arg_int(args, 0), (float)arg_float(args, 1), (float)arg_float(args, 2)) : 0.0;
+}
+
+static MoKind speed_input_kind(int index) { return (MoKind)me_speed_input_kind(index); }
+
+static void m_exec_speeds(World *world, const void *const *args, void *result) {
+    const void *items[EV_COUNT];
+    int64_t lengths[EV_COUNT];
+    int64_t values = 0, resized = 0;
+    int ready = world->exec != NULL && read_items(args[0], EV_COUNT, speed_input_kind, items, lengths);
+    if (ready) values = me_output_size(world->exec) > 0 ? lengths[EV_COMMANDS] : 0;
+    GDExtensionConstTypePtr resize_args[] = {&values};
+    floats_resize(result, resize_args, &resized, 1);
+    if (values > 0 && resized == 0 && me_speeds(world->exec, items, lengths, floats_at(result, 0)) != ME_OK) {
+        values = 0;
+        floats_resize(result, resize_args, &resized, 1);
+    }
+}
 
 static void m_obs_reset_slot(World *world, const void *const *args, void *result) {
     mo_reset_slot(world->obs, (int)arg_int(args, 0));
@@ -474,6 +543,12 @@ static const Method methods[] = {
     {"decide_configure", m_decide_configure, KIND_INT, 1, {KIND_ARRAY}, {"config"}},
     {"decide_masks", m_decide_masks, KIND_BYTES, 1, {KIND_ARRAY}, {"inputs"}},
     {"decide_scripted", m_decide_scripted, KIND_BYTES, 1, {KIND_ARRAY}, {"inputs"}},
+    {"sense_configure", m_sense_configure, KIND_INT, 1, {KIND_ARRAY}, {"config"}},
+    {"sense_update", m_sense_update, KIND_BYTES, 1, {KIND_ARRAY}, {"inputs"}},
+    {"sense_allies", m_sense_allies, KIND_BYTES, 1, {KIND_ARRAY}, {"inputs"}},
+    {"sense_light_at", m_sense_light_at, KIND_FLOAT, 2, {KIND_FLOAT, KIND_FLOAT}, {"x", "z"}},
+    {"sense_scent_at", m_sense_scent_at, KIND_FLOAT, 3, {KIND_INT, KIND_FLOAT, KIND_FLOAT}, {"player", "x", "z"}},
+    {"exec_speeds", m_exec_speeds, KIND_FLOATS, 1, {KIND_ARRAY}, {"inputs"}},
     {"obs_reset_slot", m_obs_reset_slot, KIND_INT, 1, {KIND_INT}, {"slot"}},
     {"policy_load", m_policy_load, KIND_INT, 3, {KIND_BYTES, KIND_BYTES, KIND_FLOATS}, {"weights", "schema_hash", "layout"}},
     {"policy_forward", m_policy_forward, KIND_FLOATS, 2, {KIND_FLOATS, KIND_FLOATS}, {"observations", "hidden"}},
@@ -573,6 +648,7 @@ static void free_world(void *unused, GDExtensionClassInstancePtr instance) {
     mp_destroy(world->policy);
     me_destroy(world->exec);
     md_destroy(world->decide);
+    ms_destroy(world->sense);
     free(world);
 }
 

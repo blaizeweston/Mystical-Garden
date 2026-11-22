@@ -30,7 +30,7 @@ foreach ($count in '20', '100') {
     $result = $sim.$count
     $systems = $result.systems
     $rows += [pscustomobject]@{ Scenario = "Simulation, $count mobs"; TimesRealTime = $result.times_real_time; Floor = $budget.floor; Target = $budget.target
-        Detail = "ms/tick: perception $($systems.perception), decision $($systems.decision), executors $($systems.executors), abilities $($systems.abilities), movement $($systems.movement)" }
+        Detail = "ms/tick: perception $($systems.perception), decision $($systems.decision), executors $($systems.executors), abilities $($systems.abilities), status $($systems.status), movement $($systems.movement)" }
 }
 foreach ($name in $brains.Keys) {
     $arguments = @('--script', 'res://neural_arena/arena_headless.gd', '--', '--rounds=2', '--bots=4', $enemies, '--round-seconds=60', '--seed=7', '--profile')
