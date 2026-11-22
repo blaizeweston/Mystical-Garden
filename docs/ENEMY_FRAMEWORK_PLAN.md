@@ -229,7 +229,7 @@ Each phase ends with evidence and a review before the next starts.
 | 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Done: parts 1 to 3 on 2026-11-21, the legacy comparison on 2026-11-22 | Arena files only |
 | 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Done 2026-11-22 in four parts | Arena files only |
 | 5 | Arena speed, presentation of the new mechanics (replicated to guests), and elite kits with the gate elite run by the framework. Bosses keep scripted plans for now. Done 2026-11-22 in three parts: speed, presentation, elite kits | Arena files only |
-| 6 | Schema v2, rewards v2, a stronger stand-in party, a resumable training loop, curriculum with self-play, and evaluation. Parts A (schema v2) and B (rewards v2) done 2026-11-22 | None |
+| 6 | Schema v2, rewards v2, a stronger stand-in party, a resumable training loop, curriculum with self-play, and evaluation. Parts A (schema v2), B (rewards v2) and C (stand-in party) done 2026-11-22 | None |
 | 7 | Live toggles, with Legacy enemies and darkness off by default | Small hooks: settings, `tick_enemies`, spawning, guest snapshots, fog of war. Approved step by step |
 | 8 | After acceptance: New enemies become the default, then legacy enemy code is removed | Approved separately |
 
@@ -612,3 +612,25 @@ Built 2026-11-22. `ai/mob_rewards.gd` turns each tick's events into rewards per 
 | Intent change | -0.002 |
 
 Squad mix: a share of every reward goes to the mob's allies; the share starts at 20% and the trainer moves it to 60% as training progresses, so mobs learn to value their squad's success. Checks: `ai/tests/mob_reward_checks.gd` (13 checks) covers every term and the squad mix.
+
+### Part C: the stand-in party
+
+Built 2026-11-22. `ai/stand_in_party.gd` is the party mobs train against in the simulation. It stands in for the game: the simulation resolves its own hits, the party reads the resulting hit events, and it deals damage through `MobSim.damage_mob`.
+
+| Class | Role | Notes |
+|---|---|---|
+| Warrior | Melee | High armour |
+| Rogue | Melee | Fast attacks, short dodge cooldown |
+| Ranger | Ranged | Kites |
+| Mage | Ranged, splash | Drops a fire field every 8 seconds |
+| Warden | Melee tank | Drops a binding (rooting) field every 10 seconds |
+
+Every player publishes its stats and its dodge and wind-up timers to the simulation (the schema v2 inputs). Attacks have a short wind-up and make noise mobs can hear. Dodges give a quarter second of invulnerability on a class cooldown. Armour reduces damage, roots and pulls apply, and players go down at zero health. At night players carry lights and see only lit or nearby mobs, by the arena's rule.
+
+A shared difficulty from 0 to 1 sets the tactics: reaction delay (0.4 to 0.1 seconds) and chance (20% to 90%) for dodging telegraphs aimed at the player, focus fire on wounded mobs and, increasingly, on supports, ranged kiting and backing away from melee mobs, aim (35% to 5% misses) and retreating when badly hurt.
+
+Speed: the game's pathfinder was nearly all the party's cost, so players walk straight when the way is clear and reuse a routed waypoint for up to a second. A fight of eight mobs against four players runs at about 245 times real time (party about 0.05 ms per tick, simulation about 0.02 ms).
+
+Checks: `ai/tests/stand_in_party_checks.gd` (11 checks): stats and timers reach the simulation, armour, dodges, going down, darkness, class skills leaving player fields, and, over three seeds, a harder party dodging more (14 against 4) and taking less damage per kill.
+
+Found for Part D: mobs that spawn far from the party wander until they notice it, so the party picks them off one group at a time. The training environment should start encounters engaged, as arena rounds do.
