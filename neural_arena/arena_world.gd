@@ -468,6 +468,12 @@ func _observe_outgoing_contact(source_peer: int, target: int) -> void:
 		bridge.note_hit(target, source_peer)
 
 
+## A headless run without guests skips the guest snapshot, which nobody would receive.
+func send_expedition_state(delta: float, force := false) -> void:
+	if not headless_driver or real_guest_count() > 0:
+		super(delta, force)
+
+
 func move_player(id: int, direction: Vector2, delta: float) -> void:
 	super(id, bots[HOST].move_direction if id == HOST and host_is_bot() and bots.has(HOST) else direction, delta)
 

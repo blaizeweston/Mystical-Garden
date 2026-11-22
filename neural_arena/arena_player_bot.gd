@@ -17,6 +17,9 @@ const UNSTICK_TURN := 1.8
 const MEMORY_TICKS := 240
 const ROAM_TICKS := 300
 const ROAM_ARRIVAL := 2.0
+## A route is reused while its goal stays this close and it is younger than ROUTE_TICKS.
+const ROUTE_REUSE := 1.5
+const ROUTE_TICKS := 30
 
 var game: Node
 var peer := 0
@@ -33,6 +36,10 @@ var _last_seen := Vector3.INF
 var _last_seen_tick := -MEMORY_TICKS
 var _roam := Vector3.INF
 var _roam_tick := 0
+var _target := -2
+var _route := PackedVector2Array()
+var _route_goal := Vector3.INF
+var _route_tick := 0
 
 
 func _init(world: Node, peer_id: int, seed_value: int) -> void:
@@ -51,6 +58,9 @@ func begin_round() -> void:
 	_last_seen = Vector3.INF
 	_last_seen_tick = -MEMORY_TICKS
 	_roam = Vector3.INF
+	_target = -2
+	_route = PackedVector2Array()
+	_route_goal = Vector3.INF
 	var player: Dictionary = game.players.get(peer, {})
 	if not player.is_empty():
 		_reach = float(game.weapon_stats(player).reach)
@@ -65,7 +75,11 @@ func act(now: int) -> void:
 	var rescue: int = game.Life.nearest(game, player)
 	if rescue != 0:
 		game.Life.revive(game, peer, rescue)
-	var target := _pick_target(player)
+	# The target is chosen every PLAN_TICKS, like movement, and kept in between while it lives and is seen.
+	var target := _target
+	if (_tick + peer) % PLAN_TICKS == 0 or not _still_valid(target):
+		target = _pick_target(player)
+		_target = target
 	if target < -1:
 		if _in_darkness():
 			_search(player)
@@ -85,6 +99,14 @@ func act(now: int) -> void:
 		_consider_dodge(player, now)
 	if (_tick + peer) % SKILL_TICKS == 0 and distance <= _reach + 3.0:
 		ClassActions.cast_world(game, peer, rng.randi_range(0, 1))
+
+
+func _still_valid(target: int) -> bool:
+	if target == -1:
+		return game.enemy_health() > 0
+	if target < 0 or target >= game.encounter.scout_count() or game.encounter.hp(target) <= 0:
+		return false
+	return not _in_darkness() or game.bridge.player_sees(peer, target)
 
 
 func _in_darkness() -> bool:
@@ -153,11 +175,22 @@ func _route_heading(from: Vector3, at: Vector3) -> Vector3:
 	var clearance: float = field.CLEARANCE + ROUTE_MARGIN
 	if field.clear_line(from, at, clearance):
 		return at - from
-	var points: PackedVector2Array = field.navigation_graph.route(Vector2(from.x,from.z),Vector2(at.x,at.z))
+	if _route.is_empty() or not _route_goal.is_finite() or _route_goal.distance_to(at) > ROUTE_REUSE or _tick - _route_tick >= ROUTE_TICKS:
+		_route = field.navigation_graph.route(Vector2(from.x,from.z),Vector2(at.x,at.z))
+		_route_goal = at
+		_route_tick = _tick
+	# A reused route starts at the point nearest the bot, so points already passed are skipped.
+	var start := 0
+	var nearest := INF
+	for index in _route.size():
+		var distance := Vector2(from.x, from.z).distance_squared_to(_route[index])
+		if distance < nearest:
+			nearest = distance
+			start = index
 	var heading := at - from
-	for index in mini(points.size(), ROUTE_LOOKAHEAD):
-		var point := Vector3(points[index].x, 0.0, points[index].y)
-		if index == 0 or field.clear_line(from, point, clearance):
+	for index in range(start, mini(_route.size(), start + ROUTE_LOOKAHEAD)):
+		var point := Vector3(_route[index].x, 0.0, _route[index].y)
+		if index == start or field.clear_line(from, point, clearance):
 			heading = point - from
 	return heading
 

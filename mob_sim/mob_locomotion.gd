@@ -63,7 +63,8 @@ func bake(field: RefCounted) -> int:
 	if status != OK:
 		return status
 	# NavWorld.bake also bakes the air layer, which moves flyers and carries every mob's sight across water
-	# and low obstacles. Its route fields are only kept current while something flies.
+	# and low obstacles. Route fields are lazy: solved only while a mob uses them, and only as far as needed.
+	world.set_lazy_fields(1)
 	layers.fill(0)
 	world.set_layers(layers)
 	var rows := PackedFloat32Array()

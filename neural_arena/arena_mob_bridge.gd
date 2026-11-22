@@ -48,6 +48,11 @@ var _party_evidence := 0
 ## Nonzero for enemies the game's own behaviour drives this tick: a Graft Thief stealing or escaping,
 ## or a Glasscap holding its feint. The simulation holds them and leaves their position alone.
 var _host_owned := PackedByteArray()
+## Unlock bits by species, floor and evidence, which change only when the party shows new evidence.
+var _unlock_cache := {}
+## The game's speed for each species this tick, shared by every enemy of that species.
+var _speed_cache := {}
+var _speed_tick := -1
 
 
 func _init(world: Node, settings: Config) -> void:
@@ -94,6 +99,8 @@ func begin_round(seed_value: int) -> bool:
 	_host_owned.fill(0)
 	_peers.resize(sim.contract.players)
 	_peers.fill(0)
+	_unlock_cache.clear()
+	_speed_cache.clear()
 	light = ArenaLight.new(config.darkness, capacity, sim.contract.players)
 	light.attach(sim)
 	return true
@@ -217,7 +224,7 @@ func _mirror_slot(slot: int, next: int, now: int) -> void:
 	if pool.alive[slot] == 0:
 		return
 	pool.max_hp[slot] = maxf(1.0, float(scout.get("max_hp", health)))
-	pool.mutations[slot] = (pool.mutations[slot] & ~UNLOCKS) | sim.species.unlock_bits(int(scout.kind), game.participation.floor(),
+	pool.mutations[slot] = (pool.mutations[slot] & ~UNLOCKS) | _unlocks(int(scout.kind), game.participation.floor(),
 		_party_evidence | _denial_bits(scout))
 	var at: Vector3 = scout.pos
 	if not at.is_equal_approx(_written[slot]):
@@ -295,10 +302,22 @@ func _denial_bits(scout: Dictionary) -> int:
 	return bits
 
 
+func _unlocks(kind: int, floor_number: int, evidence: int) -> int:
+	var key := kind | (evidence << 8) | (floor_number << 24)
+	if not _unlock_cache.has(key):
+		_unlock_cache[key] = sim.species.unlock_bits(kind, floor_number, evidence)
+	return _unlock_cache[key]
+
+
 func _speed(scout: Dictionary, now: int) -> float:
-	var definition: Dictionary = game.Enemies.get_kind(int(scout.kind))
+	var kind := int(scout.kind)
+	if _speed_tick != now:
+		_speed_tick = now
+		_speed_cache.clear()
+	if not _speed_cache.has(kind):
+		_speed_cache[kind] = game.Director.speed(game, float(game.Enemies.get_kind(kind).speed))
 	var mask := int(scout.get("mutations", 0))
-	return game.Director.speed(game, float(definition.speed)) * Frost.motion_scale(scout, now) \
+	return float(_speed_cache[kind]) * Frost.motion_scale(scout, now) \
 		* (MOBILITY_SPEED if mask & Catalog.MOBILITY else 1.0) * (JUVENILE_SPEED if mask & Catalog.JUVENILE else 1.0)
 
 

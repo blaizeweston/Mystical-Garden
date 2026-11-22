@@ -52,6 +52,10 @@ MnResult mn_bake(MobNav *nav, int floor_w, int floor_h, float origin_x, float or
  * route and displace on it while staying in the shared crowd for neighbour queries. A NULL mask removes it.
  * Rebaking the ground removes it too. */
 MnResult mn_bake_air(MobNav *nav, const uint8_t *air_mask, int64_t length);
+/* Lazy fields: a route field is solved only while an agent of its layer seeks or flees with it, and the
+ * solve stops a margin beyond the farthest such agent. It is solved again when one of them nears that
+ * edge. Off by default, which keeps every field complete for mn_path_cost at any point. */
+MnResult mn_set_lazy_fields(MobNav *nav, int enabled);
 /* One byte per agent slot: 0 walks on the ground layer, 1 flies on the air layer. */
 MnResult mn_set_layers(MobNav *nav, const uint8_t *layers, int count);
 

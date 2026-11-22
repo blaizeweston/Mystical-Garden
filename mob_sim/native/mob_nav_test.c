@@ -274,8 +274,55 @@ static void test_air_layer(void) {
     mn_destroy(nav);
 }
 
+static void lazy_run(int lazy, float *out);
+
+/* Lazy fields: only used fields are solved, only a margin past their users, and agents still arrive. */
+static void test_lazy_fields(void) {
+    MobNav *nav = make_room(1, 2);
+    check(mn_set_lazy_fields(nav, 1) == MN_OK, "lazy fields can be turned on");
+    const float targets[] = {30.0f, 5.0f, 5.0f, 28.0f};
+    mn_set_targets(nav, targets, 2);
+    const float agent[MN_AGENT_STRIDE] = {1, 10, 5, 3, 0.34f, 0.5f, 0, MN_MODE_SEEK, 0, 0};
+    mn_agents_load(nav, agent, 1);
+    mn_tick(nav, 1.0f / 60.0f);
+    check(mn_path_cost(nav, 0, 10.0f, 5.0f) > 23.0f, "a used field is solved where its user stands");
+    check(mn_path_cost(nav, 0, 5.0f, 28.0f) < 0.0f, "a used field stops a margin past its farthest user");
+    check(mn_path_cost(nav, 1, 5.0f, 27.0f) < 0.0f, "a field nobody uses is not solved");
+    float xz[2];
+    int arrived = 0;
+    for (int i = 0; i < 1500 && !arrived; i++) {
+        mn_tick(nav, 1.0f / 60.0f);
+        mn_positions(nav, xz);
+        arrived = hypotf(xz[0] - 30.0f, xz[1] - 5.0f) <= 0.55f;
+    }
+    check(arrived, "an agent arrives through the gap on a lazy field");
+    mn_destroy(nav);
+    float full[4], lazy[4];
+    lazy_run(0, full);
+    lazy_run(1, lazy);
+    check(fabsf(full[0] - lazy[0]) < 1e-4f && fabsf(full[1] - lazy[1]) < 1e-4f, "a seeking agent moves the same on lazy and full fields");
+    check(fabsf(full[2] - lazy[2]) < 1e-4f && fabsf(full[3] - lazy[3]) < 1e-4f, "a fleeing agent moves the same on lazy and full fields");
+}
+
+/* Runs a seeker from the far side of the wall and a fleer from beside the target for ten seconds. */
+static void lazy_run(int lazy, float *out) {
+    MobNav *nav = make_room(2, 1);
+    mn_set_lazy_fields(nav, lazy);
+    const float target[] = {30.0f, 5.0f};
+    mn_set_targets(nav, target, 1);
+    const float agents[MN_AGENT_STRIDE * 2] = {
+        1, 8, 20, 3, 0.34f, 0.5f, 0, MN_MODE_SEEK, 0, 0,
+        1, 28, 8, 4, 0.34f, 0.5f, 0, MN_MODE_FLEE, 0, 0,
+    };
+    mn_agents_load(nav, agents, 2);
+    for (int i = 0; i < 600; i++) mn_tick(nav, 1.0f / 60.0f);
+    mn_positions(nav, out);
+    mn_destroy(nav);
+}
+
 int main(void) {
     test_clearance();
+    test_lazy_fields();
     test_air_layer();
     test_line_of_sight();
     test_flow_field();

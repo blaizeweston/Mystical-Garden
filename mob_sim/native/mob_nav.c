@@ -24,6 +24,8 @@
 #define UNREACHED 1e30f
 #define GOAL_SEARCH 12
 #define FLOW_SEARCH 8
+/* Lazy fields reach this far past their farthest user, and are solved again within half of it. */
+#define LAZY_MARGIN 6.0f
 
 typedef struct {
     float *t;
@@ -32,6 +34,8 @@ typedef struct {
     float x;
     float z;
     uint64_t solved_at;
+    /* Values past this route cost were not solved. UNREACHED for a complete field. */
+    float limit;
     int goal;
     uint8_t solved;
     uint8_t dirty;
@@ -90,6 +94,11 @@ struct MobNav {
     int hash_stale;
     uint64_t tick;
     uint64_t solves;
+    int lazy;
+    /* Per flow cell, nonzero while a lazy solve still has to reach an agent there. */
+    uint8_t *need_mark;
+    /* Per target, nonzero when an agent of the layer being updated uses it. */
+    uint8_t *used;
 };
 
 static inline int floor_int(float value) {
@@ -107,6 +116,8 @@ static void release_grids(MobNav *nav) {
     free(nav->rects);
     free(nav->pool);
     free(nav->hash_start);
+    free(nav->need_mark);
+    nav->need_mark = NULL;
     nav->clear = NULL;
     nav->flow_cost = NULL;
     nav->rects = NULL;
@@ -141,6 +152,7 @@ void mn_destroy(MobNav *nav) {
     free(nav->sight);
     free(nav->layer);
     free(nav->hash_items);
+    free(nav->used);
     mn_destroy(nav->air);
     free(nav);
 }
@@ -168,7 +180,8 @@ MobNav *mn_create(int max_agents, int max_targets) {
     nav->sight = calloc(n, 1);
     nav->layer = calloc(n, 1);
     nav->hash_items = calloc(n, sizeof(int));
-    if (!nav->fields || !nav->x || !nav->z || !nav->next_x || !nav->next_z || !nav->speed ||
+    nav->used = calloc((size_t)max_targets, 1);
+    if (!nav->used || !nav->fields || !nav->x || !nav->z || !nav->next_x || !nav->next_z || !nav->speed ||
         !nav->radius || !nav->stop || !nav->offset_x || !nav->offset_z || !nav->target ||
         !nav->mode || !nav->active || !nav->sight || !nav->layer || !nav->hash_items) {
         mn_destroy(nav);
@@ -404,9 +417,16 @@ static inline float eikonal(const float *t, int i, int x, int z, int w, int h, f
     return 0.5f * (a + b + sqrtf(2.0f * step * step - gap * gap));
 }
 
-/* Fast marching over a bucket queue. Entries may be revisited when a value improves. */
-static void field_solve(MobNav *nav, Field *field) {
+/* Fast marching over a bucket queue. Entries may be revisited when a value improves. With needed cells
+ * marked in nav->need_mark (needed counts them), the march stops LAZY_MARGIN past the last of them. */
+static void field_solve_bounded(MobNav *nav, Field *field, int needed);
+
+static void field_solve(MobNav *nav, Field *field) { field_solve_bounded(nav, field, 0); }
+
+static void field_solve_bounded(MobNav *nav, Field *field, int needed) {
     int w = nav->flow_w, h = nav->flow_h, total = w * h;
+    float limit = UNREACHED;
+    field->limit = UNREACHED;
     for (int i = 0; i < total; i++) field->t[i] = UNREACHED;
     memset(field->dx, 0, (size_t)total * sizeof(float));
     memset(field->dz, 0, (size_t)total * sizeof(float));
@@ -430,6 +450,11 @@ static void field_solve(MobNav *nav, Field *field) {
         nav->free_entry = entry;
         pending--;
         if (value > field->t[cell]) continue;
+        if (value > limit) break;
+        if (needed > 0 && nav->need_mark[cell]) {
+            nav->need_mark[cell] = 0;
+            if (--needed == 0) limit = value + LAZY_MARGIN;
+        }
         int x = cell % w, z = cell / w;
         static const int dx[4] = {1, -1, 0, 0};
         static const int dz[4] = {0, 0, 1, -1};
@@ -450,6 +475,20 @@ static void field_solve(MobNav *nav, Field *field) {
             }
         }
     }
+
+    if (pending > 0) {
+        /* Stopped early: return the queued entries to the free list. */
+        for (int b = 0; b < BUCKETS; b++) {
+            while (nav->head[b] >= 0) {
+                int entry = nav->head[b];
+                nav->head[b] = nav->pool[entry].next;
+                nav->pool[entry].next = nav->free_entry;
+                nav->free_entry = entry;
+            }
+        }
+        field->limit = limit;
+    }
+    if (needed > 0) memset(nav->need_mark, 0, (size_t)total);
 
     for (int z = 0; z < h; z++) {
         for (int x = 0; x < w; x++) {
@@ -498,7 +537,8 @@ MnResult mn_bake(MobNav *nav, int floor_w, int floor_h, float origin_x, float or
     nav->pool = malloc((size_t)nav->pool_size * sizeof(Entry));
     nav->hash_start = malloc(((size_t)nav->hash_w * (size_t)nav->hash_h + 1) * sizeof(int));
     nav->rects = malloc(((size_t)rect_count + 1) * 4 * sizeof(float));
-    if (!nav->clear || !nav->flow_cost || !nav->pool || !nav->hash_start || !nav->rects) {
+    nav->need_mark = calloc(flow, 1);
+    if (!nav->clear || !nav->flow_cost || !nav->pool || !nav->hash_start || !nav->rects || !nav->need_mark) {
         release_grids(nav);
         return MN_ERR_MEMORY;
     }
@@ -516,6 +556,7 @@ MnResult mn_bake(MobNav *nav, int floor_w, int floor_h, float origin_x, float or
         field->solved = 0;
         field->dirty = 0;
         field->goal = -1;
+        field->limit = UNREACHED;
     }
     for (int i = 0; i < BUCKETS; i++) nav->head[i] = -1;
     for (int i = 0; i < nav->pool_size; i++) nav->pool[i].next = i + 1 < nav->pool_size ? i + 1 : -1;
@@ -722,6 +763,65 @@ MnResult mn_agents_command(MobNav *nav, const float *data, int count) {
         nav->offset_z[i] = row[6];
     }
     return MN_OK;
+}
+
+MnResult mn_set_lazy_fields(MobNav *nav, int enabled) {
+    if (nav == NULL) return MN_ERR_STATE;
+    nav->lazy = enabled != 0;
+    return MN_OK;
+}
+
+static int pick_target(const MobNav *nav, int slot);
+
+/* The layer an agent actually moves on: flyers walk when no air layer is baked. */
+static inline uint8_t moving_layer(const MobNav *nav, int slot) {
+    return (uint8_t)(nav->layer[slot] != 0 && nav->air != NULL);
+}
+
+static inline int uses_field(const MobNav *nav, int slot, uint8_t layer) {
+    return nav->active[slot] && moving_layer(nav, slot) == layer && (nav->mode[slot] == MN_MODE_SEEK || nav->mode[slot] == MN_MODE_FLEE);
+}
+
+/* Solves one field, bounded to the agents of this layer that use it. */
+static void solve_for_users(MobNav *grid, const MobNav *nav, int index, uint8_t layer) {
+    int needed = 0;
+    for (int slot = 0; slot < nav->agent_count; slot++) {
+        if (!uses_field(nav, slot, layer) || pick_target(nav, slot) != index) continue;
+        int cell = flow_index(grid, nav->x[slot], nav->z[slot]);
+        if (cell >= 0 && !grid->need_mark[cell]) {
+            grid->need_mark[cell] = 1;
+            needed++;
+        }
+    }
+    field_solve_bounded(grid, &grid->fields[index], needed);
+}
+
+/* Lazy mode: only fields some agent of this layer uses are solved, oldest dirty one first. A field is
+ * dirty when its goal moved or when a user nears the edge of what was solved. */
+static void update_lazy(MobNav *grid, const MobNav *nav, uint8_t layer) {
+    memset(grid->used, 0, (size_t)grid->target_count);
+    for (int slot = 0; slot < nav->agent_count; slot++) {
+        if (!uses_field(nav, slot, layer)) continue;
+        int picked = pick_target(nav, slot);
+        if (picked < 0 || picked >= grid->target_count) continue;
+        grid->used[picked] = 1;
+        Field *field = &grid->fields[picked];
+        if (!field->solved || field->limit >= UNREACHED) continue;
+        int cell = flow_index(grid, nav->x[slot], nav->z[slot]);
+        if (cell < 0 || field->t[cell] >= field->limit - LAZY_MARGIN * 0.5f) field->dirty = 1;
+    }
+    for (int i = 0; i < grid->target_count; i++) {
+        if (grid->used[i] && !grid->fields[i].solved) solve_for_users(grid, nav, i, layer);
+    }
+    for (int budget = 0; budget < FIELD_BUDGET; budget++) {
+        int oldest = -1;
+        for (int i = 0; i < grid->target_count; i++) {
+            Field *field = &grid->fields[i];
+            if (grid->used[i] && field->dirty && (oldest < 0 || field->solved_at < grid->fields[oldest].solved_at)) oldest = i;
+        }
+        if (oldest < 0) return;
+        solve_for_users(grid, nav, oldest, layer);
+    }
 }
 
 static void update_fields(MobNav *nav) {
@@ -1003,13 +1103,18 @@ static void step_agent(MobNav *nav, int slot, float dt) {
 MnResult mn_tick(MobNav *nav, float dt) {
     if (nav == NULL || !nav->baked) return MN_ERR_STATE;
     if (!isfinite(dt) || dt < 0.0f || dt > 1.0f) return MN_ERR_ARGUMENT;
-    update_fields(nav);
-    if (nav->air != NULL) {
-        /* The air layer's fields are kept current only while something flies. */
-        for (int i = 0; i < nav->agent_count; i++) {
-            if (nav->active[i] && nav->layer[i]) {
-                update_fields(nav->air);
-                break;
+    if (nav->lazy) {
+        update_lazy(nav, nav, 0);
+        if (nav->air != NULL) update_lazy(nav->air, nav, 1);
+    } else {
+        update_fields(nav);
+        if (nav->air != NULL) {
+            /* The air layer's fields are kept current only while something flies. */
+            for (int i = 0; i < nav->agent_count; i++) {
+                if (nav->active[i] && nav->layer[i]) {
+                    update_fields(nav->air);
+                    break;
+                }
             }
         }
     }

@@ -455,6 +455,10 @@ static void m_bake_air(World *world, const void *const *args, void *result) {
     else *(int64_t *)result = mn_bake_air(world->nav, length > 0 ? bytes_at(args[0], 0) : NULL, length);
 }
 
+static void m_set_lazy_fields(World *world, const void *const *args, void *result) {
+    *(int64_t *)result = world->nav != NULL ? mn_set_lazy_fields(world->nav, (int)arg_int(args, 0)) : MN_ERR_STATE;
+}
+
 static void m_set_layers(World *world, const void *const *args, void *result) {
     int64_t length = byte_count(args[0]);
     if (world->nav == NULL) *(int64_t *)result = MN_ERR_STATE;
@@ -567,6 +571,7 @@ static const Method methods[] = {
     {"set_targets", m_set_targets, KIND_INT, 1, {KIND_FLOATS}, {"xz"}},
     {"bake_air", m_bake_air, KIND_INT, 1, {KIND_BYTES}, {"air_mask"}},
     {"set_layers", m_set_layers, KIND_INT, 1, {KIND_BYTES}, {"layers"}},
+    {"set_lazy_fields", m_set_lazy_fields, KIND_INT, 1, {KIND_INT}, {"enabled"}},
     {"load_agents", m_load_agents, KIND_INT, 1, {KIND_FLOATS}, {"data"}},
     {"command_agents", m_command_agents, KIND_INT, 1, {KIND_FLOATS}, {"data"}},
     {"place_agents", m_place_agents, KIND_INT, 1, {KIND_FLOATS}, {"data"}},

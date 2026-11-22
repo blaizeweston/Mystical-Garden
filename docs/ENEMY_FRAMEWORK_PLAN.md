@@ -228,7 +228,7 @@ Each phase ends with evidence and a review before the next starts.
 | 2 | Native executors, decisions, perception and movement speeds, with parity tests; senses with a light grid; status system. Done 2026-11-21 | None |
 | 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Parts 1 to 3 done 2026-11-21; the legacy comparison remains | Arena files only |
 | 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Done 2026-11-22 in four parts | Arena files only |
-| 5 | Dedicated framework presentation. Elite kits. Bosses keep scripted plans for now | Arena files only |
+| 5 | Arena speed, presentation of the new mechanics (replicated to guests), and elite kits with the gate elite run by the framework. Bosses keep scripted plans for now. Part A (speed) done 2026-11-22 | Arena files only |
 | 6 | Schema v2, rewards v2, training loop, curriculum and evaluation | None |
 | 7 | Live toggles, with Legacy enemies and darkness off by default | Small hooks: settings, `tick_enemies`, spawning, guest snapshots, fog of war. Approved step by step |
 | 8 | After acceptance: New enemies become the default, then legacy enemy code is removed | Approved separately |
@@ -465,3 +465,24 @@ Checks: `mob_sim/tests/mob_field_checks.gd` (15 checks): burning, slows and root
 ### Phase 4 summary
 
 All four parts are in: mana with channeling, dodging, flying with sight over water, darkness in the arena, and hazards and player fields. New behaviours: `channel` (new) and `dodge` and `hide` (now legal). The net's inputs for these mechanics stay masked until schema v2 in Phase 6. Phase 3 part 4, the comparison with legacy enemies, is still outstanding.
+
+## Phase 5 record
+
+Decisions (2026-11-22): work in the order speed, presentation, elites. Guests see the new mechanics in Phase 5 through an arena-only packet that leaves the game's packets unchanged. With a framework brain, the gate elite becomes a framework leader mob using its kit with elite bonuses; "Current game AI" keeps the scripted elite for comparison.
+
+### Part A: arena speed
+
+Built 2026-11-22. A profile of the headless arena (4 bots, 20 enemies) found the time per tick:
+
+| Where | Before | After | Change |
+|---|---|---|---|
+| Enemy movement in the simulation | 0.12 ms | 0.02 to 0.04 ms | Lazy route fields (below) |
+| Bridge copying enemy state | 0.13 ms | about 0.07 ms | Unlock bits cached by species, floor and evidence; the game's speed per species computed once per tick |
+| Guest snapshot in a run without guests | 0.03 ms | 0 | Skipped in headless runs that have no guests |
+| Bots | 0.31 ms | 0.21 ms | Targets chosen every 6 ticks and kept while alive and seen; routes reused while the goal stays within 1.5 units, for up to 30 ticks |
+
+**Lazy route fields** (`mn_set_lazy_fields`, on in MobLocomotion): a route field is solved only while a mob of its layer seeks or flees with it, and the solve stops 6 units past the farthest such mob. It is solved again when one nears that edge. Flyers had doubled movement cost by re-solving every air field each tick; now an air field is solved only for flyers that use it. Off by default in the core, so `mn_path_cost` stays exact for tools and tests. Native tests show agents move identically on lazy and full fields.
+
+Arena speed in the bench: scripted enemies 12.0x to 14.8x real time, neural enemies 11.3x to 13.5x. The rest of the tick is the game's own combat step, most of it player movement against the terrain (0.24 ms), which is real gameplay and stays. The 40x target is not reachable from the arena side alone; the simulation-only environment (400x at 20 mobs, 141x at 100) remains the main training path.
+
+Bot behaviour changed slightly (target switching up to 100 ms later), so arena results are not bit-identical to before. All arena checks, the multiplayer check and the affected game suites pass.
