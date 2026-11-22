@@ -37,7 +37,7 @@ static const MeKind config_kinds[EC_COUNT] = {
     [EC_DIMS] = ME_INTS, [EC_EXECUTOR] = ME_BYTES, [EC_ATTACK_SLOT] = ME_INTS,
     [EC_PREFERRED_RANGE] = ME_FLOATS, [EC_MAX_RANGE] = ME_FLOATS, [EC_SUPPORT] = ME_BYTES,
     [EC_ATTACK_EXISTS] = ME_BYTES, [EC_ATTACK_MUTATION] = ME_INTS, [EC_ATTACK_RANGE] = ME_FLOATS,
-    [EC_ATTACK_MIN_RANGE] = ME_FLOATS, [EC_ATTACK_SIGHT] = ME_BYTES, [EC_ATTACK_LONELY] = ME_BYTES,
+    [EC_ATTACK_MIN_RANGE] = ME_FLOATS, [EC_ATTACK_SIGHT] = ME_BYTES, [EC_ATTACK_ESCORT] = ME_BYTES,
 };
 
 static const MeKind input_kinds[EI_COUNT] = {
@@ -64,7 +64,7 @@ MeKind me_speed_input_kind(int index) { return speed_kinds[index]; }
 
 struct MobExec {
     int dim[ED_COUNT];
-    uint8_t *executor, *support, *attack_exists, *attack_sight, *attack_lonely;
+    uint8_t *executor, *support, *attack_exists, *attack_sight, *attack_escort;
     int *attack_slot, *attack_mutation;
     float *preferred_range, *max_range, *attack_range, *attack_min_range;
     int64_t *goal_key;
@@ -97,7 +97,7 @@ static void *copy_table(const void *source, int64_t length, size_t size) {
 
 void me_destroy(MobExec *e) {
     if (e == NULL) return;
-    free(e->executor); free(e->support); free(e->attack_exists); free(e->attack_sight); free(e->attack_lonely);
+    free(e->executor); free(e->support); free(e->attack_exists); free(e->attack_sight); free(e->attack_escort);
     free(e->attack_slot); free(e->attack_mutation); free(e->preferred_range); free(e->max_range);
     free(e->attack_range); free(e->attack_min_range); free(e->goal_key); free(e->goal_used);
     free(e->cover_x); free(e->cover_z); free(e->cover_found); free(e->cover_queries);
@@ -117,7 +117,7 @@ MeResult me_create(const void *const *items, const int64_t *lengths, MobExec **o
             || lengths[EC_PREFERRED_RANGE] != species || lengths[EC_MAX_RANGE] != species || lengths[EC_SUPPORT] != species
             || lengths[EC_ATTACK_EXISTS] != species * attacks || lengths[EC_ATTACK_MUTATION] != species * attacks
             || lengths[EC_ATTACK_RANGE] != species * attacks || lengths[EC_ATTACK_MIN_RANGE] != species * attacks
-            || lengths[EC_ATTACK_SIGHT] != species * attacks || lengths[EC_ATTACK_LONELY] != species * attacks) {
+            || lengths[EC_ATTACK_SIGHT] != species * attacks || lengths[EC_ATTACK_ESCORT] != species * attacks) {
         free(e);
         return ME_ERR_ARGUMENT;
     }
@@ -131,7 +131,7 @@ MeResult me_create(const void *const *items, const int64_t *lengths, MobExec **o
     e->attack_range = copy_table(items[EC_ATTACK_RANGE], species * attacks, sizeof(float));
     e->attack_min_range = copy_table(items[EC_ATTACK_MIN_RANGE], species * attacks, sizeof(float));
     e->attack_sight = copy_table(items[EC_ATTACK_SIGHT], species * attacks, 1);
-    e->attack_lonely = copy_table(items[EC_ATTACK_LONELY], species * attacks, 1);
+    e->attack_escort = copy_table(items[EC_ATTACK_ESCORT], species * attacks, 1);
     e->goal_key = malloc((size_t)goals * sizeof(int64_t));
     e->goal_used = malloc((size_t)goals * sizeof(int));
     e->cover_x = calloc((size_t)capacity, sizeof(float));
@@ -139,7 +139,7 @@ MeResult me_create(const void *const *items, const int64_t *lengths, MobExec **o
     e->cover_found = calloc((size_t)capacity, 1);
     e->cover_queries = malloc((size_t)COVER_ANGLES * COVER_RADII * 5 * sizeof(float));
     if (!e->executor || !e->attack_slot || !e->preferred_range || !e->max_range || !e->support || !e->attack_exists
-            || !e->attack_mutation || !e->attack_range || !e->attack_min_range || !e->attack_sight || !e->attack_lonely
+            || !e->attack_mutation || !e->attack_range || !e->attack_min_range || !e->attack_sight || !e->attack_escort
             || !e->goal_key || !e->goal_used || !e->cover_x || !e->cover_z || !e->cover_found || !e->cover_queries) {
         me_destroy(e);
         return ME_ERR_MEMORY;
@@ -279,7 +279,9 @@ static int attack_ready(const Run *r, int slot, int attack) {
     int at = r->species[slot] * e->dim[ED_ATTACKS] + attack;
     if (e->attack_exists[at] == 0 || (e->attack_mutation[at] != 0 && (r->mutations[slot] & e->attack_mutation[at]) == 0)) return 0;
     if (r->tick < r->ready_at[slot] || r->tick < r->cooldown_until[slot * e->dim[ED_ATTACKS] + attack] || r->windup_until[slot] > 0) return 0;
-    return e->attack_lonely[at] == 0 || !has_fighter_ally(r, slot);
+    /* Escort rule: 0 any time, 1 only without a fighting ally, 2 only with one. */
+    int escort = e->attack_escort[at];
+    return escort == 0 || (escort == 1 ? !has_fighter_ally(r, slot) : has_fighter_ally(r, slot));
 }
 
 /* The checks of MobAbilities.begin that depend only on simulation state. Attacker caps, sight and

@@ -222,7 +222,7 @@ Each phase ends with evidence and a review before the next starts.
 | 0 | Fix ward grants mixing clocks. Make the simulation test drive combat time | 10 ward files and one validation anchor file. Done 2026-11-21 |
 | 1 | Folder structure, definitions, loader, validator, table compiler, per-system timers, benchmark budgets and the baseline | None |
 | 2 | Native executors, decisions, perception and movement speeds, with parity tests; senses with a light grid; status system. Done 2026-11-21 | None |
-| 3 | Ability shape kernels and effects. Port every regular species' kit. The arena's world port uses the real player-hit rules | Arena files only |
+| 3 | Kits drive every species' attacks, with release geometry and effects. The arena resolves them with the real player-hit rules. Parts 1 and 2 done 2026-11-21; handlers and the legacy comparison remain | Arena files only |
 | 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields | Arena files only |
 | 5 | Dedicated framework presentation. Elite kits. Bosses keep scripted plans for now | Arena files only |
 | 6 | Schema v2, rewards v2, training loop, curriculum and evaluation | None |
@@ -330,3 +330,49 @@ At 100 mobs the remaining time is decisions (0.05 ms, mostly the GDScript decisi
 - `damage_mob` takes `scaled = false` for damage a host has already resolved. The arena bridge uses it so real-game armour is not applied twice.
 
 Per-slot cooldowns already exist in `MobPool.cooldown_until`, one per mob and attack slot. The definition tables carry each ability's cooldown, and Phase 3 applies them when kits replace the role-based attacks.
+
+## Phase 3 record
+
+Phase 3 runs in four parts. Parts 1 and 2 were built 2026-11-21. No existing game files changed.
+
+### Part 1: kits in the simulation
+
+- `mob_species.gd` now compiles each species' four attack slots from its kit instead of from its catalog role: 0 basic, 1 signature, 2 counter, 3 special. Supports keep their rite in slot 0, which needs an escort, and their fallback attack in slot 3, which works only alone. Field names are unchanged, so the native systems and the net's observations read kits without changes.
+- Signature and counter slots unlock through two spare mutation bits. A spawn's floor and play-style evidence decide them. Floor zero unlocks everything, which training uses.
+- `mob_release.gd` builds each release's areas from its kit row: circles, sectors, charge lanes, bent lanes, pulls, spots and trails. They use the legacy padding and line-of-sight rules.
+- With `resolve_hits` on, as in training, the abilities layer hits the stand-in party itself (a `HIT` event with damage, root and pull), runs hazards, and repeats pulses.
+- The contract's `ability_3` is now the species' special slot rather than leader-only. The scripted brain tries it last, which is how supports fall back to their lone attack.
+
+### Part 2: the arena uses the kits
+
+- `neural_arena/arena_abilities.gd` locks each wind-up's geometry from the kit. The real enemy also receives a legacy-shaped attack plan, so the game's warnings, poses, audio, Oracle omens, staggers and Bark guards keep working.
+- At release, hits go through `incoming_player_hit.gd` with the real battlefield's line of sight, once per player. Hazards go through the game's hazard system. Leaps move the real enemy, pulls move players, haste reaches nearby fighters, and Broodmothers hatch through the game's brood rules.
+- The bridge recomputes each enemy's unlocks every tick. Signatures follow the legacy play-style scores, with "late" always met. Counters unlock once the party denies that enemy, using the flags the game already sets.
+- An arena check runs a floor-12 round. Five kit abilities fired, including the unlocked Nightbloom signature, 39 hazards reached the real game, and players took damage through the real hit rules.
+
+### Speed
+
+Releases now resolve real geometry and hits in GDScript. The simulation is 390x real time at 20 mobs (was 501x) and 135x at 100 mobs (was 140x), both still above target. The arena stays about 11 to 12x.
+
+### Intended behaviour changes
+
+- The cover vault is no longer an attack slot. It returns in Phase 4 as a movement option beside dodge, so mobile enemies do not vault until then.
+- Supports cast their rite whenever a fighting ally is in their perception, rather than when any fighter is alive on the floor.
+
+### Still to do in Phase 3
+
+**Part 3, behaviour handlers.** These abilities currently use only their generic data: geometry, damage, hazards, haste and summons. Their richer rules still need porting:
+
+| Handler | Species | Missing behaviour |
+|---|---|---|
+| `corpse_tether` | Pallbearer | Choose a corpse and heal from it |
+| `shepherd_command`, `flank_route`, `relay_order` | Root Shepherd | Order escorts onto a target or flank route |
+| `choir_pulse`, `antiphon` | Root Choir | Anchor the pulse on an ally |
+| `echo_toll` | Bellcap | Anchor the toll on an ally |
+| `trophy_grab` | Graft Thief | Steal dropped parts and escape. Grabs stay with the host for now, and the framework thief only fights |
+| `shelter`, `planted_canopy`, `canopy_shift` | Hollowback | Shelter allies under its canopy |
+| `side_approach`, `learned_approach`, `cover_first`, `cutoff_aim`, `denied_aim`, `side_anchor` | Several | Approach steps and aim adjustments before the wind-up |
+| `scattered_hatch` | Broodmother | Scatter hatchlings away from players |
+| `boss_plan` | Bosses | Bosses keep their scripted plans until Phase 5 |
+
+**Part 4, comparison with legacy.** Run legacy enemies and framework enemies with the scripted brain on the same seeds, and compare damage per minute, time to kill, hit rate and ability use per species.

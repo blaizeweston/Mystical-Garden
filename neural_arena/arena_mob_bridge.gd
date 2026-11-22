@@ -16,11 +16,16 @@ const Schema = preload("res://ai/mob_schema.gd")
 const Session = preload("res://network_session.gd")
 const Sim = preload("res://mob_sim/mob_sim.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
+const Enums = preload("res://mob_sim/definitions/definition_enums.gd")
+const Tactics = preload("res://wilds_skill_tactics.gd")
 
 const MS_PER_TICK := 1000.0 / 60.0
 const MOBILITY_SPEED := 1.18
 const JUVENILE_SPEED := 1.15
 const NO_HITTER := -1
+## Legacy play-style score at which a signature move becomes available.
+const PLAYSTYLE_SCORE := 6
+const UNLOCKS := Species.UNLOCK_SIGNATURE | Species.UNLOCK_COUNTER
 
 var game: Node
 var config: Config
@@ -31,6 +36,8 @@ var _tokens := PackedInt64Array()
 var _hitters := PackedInt32Array()
 var _written := PackedVector3Array()
 var _peers := PackedInt32Array()
+## Play-style evidence the party has shown this run, as one bit per DefinitionEnums.Evidence value.
+var _party_evidence := 0
 
 
 func _init(world: Node, settings: Config) -> void:
@@ -108,6 +115,7 @@ func place(slot: int, at: Vector3) -> void:
 
 func tick(now: int) -> void:
 	_publish_party()
+	_party_evidence = _playstyle_bits()
 	var next := sim.clock.tick + 1
 	sim.party.attackers.fill(0)
 	for slot in capacity:
@@ -167,6 +175,8 @@ func _mirror_slot(slot: int, next: int, now: int) -> void:
 	if pool.alive[slot] == 0:
 		return
 	pool.max_hp[slot] = maxf(1.0, float(scout.get("max_hp", health)))
+	pool.mutations[slot] = (pool.mutations[slot] & ~UNLOCKS) | sim.species.unlock_bits(int(scout.kind), game.participation.floor(),
+		_party_evidence | _denial_bits(scout))
 	var at: Vector3 = scout.pos
 	if not at.is_equal_approx(_written[slot]):
 		place(slot, at)
@@ -200,6 +210,33 @@ func _adopt(slot: int, token: int) -> bool:
 	_hitters[slot] = NO_HITTER
 	_written[slot] = scout.pos
 	return true
+
+
+## Signature moves follow the same play-style scores and floors the legacy variants use.
+func _playstyle_bits() -> int:
+	var bits := 1 << Enums.Evidence.LATE
+	var progress = game.progress
+	var scores: Dictionary = progress.wilds_memory.get("score", {})
+	for entry in [["ranged", Enums.Evidence.RANGED, int(progress.ranged_pressure)], ["choke", Enums.Evidence.CHOKE, int(progress.choke_pressure)],
+			["burst", Enums.Evidence.BURST, int(progress.burst_pressure)], ["kite", Enums.Evidence.KITE, 0]]:
+		if maxi(int(scores.get(entry[0], 0)), int(entry[2]) * 2) >= PLAYSTYLE_SCORE:
+			bits |= 1 << int(entry[1])
+	if int(Tactics.evidence(game).get(Tactics.AREA_PRESSURE, 0)) > 0:
+		bits |= 1 << Enums.Evidence.AREA_PRESSURE
+	return bits
+
+
+## Learned counters unlock for an enemy once the party has denied that enemy this run.
+func _denial_bits(scout: Dictionary) -> int:
+	var epoch: int = game.participation.epoch()
+	var bits := 0
+	if int(scout.get("rite_disrupted_epoch", -1)) == epoch:
+		bits |= 1 << Enums.Evidence.CAST_DENIAL
+	if int(scout.get("route_denied_epoch", -1)) == epoch:
+		bits |= 1 << Enums.Evidence.ROUTE_DENIAL
+	if int(scout.get("shelter_break_epoch", -1)) == epoch:
+		bits |= 1 << Enums.Evidence.SHELTER_BREAK
+	return bits
 
 
 func _speed(scout: Dictionary, now: int) -> float:

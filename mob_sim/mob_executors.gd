@@ -57,7 +57,7 @@ func _init(rules_contract: Contract, mob_pool: Pool, mob_party: Party, table: Sp
 		locomotion.goal_count, int(contract.rules.goal_refresh_ticks), contract.manoeuvres.find("circle_left"),
 		contract.manoeuvres.find("circle_right"), contract.manoeuvres.find("get_behind"), contract.manoeuvres.find("keep_max_range")])
 	var status: int = locomotion.world.exec_configure([dims, kinds, attack_slot, species.preferred_range, species.max_range, species.support,
-		species.attack_exists, species.attack_mutation, species.attack_range, species.attack_min_range, species.attack_sight, species.attack_lonely])
+		species.attack_exists, species.attack_mutation, species.attack_range, species.attack_min_range, species.attack_sight, species.attack_escort])
 	if status != OK and error.is_empty():
 		error = "The native executors refused their configuration (%d)." % status
 	if not error.is_empty():

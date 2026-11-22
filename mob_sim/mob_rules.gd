@@ -41,7 +41,12 @@ func attack_ready(slot: int, attack: int, tick: int) -> bool:
 		return false
 	if tick < pool.ready_at[slot] or tick < pool.cooldown_until[slot * pool.attacks + attack] or pool.windup_until[slot] > 0:
 		return false
-	return species.attack_lonely[kind * Species.ATTACKS + attack] == 0 or not _has_fighter_ally(slot)
+	match species.attack_escort[kind * Species.ATTACKS + attack]:
+		Species.Escort.ALONE:
+			return not _has_fighter_ally(slot)
+		Species.Escort.ESCORTED:
+			return _has_fighter_ally(slot)
+	return true
 
 
 func can_claim_attacker(player: int) -> bool:
@@ -65,11 +70,11 @@ func configure_native(world: RefCounted) -> int:
 	var dims := PackedInt32Array([pool.capacity, contract.players, contract.allies, Species.ATTACKS, species.count, contract.behaviour_count,
 		contract.manoeuvre_count, contract.message_symbols, int(messages_enabled), contract.mask_size, Pool.FLAG_LEADER | Pool.FLAG_ELITE,
 		contract.id("idle_wander"), contract.id("search"), contract.id("approach"), contract.id("melee_attack"), contract.id("ranged_attack"),
-		contract.id("ability_1"), contract.id("ability_2"), contract.id("defend_ally"),
+		contract.id("ability_1"), contract.id("ability_2"), contract.id("ability_3"), contract.id("defend_ally"),
 		contract.manoeuvres.find("circle_left"), contract.manoeuvres.find("circle_right"), contract.manoeuvres.find("keep_max_range")])
 	return world.decide_configure([dims, contract.head_offsets, contract.available, contract.leader_only, contract.target_kind,
 		contract.attack_slot, contract.delivery, species.support, species.skirmisher, species.max_range, species.attack_exists,
-		species.attack_mutation, species.attack_lonely, species.attack_delivery, species.attack_range, species.attack_min_range])
+		species.attack_mutation, species.attack_escort, species.attack_delivery, species.attack_range, species.attack_min_range])
 
 
 ## Fills batch.masks natively. build_masks_reference holds the same rules in GDScript.

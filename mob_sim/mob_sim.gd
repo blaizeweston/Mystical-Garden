@@ -91,6 +91,7 @@ func spawn_at(chosen: int, request: Pool.Spawn) -> int:
 	var smart := int(contract.rules.decision_ticks_smart)
 	var dim := int(contract.rules.decision_ticks_dim)
 	var interval := roundi(lerpf(dim, smart, clampf(request.intelligence, 0.0, 1.0)))
+	request.mutations |= species.unlock_bits(request.species, request.floor_number, request.evidence) if request.species >= 0 and request.species < species.count else 0
 	var slot := pool.spawn_at(chosen, request, species, clock.tick, interval)
 	if slot < 0:
 		return -1

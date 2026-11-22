@@ -127,6 +127,30 @@ func test_combat() -> void:
 	await close_world(world)
 
 
+## At floor 12 every late-unlocking signature is available, so the kits' variety must show up in play.
+func test_kits() -> void:
+	var world := make_world(make_config(Config.SCRIPTED_BRAIN, {"nightbloom": 4, "orchid": 3, "spore_widow": 3, "ashen_hart": 3, "rootbound": 4, "broodmother": 1}, 3))
+	var lowest := 1.0
+	for tick in REPEAT_TICKS * 2:
+		world.step_once()
+		for peer: int in world.players:
+			lowest = minf(lowest, PlayerVitals.current_hp(world.players[peer]) / PlayerVitals.maximum_hp(world.players[peer]))
+	var used: Dictionary = world.bridge.sim.abilities.used if world.bridge != null else {}
+	var placed: int = world.bridge.sim.abilities.hazards_placed if world.bridge != null else 0
+	var kits = load("res://mob_sim/definitions/definition_loader.gd").shared()
+	var foreign := PackedStringArray()
+	for id in used:
+		if not kits.species.any(func(species) -> bool: return species.kit.has(id)) and id != kits.support_fallback:
+			foreign.append(id)
+	print("KIT_USE ", used, " hazards ", placed)
+	check(used.size() >= 5, "the arena's enemies use at least five different kit abilities (%d)" % used.size())
+	check(used.has("nightbloom_late_pulse"), "an unlocked signature ability is used in real combat")
+	check(placed > 0, "hazard abilities place hazards in the real game")
+	check(foreign.is_empty(), "every ability used comes from a species kit %s" % foreign)
+	check(lowest < 1.0, "kit abilities damage real players through the game's hit rules")
+	await close_world(world)
+
+
 func test_round_outcomes() -> void:
 	var config := make_config(Config.GAME_AI, {"colossus": 12, "gallhorn": 8}, 1)
 	config.floor_number = 40
@@ -256,6 +280,7 @@ func run() -> void:
 	await test_saves()
 	await test_repeatable()
 	await test_combat()
+	await test_kits()
 	await test_round_outcomes()
 	await test_species()
 	await test_classes()

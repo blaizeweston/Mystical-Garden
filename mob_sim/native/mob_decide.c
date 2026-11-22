@@ -16,7 +16,7 @@ static const MdKind config_kinds[DC_COUNT] = {
     [DC_DIMS] = DK_INTS, [DC_HEAD_OFFSETS] = DK_INTS, [DC_AVAILABLE] = DK_BYTES, [DC_LEADER_ONLY] = DK_BYTES,
     [DC_TARGET_KIND] = DK_BYTES, [DC_ATTACK_SLOT] = DK_INTS, [DC_DELIVERY] = DK_BYTES,
     [DC_SUPPORT] = DK_BYTES, [DC_SKIRMISHER] = DK_BYTES, [DC_MAX_RANGE] = DK_FLOATS,
-    [DC_ATTACK_EXISTS] = DK_BYTES, [DC_ATTACK_MUTATION] = DK_INTS, [DC_ATTACK_LONELY] = DK_BYTES,
+    [DC_ATTACK_EXISTS] = DK_BYTES, [DC_ATTACK_MUTATION] = DK_INTS, [DC_ATTACK_ESCORT] = DK_BYTES,
     [DC_ATTACK_DELIVERY] = DK_BYTES, [DC_ATTACK_RANGE] = DK_FLOATS, [DC_ATTACK_MIN_RANGE] = DK_FLOATS,
 };
 
@@ -37,7 +37,7 @@ struct MobDecide {
     int head_offset[DK_HEAD_COUNT];
     uint8_t *available, *leader_only, *target_kind, *delivery;
     int *attack_slot;
-    uint8_t *support, *skirmisher, *attack_exists, *attack_lonely, *attack_delivery;
+    uint8_t *support, *skirmisher, *attack_exists, *attack_escort, *attack_delivery;
     int *attack_mutation;
     float *max_range, *attack_range, *attack_min_range;
     int *assigned;
@@ -62,7 +62,7 @@ static void *copy_table(const void *source, int64_t length, size_t size) {
 void md_destroy(MobDecide *d) {
     if (d == NULL) return;
     free(d->available); free(d->leader_only); free(d->target_kind); free(d->delivery); free(d->attack_slot);
-    free(d->support); free(d->skirmisher); free(d->attack_exists); free(d->attack_lonely); free(d->attack_delivery);
+    free(d->support); free(d->skirmisher); free(d->attack_exists); free(d->attack_escort); free(d->attack_delivery);
     free(d->attack_mutation); free(d->max_range); free(d->attack_range); free(d->attack_min_range); free(d->assigned);
     free(d);
 }
@@ -80,7 +80,7 @@ MdResult md_create(const void *const *items, const int64_t *lengths, MobDecide *
             || d->dim[DD_MASK_SIZE] < 1 || lengths[DC_AVAILABLE] != behaviours || lengths[DC_LEADER_ONLY] != behaviours
             || lengths[DC_TARGET_KIND] != behaviours || lengths[DC_ATTACK_SLOT] != behaviours || lengths[DC_DELIVERY] != behaviours
             || lengths[DC_SUPPORT] != species || lengths[DC_SKIRMISHER] != species || lengths[DC_MAX_RANGE] != species
-            || lengths[DC_ATTACK_EXISTS] != pairs || lengths[DC_ATTACK_MUTATION] != pairs || lengths[DC_ATTACK_LONELY] != pairs
+            || lengths[DC_ATTACK_EXISTS] != pairs || lengths[DC_ATTACK_MUTATION] != pairs || lengths[DC_ATTACK_ESCORT] != pairs
             || lengths[DC_ATTACK_DELIVERY] != pairs || lengths[DC_ATTACK_RANGE] != pairs || lengths[DC_ATTACK_MIN_RANGE] != pairs) {
         free(d);
         return DK_ERR_ARGUMENT;
@@ -95,13 +95,13 @@ MdResult md_create(const void *const *items, const int64_t *lengths, MobDecide *
     d->max_range = copy_table(items[DC_MAX_RANGE], species, sizeof(float));
     d->attack_exists = copy_table(items[DC_ATTACK_EXISTS], pairs, 1);
     d->attack_mutation = copy_table(items[DC_ATTACK_MUTATION], pairs, sizeof(int));
-    d->attack_lonely = copy_table(items[DC_ATTACK_LONELY], pairs, 1);
+    d->attack_escort = copy_table(items[DC_ATTACK_ESCORT], pairs, 1);
     d->attack_delivery = copy_table(items[DC_ATTACK_DELIVERY], pairs, 1);
     d->attack_range = copy_table(items[DC_ATTACK_RANGE], pairs, sizeof(float));
     d->attack_min_range = copy_table(items[DC_ATTACK_MIN_RANGE], pairs, sizeof(float));
     d->assigned = calloc((size_t)d->dim[DD_PLAYERS] + 1, sizeof(int));
     if (!d->available || !d->leader_only || !d->target_kind || !d->attack_slot || !d->delivery || !d->support || !d->skirmisher
-            || !d->max_range || !d->attack_exists || !d->attack_mutation || !d->attack_lonely || !d->attack_delivery
+            || !d->max_range || !d->attack_exists || !d->attack_mutation || !d->attack_escort || !d->attack_delivery
             || !d->attack_range || !d->attack_min_range || !d->assigned) {
         md_destroy(d);
         return DK_ERR_MEMORY;
@@ -184,7 +184,9 @@ static int attack_ready(const View *v, int slot, int attack) {
     int at = v->species[slot] * d->dim[DD_ATTACKS] + attack;
     if (d->attack_exists[at] == 0 || (d->attack_mutation[at] != 0 && (v->mutations[slot] & d->attack_mutation[at]) == 0)) return 0;
     if (v->tick < v->ready_at[slot] || v->tick < v->cooldown_until[slot * d->dim[DD_ATTACKS] + attack] || v->windup_until[slot] > 0) return 0;
-    return d->attack_lonely[at] == 0 || !has_fighter_ally(v, slot);
+    /* Escort rule: 0 any time, 1 only without a fighting ally, 2 only with one. */
+    int escort = d->attack_escort[at];
+    return escort == 0 || (escort == 1 ? !has_fighter_ally(v, slot) : has_fighter_ally(v, slot));
 }
 
 static int behaviour_legal(const View *v, int slot, int behaviour, int has_enemy, int has_ally) {
@@ -317,8 +319,8 @@ static void decide_slot(const View *v, uint8_t *out, int64_t index, int slot) {
         write_intent(out, index, d->dim[DD_ABILITY_2], head, 0, manoeuvre);
         return;
     }
-    int order[3] = {d->dim[DD_ABILITY_1], d->dim[DD_MELEE], d->dim[DD_RANGED]};
-    for (int i = 0; i < 3; i++) {
+    int order[4] = {d->dim[DD_ABILITY_1], d->dim[DD_MELEE], d->dim[DD_RANGED], d->dim[DD_ABILITY_3]};
+    for (int i = 0; i < 4; i++) {
         if (allowed(v, index, order[i])) {
             write_intent(out, index, order[i], head, 0, manoeuvre);
             return;

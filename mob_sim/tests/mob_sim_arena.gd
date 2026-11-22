@@ -45,6 +45,7 @@ func _init(map_seed: int, mob_count: int, intelligence: float = -1.0) -> void:
 	field.configure(0, 5, map_seed)
 	sim = Sim.new(mob_count)
 	sim.configure(field)
+	sim.abilities.resolve_hits = true
 	for kind in sim.species.count:
 		if sim.species.spawnable[kind] != 0:
 			spawnable.append(kind)
@@ -102,8 +103,8 @@ func before_tick() -> void:
 
 func after_tick() -> void:
 	for event in sim.events.read_since(cursor):
-		if event.kind == Events.Kind.RELEASE:
-			_resolve_release(event)
+		if event.kind == Events.Kind.HIT:
+			_resolve_hit(event)
 	cursor = sim.events.head
 	if sim.clock.tick % PLAYER_HIT_TICKS == 0:
 		_players_strike()
@@ -112,13 +113,15 @@ func after_tick() -> void:
 			spawn_mob(index)
 
 
-func _resolve_release(event: Dictionary) -> void:
-	var at := Vector2(event.x, event.z)
-	for player in sim.contract.players:
-		if sim.party.targetable(player) and player_at[player].distance_to(at) <= float(event.radius):
-			player_hp[player] = maxf(1.0, player_hp[player] - float(event.value))
-			damage_dealt += float(event.value)
-			sim.record_hit(int(event.slot), int(event.generation), player, float(event.value))
+## The simulation resolved the hit against the party. A pull moves the stand-in player toward its source.
+func _resolve_hit(event: Dictionary) -> void:
+	var player := int(event.a)
+	if float(event.value) > 0.0:
+		player_hp[player] = maxf(1.0, player_hp[player] - float(event.value))
+		damage_dealt += float(event.value)
+		sim.record_hit(int(event.slot), int(event.generation), player, float(event.value))
+	if float(event.radius) > 0.0:
+		player_at[player] = player_at[player].move_toward(Vector2(event.from_x, event.from_z), float(event.radius))
 
 
 func _players_strike() -> void:

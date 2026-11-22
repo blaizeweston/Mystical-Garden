@@ -1,38 +1,25 @@
 extends RefCounted
-## Species stats and attacks compiled from the enemy catalog into flat tables.
-## Attack slot 0 is the basic attack. Slots 1 to 3 are abilities 1 to 3.
+## Species stats and attacks compiled into flat tables from the framework's ability kits
+## (mob_sim/data, compiled by definitions/definition_tables.gd).
+## Attack slot 0 is the basic attack, 1 the signature, 2 the counter and 3 the special.
+## Supports use slot 3 for their escort-less fallback attack.
 
 const Catalog = preload("res://enemy_catalog.gd")
 const Balance = preload("res://game_balance.gd")
 const Clock = preload("res://mob_sim/mob_clock.gd")
 const Contract = preload("res://mob_sim/mob_contract.gd")
+const Enums = preload("res://mob_sim/definitions/definition_enums.gd")
+const Tables = preload("res://mob_sim/definitions/definition_tables.gd")
 
 const ATTACKS := 4
 const BODY_RADIUS := 0.34
-const DESPERATE_RANGE := 1.15
-const DESPERATE_AREA := 0.95
-const VAULT_RANGE := 3.0
-const VAULT_MIN_RANGE := 1.5
-const VAULT_WINDUP_MS := 1000
-const VAULT_ROLES := ["swipe", "charge", "pounce", "skirmish"]
+## Mutation bits beyond the catalog's, set at spawn when a slot's unlock rule is met.
+const UNLOCK_SIGNATURE := 1 << 8
+const UNLOCK_COUNTER := 1 << 9
 
 enum Shape { NONE, SELF_AREA, AIM_AREA, DASH, LEAP, BUFF, SUMMON, PULL }
-
-## Each role fills one attack slot. Sight marks attacks that need a clear line at release.
-const ROLES := {
-	"swipe": {"slot": 0, "shape": Shape.SELF_AREA, "delivery": Contract.Delivery.MELEE, "sight": true},
-	"skirmish": {"slot": 0, "shape": Shape.SELF_AREA, "delivery": Contract.Delivery.MELEE, "sight": true},
-	"stomp": {"slot": 0, "shape": Shape.SELF_AREA, "delivery": Contract.Delivery.MELEE, "sight": true},
-	"volley": {"slot": 0, "shape": Shape.AIM_AREA, "delivery": Contract.Delivery.RANGED, "sight": true},
-	"charge": {"slot": 1, "shape": Shape.DASH, "delivery": Contract.Delivery.ANY, "sight": true},
-	"pounce": {"slot": 1, "shape": Shape.LEAP, "delivery": Contract.Delivery.ANY, "sight": true},
-	"snare": {"slot": 1, "shape": Shape.AIM_AREA, "delivery": Contract.Delivery.ANY, "sight": true},
-	"artillery": {"slot": 1, "shape": Shape.AIM_AREA, "delivery": Contract.Delivery.ANY, "sight": false},
-	"lure": {"slot": 1, "shape": Shape.PULL, "delivery": Contract.Delivery.ANY, "sight": true},
-	"chant": {"slot": 1, "shape": Shape.BUFF, "delivery": Contract.Delivery.ANY, "sight": false},
-	"shepherd": {"slot": 1, "shape": Shape.BUFF, "delivery": Contract.Delivery.ANY, "sight": false},
-	"brood": {"slot": 1, "shape": Shape.SUMMON, "delivery": Contract.Delivery.ANY, "sight": false},
-}
+## When an attack may be used relative to fighting allies: any time, only alone, or only with an escort.
+enum Escort { ANY, ALONE, ESCORTED }
 
 var count := 0
 var ids := PackedStringArray()
@@ -51,18 +38,25 @@ var attack_exists := PackedByteArray()
 var attack_shape := PackedByteArray()
 var attack_delivery := PackedByteArray()
 var attack_sight := PackedByteArray()
-var attack_lonely := PackedByteArray()
+var attack_escort := PackedByteArray()
 var attack_mutation := PackedInt32Array()
 var attack_range := PackedFloat32Array()
 var attack_min_range := PackedFloat32Array()
 var attack_area := PackedFloat32Array()
 var attack_windup := PackedInt32Array()
+var attack_min_windup := PackedInt32Array()
 var attack_recovery := PackedInt32Array()
+var attack_cooldown := PackedInt32Array()
+var attack_lead := PackedFloat32Array()
+## Row in the compiled definition tables, or -1 for an empty slot.
+var attack_row := PackedInt32Array()
+var tables: RefCounted
 
 
 func _init() -> void:
 	var combat: Dictionary = Balance.values.combat
 	group_alert_radius = float(combat.group_alert_radius)
+	tables = Tables.shared()
 	var definitions: Array = Catalog.all()
 	count = definitions.size()
 	_allocate()
@@ -72,18 +66,17 @@ func _init() -> void:
 
 func _allocate() -> void:
 	var total := count * ATTACKS
-	for table: PackedByteArray in [attack_exists, attack_shape, attack_delivery, attack_sight, attack_lonely]:
+	for table: PackedByteArray in [attack_exists, attack_shape, attack_delivery, attack_sight, attack_escort]:
 		table.resize(total)
 		table.fill(0)
-	attack_mutation.resize(total)
-	attack_mutation.fill(0)
-	attack_windup.resize(total)
-	attack_windup.fill(0)
-	attack_recovery.resize(total)
-	attack_recovery.fill(0)
-	for table: PackedFloat32Array in [attack_range, attack_min_range, attack_area]:
+	for table: PackedInt32Array in [attack_mutation, attack_windup, attack_min_windup, attack_recovery, attack_cooldown]:
+		table.resize(total)
+		table.fill(0)
+	for table: PackedFloat32Array in [attack_range, attack_min_range, attack_area, attack_lead]:
 		table.resize(total)
 		table.fill(0.0)
+	attack_row.resize(total)
+	attack_row.fill(-1)
 
 
 func _compile(kind: int, definition: Dictionary, aggro_radius: float) -> void:
@@ -95,36 +88,80 @@ func _compile(kind: int, definition: Dictionary, aggro_radius: float) -> void:
 	skirmisher.append(int(role == "skirmish"))
 	speed.append(float(definition.speed))
 	hit_radius.append(float(definition.get("hitbox", {}).get("radius", BODY_RADIUS)))
-	vision.append(aggro_radius)
-	var windup := Clock.from_ms(float(definition.windup))
-	var recovery := Clock.from_ms(float(definition.recovery))
-	var area := float(definition.radius)
+	vision.append(tables.species_sight[kind] if tables != null else aggro_radius)
 	var reach := float(definition.range)
-	var template: Dictionary = ROLES[role]
-	_set_attack(kind, int(template.slot), int(template.shape), int(template.delivery), bool(template.sight), reach, area, windup, recovery)
-	if Catalog.is_support(kind):
-		_set_attack(kind, 0, Shape.SELF_AREA, Contract.Delivery.MELEE, true, DESPERATE_RANGE, DESPERATE_AREA, windup, recovery)
-		attack_lonely[kind * ATTACKS] = 1
-	if role in VAULT_ROLES:
-		_set_attack(kind, 2, Shape.LEAP, Contract.Delivery.ANY, false, VAULT_RANGE, area, Clock.from_ms(VAULT_WINDUP_MS), recovery)
-		attack_mutation[kind * ATTACKS + 2] = Catalog.MOBILITY
-		attack_min_range[kind * ATTACKS + 2] = VAULT_MIN_RANGE
+	if tables != null:
+		for slot in ATTACKS:
+			var row: int = tables.fallback_row[kind] if slot == Enums.Slot.SPECIAL and support[kind] != 0 else tables.row(kind, slot)
+			_set_attack(kind, slot, row)
+		reach = tables.row_reach[tables.row(kind, Enums.Slot.BASIC)]
 	preferred_range.append(reach * 0.85)
 	max_range.append(reach)
 
 
-func _set_attack(kind: int, slot: int, shape: int, delivery: int, sight: bool, reach: float, area: float, windup: int, recovery: int) -> void:
+func _set_attack(kind: int, slot: int, row: int) -> void:
+	if not tables.has_ability(row) or tables.row_target[row] == Enums.Target.DROP:
+		# Grabbing dropped items needs the host's world, so it stays with the host's own behaviour.
+		return
 	var at := kind * ATTACKS + slot
+	var delivery: int = tables.row_delivery[row]
+	attack_row[at] = row
 	attack_exists[at] = 1
-	attack_shape[at] = shape
-	attack_delivery[at] = delivery
-	attack_sight[at] = int(sight)
-	attack_range[at] = reach
-	attack_area[at] = area
-	attack_windup[at] = windup
-	attack_recovery[at] = recovery
+	attack_shape[at] = _shape(row)
+	if slot == Enums.Slot.BASIC:
+		var close := delivery == Enums.Delivery.MELEE or delivery == Enums.Delivery.LEAP
+		attack_delivery[at] = Contract.Delivery.MELEE if close else Contract.Delivery.RANGED
+	else:
+		attack_delivery[at] = Contract.Delivery.ANY
+	attack_sight[at] = int(tables.row_sight[row] != Enums.Sight.NONE)
+	if support[kind] != 0:
+		attack_escort[at] = Escort.ALONE if row == tables.fallback_row[kind] else (Escort.ESCORTED if slot == Enums.Slot.BASIC else Escort.ANY)
+	if slot == Enums.Slot.SIGNATURE:
+		attack_mutation[at] = UNLOCK_SIGNATURE
+	elif slot == Enums.Slot.COUNTER:
+		attack_mutation[at] = UNLOCK_COUNTER
+	attack_range[at] = tables.row_reach[row]
+	attack_min_range[at] = tables.row_range_min[row]
+	attack_area[at] = tables.row_radius[row]
+	attack_windup[at] = Clock.from_ms(float(tables.row_windup_ms[row]))
+	attack_min_windup[at] = Clock.from_ms(float(tables.row_min_windup_ms[row])) if tables.row_min_windup_ms[row] > 0 else 0
+	attack_recovery[at] = Clock.from_ms(float(tables.row_recovery_ms[row]))
+	attack_cooldown[at] = Clock.from_ms(float(tables.row_cooldown_ms[row])) if tables.row_cooldown_ms[row] > 0 else 0
+	attack_lead[at] = tables.row_lead[row]
+
+
+## The coarse shape the brain and the observations see.
+func _shape(row: int) -> int:
+	match int(tables.row_delivery[row]):
+		Enums.Delivery.RITE:
+			return Shape.BUFF
+		Enums.Delivery.SUMMON:
+			return Shape.SUMMON
+		Enums.Delivery.PULL:
+			return Shape.PULL
+		Enums.Delivery.LEAP:
+			return Shape.LEAP if tables.row_shape[row] == Enums.Shape.CIRCLE else Shape.DASH
+		Enums.Delivery.AIMED:
+			return Shape.AIM_AREA
+	return Shape.SELF_AREA
 
 
 func has_attack(kind: int, slot: int, mutations: int) -> bool:
 	var at := kind * ATTACKS + slot
 	return attack_exists[at] != 0 and (attack_mutation[at] == 0 or (mutations & attack_mutation[at]) != 0)
+
+
+## The unlock bits a mob earns at spawn. A floor of zero unlocks everything, which training uses.
+## evidence holds one bit per DefinitionEnums.Evidence value.
+func unlock_bits(kind: int, floor_number: int, evidence: int) -> int:
+	if tables == null:
+		return 0
+	var bits := 0
+	for pair in [[Enums.Slot.SIGNATURE, UNLOCK_SIGNATURE], [Enums.Slot.COUNTER, UNLOCK_COUNTER]]:
+		var row: int = tables.row(kind, pair[0])
+		if not tables.has_ability(row):
+			continue
+		var needs: int = tables.row_unlock_evidence[row]
+		if floor_number <= 0 or (floor_number >= tables.row_unlock_floor[row] and (needs == Enums.Evidence.NONE or evidence & (1 << needs) != 0)):
+			bits |= pair[1]
+	return bits

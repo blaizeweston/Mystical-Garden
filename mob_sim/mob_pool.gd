@@ -29,6 +29,10 @@ class Spawn:
 	var ready_delay_ticks := 0
 	## Armoured regardless of mutations, from the species' traits.
 	var armoured := false
+	## Floor for ability unlock rules. Zero unlocks every ability, which training uses.
+	var floor_number := 0
+	## One bit per DefinitionEnums.Evidence value the party has shown.
+	var evidence := 0
 
 
 var capacity := 0

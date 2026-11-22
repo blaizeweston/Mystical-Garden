@@ -71,7 +71,7 @@ func kind_of(sim: Sim, label: String) -> int:
 	return sim.species.ids.find(label)
 
 
-func add_mob(sim: Sim, label: String, at: Vector2, flags := 0, mutations := 0, leader := -1) -> int:
+func add_mob(sim: Sim, label: String, at: Vector2, flags := 0, mutations := 0, leader := -1, floor_number := 0) -> int:
 	var request := Pool.Spawn.new()
 	request.species = kind_of(sim, label)
 	request.at = at
@@ -80,6 +80,7 @@ func add_mob(sim: Sim, label: String, at: Vector2, flags := 0, mutations := 0, l
 	request.flags = flags
 	request.mutations = mutations
 	request.leader = leader
+	request.floor_number = floor_number
 	return sim.spawn(request)
 
 
@@ -132,11 +133,21 @@ func test_species() -> void:
 	var bloom := table.ids.find("nightbloom")
 	check(table.attack_delivery[bloom * Species.ATTACKS] == Contract.Delivery.RANGED, "a volley is a basic ranged attack")
 	var horn := table.ids.find("gallhorn")
-	check(table.attack_exists[horn * Species.ATTACKS] == 0, "a charger has no basic attack")
-	check(table.attack_shape[horn * Species.ATTACKS + 1] == Species.Shape.DASH, "a charge is ability 1")
+	check(table.attack_shape[horn * Species.ATTACKS] == Species.Shape.DASH and table.attack_delivery[horn * Species.ATTACKS] == Contract.Delivery.MELEE,
+		"a charger's charge is its basic attack")
+	check(table.attack_shape[horn * Species.ATTACKS + 1] == Species.Shape.DASH, "the charger's signature is also a charge")
 	var bell := table.ids.find("bellcap")
-	check(table.attack_lonely[bell * Species.ATTACKS] == 1, "a support's basic attack needs it to be alone")
-	check(table.has_attack(root, 2, Catalog.MOBILITY) and not table.has_attack(root, 2, 0), "the vault needs the mobility mutation")
+	check(table.attack_shape[bell * Species.ATTACKS] == Species.Shape.BUFF and table.attack_escort[bell * Species.ATTACKS] == Species.Escort.ESCORTED,
+		"a support's basic rite needs an escort")
+	check(table.attack_escort[bell * Species.ATTACKS + 3] == Species.Escort.ALONE, "a support's fallback attack is for when it is alone")
+	check(table.has_attack(root, 1, Species.UNLOCK_SIGNATURE) and not table.has_attack(root, 1, 0), "a signature ability needs its unlock")
+	check(table.unlock_bits(root, 1, 0) == 0 and table.unlock_bits(root, 0, 0) == Species.UNLOCK_SIGNATURE | Species.UNLOCK_COUNTER,
+		"floor zero unlocks every ability, while floor one unlocks none of the rootbound's")
+	var hound := table.ids.find("thornmaw")
+	check(table.unlock_bits(hound, 5, 1 << 5) == Species.UNLOCK_SIGNATURE and table.unlock_bits(hound, 4, 1 << 5) == 0,
+		"a signature unlocks at its floor once the party shows its evidence")
+	var thief := table.ids.find("graft_thief")
+	check(table.attack_exists[thief * Species.ATTACKS + 3] == 0, "abilities that grab dropped items stay with the host")
 
 
 func test_pool() -> void:
@@ -164,14 +175,14 @@ func test_masks() -> void:
 	var contract := sim.contract
 	brain.behaviour = contract.id("approach")
 	brain.enemy = 1
-	var slot := add_mob(sim, "rootbound", Vector2(10, 10))
+	var slot := add_mob(sim, "rootbound", Vector2(10, 10), 0, 0, -1, 1)
 	place_player(sim, 0, Vector2(10.8, 10))
 	run_ticks(sim, 12)
 	check(brain.calls > 0, "an alerted mob reaches the awake brain")
 	var masks := brain.last_masks
 	check(masks[contract.id("melee_attack")] == 1, "a ready melee attack is legal")
 	check(masks[contract.id("ranged_attack")] == 0, "a melee species cannot pick a ranged attack")
-	check(masks[contract.id("ability_1")] == 0, "a missing ability is masked")
+	check(masks[contract.id("ability_1")] == 0, "a locked signature ability is masked")
 	check(masks[contract.id("ability_3")] == 0, "ability 3 is masked for ordinary mobs")
 	check(masks[contract.id("hide")] == 0 and masks[contract.id("dodge")] == 0, "missing mechanics are masked")
 	var enemy_base := contract.head_offsets[Contract.Head.ENEMY_TARGET]

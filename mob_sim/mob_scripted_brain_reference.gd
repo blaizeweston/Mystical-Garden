@@ -19,6 +19,7 @@ var _melee := 0
 var _ranged := 0
 var _ability_1 := 0
 var _ability_2 := 0
+var _ability_3 := 0
 var _defend := 0
 var _circle_left := 0
 var _circle_right := 0
@@ -44,6 +45,7 @@ func _bind(contract: Contract) -> void:
 	_ranged = contract.id("ranged_attack")
 	_ability_1 = contract.id("ability_1")
 	_ability_2 = contract.id("ability_2")
+	_ability_3 = contract.id("ability_3")
 	_defend = contract.id("defend_ally")
 	_circle_left = contract.manoeuvres.find("circle_left")
 	_circle_right = contract.manoeuvres.find("circle_right")
@@ -73,7 +75,7 @@ func _decide_slot(batch: Batch, index: int, slot: int) -> void:
 	if batch.allowed(index, 0, _ability_2) and distance >= batch.species.attack_min_range[vault_at] and distance <= batch.species.attack_range[vault_at]:
 		batch.write_intent(index, _ability_2, head, 0, manoeuvre)
 		return
-	for behaviour in [_ability_1, _melee, _ranged]:
+	for behaviour in [_ability_1, _melee, _ranged, _ability_3]:
 		if batch.allowed(index, 0, behaviour):
 			batch.write_intent(index, behaviour, head, 0, manoeuvre)
 			return

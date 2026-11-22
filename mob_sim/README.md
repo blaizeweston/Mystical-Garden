@@ -14,6 +14,7 @@ The replacement enemy framework and its native core. Only the Neural Arena runs 
 | `native/mob_sense.c` | Perception, ally slots, light, hearing and smell |
 | `*_reference.gd` | GDScript versions of the native systems, kept for the parity test |
 | `mob_status.gd` | Damage over time, dodge windows, channeling and armour |
+| `mob_release.gd` | A release's areas from its kit row, and the hit test for each |
 | `native/build.ps1` | Builds and tests the core, then links `bin/mob_nav.dll` |
 | `mob_nav_world.gd` | Loads the extension and bakes it from a configured `Battlefield` |
 | `mob_sim.gd` and the other `mob_*.gd` files | The mob architecture layers described in the migration guide |

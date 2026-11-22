@@ -2,7 +2,9 @@ extends RefCounted
 ## Fixed ring of simulation events. Rewards, effects and network updates each keep their own cursor.
 
 ## DODGED: a hit landed during a dodge window and was ignored. a is the source player.
-enum Kind { SPAWN, DEATH, INTENT, WINDUP, RELEASE, INTERRUPT, DAMAGE_TAKEN, DAMAGE_DEALT, DODGED }
+## HIT: a release or hazard the simulation resolved itself struck a player. a is the player, b root ticks,
+## value the damage, radius the pull distance toward from_x and from_z.
+enum Kind { SPAWN, DEATH, INTENT, WINDUP, RELEASE, INTERRUPT, DAMAGE_TAKEN, DAMAGE_DEALT, DODGED, HIT }
 
 const CAPACITY := 8192
 
