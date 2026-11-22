@@ -54,6 +54,7 @@ func _init(slots: int, awake_brain: Brain = null) -> void:
 	species = Species.new()
 	party = Party.new(contract.players)
 	pool = Pool.new(slots, contract.attacks)
+	pool.prompt_gap = int(contract.rules.decision_ticks_smart)
 	events = Events.new()
 	locomotion = Locomotion.new(pool, party, contract)
 	perception = Perception.new(pool, party, species, contract, locomotion.world)
@@ -110,6 +111,7 @@ func spawn_at(chosen: int, request: Pool.Spawn) -> int:
 func damage_mob(slot: int, amount: float, source_player: int = -1, scaled: bool = true) -> float:
 	if slot < 0 or slot >= pool.capacity or pool.alive[slot] == 0 or amount <= 0.0:
 		return 0.0
+	pool.prompt_decision(slot, clock.tick)
 	if scaled:
 		amount = status.scale_damage(slot, amount, clock.tick)
 	if amount <= 0.0:
@@ -233,7 +235,7 @@ func _decide(now: int) -> void:
 	for slot in pool.active:
 		if now < pool.next_decision[slot]:
 			continue
-		pool.next_decision[slot] = now + pool.decision_interval[slot]
+		pool.mark_decided(slot, now)
 		if now - pool.last_sensed[slot] >= sleep_ticks:
 			asleep.append(slot)
 		else:

@@ -63,6 +63,10 @@ var slow_scale := PackedFloat32Array()
 
 var next_decision := PackedInt32Array()
 var decision_interval := PackedInt32Array()
+## Tick of each mob's last decision, which spaces out decisions brought forward by events.
+var decided_at := PackedInt32Array()
+## Fewest ticks between two decisions when an event brings one forward. MobSim sets it to the smart polling interval.
+var prompt_gap := 6
 var behaviour := PackedByteArray()
 var enemy_target := PackedByteArray()
 var ally_target := PackedByteArray()
@@ -115,7 +119,7 @@ func _init(slots: int, attack_slots: int) -> void:
 			windup_attack, aim_player, engaged, dot_source, armour, command_player, command_via]:
 		table.resize(slots)
 		table.fill(0)
-	for table: PackedInt32Array in [generation, species, mutations, leader, leader_generation, next_decision, decision_interval,
+	for table: PackedInt32Array in [generation, species, mutations, leader, leader_generation, next_decision, decision_interval, decided_at,
 			hold_until, behaviour_since, ready_at, windup_until, stun_until, root_until, slow_until, haste_until, last_sensed,
 			dot_until, dot_next, dodge_until, channel_until, approach_until, command_until]:
 		table.resize(slots)
@@ -169,6 +173,7 @@ func spawn_at(slot: int, request: Spawn, table: Species, tick: int, interval: in
 	slow_scale[slot] = 1.0
 	decision_interval[slot] = interval
 	next_decision[slot] = tick + 1 + slot % interval
+	decided_at[slot] = next_decision[slot] - interval
 	behaviour[slot] = 0
 	enemy_target[slot] = 0
 	ally_target[slot] = 0
@@ -201,6 +206,21 @@ func spawn_at(slot: int, request: Spawn, table: Species, tick: int, interval: in
 	command_via[slot] = 0
 	_rebuild_active()
 	return slot
+
+
+## Brings a mob's next decision forward after something it should react to: a hit, its own release or an interrupt.
+## Dim mobs poll slowly, so without this they could stand through a hit for up to their whole interval. The decision
+## still waits prompt_gap ticks after the previous one, so a burst of hits costs one decision.
+func prompt_decision(slot: int, tick: int) -> void:
+	var earliest := maxi(tick + 1, decided_at[slot] + prompt_gap)
+	if earliest < next_decision[slot]:
+		next_decision[slot] = earliest
+
+
+## Records a decision at this tick and schedules the next one a full interval later.
+func mark_decided(slot: int, tick: int) -> void:
+	decided_at[slot] = tick
+	next_decision[slot] = tick + decision_interval[slot]
 
 
 func despawn(slot: int) -> void:

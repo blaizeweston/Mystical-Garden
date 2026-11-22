@@ -1,6 +1,7 @@
 extends SceneTree
 ## Checks MobStatus: damage over time, stacking and expiry, armour, dodge windows, channeling, and that
-## an encounter with no damage over time does no status work.
+## an encounter with no damage over time does no status work Also checks that hits and interrupts bring a
+## slow-polling mob's next decision forward.
 
 const Battlefield = preload("res://battlefield.gd")
 const Catalog = preload("res://enemy_catalog.gd")
@@ -26,6 +27,7 @@ func _initialize() -> void:
 	test_kill_credit()
 	test_modifiers()
 	test_idle_cost()
+	test_prompted_decisions()
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)
 
@@ -135,3 +137,37 @@ func test_idle_cost() -> void:
 	var before: float = sim.pool.hp[0]
 	run_status(sim, 60)
 	check(sim.status.burning.is_empty() and sim.pool.hp[0] == before, "with no damage over time, the status step does nothing")
+
+
+## A hit or an interrupt brings a dim mob's next decision forward, but never closer than prompt_gap ticks
+## after its previous decision, and never later than it was already due.
+func test_prompted_decisions() -> void:
+	var sim := make_sim()
+	var request := Pool.Spawn.new()
+	request.species = sim.species.ids.find("colossus")
+	request.at = Vector2.ZERO
+	request.hp = HP
+	request.intelligence = 0.0
+	var dim := sim.spawn(request)
+	request.at = Vector2(3, 0)
+	request.intelligence = 1.0
+	var smart := sim.spawn(request)
+	var pool := sim.pool
+	var now := sim.clock.tick
+	var gap := pool.prompt_gap
+	check(pool.decision_interval[dim] > gap and pool.decision_interval[smart] == gap, "dim mobs poll more slowly than the prompt gap")
+	pool.mark_decided(dim, now)
+	sim.damage_mob(dim, 10.0, 0)
+	check(pool.next_decision[dim] == now + gap, "a hit brings a dim mob's decision forward to the prompt gap")
+	sim.damage_mob(dim, 10.0, 0)
+	check(pool.next_decision[dim] == now + gap, "a second hit in the same window does not add a decision")
+	pool.mark_decided(smart, now)
+	sim.damage_mob(smart, 10.0, 0)
+	check(pool.next_decision[smart] == now + gap, "a smart mob already decides within the prompt gap")
+	pool.mark_decided(dim, now - gap * 2)
+	pool.prompt_decision(dim, now)
+	check(pool.next_decision[dim] == now + 1, "a mob that decided long ago reacts on the next tick")
+	pool.mark_decided(dim, now)
+	pool.windup_until[dim] = now + 20
+	sim.abilities.interrupt(dim, 5, now)
+	check(pool.next_decision[dim] == now + gap, "an interrupt brings the next decision forward")

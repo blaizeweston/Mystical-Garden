@@ -152,6 +152,10 @@ One interface takes the observation batch and returns intents (behaviour, target
 - The scripted brain is a port of today's legacy decision rules. It is the baseline and the fallback.
 - The neural brain is the existing net, retrained on schema v2.
 
+Brains do not run every tick. Each mob decides every 6 ticks (100 ms) when fully smart and up to every 30 ticks (500 ms) when dim, staggered across slots; the executors carry the chosen intent on every tick in between. Commitment comes from the rules, not extra inputs: a wind-up locks the mob, each behaviour has a minimum hold (250 to 800 ms), and the observation already carries the current behaviour, target, time since the last change and progress, with a recurrent memory for longer history. A small reward penalty discourages needless switching.
+
+A hit, the mob's own release or an interrupt brings its next decision forward (`MobPool.prompt_decision`), never closer than 6 ticks after its previous one. Dim mobs then react to events within about 100 ms without polling faster, and a burst of hits costs one decision.
+
 ### Events
 
 Typed events (wind-up locked, released, hit, dodge, channel started, death and others) go to a ring buffer. Presentation, audio, the diagnostics journal and training rewards read them, so none of them depend on framework internals.

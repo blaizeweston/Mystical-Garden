@@ -174,6 +174,7 @@ func _release(slot: int, tick: int) -> void:
 	var player := pool.aim_player[slot]
 	var origin := Vector2(pool.xz[slot * 2], pool.xz[slot * 2 + 1])
 	_finish_windup(slot)
+	pool.prompt_decision(slot, tick)
 	pool.ready_at[slot] = tick + roundi(species.attack_recovery[at] * pool.recovery_scale[slot])
 	pool.cooldown_until[slot * pool.attacks + attack] = maxi(pool.ready_at[slot], tick + species.attack_cooldown[at])
 	if shape == Species.Shape.DASH or shape == Species.Shape.LEAP:
@@ -325,6 +326,7 @@ func interrupt(slot: int, delay_ticks: int, tick: int) -> void:
 		return
 	_finish_windup(slot)
 	_pending.erase(slot)
+	pool.prompt_decision(slot, tick)
 	pool.ready_at[slot] = maxi(pool.ready_at[slot], tick + delay_ticks)
 	events.push(Events.Kind.INTERRUPT, tick, slot, pool.generation[slot])
 
