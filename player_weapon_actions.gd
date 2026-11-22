@@ -12,6 +12,8 @@ class State extends RefCounted:
 	var _swing_until_ms := 0
 	var _duration_ms := Motion.DEFAULT_POSE_MS
 	var _sequence := 0
+	var _basic_form := ""
+	var _basic_step := 0
 	var _reach_m := 2.0
 	var _direction := Vector3.INF
 	var _clip := ""
@@ -30,6 +32,9 @@ class State extends RefCounted:
 	func sequence() -> int:
 		return _sequence
 
+	func basic_step() -> int:
+		return _basic_step
+
 	func duration_ms() -> int:
 		return _duration_ms
 
@@ -38,7 +43,7 @@ class State extends RefCounted:
 
 	## Admission precedes rolls/proc capture in WeaponAttackQueue. The owner also refuses a
 	## second start at the same deadline if called independently.
-	func try_start(now_ms: int, interval_ms: int, authored_pose_ms: int, reach_m: float) -> State:
+	func try_start(now_ms: int, interval_ms: int, authored_pose_ms: int, reach_m: float, form: String = "") -> State:
 		if not ready(now_ms): return null
 		var next := _copy()
 		next._ready_at_ms = now_ms + interval_ms
@@ -47,6 +52,8 @@ class State extends RefCounted:
 		next._swing_until_ms = next._pose_until_ms
 		next._reach_m = reach_m
 		next._sequence += 1
+		next._basic_step = _basic_step + 1 if form == _basic_form else 1
+		next._basic_form = form
 		return next
 
 	func with_pose(direction: Vector3, clip: String, delivery: String, span_rad: float) -> State:
@@ -129,6 +136,8 @@ class State extends RefCounted:
 		next._swing_until_ms = _swing_until_ms
 		next._duration_ms = _duration_ms
 		next._sequence = _sequence
+		next._basic_form = _basic_form
+		next._basic_step = _basic_step
 		next._reach_m = _reach_m
 		next._direction = _direction
 		next._clip = _clip

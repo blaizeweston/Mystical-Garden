@@ -104,8 +104,14 @@ static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw
  var left:=FieldRig.hand(actor,true)
  var anchor:=left if form=="bow" else right
  if form=="orb":anchor=(right+left)*.5
- var pose:=WeaponPoses.orientation(form,phase,active,yaw,action)
- if Polearms.WEAPONS.has(form):primary.set_meta("support_grip",Vector3.UP*Polearms.support_distance(form,phase,active,action))
+ var pose:=FieldRig.weapon_orientation(actor,form,phase,active,yaw,action)
+ if form=="spear" and actor.field_rig.get("spear_active",false):
+  var sample: Dictionary=actor.field_rig.spear_sample
+  primary.set_meta("handle",Vector3.UP*float(sample.rear_grip))
+  primary.set_meta("support_grip",Vector3.UP*float(sample.front_grip))
+ elif Polearms.WEAPONS.has(form):
+  primary.set_meta("handle",Vector3.ZERO)
+  primary.set_meta("support_grip",Vector3.UP*Polearms.support_distance(form,phase,active,action))
  var basis:=pose.scaled(Vector3.ONE*Polearms.SCALE)
  primary.global_transform=Transform3D(basis,anchor-basis*Vector3(primary.get_meta("handle",Vector3.ZERO)))
  primary.visible=not (form in ["ring","orb"] and active and phase>contact and phase<.82)

@@ -52,6 +52,15 @@ func host_run():
  mark("scythe-ready")
  check(await until(func():return marked("scythe-checked")),"guest confirms the scythe swing")
  check(await until(func():return game.enemy_health()<before),"scythe contact damages the enemy on the host after its wind-up")
+ p.frame=0;p.weapon_kind=1;p[WeaponActions.STATE]=WeaponActions.State.new()
+ game.encounter.set_hp(-1,1000);game.tactics.position=Vector3(0,0,2)
+ game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false
+ game.encounter.clear_scouts()
+ var flank: int=game.encounter.register_scout(game.make_scout(0,Vector3(1.6,0,1.6),1))
+ game.encounter.set_hp(flank,1000)
+ mark("spear-ready")
+ check(await until(func():return marked("spear-checked")),"guest sees imported thrust then sweep")
+ check(await until(func():return game.enemy_health()<1000 and game.encounter.hp(flank)<1000),"host damages front and flank using the alternating areas after release")
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects")
 func guest_run():
  game.guest_character.data.active_class=2
@@ -141,5 +150,33 @@ func guest_run():
  check(await until(func():return game.guest_replication.received_events().any(func(e):return e.event.kind=="swing" and str(e.event.get("form",""))=="scythe")),"guest receives the scythe swing visual")
  game.submit_combat.rpc_id(1,Vector2(0,1),false)
  mark("scythe-checked")
+ if not await until(func():return marked("spear-ready") and Motion.form(game.players.get(id,{}))=="spear"):
+  check(false,"spear loadout arrives");return
+ var clips: Array[String]=[]
+ var shapes: Array[String]=[]
+ var visible_clips: Array[String]=[]
+ var ready_at:=Time.get_ticks_msec()+5000
+ var send_at:=0
+ while Time.get_ticks_msec()<ready_at and (clips.size()<2 or shapes.size()<2 or visible_clips.size()<2):
+  var now:=Time.get_ticks_msec()
+  if now>=send_at:
+   send_at=now+50;game.submit_combat.rpc_id(1,Vector2(0,1),true)
+  var animation: Dictionary=game.players[id].get("attack_anim",{})
+  if animation.get("active",false) and str(animation.get("clip","")) in ["Attack_spear","Attack_spear_sweep"] and not clips.has(animation.clip):clips.append(animation.clip)
+  var view: Dictionary=game.stage.avatar_models.get(id,{})
+  if not view.is_empty():
+   var name:=str(view.field_rig.player.current_animation)
+   if name in ["Attack_spear","Attack_spear_sweep"] and not visible_clips.has(name):visible_clips.append(name)
+  for received in game.guest_replication.received_events():
+   var event: Dictionary=received.event
+   if event.kind=="swing" and event.get("form","")=="spear" and not shapes.has(str(event.pattern)):
+    shapes.append(str(event.pattern))
+    check(event.clip==("Attack_spear" if event.pattern=="line" else "Attack_spear_sweep"),"replicated indicator uses the selected clip")
+    if event.pattern=="sweep":check(is_equal_approx(float(event.span),deg_to_rad(125)) and is_equal_approx(float(event.yaw_offset),deg_to_rad(7.5)),"guest has the approved sweep sector")
+  await process_frame
+ game.submit_combat.rpc_id(1,Vector2(0,1),false)
+ check(clips==["Attack_spear","Attack_spear_sweep"] and shapes==["line","sweep"],"host-selected thrust precedes sweep without a guest-side counter")
+ check(visible_clips.has("Attack_spear") and visible_clips.has("Attack_spear_sweep"),"both imported clips run on the visible guest rig")
+ mark("spear-checked")
  check(await until(func():return marked("done")),"host finishes")
  game.session_world.leave("Weapon animation fixture")

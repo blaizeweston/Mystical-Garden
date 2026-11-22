@@ -5,6 +5,7 @@ const WeaponModels := preload("res://plant_weapon_models.gd")
 const Locomotion := preload("res://traveller_locomotion.gd")
 const WeaponAnimation := preload("res://traveller_weapon_animation.gd")
 const WeaponPoses := preload("res://weapon_pose_catalog.gd")
+const Spear := preload("res://spear_animation.gd")
 
 const MODELS := [
 	preload("res://assets/characters/field_traveller_male.glb"),
@@ -32,6 +33,7 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 	if not libraries.has(kind):
 		libraries[kind] = Locomotion.library(visual,skeleton)
 		WeaponAnimation.add_clips(libraries[kind],visual,skeleton)
+		Spear.add_clips(libraries[kind],visual,skeleton)
 	player.add_animation_library("", libraries[kind])
 	var links: Dictionary = {}
 	for name in DRIVER_JOINTS:
@@ -53,6 +55,7 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 		"scene":visual, "skeleton":skeleton, "player":player, "links":links, "soles":soles,
 		"left":socket(skeleton,"l"), "right":socket(skeleton,"r"), "gait":0.0,
 		"pelvis":skeleton.find_bone("pelvis"),
+		"spear":Spear.calibration(skeleton,player,skeleton.find_bone("pelvis")),
 	}
 
 
@@ -65,9 +68,16 @@ static func socket(skeleton: Skeleton3D, side: String) -> Dictionary:
 
 static func hand(actor: Dictionary, left: bool) -> Vector3:
 	var field: Dictionary = actor.field_rig
-	var anchor: Dictionary = field.left if left else field.right
+	var grips: Dictionary=field.spear if field.get("spear_active",false) else field
+	var anchor: Dictionary = grips.left if left else grips.right
 	var skeleton: Skeleton3D = field.skeleton
 	return skeleton.to_global(skeleton.get_bone_global_pose(anchor.bone) * anchor.point)
+
+
+static func weapon_orientation(actor: Dictionary, form: String, phase: float, active: bool, yaw: float, motion: Dictionary) -> Basis:
+	if form=="spear" and actor.field_rig.get("spear_active",false):
+		return (actor.field_rig.skeleton.global_basis*Basis(actor.field_rig.spear_sample.weapon)).orthonormalized()
+	return WeaponPoses.orientation(form,phase,active,yaw,motion)
 
 
 static func animate(actor: Dictionary, active: bool, phase: float, form: String, motion: Dictionary, delta: float) -> void:
@@ -79,12 +89,17 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 		old_pose.append(skeleton.get_bone_pose_rotation(index))
 	var old_hips := skeleton.get_bone_pose_position(field.pelvis)
 	var locomotion := Locomotion.pose(actor,field,delta)
+	var spear_basic := form=="spear" and not bool(motion.get("ability",false))
+	field.spear_active=spear_basic
 	var basic_stance := not bool(motion.get("ability",false)) and WeaponPoses.procedural_stance(form)
 	var constrained_pose := not bool(motion.get("ability",false)) and WeaponPoses.DEFINITIONS.has(form) and (active or not WeaponPoses.relaxed_carry(form))
 	var body_pose := WeaponPoses.body_pose(form,phase,active) if not bool(motion.get("ability",false)) else Vector2.ZERO
 	var native_action: Array[Quaternion] = []
-	if active and not bool(motion.get("ability",false)):
+	if active and not bool(motion.get("ability",false)) and not spear_basic:
 		native_action=WeaponAnimation.pose(field,form,phase,int(motion.get("combo",0)),locomotion.rotations)
+	if spear_basic:
+		native_action=Spear.rotations(field,motion,phase,active,locomotion.rotations)
+		body_pose=Vector2.ZERO
 	var global_bases: Array[Basis] = []
 	var pose_blend := 1.0-exp(-20.0*maxf(delta,0))
 	skeleton.set_bone_pose_position(field.pelvis,old_hips.lerp(locomotion.pelvis,pose_blend))
@@ -102,7 +117,7 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 		var native_bone := not native_action.is_empty() and WeaponAnimation.upper_body(bone_name)
 		# Constrained grips solve these joints below. Imported arm twists would fight
 		# that solution; retain native torso/free-arm motion and locomotion wrists.
-		var grip_joint := constrained_pose and grip_controls_joint(form,bone_name)
+		var grip_joint := not spear_basic and constrained_pose and grip_controls_joint(form,bone_name)
 		var has_action := action_weight>0.0 and not basic_stance and not grip_joint and (native_bone or not link.is_empty())
 		if has_action:
 			var action_pose: Quaternion
@@ -118,7 +133,7 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 			rotation=(parent_basis.inverse()*adjustment*parent_basis).get_rotation_quaternion()*rotation
 		# IK needs a fresh input pose, never a blend containing last frame's IK
 		# rotations. Feeding that result back accumulates wrist twist.
-		rotation = rotation.normalized() if grip_joint else old_pose[index].slerp(rotation,lerpf(pose_blend,1.0,action_weight) if has_action else pose_blend).normalized()
+		rotation = native_action[index] if spear_basic and WeaponAnimation.upper_body(bone_name) else rotation.normalized() if grip_joint else old_pose[index].slerp(rotation,lerpf(pose_blend,1.0,action_weight) if has_action else pose_blend).normalized()
 		skeleton.set_bone_pose_rotation(index,rotation)
 		global_bases.append(parent_basis*Basis(rotation))
 	skeleton.force_update_all_bone_transforms()
@@ -131,7 +146,34 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	actor.model.position.y=field.floor_lift
 	if not WeaponPoses.DEFINITIONS.has(form) or (active and bool(motion.get("ability",false))):
 		return
+	if spear_basic:
+		pose_spear_hands(skeleton,field,motion,phase,active)
+		return
 	pose_weapon_hands(actor,skeleton,field,form,phase,active,motion,action_weight)
+
+
+static func pose_spear_hands(skeleton: Skeleton3D, field: Dictionary, motion: Dictionary, phase: float, active: bool) -> void:
+	var sample:=Spear.sample(field,motion,phase,active)
+	field.spear_sample=sample
+	var grips: Dictionary=field.spear
+	for side in ["right","left"]:
+		set_world_rotation(skeleton,grips[side].bone,Basis(sample[side])*Basis(grips[side].alignment))
+	# Fit the authored palm path to the target arm length. Local rotation
+	# retargeting alone distorts the regrip on the differently proportioned rigs.
+	var wrist: int=grips.right.bone
+	var elbow:=skeleton.get_bone_parent(wrist)
+	var shoulder:=skeleton.get_bone_parent(elbow)
+	var arm_length:=skeleton.get_bone_global_rest(shoulder).origin.distance_to(skeleton.get_bone_global_rest(elbow).origin)+skeleton.get_bone_global_rest(elbow).origin.distance_to(skeleton.get_bone_global_rest(wrist).origin)
+	var center:=shoulder_position(skeleton,grips.right).lerp(shoulder_position(skeleton,grips.left),.5)
+	var shoulder_width:=shoulder_position(skeleton,grips.right).distance_to(shoulder_position(skeleton,grips.left))
+	var offset: Vector3=Vector3(sample.rear_point)-Vector3(sample.shoulder_center)
+	offset*=arm_length/float(sample.arm_length)
+	var rear: Vector3=center+skeleton.global_basis*offset
+	var separation: Vector3=skeleton.global_basis*Basis(sample.weapon).y*(float(sample.front_grip)-float(sample.rear_grip))*Polearms.SCALE
+	# The guiding arm crosses to the shaft. Preserve its authored bend while
+	# allowing the broader game torso the extra clearance the mannequin lacks.
+	var left_pole: Vector3=sample.left_elbow+Vector3.BACK*shoulder_width*Spear.GUIDING_ELBOW_FORWARD_SHOULDERS
+	hold_pair(skeleton,grips,rear,separation,1.0,sample.right_elbow,left_pole)
 
 
 static func grip_controls_joint(form: String, bone: String) -> bool:

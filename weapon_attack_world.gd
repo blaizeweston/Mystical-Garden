@@ -53,9 +53,11 @@ func capture_attack(peer: int, now: int) -> Dictionary:
 
 func start_timeline(peer: int, stats: Dictionary, form: String, now: int) -> int:
 	var actor: Dictionary = _world.players[peer]
-	var started = actor[Actions.STATE].try_start(now, int(stats.interval), roundi(float(Motion.profile(form).duration) * 1000), float(stats.reach))
+	var started = actor[Actions.STATE].try_start(now, int(stats.interval), roundi(float(Motion.profile(form).duration) * 1000), float(stats.reach), form)
 	if started == null: return -1
 	actor[Actions.STATE] = started
+	var variant := Motion.basic_variant(form, started.basic_step())
+	if not variant.is_empty(): stats.weapon_variant = variant.clip
 	preload("res://vital_combat.gd").launch(_world,actor,stats,now)
 	Spirit.basic_launch(_world,actor,stats,now)
 	actor.cast_until = 0

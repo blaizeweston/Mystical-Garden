@@ -15,6 +15,14 @@ static func form(player: Dictionary) -> String:
  return Classes.DEFINITIONS[c].weapons[clampi(int(player.get("weapon_kind",0)),0,Classes.DEFINITIONS[c].weapons.size()-1)].visual
 static func profile(name: String) -> Dictionary:
  return PROFILES.get(name,PROFILES.blade)
+## Basic-only sequence: native/Core poses do not advance this alternation.
+static func basic_variant(name: String, step: int) -> Dictionary:
+ var variants: Array=profile(name).get("basic_variants",[])
+ return {} if variants.is_empty() else variants[posmod(maxi(1,step)-1,variants.size())].duplicate()
+static func variant_by_clip(name: String, clip: String) -> Dictionary:
+ for variant: Dictionary in profile(name).get("basic_variants",[]):
+  if variant.clip==clip:return variant
+ return {}
 static func is_projectile(name: String) -> bool:
  return bool(profile(name).get("projectile",false))
 # Skeletal poses are authored in Blender. Runtime adds no second arm/body animation.

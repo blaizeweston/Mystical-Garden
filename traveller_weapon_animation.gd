@@ -10,7 +10,11 @@ static func upper_body(name: String) -> bool:
 	return name=="Head" or name.begins_with("spine_") or name.begins_with("neck_") or name.begins_with("clavicle_") or name.begins_with("upperarm_") or name.begins_with("lowerarm_") or name.begins_with("hand_") or name.begins_with("thumb_") or name.begins_with("index_") or name.begins_with("middle_") or name.begins_with("ring_") or name.begins_with("pinky_")
 
 static func add_clips(result: AnimationLibrary, visual: Node3D, skeleton: Skeleton3D) -> void:
-	var donor := DONOR.instantiate()
+	add_from(result,visual,skeleton,DONOR)
+
+## One retargeting rule for library clips and the separately authored spear actions.
+static func add_from(result: AnimationLibrary, visual: Node3D, skeleton: Skeleton3D, scene: PackedScene, renamed: String = "") -> void:
+	var donor := scene.instantiate()
 	var source := donor.find_children("*","Skeleton3D",true,false)[0] as Skeleton3D
 	var player := donor.find_children("*","AnimationPlayer",true,false)[0] as AnimationPlayer
 	var target_path := str(visual.get_path_to(skeleton))
@@ -30,7 +34,7 @@ static func add_clips(result: AnimationLibrary, visual: Node3D, skeleton: Skelet
 			for key in clip.track_get_key_count(track):
 				var rotation: Quaternion=clip.track_get_key_value(track,key)
 				clip.track_set_key_value(track,key,(correction*rotation).normalized())
-		result.add_animation(name,clip)
+		result.add_animation(renamed if not renamed.is_empty() else str(name),clip)
 	donor.free()
 
 static func pose(field: Dictionary, form: String, phase: float, combo: int, baseline: Array[Quaternion]=[]) -> Array[Quaternion]:

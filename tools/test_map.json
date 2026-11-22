@@ -365,7 +365,7 @@
     },
     "avatar_motion_view": {
       "label": "Visible traveller gait, weapon poses and grips",
-      "files": ["avatar_motion_view.gd", "avatar_motion_view.gd.uid", "field_traveller.gd", "field_traveller.gd.uid", "plant_polearms.gd", "plant_polearms.gd.uid", "traveller_locomotion.gd", "traveller_locomotion.gd.uid", "plant_weapon_models.gd", "plant_weapon_models.gd.uid", "weapon_pose_catalog.gd", "weapon_pose_catalog.gd.uid", "traveller_weapon_animation.gd", "traveller_weapon_animation.gd.uid", "tools/build_weapon_combat_library.py", "assets/characters/weapon_combat.glb", "assets/characters/weapon_combat.glb.import", "assets/characters/weapon_combat_sources.json"]
+      "files": ["avatar_motion_view.gd", "avatar_motion_view.gd.uid", "field_traveller.gd", "field_traveller.gd.uid", "plant_polearms.gd", "plant_polearms.gd.uid", "traveller_locomotion.gd", "traveller_locomotion.gd.uid", "plant_weapon_models.gd", "plant_weapon_models.gd.uid", "weapon_pose_catalog.gd", "weapon_pose_catalog.gd.uid", "traveller_weapon_animation.gd", "traveller_weapon_animation.gd.uid", "tools/build_weapon_combat_library.py", "assets/characters/weapon_combat.glb", "assets/characters/weapon_combat.glb.import", "assets/characters/weapon_combat_sources.json", "spear_animation.gd", "spear_animation.gd.uid", "assets/characters/spear_thrust.glb", "assets/characters/spear_thrust.glb.import", "assets/characters/spear_sweep.glb", "assets/characters/spear_sweep.glb.import", "assets/characters/spear_motion.json"]
     },
     "garden_returns": {
       "label": "Committed expedition banking/identification, homecoming discovery and reactive life",
@@ -1540,6 +1540,7 @@
     ]
   },
   "suites": {
+    "spear_attacks": {"kind":"unit", "systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","hex_terrain"], "package":false},
     "weapon_presentation": {"kind": "unit", "systems": ["characters", "weapons", "avatar_motion_view", "presentation", "ranged_release"], "package": true},
     "character_customization": {"kind": "unit", "systems": ["characters", "avatar_motion_view", "gameplay_ui", "world_snapshot", "network_session"], "package": false},
     "character_customization_coop": {"kind": "pair", "systems": ["characters", "avatar_motion_view", "gameplay_ui", "world_snapshot", "network_session", "connection_flow", "persistence_operations"], "package": false},

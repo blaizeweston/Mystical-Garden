@@ -127,7 +127,7 @@ func inspect_attack(actor: Dictionary, form: String) -> void:
 		var start := Field.hand(actor,false)
 		pose(actor,form,contact,true)
 		var thrust := Field.hand(actor,false)-start
-		check(thrust.z>.15 and absf(thrust.y)<.10,"spear drives forward in a level thrust")
+		check(thrust.z>.15 and absf(thrust.y)<.15 and absf(actor.visual_weapon.global_basis.y.normalized().y)<.10,"reviewed spear thrust drives forward with a level shaft")
 	if form in ["bell","censer"]:
 		var model: Dictionary=Models.MODELS[form]
 		var body: Vector3=actor.visual_weapon.to_global(model.core)-hand
