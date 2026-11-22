@@ -107,9 +107,13 @@ func consume_corpse(slot: int, id: int) -> void:
 
 func heal_from_corpse(slot: int, spare: bool) -> int:
 	var scout := _scout(slot)
-	var before: int = game.encounter.hp(slot)
+	var before: int = game.encounter.hp(bridge.game_slot(slot))
 	var healed := mini(int(scout.get("max_hp", before)), before + int(game.Director.Balance.corpse_heal(game, scout, spare)))
-	game.encounter.set_hp(slot, healed)
+	game.encounter.set_hp(bridge.game_slot(slot), healed)
+	var sim = bridge.sim
+	if healed > before and sim != null:
+		sim.events.push(sim.Events.Kind.HEALED, tick(), slot, sim.pool.generation[slot], slot, 0, sim.pool.xz[slot * 2],
+			sim.pool.xz[slot * 2 + 1], healed - before)
 	return healed - before
 
 

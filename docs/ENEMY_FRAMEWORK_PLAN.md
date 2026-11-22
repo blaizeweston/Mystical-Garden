@@ -229,7 +229,7 @@ Each phase ends with evidence and a review before the next starts.
 | 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Done: parts 1 to 3 on 2026-11-21, the legacy comparison on 2026-11-22 | Arena files only |
 | 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Done 2026-11-22 in four parts | Arena files only |
 | 5 | Arena speed, presentation of the new mechanics (replicated to guests), and elite kits with the gate elite run by the framework. Bosses keep scripted plans for now. Done 2026-11-22 in three parts: speed, presentation, elite kits | Arena files only |
-| 6 | Schema v2, rewards v2, a stronger stand-in party, a resumable training loop, curriculum with self-play, and evaluation. Part A (schema v2) done 2026-11-22 | None |
+| 6 | Schema v2, rewards v2, a stronger stand-in party, a resumable training loop, curriculum with self-play, and evaluation. Parts A (schema v2) and B (rewards v2) done 2026-11-22 | None |
 | 7 | Live toggles, with Legacy enemies and darkness off by default | Small hooks: settings, `tick_enemies`, spawning, guest snapshots, fog of war. Approved step by step |
 | 8 | After acceptance: New enemies become the default, then legacy enemy code is removed | Approved separately |
 
@@ -593,3 +593,22 @@ Still masked, because nothing supplies them yet: the party profile, player resis
 Both builders changed together: `native/mob_obs.c` (which now reads the light grid directly) and `ai/mob_observation_builder.gd`. Nearest areas are chosen by edge distance in single precision on both sides. Cover sight now uses the sight grid, matching perception. The arena publishes each player's weapon damage, reach and attack rate once a second; dodge and wind-up timers are not published there yet.
 
 Checks: the native and GDScript observations agree to within 1e-7 over 6,552 rows by day and 9,687 rows at night with player stats and changing timers. Every suite, the arena checks, the multiplayer check and the bench pass.
+
+### Part B: rewards v2
+
+Built 2026-11-22. `ai/mob_rewards.gd` turns each tick's events into rewards per mob, with the weights in `ai/training/rewards.json`. The trainer calls `tick()` after every simulation tick and `take(slot)` at each of a mob's decisions. Shipped mobs never compute rewards.
+
+| Term | Weight |
+|---|---|
+| Damage dealt | +1.0 per health bar of the player hit |
+| Healing done | +0.6 per health bar of the mob healed (a new `HEALED` event, pushed by corpse tethers) |
+| Player downed | +3.0 for every mob that hit the player in the last 5 seconds |
+| Sight of the current target | +0.01 per second, at most 0.005 between decisions, so standing in the open pays little |
+| A support ally alive and casting | +0.02 per second to the support's allies |
+| Own health lost | -0.3 per health bar of its own |
+| Support lost | -1.0 times the support's value, to its allies |
+| Own death | -0.15 times its value (1, or 3 for elites and leaders) |
+| Party wipe | +5.0 to every mob alive |
+| Intent change | -0.002 |
+
+Squad mix: a share of every reward goes to the mob's allies; the share starts at 20% and the trainer moves it to 60% as training progresses, so mobs learn to value their squad's success. Checks: `ai/tests/mob_reward_checks.gd` (13 checks) covers every term and the squad mix.

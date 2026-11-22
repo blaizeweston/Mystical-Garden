@@ -12,8 +12,9 @@ The initial neural net for mob decisions. It targets the architecture in [`mob_s
 | `mob_neural_brain.gd` | Chooses intents through the shared mob brain interface |
 | `mob_observation_builder.gd`, `mob_policy_reference.gd` | GDScript reference versions, used to prove the native code matches |
 | `mob_history.gd` | Rolling damage records used by observations |
+| `mob_rewards.gd` | Rewards v2: turns encounter events into per-mob training rewards |
 | `training/mob_net.py` | PyTorch policy, training-only critic and weight export |
-| `training/rewards.json` | Reward weights, with the night rewards removed |
+| `training/rewards.json` | Reward weights (rewards v2) |
 | `tests/run_checks.ps1` | Runs the Python, Godot and cross-language checks |
 | `tests/mob_ai_bench.gd` | Measures decision cost in the synthetic encounter |
 

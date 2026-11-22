@@ -95,7 +95,11 @@ func heal_from_corpse(slot: int, spare: bool) -> int:
 	var before: float = sim.pool.hp[slot]
 	var amount: float = sim.pool.max_hp[slot] * corpse_fraction * (0.5 if spare else 1.0)
 	sim.pool.hp[slot] = minf(sim.pool.max_hp[slot], before + amount)
-	return roundi(sim.pool.hp[slot] - before)
+	var healed := roundi(sim.pool.hp[slot] - before)
+	if healed > 0:
+		sim.events.push(sim.Events.Kind.HEALED, tick(), slot, sim.pool.generation[slot], slot, 0, sim.pool.xz[slot * 2], sim.pool.xz[slot * 2 + 1],
+			healed)
+	return healed
 
 
 func haste(slot: int, ms: int) -> void:

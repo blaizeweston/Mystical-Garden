@@ -30,6 +30,7 @@ Invoke-GodotCheck 'res://mob_sim/tests/mob_layer_checks.gd'
 Invoke-GodotCheck 'res://mob_sim/tests/mob_darkness_checks.gd'
 Invoke-GodotCheck 'res://mob_sim/tests/mob_field_checks.gd'
 Invoke-GodotCheck 'res://ai/tests/mob_ai_checks.gd'
+Invoke-GodotCheck 'res://ai/tests/mob_reward_checks.gd'
 & $Python $check compare *>&1 | ForEach-Object { "$_" }
 if ($LASTEXITCODE -ne 0) { throw 'The schema comparison failed.' }
 'All neural net checks passed.'
