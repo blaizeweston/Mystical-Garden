@@ -1,0 +1,259 @@
+"""Converts a run's newest good checkpoint to the current schema, keeping everything it learned.
+
+Use it after the schema or contract gains inputs or options (for example a new behaviour). Every weight that
+still has a place is copied there; inputs that are new start with zero weight, and new options start as a copy
+of a similar existing option (roam starts as idle_wander). The optimizer starts fresh. The old checkpoints are
+moved into checkpoints/schema_<old hash>/ so the trainer cannot fall back to one it can no longer load.
+
+Stop training first. Then:
+  python convert_checkpoint.py [--run-dir <folder>]
+
+The checkpoint's schema is found in the repository's history by its hash, so no old files are needed.
+"""
+
+from __future__ import annotations
+
+import argparse
+import io
+import json
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+import torch
+
+import safe_files as S
+from mob_net import MobCritic, MobPolicy
+from mob_schema import CONTRACT_PATH, HEAD_NAMES, PROJECT_ROOT, SCHEMA_PATH, MobSchema
+from train import default_run_dir, load_settings, pid_alive
+
+## New options start as a copy of these, so they begin about as likely as the option they resemble.
+SEED_OPTIONS = {("behaviour", "roam"): "idle_wander"}
+
+
+def git_versions(path: Path) -> list[str]:
+    relative = path.relative_to(PROJECT_ROOT).as_posix()
+    out = subprocess.run(["git", "log", "--format=%H", "--", relative], cwd=PROJECT_ROOT, capture_output=True, text=True, check=True)
+    return out.stdout.split()
+
+
+def git_file(commit: str, path: Path) -> bytes:
+    relative = path.relative_to(PROJECT_ROOT).as_posix()
+    return subprocess.run(["git", "show", f"{commit}:{relative}"], cwd=PROJECT_ROOT, capture_output=True, check=True).stdout
+
+
+def line_endings(versions) -> list[bytes]:
+    """Each version with Unix and with Windows line endings: the hash was taken from a checkout, whose line
+    endings depend on the computer's git settings."""
+    variants = []
+    for data in versions:
+        unix = data.replace(b"\r\n", b"\n")
+        variants += [unix, unix.replace(b"\n", b"\r\n")]
+    return list(dict.fromkeys(variants))
+
+
+def find_schema(schema_hash: str, folder: Path) -> MobSchema | None:
+    """The schema and contract, from the working copy or any commit, whose hash matches."""
+    current = MobSchema()
+    if current.hash_hex == schema_hash:
+        return current
+    schemas = line_endings(git_file(c, SCHEMA_PATH) for c in git_versions(SCHEMA_PATH))
+    contracts = line_endings(git_file(c, CONTRACT_PATH) for c in git_versions(CONTRACT_PATH))
+    for schema_bytes in schemas:
+        for contract_bytes in contracts:
+            schema_file, contract_file = folder / "schema.json", folder / "contract.json"
+            schema_file.write_bytes(schema_bytes)
+            contract_file.write_bytes(contract_bytes)
+            candidate = MobSchema(schema_file, contract_file)
+            if candidate.hash_hex == schema_hash:
+                return candidate
+    return None
+
+
+def contract_names(schema: MobSchema, contract_path: Path | None = None) -> list[str]:
+    data = json.loads((contract_path or CONTRACT_PATH).read_text(encoding="utf-8"))
+    return [entry["name"] for entry in data["behaviours"]]
+
+
+def column_keys(schema: MobSchema, blocks, prefix: str = "") -> list[tuple]:
+    """One key per input value: (block, repeat index, field, element), in layout order."""
+    keys = []
+    for block in blocks:
+        for index in range(block.repeat):
+            for name, (_offset, size) in block.fields.items():
+                for element in range(size):
+                    keys.append((prefix + block.name, index, name, element))
+    return keys
+
+
+def slot_keys(schema: MobSchema, block_name: str) -> list[tuple]:
+    """Keys for one slot of a repeated block (the input of a shared encoder)."""
+    block = next(b for b in schema.blocks if b.name == block_name)
+    return [(block.name, 0, name, element) for name, (_offset, size) in block.fields.items() for element in range(size)]
+
+
+def option_keys(schema: MobSchema, behaviours: list[str]) -> list[tuple]:
+    keys = []
+    for head in HEAD_NAMES:
+        for option in range(schema.head_sizes[head]):
+            keys.append((head, behaviours[option] if head == "behaviour" else option))
+    return keys
+
+
+def remap(old: torch.Tensor, new_shape, old_rows=None, new_rows=None, old_cols=None, new_cols=None, seeds=None) -> torch.Tensor:
+    """Copies old values to the new shape by matching row and column keys. Unmatched values are zero, or, for a
+    row in seeds, a copy of the row it names."""
+    result = torch.zeros(new_shape, dtype=old.dtype)
+    row_from = {key: i for i, key in enumerate(old_rows)} if old_rows else None
+    col_from = {key: i for i, key in enumerate(old_cols)} if old_cols else None
+    rows = range(new_shape[0])
+    for row in rows:
+        key = new_rows[row] if new_rows else None
+        source_row = row if row_from is None else row_from.get(key)
+        if source_row is None and seeds and key in seeds:
+            source_row = row_from.get((key[0], seeds[key]))
+        if source_row is None:
+            continue
+        if old.dim() == 1:
+            result[row] = old[source_row]
+            continue
+        if col_from is None:
+            result[row] = old[source_row]
+            continue
+        for col, col_key in enumerate(new_cols):
+            source_col = col_from.get(col_key)
+            if source_col is not None:
+                result[row, col] = old[source_row, source_col]
+    return result
+
+
+def convert(state: dict, old: MobSchema, old_names: list[str], new: MobSchema, new_names: list[str]) -> tuple[dict, dict]:
+    old_obs, new_obs = column_keys(old, old.blocks), column_keys(new, new.blocks)
+    old_global, new_global = column_keys(old, old.global_blocks, "global."), column_keys(new, new.global_blocks, "global.")
+    old_self = [k for b in old.encoder_blocks("self") for k in column_keys(old, [b])]
+    new_self = [k for b in new.encoder_blocks("self") for k in column_keys(new, [b])]
+    old_options, new_options = option_keys(old, old_names), option_keys(new, new_names)
+    seeds = {key: value for key, value in SEED_OPTIONS.items()}
+    policy, critic = MobPolicy(new), MobCritic(new)
+    shapes = {name: tuple(t.shape) for name, t in policy.state_dict().items()}
+    converted = {}
+    columns = {"self_encoder": (old_self, new_self), "enemy_encoder": (slot_keys(old, "enemy"), slot_keys(new, "enemy")),
+               "ally_encoder": (slot_keys(old, "ally"), slot_keys(new, "ally")),
+               "leader_encoder": (slot_keys(old, "leader"), slot_keys(new, "leader"))}
+    for name, tensor in state["policy"].items():
+        layer, kind = name.split(".", 1)
+        if layer in columns and kind == "weight":
+            converted[name] = remap(tensor, shapes[name], old_cols=columns[layer][0], new_cols=columns[layer][1])
+        elif layer == "heads":
+            converted[name] = remap(tensor, shapes[name], old_options, new_options, seeds=seeds)
+        elif tuple(tensor.shape) == shapes[name]:
+            converted[name] = tensor.clone()
+        else:
+            raise SystemExit(f"Cannot convert {name}: {tuple(tensor.shape)} to {shapes[name]}.")
+    critic_converted = {}
+    critic_shapes = {name: tuple(t.shape) for name, t in critic.state_dict().items()}
+    for name, tensor in state["critic"].items():
+        if name == "layers.0.weight":
+            critic_converted[name] = remap(tensor, critic_shapes[name], old_cols=old_obs + old_global, new_cols=new_obs + new_global)
+        elif tuple(tensor.shape) == critic_shapes[name]:
+            critic_converted[name] = tensor.clone()
+        else:
+            raise SystemExit(f"Cannot convert critic {name}: {tuple(tensor.shape)} to {critic_shapes[name]}.")
+    policy.load_state_dict(converted)
+    critic.load_state_dict(critic_converted)
+    proof = prove(state, old, new, old_obs, new_obs, old_options, new_options, policy)
+    return {"policy": converted, "critic": critic_converted}, proof
+
+
+def prove(state, old, new, old_obs, new_obs, old_options, new_options, policy) -> dict:
+    """Feeds the same situations to the old and the converted policy: every old option must score the same."""
+    torch.manual_seed(7)
+    old_policy = MobPolicy(old)
+    old_policy.load_state_dict(state["policy"])
+    rows = 256
+    old_inputs = torch.clamp(torch.randn(rows, old.observation_size), -old.clip, old.clip)
+    new_inputs = torch.zeros(rows, new.observation_size)
+    index = {key: i for i, key in enumerate(old_obs)}
+    for col, key in enumerate(new_obs):
+        if key in index:
+            new_inputs[:, col] = old_inputs[:, index[key]]
+    hidden = torch.tanh(torch.randn(rows, old.network["recurrent_hidden"]))
+    with torch.no_grad():
+        old_logits, old_next = old_policy(old_inputs, hidden)
+        new_logits, new_next = policy(new_inputs, hidden)
+    where = {key: i for i, key in enumerate(new_options)}
+    mapped = torch.stack([new_logits[:, where[key]] for key in old_options], dim=1)
+    return {"largest_logit_difference": float((mapped - old_logits).abs().max()),
+            "largest_memory_difference": float((new_next - old_next).abs().max())}
+
+
+def wall_seconds(metrics: Path) -> float | None:
+    """Training time from the metrics log: the time between updates, leaving out pauses."""
+    if not metrics.exists():
+        return None
+    stamps = []
+    for line in metrics.read_text(encoding="utf-8").splitlines():
+        try:
+            stamps.append(time.mktime(time.strptime(json.loads(line)["time"], "%Y-%m-%d %H:%M:%S")))
+        except (ValueError, KeyError):
+            continue
+    return sum(b - a for a, b in zip(stamps, stamps[1:]) if 0 < b - a < 600)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--run-dir", type=Path)
+    args = parser.parse_args()
+    run_dir = args.run_dir or default_run_dir(load_settings())
+    holder = S.read_json(run_dir / "trainer.lock") or {}
+    if pid_alive(int(holder.get("pid", 0))):
+        print("Training is running. Stop it first (stop_training.ps1).")
+        return 1
+    folder = run_dir / "checkpoints"
+    loaded = S.load_checkpoint(folder)
+    if loaded is None:
+        print(f"No good checkpoint in {folder}.")
+        return 1
+    state, path = loaded
+    new = MobSchema()
+    if state["schema_hash"] == new.hash_hex:
+        print(f"{path.name} already uses the current schema. Nothing to convert.")
+        return 0
+    with tempfile.TemporaryDirectory() as temporary:
+        old = find_schema(state["schema_hash"], Path(temporary))
+        if old is None:
+            print("The checkpoint's schema is not in this repository's history; it cannot be converted.")
+            return 1
+        old_names = contract_names(old, Path(temporary) / "contract.json")
+    new_names = contract_names(new)
+    weights, proof = convert(state, old, old_names, new, new_names)
+    print(f"Converted {path.name}: observation {old.observation_size} -> {new.observation_size}, options {old.logit_count} -> {new.logit_count}.")
+    print(f"Old options score the same: largest difference {proof['largest_logit_difference']:.2e}, memory {proof['largest_memory_difference']:.2e}.")
+    if proof["largest_logit_difference"] > 1e-4 or proof["largest_memory_difference"] > 1e-4:
+        print("The converted policy does not match the old one; nothing was changed.")
+        return 1
+    converted = dict(state)
+    converted.update(weights)
+    converted["schema_hash"] = new.hash_hex
+    # The optimizer's memory no longer fits the reshaped weights; the trainer starts a new one.
+    converted.pop("optimizer", None)
+    seconds = wall_seconds(run_dir / "logs" / "metrics.jsonl")
+    if seconds is not None:
+        converted["seconds"] = seconds
+        converted["milestone_seconds"] = min(float(state.get("milestone_seconds", 0.0)), seconds)
+    archive = folder / f"schema_{state['schema_hash'][:12]}"
+    archive.mkdir(exist_ok=True)
+    for old_file in list(folder.glob("ckpt_*.pt")) + list(folder.glob("ckpt_*.pt.sha256")) + [folder / "latest.json"]:
+        if old_file.exists():
+            shutil.move(str(old_file), str(archive / old_file.name))
+    saved = S.save_checkpoint(folder, converted, int(state["version"]), 5)
+    print(f"Saved {saved.name} for the current schema; the old checkpoints are in {archive.name}.")
+    print("Start training again to continue from it.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

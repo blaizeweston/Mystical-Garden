@@ -18,6 +18,9 @@ The initial neural net for mob decisions. It targets the architecture in [`mob_s
 | `training_env.gd`, `training_worker.gd` | Training episodes (engaged and explore starts) and the worker loop |
 | `training/train.py`, `training/rollouts.py`, `training/safe_files.py` | Recurrent PPO trainer, shard reading, crash-safe files and checkpoints |
 | `training/training.json` | Worker count, episode mix and trainer settings |
+| `training/dashboard.py`, `dashboard.html` | Live training dashboard in the browser (`Training Dashboard.cmd`) |
+| `training/convert_checkpoint.py` | Carries a run's checkpoint over to a changed schema |
+| `training/export_view.py` | Writes the newest checkpoint for a model viewer such as Netron |
 | `training/start_training.ps1`, `stop_training.ps1`, `training_status.ps1` | Start, stop and check on training (double-click the `.cmd` files beside them) |
 | `training/mob_net.py` | PyTorch policy, training-only critic and weight export |
 | `training/rewards.json` | Reward weights (rewards v2) |
@@ -44,7 +47,7 @@ Training runs in the background and resumes where it left off. Double-click `tra
 ./ai/training/stop_training.ps1
 ```
 
-Progress lives in `Documents\Godot\mob-training\run` (change `run_dir` in `training/training.json`). Stopping saves a checkpoint; a crash or power loss loses at most the last 10 minutes. `ai/tests/run_training_smoke.ps1` checks the controls in a throwaway folder.
+Watch it with `training/Training Dashboard.cmd`. Progress lives in `Documents\Godot\mob-training\run` (change `run_dir` in `training/training.json`). Stopping saves a checkpoint; a crash or power loss loses at most the last 10 minutes. `ai/tests/run_training_smoke.ps1` checks the controls in a throwaway folder.
 
 ## Not built yet
 

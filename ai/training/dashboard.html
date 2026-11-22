@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mob Training</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1d2330; --muted: #6a7385; --line: #e3e6ec;
+  --accent: #3b6fd8; --raw: rgba(59, 111, 216, 0.22); --second: #d0702a; --good: #23935b; --bad: #c8433a; --target: #9aa3b5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151b; --panel: #1b2029; --ink: #e6e9ef; --muted: #8f98a8; --line: #2b313d;
+    --accent: #6f9cf5; --raw: rgba(111, 156, 245, 0.25); --second: #f0a05a; --good: #4cc489; --bad: #f07a70; --target: #5d6677;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { padding: 16px 20px 8px; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+.sub { color: var(--muted); font-size: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; padding: 8px 20px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.card .label { color: var(--muted); font-size: 12px; }
+.card .value { font-size: 20px; font-weight: 600; margin-top: 2px; }
+.state-running { color: var(--good); } .state-stopped { color: var(--muted); } .state-stale { color: var(--bad); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; padding: 8px 20px 24px; }
+.chart { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 6px; position: relative; }
+.chart h2 { font-size: 14px; margin: 0; display: flex; justify-content: space-between; gap: 8px; }
+.chart .hint { color: var(--muted); font-size: 12px; margin: 2px 0 4px; min-height: 16px; }
+.chart .now { font-weight: 600; white-space: nowrap; }
+.trend-up { color: var(--good); } .trend-down { color: var(--bad); } .trend-flat { color: var(--muted); }
+canvas { width: 100%; height: 170px; display: block; }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--panel); font-size: 12px; padding: 4px 7px; border-radius: 5px; display: none; white-space: nowrap; }
+.legend { font-size: 11px; color: var(--muted); padding: 0 20px 4px; }
+.legend span { display: inline-block; margin-right: 14px; }
+.swatch { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 4px; }
+@media (max-width: 480px) { header, .cards, .grid, .legend { padding-left: 16px; padding-right: 16px; } .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mob training</h1>
+  <div class="sub" id="sub">Loading…</div>
+</header>
+<section class="cards" id="cards"></section>
+<div class="legend">
+  <span><i class="swatch" style="background: var(--raw)"></i>each update</span>
+  <span><i class="swatch" style="background: var(--accent)"></i>moving average</span>
+  <span><i class="swatch" style="background: var(--target)"></i>target</span>
+  <span>▲ ticks along the bottom: checkpoints (taller: milestones)</span>
+</div>
+<section class="grid" id="grid"></section>
+<script>
+const CHARTS = [
+  {key: "wipe_rate", title: "Party wiped", hint: "Share of episodes where mobs down the whole party. Should rise.", pct: true, better: 1},
+  {key: "explore_found_rate", title: "Party found (explore starts)", hint: "Share of explore episodes where a mob sees a player. Should rise.", pct: true, better: 1},
+  {key: "explore_first_sight_s", title: "Time to find the party", hint: "Seconds until the first mob sees a player, when found. Should fall.", unit: " s", better: -1},
+  {key: "damage_to_party", title: "Damage to the party", hint: "Health taken by the party per episode (players have about 100). Should rise.", better: 1},
+  {key: "life_return", title: "Mob reward per life", hint: "Total reward a mob earns over its life. The main score; should rise.", better: 1},
+  {key: "cleared", second: "timeout", title: "How fights end", hint: "Blue: party cleared every mob. Orange: time limit reached.", pct: true, better: 0},
+  {key: "entropy", title: "Entropy (variety of choices)", hint: "Falls slowly as mobs settle on good choices. A sudden drop toward 1 is a warning.", better: 0},
+  {key: "approx_kl", title: "Policy change per update (KL)", hint: "How much each update changes the mobs' choices. Target 0.015.", target: 0.015, digits: 4, better: 0},
+  {key: "learning_rate", title: "Learning rate", hint: "Adjusted automatically to hold the KL near its target.", digits: 6, better: 0},
+  {key: "clip_fraction", title: "Clip fraction", hint: "Share of choices PPO held back from changing too far. Under 0.2 is healthy.", digits: 3, better: 0},
+  {key: "value_loss", title: "Critic error (value loss)", hint: "How well the critic predicts rewards. Should stay small and steady.", digits: 4, better: 0},
+  {key: "speed", title: "Decisions per second", hint: "All workers together, between updates.", better: 1, digits: 0},
+];
+const grid = document.getElementById("grid");
+const charts = CHARTS.map(spec => {
+  const box = document.createElement("div");
+  box.className = "chart";
+  box.innerHTML = `<h2><span>${spec.title}</span><span class="now"></span></h2><div class="hint">${spec.hint}</div><canvas></canvas><div class="tip"></div>`;
+  grid.appendChild(box);
+  return {spec, box, canvas: box.querySelector("canvas"), now: box.querySelector(".now"), tip: box.querySelector(".tip")};
+});
+let data = null;
+
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function fmt(spec, v) {
+  if (v === null || v === undefined || Number.isNaN(v)) return "–";
+  if (spec.pct) return (v * 100).toFixed(1) + "%";
+  if (spec.digits !== undefined) return v.toFixed(spec.digits) + (spec.unit || "");
+  return (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)) + (spec.unit || "");
+}
+function millions(n) { return n >= 1e9 ? (n / 1e9).toFixed(2) + "B" : (n / 1e6).toFixed(0) + "M"; }
+function smooth(values, window) {
+  const out = [];
+  for (let i = 0; i < values.length; i++) {
+    let sum = 0, count = 0;
+    for (let j = Math.max(0, i - window + 1); j <= i; j++) if (values[j] !== null) { sum += values[j]; count++; }
+    out.push(count ? sum / count : null);
+  }
+  return out;
+}
+
+function draw(chart) {
+  const {spec, canvas} = chart;
+  const points = data.points;
+  const ratio = window.devicePixelRatio || 1;
+  const width = canvas.clientWidth, height = canvas.clientHeight;
+  canvas.width = width * ratio; canvas.height = height * ratio;
+  const g = canvas.getContext("2d");
+  g.scale(ratio, ratio);
+  g.clearRect(0, 0, width, height);
+  const keys = [spec.key].concat(spec.second ? [spec.second] : []);
+  const xs = points.map(p => p.samples);
+  const series = keys.map(k => points.map(p => (p[k] === undefined ? null : p[k])));
+  const span = Math.max(3, Math.round(points.length / 25));
+  const smoothed = series.map(s => smooth(s, span));
+  const all = series.flat().filter(v => v !== null).concat(spec.target ? [spec.target] : []);
+  chart.now.textContent = "";
+  if (points.length < 2 || all.length === 0) {
+    g.fillStyle = css("--muted"); g.font = "12px system-ui"; g.fillText("No data yet", 8, 20);
+    chart.layout = null;
+    return;
+  }
+  let lo = Math.min(...all), hi = Math.max(...all);
+  if (spec.pct || spec.key === "speed") lo = Math.min(lo, 0);
+  if (hi - lo < 1e-9) { hi += 1; lo -= spec.pct ? 0 : 1; }
+  const pad = {l: 46, r: 8, t: 6, b: 22};
+  const x0 = xs[0], x1 = xs[xs.length - 1] || 1;
+  const X = x => pad.l + (x - x0) / Math.max(1, x1 - x0) * (width - pad.l - pad.r);
+  const Y = y => pad.t + (1 - (y - lo) / (hi - lo)) * (height - pad.t - pad.b);
+  g.strokeStyle = css("--line"); g.fillStyle = css("--muted"); g.font = "11px system-ui"; g.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) {
+    const v = lo + (hi - lo) * i / 3, y = Y(v);
+    g.beginPath(); g.moveTo(pad.l, y); g.lineTo(width - pad.r, y); g.stroke();
+    g.fillText(fmt(spec, v), 2, y + 4);
+  }
+  g.fillText(millions(x0), pad.l, height - 6);
+  const endLabel = millions(x1) + " decisions";
+  g.fillText(endLabel, width - pad.r - g.measureText(endLabel).width, height - 6);
+  if (spec.target) {
+    g.setLineDash([4, 4]); g.strokeStyle = css("--target");
+    g.beginPath(); g.moveTo(pad.l, Y(spec.target)); g.lineTo(width - pad.r, Y(spec.target)); g.stroke(); g.setLineDash([]);
+  }
+  // Checkpoints: ticks at the samples of the closest policy version.
+  g.fillStyle = css("--muted");
+  for (const c of data.checkpoints) {
+    let best = null;
+    for (const p of points) if (p.version !== null && p.version <= c.version) best = p;
+    if (!best) continue;
+    const x = X(best.samples), size = c.milestone ? 7 : 4;
+    g.beginPath(); g.moveTo(x, height - pad.b); g.lineTo(x - size / 2, height - pad.b + size); g.lineTo(x + size / 2, height - pad.b + size); g.fill();
+  }
+  const colours = [css("--accent"), css("--second")];
+  series.forEach((s, i) => {
+    g.strokeStyle = i === 0 ? css("--raw") : "rgba(208,112,42,0.25)"; g.lineWidth = 1; g.beginPath();
+    let started = false;
+    s.forEach((v, j) => { if (v === null) { started = false; return; } const x = X(xs[j]), y = Y(v); started ? g.lineTo(x, y) : g.moveTo(x, y); started = true; });
+    g.stroke();
+    g.strokeStyle = colours[i]; g.lineWidth = 2; g.beginPath(); started = false;
+    smoothed[i].forEach((v, j) => { if (v === null) { started = false; return; } const x = X(xs[j]), y = Y(v); started ? g.lineTo(x, y) : g.moveTo(x, y); started = true; });
+    g.stroke();
+  });
+  // Latest smoothed value and its change over the last fifth of the run.
+  const sm = smoothed[0].filter(v => v !== null);
+  if (sm.length) {
+    const last = sm[sm.length - 1], earlier = sm[Math.max(0, Math.floor(sm.length * 0.8) - 1)];
+    const change = last - earlier, scale = Math.max(1e-9, Math.abs(hi - lo));
+    let cls = "trend-flat", arrow = "→";
+    if (Math.abs(change) / scale > 0.03) {
+      arrow = change > 0 ? "↑" : "↓";
+      if (spec.better !== 0) cls = (change > 0) === (spec.better > 0) ? "trend-up" : "trend-down";
+    }
+    chart.now.innerHTML = `<span class="${cls}">${arrow}</span> ${fmt(spec, last)}` + (spec.second ? ` / ${fmt(spec, smoothed[1].filter(v => v !== null).pop())}` : "");
+  }
+  chart.layout = {X, Y, xs, series, smoothed, pad, width, height};
+}
+
+function hover(chart, event) {
+  const layout = chart.layout;
+  if (!layout) return;
+  const rect = chart.canvas.getBoundingClientRect();
+  const mx = event.clientX - rect.left;
+  let best = 0, distance = Infinity;
+  layout.xs.forEach((x, i) => { const d = Math.abs(layout.X(x) - mx); if (d < distance) { distance = d; best = i; } });
+  const p = data.points[best];
+  const values = layout.smoothed.map(s => fmt(chart.spec, s[best])).join(" / ");
+  chart.tip.textContent = `${millions(p.samples)} · policy ${p.version} · ${p.time} · avg ${values}`;
+  chart.tip.style.display = "block";
+  const left = Math.min(rect.width - chart.tip.offsetWidth, Math.max(0, mx - chart.tip.offsetWidth / 2));
+  chart.tip.style.left = (left + 12) + "px";
+  chart.tip.style.top = "40px";
+}
+charts.forEach(c => {
+  c.canvas.addEventListener("mousemove", e => hover(c, e));
+  c.canvas.addEventListener("mouseleave", () => { c.tip.style.display = "none"; });
+});
+
+function card(label, value, cls = "") { return `<div class="card"><div class="label">${label}</div><div class="value ${cls}">${value}</div></div>`; }
+function render() {
+  const t = data.trainer || {};
+  const age = data.heartbeat_age;
+  let state = "Stopped", cls = "state-stopped";
+  if (t.state && t.state !== "stopped") {
+    if (age !== null && age < 180) { state = t.state === "waiting" ? "Running" : "Training"; cls = "state-running"; }
+    else { state = "No response"; cls = "state-stale"; }
+  }
+  if (data.stop_requested && cls === "state-running") state = "Stopping";
+  const speed = data.workers.reduce((sum, w) => sum + (w.rows_per_second || 0), 0);
+  const latest = data.checkpoints.filter(c => !c.milestone).pop();
+  const milestones = data.checkpoints.filter(c => c.milestone).length;
+  document.getElementById("sub").textContent = `${data.run_dir} · updated ${data.now} · refreshes every 15 s`;
+  document.getElementById("cards").innerHTML = [
+    card("Status", state, cls),
+    card("Decisions trained", t.samples !== undefined ? millions(t.samples) : "–"),
+    card("Policy", t.version !== undefined ? t.version : "–"),
+    card("Training time", t.hours !== undefined ? t.hours.toFixed(1) + " h" : "–"),
+    card("Workers", `${data.worker_count > 0 ? data.worker_count : 0} · ${Math.round(speed).toLocaleString()}/s`),
+    card("Shards waiting", data.shards_waiting),
+    card("Latest checkpoint", latest ? latest.time.slice(11, 16) : "–"),
+    card("Milestones kept", milestones),
+  ].join("");
+  charts.forEach(draw);
+}
+async function refresh() {
+  try {
+    const response = await fetch("/data", {cache: "no-store"});
+    data = await response.json();
+    render();
+  } catch (error) {
+    document.getElementById("sub").textContent = "Cannot reach the dashboard script. Is its window still open?";
+  }
+}
+window.addEventListener("resize", () => data && charts.forEach(draw));
+refresh();
+setInterval(refresh, 15000);
+</script>
+</body>
+</html>

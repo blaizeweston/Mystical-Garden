@@ -36,6 +36,11 @@ HERE = Path(__file__).resolve().parent
 SETTINGS_PATH = HERE / "training.json"
 REWARDS_PATH = HERE / "rewards.json"
 WAIT_SECONDS = 2.0
+## The learning rate moves by this factor when the KL strays from its target, within these bounds.
+LR_STEP = 1.25
+LR_BOUNDS = (1e-5, 3e-3)
+## A longer gap between loop passes means the computer slept; it does not count as training time.
+MAX_TICK_SECONDS = 600.0
 
 
 def load_settings() -> dict:
@@ -111,6 +116,7 @@ class Trainer:
         self.critic = MobCritic(self.schema).to(self.device)
         self.optimizer = torch.optim.Adam(list(self.policy.parameters()) + list(self.critic.parameters()),
                                           lr=float(self.cfg["learning_rate"]), eps=1e-5)
+        self.learning_rate = float(self.cfg["learning_rate"])
         self.version = 0
         # The oldest policy version whose weights equal the current ones (a resume re-exports the same weights).
         self.weights_from = 0
@@ -137,12 +143,17 @@ class Trainer:
                 raise SystemExit(f"Checkpoint {path.name} was made for a different schema. Use a new run folder.")
             self.policy.load_state_dict(state["policy"])
             self.critic.load_state_dict(state["critic"])
-            self.optimizer.load_state_dict(state["optimizer"])
+            if "optimizer" in state:
+                self.optimizer.load_state_dict(state["optimizer"])
+            else:
+                self.log("This checkpoint was converted to a new schema: starting a fresh optimizer.")
             self.version = int(state["version"])
             self.samples = int(state["samples"])
             self.updates = int(state["updates"])
             self.seconds = float(state["seconds"])
             self.milestone_seconds = float(state.get("milestone_seconds", 0.0))
+            self.learning_rate = float(state.get("learning_rate", self.learning_rate))
+            self._set_learning_rate(self.learning_rate)
             torch.set_rng_state(state["torch_rng"])
             self.log(f"Resumed from {path.name}: policy {self.version}, {self.samples:,} decisions trained.")
         # Policy versions only grow, so workers always take up the resumed policy, even after a fallback.
@@ -153,7 +164,7 @@ class Trainer:
     def state(self) -> dict:
         return {"policy": self.policy.state_dict(), "critic": self.critic.state_dict(), "optimizer": self.optimizer.state_dict(),
                 "version": self.version, "samples": self.samples, "updates": self.updates, "seconds": self.seconds,
-                "milestone_seconds": self.milestone_seconds, "torch_rng": torch.get_rng_state(), "schema_hash": self.schema.hash_hex}
+                "milestone_seconds": self.milestone_seconds, "learning_rate": self.learning_rate, "torch_rng": torch.get_rng_state(), "schema_hash": self.schema.hash_hex}
 
     def checkpoint(self) -> None:
         path = S.save_checkpoint(self.folders["checkpoints"], self.state(), self.version, int(self.cfg["keep_checkpoints"]))
@@ -165,6 +176,22 @@ class Trainer:
             policy = self.folders["policy"] / f"policy_{self.version:07d}.bin"
             S.atomic_write_bytes(milestones / policy.name, policy.read_bytes())
             self.log(f"Kept milestone {self.version} for later opponents and comparisons.")
+
+    def _set_learning_rate(self, value: float) -> None:
+        self.learning_rate = min(LR_BOUNDS[1], max(LR_BOUNDS[0], value))
+        for group in self.optimizer.param_groups:
+            group["lr"] = self.learning_rate
+
+    def adapt_learning_rate(self, kl: float) -> None:
+        """Holds the policy's change per update near target_kl: a larger step when updates barely change the
+        policy, a smaller one when they change it too much."""
+        target = float(self.cfg.get("target_kl", 0.0))
+        if target <= 0.0:
+            return
+        if kl > target * 1.5:
+            self._set_learning_rate(self.learning_rate / LR_STEP)
+        elif kl < target / 1.5:
+            self._set_learning_rate(self.learning_rate * LR_STEP)
 
     def squad_mix(self) -> float:
         start, end = self.squad_mix_range
@@ -306,11 +333,19 @@ class Trainer:
     def stopping(self) -> bool:
         return self.stop_requested or (self.run_dir / "STOP").exists()
 
+    def _count_time(self) -> None:
+        """Adds the wall time since the last call to the training time, waiting included."""
+        now = time.monotonic()
+        self.seconds += min(MAX_TICK_SECONDS, now - self._clock)
+        self._clock = now
+
     def run(self, max_updates: int | None) -> None:
         last_checkpoint = time.monotonic()
+        self._clock = time.monotonic()
         done = 0
         self.heartbeat("waiting")
         while not self.stopping() and (max_updates is None or done < max_updates):
+            self._count_time()
             began = time.monotonic()
             gathered = self.collect()
             if gathered is None:
@@ -328,13 +363,14 @@ class Trainer:
             self.weights_from = self.version
             self.export_policy()
             elapsed = time.monotonic() - began
-            self.seconds += elapsed
             self.report(batch, stats, elapsed)
+            self.adapt_learning_rate(float(stats["approx_kl"]))
             done += 1
             if time.monotonic() - last_checkpoint >= float(self.cfg["checkpoint_minutes"]) * 60.0:
                 self.checkpoint()
                 last_checkpoint = time.monotonic()
             self.heartbeat("training")
+        self._count_time()
         self.checkpoint()
         self.heartbeat("stopped")
 
@@ -351,6 +387,7 @@ class Trainer:
                 "explore_first_sight_s": round(float(np.mean(found)), 2) if found else None,
                 "damage_to_party": round(float(np.mean([e.get("damage_to_party", 0) for e in episodes])), 2) if episodes else 0,
                 "life_return": round(float(life_returns.mean()), 4), "squad_mix": round(self.squad_mix(), 4),
+                "learning_rate": self.learning_rate,
                 "rejected_shards": self.rejected, "stale_shards": self.stale, **stats}
         S.append_line(self.folders["logs"] / "metrics.jsonl", json.dumps(line))
         self.log(f"Update {self.updates} (policy {self.version}): {batch.rows} decisions, wipes {line['wipe_rate']:.0%}, "

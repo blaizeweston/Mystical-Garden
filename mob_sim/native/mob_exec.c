@@ -35,6 +35,17 @@
 #define PI_D 3.141592653589793
 #define APPROACH_STOP 0.12
 #define COMMAND_STOP 0.25
+/* Roaming: a new heading every ROAM_TICKS, walking up to ROAM_STEP metres along it. The heading's error is
+ * ROAM_SPREAD_DEG / smell^2 + ROAM_SPREAD_MIN_DEG degrees either way, growing beyond ROAM_CLEAR_SMELLS smell
+ * ranges from the player, and any direction at all without smell. */
+#define ROAM_TICKS 180
+#define ROAM_STOP 0.3
+#define ROAM_SPREAD_DEG 1600.0
+#define ROAM_SPREAD_MIN_DEG 2.0
+#define ROAM_CLEAR_SMELLS 2.0
+#define ROAM_FADE_SMELLS 4.0
+static const double roam_steps[3] = {8.0, 5.0, 3.0};
+static const double roam_turns[5] = {0.0, 0.4, -0.4, 0.8, -0.8};
 
 static const double cover_radius[COVER_RADII] = {3.0, 6.0};
 
@@ -43,6 +54,7 @@ static const MeKind config_kinds[EC_COUNT] = {
     [EC_PREFERRED_RANGE] = ME_FLOATS, [EC_MAX_RANGE] = ME_FLOATS, [EC_SUPPORT] = ME_BYTES,
     [EC_ATTACK_EXISTS] = ME_BYTES, [EC_ATTACK_MUTATION] = ME_INTS, [EC_ATTACK_RANGE] = ME_FLOATS,
     [EC_ATTACK_MIN_RANGE] = ME_FLOATS, [EC_ATTACK_SIGHT] = ME_BYTES, [EC_ATTACK_ESCORT] = ME_BYTES,
+    [EC_SMELL] = ME_FLOATS,
 };
 
 static const MeKind input_kinds[EI_COUNT] = {
@@ -73,7 +85,7 @@ struct MobExec {
     int dim[ED_COUNT];
     uint8_t *executor, *support, *attack_exists, *attack_sight, *attack_escort;
     int *attack_slot, *attack_mutation;
-    float *preferred_range, *max_range, *attack_range, *attack_min_range;
+    float *preferred_range, *max_range, *attack_range, *attack_min_range, *smell;
     int64_t *goal_key;
     int *goal_used;
     float *cover_x, *cover_z;
@@ -109,7 +121,7 @@ void me_destroy(MobExec *e) {
     if (e == NULL) return;
     free(e->executor); free(e->support); free(e->attack_exists); free(e->attack_sight); free(e->attack_escort);
     free(e->attack_slot); free(e->attack_mutation); free(e->preferred_range); free(e->max_range);
-    free(e->attack_range); free(e->attack_min_range); free(e->goal_key); free(e->goal_used);
+    free(e->attack_range); free(e->attack_min_range); free(e->smell); free(e->goal_key); free(e->goal_used);
     free(e->cover_x); free(e->cover_z); free(e->cover_found); free(e->cover_queries);
     free(e);
 }
@@ -127,7 +139,8 @@ MeResult me_create(const void *const *items, const int64_t *lengths, MobExec **o
             || lengths[EC_PREFERRED_RANGE] != species || lengths[EC_MAX_RANGE] != species || lengths[EC_SUPPORT] != species
             || lengths[EC_ATTACK_EXISTS] != species * attacks || lengths[EC_ATTACK_MUTATION] != species * attacks
             || lengths[EC_ATTACK_RANGE] != species * attacks || lengths[EC_ATTACK_MIN_RANGE] != species * attacks
-            || lengths[EC_ATTACK_SIGHT] != species * attacks || lengths[EC_ATTACK_ESCORT] != species * attacks) {
+            || lengths[EC_ATTACK_SIGHT] != species * attacks || lengths[EC_ATTACK_ESCORT] != species * attacks
+            || lengths[EC_SMELL] != species) {
         free(e);
         return ME_ERR_ARGUMENT;
     }
@@ -142,6 +155,7 @@ MeResult me_create(const void *const *items, const int64_t *lengths, MobExec **o
     e->attack_min_range = copy_table(items[EC_ATTACK_MIN_RANGE], species * attacks, sizeof(float));
     e->attack_sight = copy_table(items[EC_ATTACK_SIGHT], species * attacks, 1);
     e->attack_escort = copy_table(items[EC_ATTACK_ESCORT], species * attacks, 1);
+    e->smell = copy_table(items[EC_SMELL], species, sizeof(float));
     e->goal_key = malloc((size_t)goals * sizeof(int64_t));
     e->goal_used = malloc((size_t)goals * sizeof(int));
     e->cover_x = calloc((size_t)capacity, sizeof(float));
@@ -150,7 +164,7 @@ MeResult me_create(const void *const *items, const int64_t *lengths, MobExec **o
     e->cover_queries = malloc((size_t)COVER_ANGLES * COVER_RADII * 5 * sizeof(float));
     if (!e->executor || !e->attack_slot || !e->preferred_range || !e->max_range || !e->support || !e->attack_exists
             || !e->attack_mutation || !e->attack_range || !e->attack_min_range || !e->attack_sight || !e->attack_escort
-            || !e->goal_key || !e->goal_used || !e->cover_x || !e->cover_z || !e->cover_found || !e->cover_queries) {
+            || !e->smell || !e->goal_key || !e->goal_used || !e->cover_x || !e->cover_z || !e->cover_found || !e->cover_queries) {
         me_destroy(e);
         return ME_ERR_MEMORY;
     }
@@ -181,6 +195,7 @@ typedef struct { float x, y; } V2;
 static inline V2 v2(float x, float y) { V2 v = {x, y}; return v; }
 static inline V2 v2_from_angle(double angle) { float a = (float)angle; return v2(cosf(a), sinf(a)); }
 static inline V2 v2_scale(V2 v, double s) { float f = (float)s; return v2(v.x * f, v.y * f); }
+static inline V2 v2_add(V2 a, V2 b) { return v2(a.x + b.x, a.y + b.y); }
 static inline float v2_length_squared(V2 v) { return v.x * v.x + v.y * v.y; }
 static inline float v2_length(V2 v) { return sqrtf(v.x * v.x + v.y * v.y); }
 static inline float v2_angle(V2 v) { return atan2f(v.y, v.x); }
@@ -409,6 +424,58 @@ static void do_idle(const Run *r, int slot) {
     }
 }
 
+/* A 32-bit hash of the slot's life and roaming period, so each heading's error is fixed for that period and
+ * the same in mob_executors_reference.gd. */
+static uint32_t roam_hash(int slot, int generation, int period) {
+    uint32_t h = ((uint32_t)slot * 73856093u) ^ ((uint32_t)generation * 19349663u) ^ ((uint32_t)period * 83492791u);
+    h = (h ^ (h >> 16)) * 0x45d9f3bu;
+    h = (h ^ (h >> 16)) * 0x45d9f3bu;
+    return h ^ (h >> 16);
+}
+
+/* Heads a few metres toward the scent of the nearest player. Weak smell and distance blur the heading. */
+static void do_roam(const Run *r, int slot) {
+    if (r->behaviour_since[slot] != r->tick && (r->tick + slot * 7) % ROAM_TICKS != 0) return;
+    int players = r->e->dim[ED_PLAYERS], nearest = -1;
+    double best = 0.0;
+    for (int player = 0; player < players; player++) {
+        if (!targetable(r, player)) continue;
+        double distance = distance_to(r, slot, r->party_x[player], r->party_z[player]);
+        if (nearest < 0 || distance < best) {
+            nearest = player;
+            best = distance;
+        }
+    }
+    if (nearest < 0) {
+        hold(r, slot);
+        return;
+    }
+    V2 at = v2(r->xz[slot * 2], r->xz[slot * 2 + 1]);
+    V2 toward = v2((float)((double)r->party_x[nearest] - (double)at.x), (float)((double)r->party_z[nearest] - (double)at.y));
+    double smell = (double)r->e->smell[r->species[slot]];
+    double spread = PI_D;
+    if (smell > 0.0) {
+        spread = (ROAM_SPREAD_DEG / (smell * smell) + ROAM_SPREAD_MIN_DEG) * (PI_D / 180.0);
+        if (best > ROAM_CLEAR_SMELLS * smell) spread *= 1.0 + (best - ROAM_CLEAR_SMELLS * smell) / (ROAM_FADE_SMELLS * smell);
+        if (spread > PI_D) spread = PI_D;
+    }
+    uint32_t h = roam_hash(slot, r->generation[slot], (r->tick + slot * 7) / ROAM_TICKS);
+    /* Smell leans the error toward the true bearing; without it every direction is equally likely. */
+    double noise = smell > 0.0 ? (double)(h & 0xFFFFu) / 65536.0 + (double)(h >> 16) / 65536.0 - 1.0
+                               : 2.0 * (double)(h & 0xFFFFu) / 65536.0 - 1.0;
+    double heading = (double)v2_angle(toward) + spread * noise;
+    for (int step = 0; step < 3; step++) {
+        for (int turn = 0; turn < 5; turn++) {
+            V2 goal = v2_add(at, v2_scale(v2_from_angle(heading + roam_turns[turn]), roam_steps[step]));
+            if (mn_line_clear(r->nav, at.x, at.y, goal.x, goal.y, CLEAR_BODY) != 0) {
+                go_to(r, slot, goal.x, goal.y, ROAM_STOP);
+                return;
+            }
+        }
+    }
+    hold(r, slot);
+}
+
 static void do_search(const Run *r, int slot) {
     int player = target_player(r, slot);
     if (player < 0) hold(r, slot);
@@ -617,6 +684,7 @@ MeResult me_run(MobExec *e, const MobNav *nav, const MobSense *sense, const void
             case MX_HIDE: do_cover(&r, slot, 1); break;
             case MX_DEFEND: do_defend(&r, slot); break;
             case MX_BLOCK: do_block(&r, slot); break;
+            case MX_ROAM: do_roam(&r, slot); break;
             default: hold(&r, slot); break;
         }
     }

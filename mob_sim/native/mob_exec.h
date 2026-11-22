@@ -16,13 +16,15 @@ typedef enum { ME_BYTES, ME_INTS, ME_FLOATS } MeKind;
 typedef enum { ME_OK = 0, ME_ERR_ARGUMENT = 1, ME_ERR_MEMORY = 2 } MeResult;
 
 /* What each behaviour does, in the order mob_executors.gd sends them. */
-typedef enum { MX_HOLD, MX_IDLE, MX_SEARCH, MX_APPROACH, MX_ATTACK, MX_FLEE, MX_COVER, MX_DEFEND, MX_BLOCK, MX_HIDE, MX_KIND_COUNT } MeExecutor;
+typedef enum { MX_HOLD, MX_IDLE, MX_SEARCH, MX_APPROACH, MX_ATTACK, MX_FLEE, MX_COVER, MX_DEFEND, MX_BLOCK, MX_HIDE, MX_ROAM, MX_KIND_COUNT } MeExecutor;
 
 /* Fixed configuration tables, sent once. */
 typedef enum {
     EC_DIMS, EC_EXECUTOR, EC_ATTACK_SLOT,
     EC_PREFERRED_RANGE, EC_MAX_RANGE, EC_SUPPORT,
     EC_ATTACK_EXISTS, EC_ATTACK_MUTATION, EC_ATTACK_RANGE, EC_ATTACK_MIN_RANGE, EC_ATTACK_SIGHT, EC_ATTACK_ESCORT,
+    /* Each species' smell range in metres, which sets how accurately roaming heads toward players. */
+    EC_SMELL,
     EC_COUNT
 } MeConfig;
 

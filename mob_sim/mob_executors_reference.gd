@@ -18,6 +18,19 @@ const MAX_RANGE_SHARE := 0.98
 const CIRCLE_ANGLE := 0.9
 const SEEK_STOP := 0.2
 const WANDER_TICKS := 180
+## Roaming: a new heading every ROAM_TICKS, walking up to one of ROAM_STEPS metres along it, turning by one of
+## ROAM_TURNS when the way is blocked. The heading's error is ROAM_SPREAD_DEG / smell^2 + ROAM_SPREAD_MIN_DEG
+## degrees either way, growing beyond ROAM_CLEAR_SMELLS smell ranges from the player, and any direction at all
+## without smell.
+const ROAM_TICKS := 180
+const ROAM_STOP := 0.3
+const ROAM_SPREAD_DEG := 1600.0
+const ROAM_SPREAD_MIN_DEG := 2.0
+const ROAM_CLEAR_SMELLS := 2.0
+const ROAM_FADE_SMELLS := 4.0
+const ROAM_STEPS := [8.0, 5.0, 3.0]
+const ROAM_TURNS := [0.0, 0.4, -0.4, 0.8, -0.8]
+const MASK_32 := 0xFFFFFFFF
 const WANDER_RADIUS := 3.5
 const WANDER_LEASH := 8.0
 const WANDER_STOP := 0.3
@@ -46,6 +59,7 @@ var goal_refresh_ticks := 1
 var cover_x := PackedFloat32Array()
 var cover_z := PackedFloat32Array()
 var cover_found := PackedByteArray()
+var smell := PackedFloat32Array()
 var _run: Array[Callable] = []
 var _circle_left := 0
 var _circle_right := 0
@@ -72,6 +86,8 @@ func _init(rules_contract: Contract, mob_pool: Pool, mob_party: Party, table: Sp
 	cover_found.fill(0)
 	for label in contract.names:
 		_run.append(Callable(self, "_do_" + label))
+	for kind in species.count:
+		smell.append(species.tables.species_smell[kind] if species.tables != null else 0.0)
 
 
 func has_executor(behaviour: int) -> bool:
@@ -172,6 +188,53 @@ func _do_idle_wander(slot: int, tick: int) -> void:
 		locomotion.go_to(slot, goal.x, goal.y, WANDER_STOP)
 	else:
 		locomotion.hold(slot)
+
+
+## A 32-bit hash of the slot's life and roaming period, so each heading's error is fixed for that period and the
+## same in native/mob_exec.c.
+static func roam_hash(slot: int, generation: int, period: int) -> int:
+	var h := ((slot * 73856093) ^ (generation * 19349663) ^ (period * 83492791)) & MASK_32
+	h = ((h ^ (h >> 16)) * 0x45d9f3b) & MASK_32
+	h = ((h ^ (h >> 16)) * 0x45d9f3b) & MASK_32
+	return h ^ (h >> 16)
+
+
+## Heads a few metres toward the scent of the nearest player. Weak smell and distance blur the heading.
+func _do_roam(slot: int, tick: int) -> void:
+	if pool.behaviour_since[slot] != tick and (tick + slot * 7) % ROAM_TICKS != 0:
+		return
+	var nearest := -1
+	var best := 0.0
+	for player in contract.players:
+		if not party.targetable(player):
+			continue
+		var distance := pool.distance_to(slot, party.x[player], party.z[player])
+		if nearest < 0 or distance < best:
+			nearest = player
+			best = distance
+	if nearest < 0:
+		locomotion.hold(slot)
+		return
+	var at := Vector2(pool.xz[slot * 2], pool.xz[slot * 2 + 1])
+	var toward := Vector2(party.x[nearest] - at.x, party.z[nearest] - at.y)
+	var scent: float = smell[pool.species[slot]]
+	var spread := PI
+	if scent > 0.0:
+		spread = (ROAM_SPREAD_DEG / (scent * scent) + ROAM_SPREAD_MIN_DEG) * (PI / 180.0)
+		if best > ROAM_CLEAR_SMELLS * scent:
+			spread *= 1.0 + (best - ROAM_CLEAR_SMELLS * scent) / (ROAM_FADE_SMELLS * scent)
+		spread = minf(spread, PI)
+	var h := roam_hash(slot, pool.generation[slot], (tick + slot * 7) / ROAM_TICKS)
+	# Smell leans the error toward the true bearing; without it every direction is equally likely.
+	var noise := float(h & 0xFFFF) / 65536.0 + float(h >> 16) / 65536.0 - 1.0 if scent > 0.0 else 2.0 * float(h & 0xFFFF) / 65536.0 - 1.0
+	var heading := toward.angle() + spread * noise
+	for step: float in ROAM_STEPS:
+		for turn: float in ROAM_TURNS:
+			var goal := at + Vector2.from_angle(heading + turn) * step
+			if locomotion.world.line_clear(at.x, at.y, goal.x, goal.y, Locomotion.CLEAR_BODY) != 0:
+				locomotion.go_to(slot, goal.x, goal.y, ROAM_STOP)
+				return
+	locomotion.hold(slot)
 
 
 func _do_search(slot: int, tick: int) -> void:

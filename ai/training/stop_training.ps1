@@ -29,7 +29,7 @@ Remove-Item (Join-Path $RunDir 'processes.json') -ErrorAction SilentlyContinue
 $trainer = Join-Path $RunDir 'trainer.json'
 if (Test-Path $trainer) {
     $state = Get-Content $trainer -Raw | ConvertFrom-Json
-    "Training stopped at policy $($state.version) after $('{0:N0}' -f $state.samples) decisions ($($state.hours) hours of updates)."
+    "Training stopped at policy $($state.version) after $('{0:N0}' -f $state.samples) decisions ($($state.hours) hours of training)."
 } else {
     'Training stopped.'
 }

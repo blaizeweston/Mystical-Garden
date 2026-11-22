@@ -22,7 +22,8 @@
 		{"name": "defend_ally", "target": "ally", "hold_ms": 600, "summary": "Stay between the ally and its nearest threat"},
 		{"name": "block_enemy", "target": "enemy", "hold_ms": 600, "summary": "Body-block the enemy's path"},
 		{"name": "dodge", "target": "none", "hold_ms": 300, "summary": "Sidestep the nearest threat, ignoring hits briefly. Agile species only"},
-		{"name": "channel", "target": "none", "hold_ms": 1000, "summary": "Stand still and refill mana, taking extra damage. Mana species only"}
+		{"name": "channel", "target": "none", "hold_ms": 1000, "summary": "Stand still and refill mana, taking extra damage. Mana species only"},
+		{"name": "roam", "target": "none", "hold_ms": 600, "summary": "Travel a few metres toward the scent of the nearest player. Weaker smell and greater distance make the heading less accurate"}
 	],
 	"manoeuvres": ["direct", "circle_left", "circle_right", "get_behind", "keep_max_range"],
 	"rules": {

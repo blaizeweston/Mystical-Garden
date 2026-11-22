@@ -54,12 +54,13 @@ func _initialize() -> void:
 		print("FAIL native extension did not load")
 		quit(2)
 		return
-	var totals := {"ticks": 0, "starts": 0, "offsets": 0, "largest": 0.0, "decisions": 0, "routes": 0}
+	var totals := {"ticks": 0, "starts": 0, "offsets": 0, "largest": 0.0, "decisions": 0, "routes": 0, "roams": 0}
 	for entry in CASES:
 		compare(int(entry[0]), int(entry[1]), totals)
 	check(totals.starts > 0, "the compared encounters started %d attacks" % totals.starts)
 	check(totals.decisions > 0, "the compared encounters made %d decisions" % totals.decisions)
 	check(totals.routes > 0, "the compared encounters exercised %d approach steps and orders" % totals.routes)
+	check(totals.roams > 0, "the compared encounters exercised roaming %d times" % totals.roams)
 	print("PARITY ", JSON.stringify(totals))
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)
@@ -95,6 +96,7 @@ func compare(seed_value: int, mobs: int, totals: Dictionary) -> void:
 			break
 		problem = _decide_both(sim, reference_brain, now, totals)
 		_inject_routes(sim, now, totals)
+		_inject_roams(sim, now, totals)
 		if not problem.is_empty():
 			problem = "tick %d: %s" % [tick, problem]
 			break
@@ -213,6 +215,19 @@ func _restore(sim, state: Dictionary) -> void:
 	sim.pool.last_sensed = state.last_sensed.duplicate()
 	for key in SENSED_FIELDS:
 		sim.perception.set(key, state[key].duplicate())
+
+
+## The scripted brain never roams, so a share of mobs is switched to roaming now and then, deterministically,
+## for both executor versions to compare. Both read the same pool.
+func _inject_roams(sim, now: int, totals: Dictionary) -> void:
+	if now % 60 != 0:
+		return
+	var roam: int = sim.contract.id("roam")
+	for slot in sim.pool.active:
+		if (slot + now / 60) % 4 == 0 and sim.pool.windup_until[slot] == 0:
+			sim.pool.behaviour[slot] = roam
+			sim.pool.behaviour_since[slot] = now
+			totals.roams += 1
 
 
 ## Gives a few mobs approach steps and shepherd orders, deterministically, so both executor versions

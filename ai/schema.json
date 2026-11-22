@@ -1,5 +1,5 @@
 {
-	"version": 2,
+	"version": 3,
 	"contract": "mob_sim/mob_contract.json",
 	"clip": 5.0,
 	"scales": {
@@ -79,7 +79,7 @@
 			{"name": "buffed", "scale": "flag"}
 		]},
 		{"name": "self_intent", "encoder": "self", "fields": [
-			{"name": "behaviour", "scale": "flag", "size": 15},
+			{"name": "behaviour", "scale": "flag", "size": 16},
 			{"name": "target", "scale": "flag", "size": 12}
 		]},
 		{"name": "self_archetype", "encoder": "self", "fields": [
@@ -163,7 +163,7 @@
 			{"name": "role_melee", "scale": "flag"},
 			{"name": "role_ranged", "scale": "flag"},
 			{"name": "role_support", "scale": "flag"},
-			{"name": "behaviour", "scale": "flag", "size": 15},
+			{"name": "behaviour", "scale": "flag", "size": 16},
 			{"name": "enemy_target", "scale": "flag", "size": 5},
 			{"name": "message", "scale": "flag", "size": 8}
 		]},
@@ -179,7 +179,7 @@
 			{"name": "role_melee", "scale": "flag"},
 			{"name": "role_ranged", "scale": "flag"},
 			{"name": "role_support", "scale": "flag"},
-			{"name": "behaviour", "scale": "flag", "size": 15},
+			{"name": "behaviour", "scale": "flag", "size": 16},
 			{"name": "enemy_target", "scale": "flag", "size": 5},
 			{"name": "message", "scale": "flag", "size": 8},
 			{"name": "ability_cooldown", "scale": "seconds", "size": 3}

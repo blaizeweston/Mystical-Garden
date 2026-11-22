@@ -28,6 +28,7 @@ var settings: Dictionary = {}
 var base_episodes: Dictionary = {}
 var recorder: Recorder
 var env: Env
+var schema_hash := ""
 var policy_version := 0
 var shards_written := 0
 var started_unix := 0
@@ -61,6 +62,7 @@ func _run() -> int:
 		return 2
 	settings = parsed
 	base_episodes = settings.episodes
+	schema_hash = schema.hash_hex
 	for folder in ["shards", "workers"]:
 		DirAccess.make_dir_recursive_absolute(run_dir.path_join(folder))
 	_remove_own_temporaries()
@@ -127,8 +129,14 @@ func _poll_policy() -> void:
 	if not parsed is Dictionary or int(parsed.get("version", 0)) <= policy_version:
 		return
 	var manifest: Dictionary = parsed
+	# A policy made for another schema (say, published before a converted run's trainer started) is ignored
+	# until the trainer publishes one for this schema.
+	if str(manifest.get("schema_hash", schema_hash)) != schema_hash:
+		return
 	var bytes := FileAccess.get_file_as_bytes(run_dir.path_join("policy").path_join(str(manifest.get("file", ""))))
 	if bytes.is_empty() or Recorder.sha256(bytes).hex_encode() != str(manifest.get("sha256", "")):
+		return
+	if bytes.size() < 72 or bytes.slice(8, 72).get_string_from_ascii() != schema_hash:
 		return
 	if recorder.rows > 0 and not _write_shard():
 		return

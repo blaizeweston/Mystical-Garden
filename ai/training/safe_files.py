@@ -40,7 +40,8 @@ def atomic_write_json(path: Path, value: object) -> None:
 def read_json(path: Path) -> dict | None:
     """The file's JSON object, or None when it is missing or unreadable."""
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        # utf-8-sig also accepts the byte-order mark PowerShell writes.
+        value = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError):
         return None
     return value if isinstance(value, dict) else None

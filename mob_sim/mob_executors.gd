@@ -14,13 +14,13 @@ const Pool = preload("res://mob_sim/mob_pool.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
 
 ## Matches MeExecutor in native/mob_exec.h.
-enum Kind { HOLD, IDLE, SEARCH, APPROACH, ATTACK, FLEE, COVER, DEFEND, BLOCK, HIDE }
+enum Kind { HOLD, IDLE, SEARCH, APPROACH, ATTACK, FLEE, COVER, DEFEND, BLOCK, HIDE, ROAM }
 
 const BEHAVIOUR_KINDS := {
 	"idle_wander": Kind.IDLE, "search": Kind.SEARCH, "approach": Kind.APPROACH,
 	"melee_attack": Kind.ATTACK, "ranged_attack": Kind.ATTACK, "ability_1": Kind.ATTACK, "ability_2": Kind.ATTACK, "ability_3": Kind.ATTACK,
 	"flee": Kind.FLEE, "take_cover": Kind.COVER, "hide": Kind.HIDE, "defend_ally": Kind.DEFEND, "block_enemy": Kind.BLOCK, "dodge": Kind.HOLD,
-	"channel": Kind.HOLD,
+	"channel": Kind.HOLD, "roam": Kind.ROAM,
 }
 ## Floats per attack proposal: slot, attack, player, then a fallback movement row.
 const PROPOSAL_STRIDE := 3 + Locomotion.STRIDE
@@ -58,11 +58,20 @@ func _init(rules_contract: Contract, mob_pool: Pool, mob_party: Party, table: Sp
 		locomotion.goal_count, int(contract.rules.goal_refresh_ticks), contract.manoeuvres.find("circle_left"),
 		contract.manoeuvres.find("circle_right"), contract.manoeuvres.find("get_behind"), contract.manoeuvres.find("keep_max_range")])
 	var status: int = locomotion.world.exec_configure([dims, kinds, attack_slot, species.preferred_range, species.max_range, species.support,
-		species.attack_exists, species.attack_mutation, species.attack_range, species.attack_min_range, species.attack_sight, species.attack_escort])
+		species.attack_exists, species.attack_mutation, species.attack_range, species.attack_min_range, species.attack_sight, species.attack_escort,
+		smell_table(species)])
 	if status != OK and error.is_empty():
 		error = "The native executors refused their configuration (%d)." % status
 	if not error.is_empty():
 		push_error(error)
+
+
+## Each species' smell range, which sets how accurately roaming heads toward players.
+static func smell_table(table: Species) -> PackedFloat32Array:
+	var smell := PackedFloat32Array()
+	for kind in table.count:
+		smell.append(table.tables.species_smell[kind] if table.tables != null else 0.0)
+	return smell
 
 
 func has_executor(behaviour: int) -> bool:
