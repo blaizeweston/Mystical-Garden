@@ -1,7 +1,8 @@
 #ifndef MOB_SENSE_H
 #define MOB_SENSE_H
 /* Native mob perception. With senses off it reproduces mob_perception.gd's reference sight exactly.
- * With senses on it adds light-scaled sight with darkvision, hearing from noise events, and scent
+ * With senses on, sight needs light: a player is seen in light, within darkvision of the mob, or within
+ * darkvision of the edge of any lit area. Senses also add hearing from noise events and scent
  * tracking through walls. With senses on, an engaged mob no longer tracks unseen players for free;
  * it must see, hear or smell them. Outputs are written as raw bytes for the script to slice back into arrays. */
 
@@ -56,6 +57,8 @@ MsResult ms_update(MobSense *sense, MobNav *nav, const void *const *items, const
 MsResult ms_allies(MobSense *sense, MobNav *nav, const void *const *items, const int64_t *lengths, uint8_t *out);
 /* Light level from 0 to 1 at a point, from the most recent update. Senses must be on. */
 float ms_light_at(const MobSense *sense, float x, float z);
+/* Distance from a point to the nearest lit cell, zero inside light. */
+float ms_darkness_at(const MobSense *sense, float x, float z);
 float ms_scent_at(const MobSense *sense, int player, float x, float z);
 
 #endif

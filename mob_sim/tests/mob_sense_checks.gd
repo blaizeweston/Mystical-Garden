@@ -22,6 +22,7 @@ func _initialize() -> void:
 	test_senses_off()
 	test_darkness_and_light()
 	test_darkvision()
+	test_darkvision_past_light()
 	test_hearing()
 	test_smell()
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
@@ -108,6 +109,23 @@ func test_darkvision() -> void:
 
 
 ## The Mourning Willow hears up to 7 units and has no sense of smell, so only hearing can inform it.
+## The Rootbound Pilgrim has 3 units of darkvision. A light at the mob lights everything within 3 units.
+func test_darkvision_past_light() -> void:
+	var sim := make_sim(true, 0.0)
+	var mob := add_mob(sim, "rootbound", Vector2(0, 5))
+	sim.perception.lights = PackedFloat32Array([0.0, 5.0, 4.0, 1.0])
+	sim.party.set_player(0, Vector2(0, 10), Vector2.ZERO, 100.0, 100.0)
+	sense(sim)
+	check(is_zero_approx(sim.locomotion.world.sense_darkness_at(0.0, 5.0)), "a lit cell has no darkness distance")
+	check(sim.perception.sees(mob, 0), "darkvision extends sight past the edge of the light the mob stands in")
+	sim.party.set_player(0, Vector2(0, 13.5), Vector2.ZERO, 100.0, 100.0)
+	sense(sim)
+	check(not sim.perception.sees(mob, 0), "a player farther past the light's edge than the darkvision range stays hidden")
+	sim.perception.lights = PackedFloat32Array([0.0, 14.0, 2.0, 1.0])
+	sense(sim)
+	check(sim.perception.sees(mob, 0), "a player standing in a distant light is seen at normal sight range")
+
+
 func test_hearing() -> void:
 	var sim := make_sim(true, 1.0)
 	var mob := add_mob(sim, "willow", Vector2(0, 3))

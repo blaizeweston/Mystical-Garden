@@ -310,6 +310,10 @@ static void m_sense_light_at(World *world, const void *const *args, void *result
     *(double *)result = world->sense != NULL ? ms_light_at(world->sense, (float)arg_float(args, 0), (float)arg_float(args, 1)) : 1.0;
 }
 
+static void m_sense_darkness_at(World *world, const void *const *args, void *result) {
+    *(double *)result = world->sense != NULL ? ms_darkness_at(world->sense, (float)arg_float(args, 0), (float)arg_float(args, 1)) : 0.0;
+}
+
 static void m_sense_scent_at(World *world, const void *const *args, void *result) {
     *(double *)result = world->sense != NULL
         ? ms_scent_at(world->sense, (int)arg_int(args, 0), (float)arg_float(args, 1), (float)arg_float(args, 2)) : 0.0;
@@ -547,6 +551,7 @@ static const Method methods[] = {
     {"sense_update", m_sense_update, KIND_BYTES, 1, {KIND_ARRAY}, {"inputs"}},
     {"sense_allies", m_sense_allies, KIND_BYTES, 1, {KIND_ARRAY}, {"inputs"}},
     {"sense_light_at", m_sense_light_at, KIND_FLOAT, 2, {KIND_FLOAT, KIND_FLOAT}, {"x", "z"}},
+    {"sense_darkness_at", m_sense_darkness_at, KIND_FLOAT, 2, {KIND_FLOAT, KIND_FLOAT}, {"x", "z"}},
     {"sense_scent_at", m_sense_scent_at, KIND_FLOAT, 3, {KIND_INT, KIND_FLOAT, KIND_FLOAT}, {"player", "x", "z"}},
     {"exec_speeds", m_exec_speeds, KIND_FLOATS, 1, {KIND_ARRAY}, {"inputs"}},
     {"obs_reset_slot", m_obs_reset_slot, KIND_INT, 1, {KIND_INT}, {"slot"}},

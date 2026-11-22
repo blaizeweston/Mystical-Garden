@@ -169,7 +169,7 @@ At first, the arena mirrors framework mobs into the roster fields the existing e
 | Flying | Hover species use a second movement layer that ignores low walls and ground hazards and is immune to roots. Hit rules stay 2.5D |
 | Hearing | Attacks, casts, dodges and sprinting emit noise events. Mobs inside the radius learn the source position without sight |
 | Smell | Players leave a decaying scent trail. Mobs with smell follow it to the last known position |
-| Darkness | The host keeps a light grid from ambient biome light plus light sources: player light, fire, glowing species and the Heart. Enemy sight range scales with light and darkvision. Players see enemies only when they are lit or close. The fog of war is drawn from the same grid. Guests rebuild the grid from the replicated light sources |
+| Darkness | The host keeps a light grid from ambient biome light plus light sources: player light, fire, glowing species and the Heart. Enemies see players in light at full range, and darkvision extends sight past the edge of light and around the enemy itself. Players see enemies only when they are lit or close. The fog of war is drawn from the same grid. Guests rebuild the grid from the replicated light sources |
 
 ## Training
 
@@ -316,7 +316,7 @@ At 100 mobs the remaining time is decisions (0.05 ms, mostly the GDScript decisi
 
 `native/mob_sense.c` adds light, darkvision, hearing and smell, switched on with `MobPerception.set_senses(true)`. They stay off until Phase 4. `mob_sim/tests/mob_sense_checks.gd` (18 checks) covers them.
 
-- **Light:** the host supplies light sources and an ambient level. The light grid is rebuilt only when they change. Sight range is the species' sight scaled by the light at the player, but never below its darkvision.
+- **Light:** the host supplies light sources and an ambient level. The light grid, and each cell's distance to the nearest lit cell, are rebuilt only when they change. A cell is lit at a quarter light or more. Within normal sight range and a clear line, a mob sees a player who stands in light, within its darkvision of the mob, or within its darkvision of the edge of any lit area. So darkvision extends sight past the light a mob stands in, and lights a radius around it in full darkness.
 - **Hearing:** the host reports noises with a loudness. Every mob whose hearing reaches a noise learns its position, even through walls, and engages.
 - **Smell:** players leave a scent trail that halves every six seconds. Engaged mobs with smell follow the freshest trail within range when they cannot see the player.
 - **Design change with senses on:** engaged mobs no longer track unseen players within their awareness radius for free. They must see, hear or smell them. With senses off, that legacy tracking stays, so parity holds.

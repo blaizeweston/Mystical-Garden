@@ -6,6 +6,11 @@
 
 #define SIGHT_STRIDE 5
 #define MAX_NEIGHBOURS 32
+/* A cell counts as lit at a quarter light or more. */
+#define LIT_THRESHOLD 0.25f
+/* Darkness distance for cells with no lit cell anywhere. */
+#define NO_LIGHT 1.0e9f
+#define SQRT2_F 1.41421356f
 
 static const MsKind config_kinds[SC_COUNT] = {
     [SC_DIMS] = SK_INTS, [SC_REALS] = SK_FLOATS, [SC_VISION] = SK_FLOATS, [SC_DARKVISION] = SK_FLOATS,
@@ -35,6 +40,8 @@ struct MobSense {
     uint8_t *clear;
     /* Senses state. */
     float *light, *scent, *light_key;
+    /* Distance in world units from each cell to the nearest lit cell. Zero inside light. */
+    float *darkness;
     int64_t light_key_length;
     float light_key_ambient;
     int light_ready;
@@ -66,7 +73,7 @@ void ms_destroy(MobSense *s) {
     if (s == NULL) return;
     free(s->vision); free(s->darkvision); free(s->hearing); free(s->smell);
     free(s->queries); free(s->nearest); free(s->slot_floats); free(s->owners); free(s->pairs); free(s->newly); free(s->clear);
-    free(s->light); free(s->scent); free(s->light_key);
+    free(s->light); free(s->scent); free(s->light_key); free(s->darkness);
     free(s);
 }
 
@@ -100,9 +107,10 @@ MsResult ms_create(const void *const *items, const int64_t *lengths, MobSense **
     s->newly = malloc((size_t)capacity * sizeof(int));
     s->clear = malloc((size_t)capacity * (players > neighbours ? players : neighbours));
     s->light = malloc((size_t)cells * sizeof(float));
+    s->darkness = malloc((size_t)cells * sizeof(float));
     s->scent = calloc((size_t)cells * players, sizeof(float));
     if (!s->vision || !s->darkvision || !s->hearing || !s->smell || !s->queries || !s->nearest || !s->slot_floats
-            || !s->owners || !s->pairs || !s->newly || !s->clear || !s->light || !s->scent) {
+            || !s->owners || !s->pairs || !s->newly || !s->clear || !s->light || !s->darkness || !s->scent) {
         ms_destroy(s);
         return SK_ERR_MEMORY;
     }
@@ -217,8 +225,41 @@ static int refresh_light(Pass *p) {
             s->light[cx + cz * w] = level < 0.0f ? 0.0f : (level > 1.0f ? 1.0f : level);
         }
     }
+    /* Two-pass chamfer distance to the nearest lit cell, with straight and diagonal steps. */
+    float straight = cell, diagonal = cell * SQRT2_F;
+    float *dark = s->darkness;
+    for (int i = 0; i < w * h; i++) dark[i] = s->light[i] >= LIT_THRESHOLD ? 0.0f : NO_LIGHT;
+    for (int cz = 0; cz < h; cz++) {
+        for (int cx = 0; cx < w; cx++) {
+            float *d = dark + cx + cz * w;
+            if (cx > 0 && d[-1] + straight < *d) *d = d[-1] + straight;
+            if (cz > 0) {
+                if (d[-w] + straight < *d) *d = d[-w] + straight;
+                if (cx > 0 && d[-w - 1] + diagonal < *d) *d = d[-w - 1] + diagonal;
+                if (cx < w - 1 && d[-w + 1] + diagonal < *d) *d = d[-w + 1] + diagonal;
+            }
+        }
+    }
+    for (int cz = h - 1; cz >= 0; cz--) {
+        for (int cx = w - 1; cx >= 0; cx--) {
+            float *d = dark + cx + cz * w;
+            if (cx < w - 1 && d[1] + straight < *d) *d = d[1] + straight;
+            if (cz < h - 1) {
+                if (d[w] + straight < *d) *d = d[w] + straight;
+                if (cx < w - 1 && d[w + 1] + diagonal < *d) *d = d[w + 1] + diagonal;
+                if (cx > 0 && d[w - 1] + diagonal < *d) *d = d[w - 1] + diagonal;
+            }
+        }
+    }
     s->light_ready = 1;
     return 1;
+}
+
+float ms_darkness_at(const MobSense *s, float x, float z) {
+    if (!s->light_ready) return 0.0f;
+    int cell = grid_cell(s, x, z);
+    if (cell < 0) return s->light_key_ambient >= LIT_THRESHOLD ? 0.0f : NO_LIGHT;
+    return s->darkness[cell];
 }
 
 float ms_light_at(const MobSense *s, float x, float z) {
@@ -381,14 +422,16 @@ MsResult ms_update(MobSense *s, MobNav *nav, const void *const *items, const int
             int at = slot * players + player;
             p.visible[at] = 0;
             if (!targetable(&p, player)) continue;
-            double range_limit = s->vision[kind];
-            if (senses) {
-                double lit = (double)s->vision[kind] * (double)ms_light_at(s, p.party_x[player], p.party_z[player]);
-                range_limit = fmax((double)s->darkvision[kind], lit);
-            }
             double dx = (double)p.party_x[player] - x, dz = (double)p.party_z[player] - z;
             double distance = sqrt(dx * dx + dz * dz);
-            if (distance <= range_limit) {
+            int seeable = distance <= (double)s->vision[kind];
+            if (senses && seeable) {
+                /* Darkvision counts as light within its range of the mob, and extends past the edge of
+                 * any lit area by the same range. A lit player is seen at full sight range. */
+                double darkvision = s->darkvision[kind];
+                seeable = distance <= darkvision || (double)ms_darkness_at(s, p.party_x[player], p.party_z[player]) <= darkvision;
+            }
+            if (seeable) {
                 float *query = s->queries + query_count * SIGHT_STRIDE;
                 query[0] = (float)x;
                 query[1] = (float)z;

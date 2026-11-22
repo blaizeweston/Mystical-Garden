@@ -13,7 +13,8 @@ const MANA_FIELDS := ["pool", "channel_per_second", "channel_damage_taken"]
 var layer: int = Enums.Layer.GROUND
 ## Sight range in full light. NAN means the shared aggro radius from the combat balance.
 var sight := NAN
-## Sight range kept in darkness.
+## Within this range of the mob, darkness counts as light. Sight also reaches this far past the edge of
+## any lit area.
 var darkvision := 0.0
 var hearing := 0.0
 var smell := 0.0
