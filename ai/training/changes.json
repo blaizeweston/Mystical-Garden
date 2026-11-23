@@ -6,6 +6,7 @@
 		{"version": 5063, "title": "Reward update", "detail": "Damage 1.25, downs 3.75, wipe 8.5. New: +0.05 making a player dodge, +0.01 dodging a hit, +0.02 landing an ability. KL measured on each update's final pass; learning rate capped at 0.001."},
 		{"version": 5419, "title": "Moved to PC2", "detail": "Training continues on the second computer (RTX 4060, 20 workers) from checkpoint 5418."},
 		{"version": 9133, "title": "Learning-rate cap 0.002", "detail": "Fighting was flat from 350M to 618M with KL near 0.003 against its 0.015 target and the learning rate pinned at 0.001. The cap rises to 0.002 (trainer setting max_learning_rate); everything else unchanged."},
-		{"version": 9501, "title": "Learning-rate cap 0.005", "detail": "At the 0.002 cap KL still peaked near 0.0055, so the cap rose to 0.005 to let the KL target (0.015) set the rate. The rate reached 0.005 within 5 updates; KL rose to about 0.006-0.010."}
+		{"version": 9501, "title": "Learning-rate cap 0.005", "detail": "At the 0.002 cap KL still peaked near 0.0055, so the cap rose to 0.005 to let the KL target (0.015) set the rate. The rate reached 0.005 within 5 updates; KL rose to about 0.006-0.010."},
+		{"version": 12379, "title": "Rewards v3", "detail": "An evaluation on 300 identical fights showed no gain since 213M decisions and a reward made mostly of things a mob does not control. Squad mix 0.6 -> 0.3, support lost 1.0 -> 0.3, damage 1.25 -> 2.0 per health bar. Mob reward per life shifts level here. Critic accuracy (explained variance) is logged from here on."}
 	]
 }
