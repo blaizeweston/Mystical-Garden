@@ -125,6 +125,8 @@ def test_trainer(schema: MobSchema, folder: Path) -> None:
     check(not list((run / "shards").glob("*.shard")) and trainer.rejected == 1, "used and damaged shards are removed")
     metrics = (run / "logs" / "metrics.jsonl").read_text().splitlines()
     check(len(metrics) == 1 and '"replay_gap"' in metrics[0], "each update writes a metrics line")
+    explained = __import__("json").loads(metrics[0]).get("explained_variance")
+    check(isinstance(explained, float) and explained <= 1.0, "each update logs the critic's explained variance")
     for index in range(3):
         trainer.checkpoint()
         trainer.version += 1

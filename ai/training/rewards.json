@@ -1,7 +1,7 @@
 {
 	"unit": "One player's full health bar equals 1.0. Rewards v2: see ai/mob_rewards.gd.",
 	"mob": {
-		"damage_to_player_per_health_bar": 1.25,
+		"damage_to_player_per_health_bar": 2.0,
 		"healing_per_health_bar": 0.6,
 		"player_downed": 3.75,
 		"assist_window_seconds": 5.0,
@@ -12,7 +12,7 @@
 		"line_of_sight_per_second": 0.01,
 		"line_of_sight_cap_per_decision": 0.005,
 		"support_alive_casting_per_second": 0.02,
-		"support_lost": 1.0,
+		"support_lost": 0.3,
 		"own_hp_lost_per_health_bar": 0.3,
 		"party_wipe": 8.5,
 		"own_death_per_mob_value": -0.15,
@@ -20,7 +20,7 @@
 		"mob_value_elite": 3.0,
 		"intent_change": -0.002,
 		"squad_mix_start": 0.2,
-		"squad_mix_end": 0.6
+		"squad_mix_end": 0.3
 	},
 	"player_bot": {
 		"damage_taken_per_health_bar": -1.0,

@@ -78,7 +78,7 @@ func test_damage_and_loss() -> void:
 	rewards.take(slot)
 	sim.record_hit(slot, sim.pool.generation[slot], 0, 50.0)
 	step(sim, rewards)
-	check(is_equal_approx(rewards.take(slot), 0.625), "half a player's health bar earns 0.625")
+	check(is_equal_approx(rewards.take(slot), 1.0), "half a player's health bar earns 1.0")
 	sim.damage_mob(slot, 30.0, 0)
 	step(sim, rewards)
 	check(is_equal_approx(rewards.take(slot), -0.09), "losing 30% of its own health costs 0.09")
@@ -139,7 +139,7 @@ func test_supports() -> void:
 	sim.pool.windup_until[support] = 0
 	sim.damage_mob(support, 1000.0, 0)
 	step(sim, rewards)
-	check(rewards.take(fighter) <= -1.0, "losing a support costs its allies its value")
+	check(rewards.take(fighter) <= -0.3, "losing a support costs its allies 0.3 times its value")
 
 
 func test_sight_cap() -> void:
@@ -212,4 +212,4 @@ func test_squad_mix() -> void:
 	rewards.take(mate)
 	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 100.0)
 	step(sim, rewards)
-	check(is_equal_approx(rewards.take(hitter), 1.0) and is_equal_approx(rewards.take(mate), 0.25), "an ally receives the squad's share")
+	check(is_equal_approx(rewards.take(hitter), 1.6) and is_equal_approx(rewards.take(mate), 0.4), "an ally receives the squad's share")

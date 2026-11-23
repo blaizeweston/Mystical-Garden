@@ -94,10 +94,10 @@ const CHARTS = [
   {key: "learning_rate", title: "Learning rate", hint: "Lowered automatically if the KL goes above its limit.", digits: 5, better: 0},
   {key: "clip_fraction", title: "Clip fraction", hint: "Share of choices PPO held back from changing too far. Under 0.2 is healthy.", digits: 3, better: 0},
   {key: "value_loss", title: "Critic error (value loss)", hint: "How well the critic predicts rewards. Should stay small and steady; jumps after reward changes are normal.", digits: 4, better: 0},
-  {key: "speed", title: "Decisions trained per second", hint: "All workers together, as the trainer takes them in.", better: 1, digits: 0},
+  {key: "explained_variance", title: "Critic accuracy (explained variance)", hint: "How much of what mobs go on to earn the critic predicts: 1 is perfect, 0 is no better than the average. Above 0.3 (dashed) is healthy; low means mobs learn from noise. Logged from Rewards v3 on.", target: 0.3, digits: 3, better: 1},
 ];
 const SUMMARY_NAMES = {wipe_rate: ["Party wiped", 1, true], explore_found_rate: ["Party found", 1, true], explore_first_sight_s: ["Time to find (s)", -1],
-  damage_to_party: ["Damage to party", 1], life_return: ["Mob reward / life", 1], entropy: ["Entropy", 0], approx_kl: ["KL", 0, false, 4], speed: ["Decisions / s", 1, false, 0]};
+  damage_to_party: ["Damage to party", 1], life_return: ["Mob reward / life", 1], entropy: ["Entropy", 0], approx_kl: ["KL", 0, false, 4], explained_variance: ["Critic accuracy", 1, false, 3], speed: ["Decisions / s", 1, false, 0]};
 const grid = document.getElementById("grid");
 const tip = document.getElementById("tip");
 const modal = document.getElementById("modal");

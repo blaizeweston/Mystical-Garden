@@ -265,7 +265,12 @@ class Trainer:
         old_log_prob = tensor(batch.log_prob)
         with torch.no_grad():
             values = torch.cat([self.critic(obs[i:i + 16384], global_state[i:i + 16384]) for i in range(0, batch.rows, 16384)])
-        advantage, returns = R.advantages(batch.reward, values.cpu().numpy(), batch.end, float(cfg["gamma"]), float(cfg["lambda"]))
+        value_rows = values.cpu().numpy()
+        advantage, returns = R.advantages(batch.reward, value_rows, batch.end, float(cfg["gamma"]), float(cfg["lambda"]))
+        # How much of the spread in the critic's targets its predictions explain, before this update trains it.
+        # Near 0 means the advantages PPO learns from are mostly noise.
+        spread = float(np.var(returns))
+        explained = 1.0 - float(np.var(returns - value_rows)) / spread if spread > 0.0 else 0.0
         advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
         advantage_t, returns_t = tensor(advantage), tensor(returns)
         windows, _first = R.sequences(batch.life, int(cfg["sequence"]))
@@ -320,6 +325,7 @@ class Trainer:
         stats["mean_kl"] = stats["approx_kl"]
         stats["approx_kl"] = round(final_kl / max(1, final_steps), 5)
         stats["value_mean"] = round(values.mean().item(), 4)
+        stats["explained_variance"] = round(explained, 4)
         return stats
 
     def _replay_gap(self, batch, obs, masks, actions, old_log_prob, index, valid, start_memory) -> float:
