@@ -14,7 +14,7 @@ const DEFINITIONS := {
 	"orb": {"carry_pitch":0.0,"mesh_roll":0.0,"clips":["Attack_focus_push","Attack_focus_gather"],"recoveries":["Recover_focus_push","Recover_focus_gather"],"separate_recovery":true,"impact":0.48},
 	"bow": {"carry_pitch":8.0,"mesh_roll":0.0,"relaxed":true,"procedural_stance":true,"carry_twist":0.0,"strike_twist":-55.0,"clips":[]},
 	"crossbow": {"carry_pitch":8.0,"mesh_roll":0.0,"clips":[]},
-	"ring": {"carry_pitch":160.0,"mesh_roll":-20.0,"relaxed":true,"clips":["OverhandThrow"],"impact":0.60},
+	"ring": {"carry_pitch":160.0,"mesh_roll":90.0,"relaxed":true,"clips":["OverhandThrow"],"impact":0.60},
 	"whip": {"carry_pitch":20.0,"mesh_roll":0.0,"relaxed":true,"clips":["Melee_Hook"],"recoveries":["Melee_Hook_Rec"],"impact":0.9},
 	"bell": {"carry_pitch":-10.0,"mesh_roll":0.0,"relaxed":true,"clips":["Spell_Simple_Shoot"],"impact":0.55},
 	"censer": {"carry_pitch":-12.0,"mesh_roll":0.0,"relaxed":true,"clips":["Melee_Hook"],"recoveries":["Melee_Hook_Rec"],"impact":0.85},
