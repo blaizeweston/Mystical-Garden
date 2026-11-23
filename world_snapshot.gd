@@ -20,7 +20,8 @@ const CLIPS := ["", "Attack_bell", "Attack_blade", "Attack_bow", "Attack_censer"
 	"Attack_hammer_line", "Attack_knives_line", "Attack_scythe_line", "Attack_spear_sweep", "Attack_whip_sweep", "Attack_maul_overhead", "Attack_maul_sweep", "Attack_wand_forward", "Attack_wand_sweep", "Attack_focus_push", "Attack_focus_gather",
 	"Attack_bow_upright", "Attack_bow_canted", "Attack_crossbow_raised", "Attack_crossbow_low", "Attack_ring_sidearm", "Attack_ring_rising", "Attack_knives_right", "Attack_knives_left",
 	"Attack_rootblade_forehand", "Attack_rootblade_backhand", "Attack_staff_forward", "Attack_staff_side",
-	"Attack_whip_forehand", "Attack_whip_backhand", "Attack_scythe_crossing", "Attack_scythe_return"]
+	"Attack_whip_forehand", "Attack_whip_backhand", "Attack_scythe_crossing", "Attack_scythe_return",
+	"Attack_bell_lift", "Attack_bell_outward", "Attack_censer_forward", "Attack_censer_diagonal", "Attack_fan_forehand", "Attack_fan_backhand"]
 const DELIVERIES := ["sweep", "line", "projectile", "radial", "sector"]
 
 

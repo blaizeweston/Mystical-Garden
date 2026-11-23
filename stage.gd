@@ -1207,11 +1207,11 @@ func weapon_release_point(event: Dictionary) -> Vector3:
 	var focus_cast := clip in ["Attack_focus_push","Attack_focus_gather"]
 	if focus_cast: form="orb"
 	var reviewed_form := str(event.get("form",""))
-	if reviewed_form in ["bow","crossbow","ring"] and clip.begins_with("Attack_"+reviewed_form+"_"): form=reviewed_form
+	if reviewed_form in ["bow","crossbow","ring","fan"] and clip.begins_with("Attack_"+reviewed_form+"_"): form=reviewed_form
 	if body not in [0,1] or not is_finite(yaw) or not is_finite(height) or height<.92 or height>1.08 or form.is_empty():return Vector3.INF
 	var actor: Dictionary=avatar_models.get(int(event.get("owner",0)),{})
-	if form in ["bow","crossbow","ring"]:
-		var contact := preload("res://reviewed_weapon_attacks.gd").release_offset(body,clip,height)
+	if form in ["bow","crossbow","ring","fan"]:
+		var contact := preload("res://reviewed_weapon_attacks.gd").release_offset(body,clip,height,int(release.get("rim",1)))
 		if not contact.is_finite():return Vector3.INF
 		return WILD_OFFSET+Vector3(position[0],position[1],position[2])+Basis(Vector3.UP,yaw)*contact
 	if focus_cast:

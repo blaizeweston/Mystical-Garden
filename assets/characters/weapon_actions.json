@@ -271,7 +271,11 @@
     "variants": {
       "line": "Attack_bell_line",
       "sweep": "Attack_bell_sweep"
-    }
+    },
+    "basic_variants": [
+      {"clip": "Attack_bell_lift"},
+      {"clip": "Attack_bell_outward"}
+    ]
   },
   "censer": {
     "duration": 0.6,
@@ -292,7 +296,11 @@
     "variants": {
       "line": "Attack_censer_line",
       "sweep": "Attack_censer_sweep"
-    }
+    },
+    "basic_variants": [
+      {"clip": "Attack_censer_forward"},
+      {"clip": "Attack_censer_diagonal"}
+    ]
   },
   "fan": {
     "duration": 0.38,
@@ -312,6 +320,10 @@
     "speed": 26,
     "variants": {},
     "spread": 0.3,
-    "projectiles": 3
+    "projectiles": 3,
+    "basic_variants": [
+      {"clip": "Attack_fan_forehand"},
+      {"clip": "Attack_fan_backhand"}
+    ]
   }
 }

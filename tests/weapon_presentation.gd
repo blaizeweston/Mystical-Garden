@@ -49,7 +49,6 @@ func run() -> void:
 				inspect_attack(actor,form)
 				inspect_continuity(actor,form)
 				inspect_body_clearance(actor,form)
-				inspect_relaxed_recovery(actor,form)
 				actor.visual_weapon.free()
 				actor.erase("visual_weapon")
 				if actor.has("secondary_weapon"):
@@ -96,7 +95,7 @@ func inspect_carry(actor: Dictionary, form: String) -> void:
 		check(weapon.get_node("CoreSeed").global_position.y>pelvis.y+.15,"focus is above the pelvis while standing and moving")
 	if form in ["blade","knives"]:
 		check(weapon.global_basis.y.normalized().z>.30,"carry leans forward: "+form)
-	if form in ["blade","knives","hammer","fan"]:
+	if form in ["blade","knives","hammer"]:
 		var correction := Poses.orientation(form,0.0,false,0.0,{})
 		check(absf(correction.z.dot(Vector3.BACK))<.001,"authored broad-face plane corrected by 90 degrees: "+form)
 	if form=="bow":
@@ -118,7 +117,7 @@ func inspect_attack(actor: Dictionary, form: String) -> void:
 	var windup := Field.hand(actor,false)
 	pose(actor,form,contact,true)
 	var hand := Field.hand(actor,false)
-	if form in ["bell","censer","fan"]:
+	if form in ["censer","fan"]:
 		check(hand.distance_to(windup)>.24,"utility attack travels forward rather than shrugging: "+form)
 	if form=="spear":
 		pose(actor,form,0.0,false)
@@ -126,10 +125,17 @@ func inspect_attack(actor: Dictionary, form: String) -> void:
 		pose(actor,form,contact,true)
 		var thrust := Field.hand(actor,false)-start
 		check(thrust.z>.15 and absf(thrust.y)<.15 and absf(actor.visual_weapon.global_basis.y.normalized().y)<.10,"reviewed spear thrust drives forward with a level shaft")
-	if form in ["bell","censer"]:
-		var model: Dictionary=Models.MODELS[form]
-		var body: Vector3=actor.visual_weapon.to_global(model.core)-hand
-		check(body.z>.20,"hanging instrument swings forward: "+form)
+	if form=="bell":
+		check(hand.y>windup.y+.15,"the Bell rises in the holding hand")
+	if form=="censer":
+		var weapon: Node3D=actor.visual_weapon
+		var rig: Skeleton3D=weapon.get_meta("suspension_rig")
+		var joint: int=weapon.get_meta("suspension_joint")
+		var skin:=rig.get_bone_global_pose(joint)*rig.get_bone_global_rest(joint).affine_inverse()
+		var bowl:=rig.to_global(skin*Vector3(0,.15,0))
+		check(bowl.z>hand.z+.12,"the suspended bowl swings ahead of the gripping hand: "+str(bowl-hand))
+		var seed_point:=rig.to_global(skin*Vector3(Models.MODELS.censer.core))
+		check(seed_point.distance_to(weapon.get_node("CoreSeed").global_position)<.002,"the seed follows the skinned bowl")
 	if form=="bow":
 		pose(actor,form,contact-.001,true)
 		check(actor.visual_weapon.get_node("NockedArrow").to_global(Vector3(0,.2,-.2)).distance_to(Field.hand(actor,false))<.035,"attack draw stays on the nock")
@@ -140,7 +146,7 @@ func inspect_attack(actor: Dictionary, form: String) -> void:
 	pose(actor,form,0.0,false)
 	var ready := primary.global_basis.get_rotation_quaternion()
 	pose(actor,form,1.0,true)
-	if form in ["hammer","staff","bow","crossbow","ring","knives","whip","scythe"]:
+	if form in ["hammer","staff","bow","crossbow","ring","knives","whip","scythe","bell","censer","fan"]:
 		for frame in 30:pose(actor,form,0.0,false)
 	if form not in ["wand","blade"]:
 		check(ready.angle_to(primary.global_basis.get_rotation_quaternion())<.001,"action and its recovery end at the same carry orientation: "+form)
@@ -181,26 +187,6 @@ func inspect_body_clearance(actor: Dictionary, form: String) -> void:
 			var closest := Geometry3D.get_closest_points_between_segments(bone_point(skeleton,"lowerarm_"+side),bone_point(skeleton,"hand_"+side),bone_point(skeleton,"spine_01"),bone_point(skeleton,"spine_03"))
 			nearest=minf(nearest,closest[0].distance_to(closest[1]))
 	check(nearest>.14,"forearms remain outside the conservative torso capsule throughout the attack: "+str([form,nearest]))
-
-func inspect_relaxed_recovery(actor: Dictionary, form: String) -> void:
-	if form not in ["bell","censer","fan"]:return # Reviewed grips have explicit returns to their own ready poses.
-	# Same clock sample: weapon carry may not replace the original relaxed arms.
-	actor.idle_time=.75
-	Avatar.animate(actor,false,0.0,"",{},1.0)
-	var right := Field.hand(actor,false)
-	var left := Field.hand(actor,true)
-	actor.idle_time=.75
-	Avatar.animate(actor,false,0.0,form,{"equipped":true},1.0)
-	check(right.distance_to(Field.hand(actor,false))<.015 and left.distance_to(Field.hand(actor,true))<.015,"ordinary carry uses relaxed idle arms instead of a permanent attack guard: "+form)
-	for frame in 90:
-		Avatar.animate(actor,false,0.0,form,{"equipped":true},1.0/60.0)
-	var skeleton: Skeleton3D=actor.field_rig.skeleton
-	var spine := skeleton.get_bone_pose_rotation(skeleton.find_bone("spine_03"))
-	var clock := float(actor.idle_time)
-	Avatar.animate(actor,false,0.0,"",{},1.0)
-	actor.idle_time=clock-1.0
-	Avatar.animate(actor,false,0.0,form,{"equipped":true},1.0)
-	check(spine.angle_to(skeleton.get_bone_pose_rotation(skeleton.find_bone("spine_03")))<.015,"post-attack torso recovers to the current idle sample: "+form)
 
 func inspect_sampling_independence(actor: Dictionary) -> void:
 	var field: Dictionary=actor.field_rig

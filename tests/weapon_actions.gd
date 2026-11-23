@@ -96,6 +96,8 @@ func run():
      var flight: Array=game.combat_events.filter(func(e):return e.kind=="projectile")
      check(flight.size()==int(profile.get("projectiles",1)) and str(flight[0].form)==form,"matching projectiles "+form)
      if form=="fan":
+      var rims: Array=flight.map(func(e):return e.weapon_release.rim)
+      check(rims==[1,2,0] and is_equal_approx(flight[0].weapon_release.yaw,flight[1].weapon_release.yaw) and is_equal_approx(flight[0].weapon_release.yaw,flight[2].weapon_release.yaw),"three petal sockets share the original cast direction")
       WeaponCase.advance(game,int(shot.due)+300)
       check(game.enemy_health()==100-int(shot.stats.preview_strike_hp) and float(flight[1].to[0])*float(flight[2].to[0])<0,"petals spread on both sides and only hit a shared target once")
      if form=="orb":

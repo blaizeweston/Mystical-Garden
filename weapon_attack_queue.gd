@@ -89,7 +89,8 @@ func advance(port, now: int) -> void:
 			for ray in rays:
 				if not is_same(ray, shot): _pending.append(ray)
 				ray.visual_event_id = port.show_projectile(ray.player, ray.form, ray.origin, ray.aim,
-					maxf(.03, (int(ray.due) - int(ray.release)) / 1000.0), ray.stats, ray.get("ranger_secondary", false), int(ray.get("sequence",-1)))
+					maxf(.03, (int(ray.due) - int(ray.release)) / 1000.0), ray.stats, ray.get("ranger_secondary", false), int(ray.get("sequence",-1)),
+					ray.direction, int(ray.get("fan_rim",1)))
 		for ray in rays:
 			var complete := _advance_ray(port, ray, now, revision)
 			if revision != _revision: return
@@ -119,6 +120,7 @@ func _volley(port, shot: Dictionary) -> Array:
 		_serial += 1
 		var petal: Dictionary = shot.duplicate() # Shared hit group and frozen stats.
 		petal.queue_id = _serial
+		petal.fan_rim = 2 if index % 2 == 1 else 0
 		petal.aim = end
 		petal.due = int(shot.release) + _flight_ms(shot.origin, end, profile)
 		rays.append(petal)

@@ -107,6 +107,9 @@ static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw
  if actor.field_rig.reviewed.get("form","")==form:
   draw_reviewed(actor,form,phase,active,reach)
   return
+ if form in ["bell","censer","fan"]:
+  primary.set_meta("handle",Models.MODELS[form].grip)
+  if form=="censer":pose_censer(primary,Quaternion.IDENTITY)
  if form=="whip":primary.set_meta("handle",Models.MODELS.whip.grip)
  if form=="crossbow":
   primary.set_meta("handle",Models.MODELS.crossbow.grip)
@@ -182,6 +185,11 @@ static func draw_reviewed(actor: Dictionary, form: String, phase: float, active:
  var mount:=Reviewed.mount(field,form=="bow")
  var handle := Vector3.UP*.2 if form in ["bow","crossbow"] else Vector3.ZERO
  weapon.global_transform=Transform3D(mount.basis,mount.origin-mount.basis*handle)
+ if form in ["bell","censer","fan"]:
+  weapon.set_meta("handle",Reviewed.sampled_point(state,Reviewed.ORACLE_GRIP))
+  if form=="censer":
+   pose_censer(weapon,Reviewed.rotation(state.a,Reviewed.CENSER_SUSPENSION).slerp(Reviewed.rotation(state.b,Reviewed.CENSER_SUSPENSION),state.fraction))
+  return
  if form=="scythe":
   weapon.set_meta("handle",Reviewed.sampled_point(state,Reviewed.SCYTHE_MAIN))
   weapon.set_meta("support_grip",Reviewed.sampled_point(state,Reviewed.SCYTHE_SUPPORT))
@@ -215,6 +223,20 @@ static func draw_reviewed(actor: Dictionary, form: String, phase: float, active:
  if form=="bow":
   var mesh: MeshInstance3D=weapon.get_meta("flex_mesh")
   mesh.set_blend_shape_value(0,Reviewed.scalar(state,Reviewed.FLEX))
+## The grip stays rigid while the weighted cord and bowl swing about the reviewed hinge.
+static func pose_censer(weapon: Node3D, swing: Quaternion) -> void:
+ if not weapon.has_meta("suspension_rig"):
+  var suspension: Skeleton3D=weapon.find_children("*","Skeleton3D",true,false)[0]
+  weapon.set_meta("suspension_rig",suspension)
+  weapon.set_meta("suspension_joint",suspension.find_bone("Suspension"))
+ var rig: Skeleton3D=weapon.get_meta("suspension_rig")
+ var joint: int=weapon.get_meta("suspension_joint")
+ var rest:=rig.get_bone_global_rest(joint).basis
+ var parent:=rig.get_bone_global_rest(rig.get_bone_parent(joint)).basis
+ rig.set_bone_pose_rotation(joint,(parent.inverse()*Basis(swing)*rest).get_rotation_quaternion())
+ var hinge:=Reviewed.point(Reviewed.grips.censer.hinge,0)
+ weapon.get_node("CoreSeed").position=hinge+swing*(Vector3(Models.MODELS.censer.core)-hinge)
+
 ## Each link inherits the reviewed rotation in grip space. Reach upgrades lengthen the released vine.
 static func draw_reviewed_lash(weapon: Node3D,state: Dictionary,reach: float,phase: float,active: bool) -> void:
  var links: Array=weapon.get_meta("vine_segments")

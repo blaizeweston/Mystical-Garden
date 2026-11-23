@@ -20,6 +20,8 @@ func pose(actor: Dictionary, form: String, clip: String, phase: float, active: b
 	Weapons.animate(actor,form,phase,active,0,3.0,action)
 
 func inspect(stage: Node3D, actor: Dictionary, body: int, form: String, class_id: int, weapon_id: int) -> void:
+	var original_scale: Vector3=actor.model.scale
+	if form=="fan":actor.model.scale.y=.92 if body==0 else 1.08
 	var weapon := Weapons.build(stage,class_id,weapon_id)
 	actor.visual_weapon=weapon
 	weapon.reparent(actor.model,false)
@@ -54,7 +56,17 @@ func inspect(stage: Node3D, actor: Dictionary, body: int, form: String, class_id
 			if frame==12: poses.append(rig.get_bone_pose_rotation(rig.find_bone("upperarm_r")))
 		if form=="scythe":inspect_scythe_arc(actor,step,clip)
 		pose(actor,form,clip,contact,true,step)
-		if Motion.is_projectile(form):
+		if form=="fan":
+			check(weapon.global_basis.get_scale().is_equal_approx(Vector3.ONE*.54),"Fan keeps its reviewed size on tall and short travellers")
+			var points: Array=Reviewed.grips.fan.rim_points[clip]
+			var last_x := -INF
+			for index in 3:
+				var rim := weapon.to_global(Reviewed.point(points[index],0))
+				var offset := Reviewed.release_offset(body,clip,actor.model.scale.y,index)
+				max_release_error=maxf(max_release_error,rim.distance_to(actor.model.get_parent_node_3d().global_position+offset))
+				check(rim.z>.35 and rim.x>last_x,"three separate forward petal origins in volley order")
+				last_x=rim.x
+		elif Motion.is_projectile(form):
 			var center := weapon.to_global(Vector3(0,.282,0)) if form=="ring" else weapon.to_global(Reviewed.sampled_point(actor.field_rig.reviewed,13))
 			var offset := Reviewed.release_offset(body,clip,actor.model.scale.y)
 			max_release_error=maxf(max_release_error,center.distance_to(actor.model.get_parent_node_3d().global_position+offset))
@@ -81,6 +93,7 @@ func inspect(stage: Node3D, actor: Dictionary, body: int, form: String, class_id
 		Avatar.animate(actor,true,.4,form,casting,.016)
 		Weapons.animate(actor,form,.4,true,0,3,casting)
 		check(is_equal_approx(weapon.global_basis.x.length(),Reviewed.BOW_SCALE),"class actions keep the enlarged bow")
+	actor.model.scale=original_scale
 	weapon.free()
 	actor.erase("visual_weapon")
 	if actor.has("secondary_weapon"):
@@ -123,7 +136,7 @@ func inspect_scythe_arc(actor: Dictionary, step: int, clip: String) -> void:
 
 func run() -> void:
 	var stage := preload("res://stage.gd").new()
-	for form in ["bow","crossbow","ring"]:
+	for form in ["bow","crossbow","ring","fan"]:
 		for variant: Dictionary in Motion.profile(form).basic_variants:
 			check(Reviewed.release_offset(1,variant.clip,1).is_finite(),"release before the remote rig loads")
 	check(not Reviewed.release_offset(1,"unknown",1).is_finite(),"unknown clip has no release")
@@ -135,7 +148,7 @@ func run() -> void:
 		actor.model.rotation.y=0
 		for index in Reviewed.FORMS.size():
 			var form: String=Reviewed.FORMS[index]
-			inspect(stage,actor,body,form,2 if index<3 else 3,index if index<3 else int({"knives":0,"scythe":1,"whip":2}[form]))
+			inspect(stage,actor,body,form,2 if index<3 else 4 if form in ["bell","censer","fan"] else 3,index if index<3 else int({"knives":0,"scythe":1,"whip":2,"bell":0,"censer":1,"fan":2}[form]))
 	stage.free()
 	pivot.free()
 	await process_frame

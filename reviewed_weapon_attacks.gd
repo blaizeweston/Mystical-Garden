@@ -4,7 +4,7 @@ const CLIPS := preload("res://assets/characters/ranger_and_knife_attacks.glb")
 const Motion := preload("res://weapon_motion.gd")
 const Locomotion := preload("res://traveller_locomotion.gd")
 const Native := preload("res://traveller_weapon_animation.gd")
-const FORMS := ["bow", "crossbow", "ring", "knives", "whip", "scythe"]
+const FORMS := ["bow", "crossbow", "ring", "knives", "whip", "scythe", "bell", "censer", "fan"]
 const FPS := 48.0
 const HELD_SCALE := preload("res://plant_polearms.gd").SCALE
 const BOW_SCALE := HELD_SCALE*1.5
@@ -19,6 +19,8 @@ const SUPPORT_HAND := 18
 # The scythe stores both grips in weapon-local metres.
 const SCYTHE_SUPPORT := 7
 const SCYTHE_MAIN := 10
+const ORACLE_GRIP := 7
+const CENSER_SUSPENSION := 10
 static var grips: Dictionary = load_grips()
 static var releases: Dictionary = {}
 
@@ -26,6 +28,9 @@ static func load_grips() -> Dictionary:
 	var result: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/characters/ranger_and_knife_grips.json"))
 	result.whip = JSON.parse_string(FileAccess.get_file_as_string("res://assets/characters/root_lash_grips.json"))
 	result.scythe = JSON.parse_string(FileAccess.get_file_as_string("res://assets/characters/scythe_grips.json"))
+	result.bell = JSON.parse_string(FileAccess.get_file_as_string("res://assets/characters/bell_grips.json"))
+	result.censer = JSON.parse_string(FileAccess.get_file_as_string("res://assets/characters/censer_grips.json"))
+	result.fan = JSON.parse_string(FileAccess.get_file_as_string("res://assets/characters/fan_grips.json"))
 	return result
 
 static func sample(field: Dictionary, form: String, action: Dictionary, phase: float, active: bool, delta: float) -> Array[Quaternion]:
@@ -111,14 +116,18 @@ static func mount(field: Dictionary, left: bool, index := 0) -> Transform3D:
 	var rig: Skeleton3D = field.skeleton
 	var palm := grip_center(field,state.form,left)
 	var q := rotation(state.a,index+3).slerp(rotation(state.b,index+3),state.fraction)
-	var scale_factor := BOW_SCALE if state.form=="bow" else HELD_SCALE
+	var scale_factor := BOW_SCALE if state.form=="bow" else float(grips[state.form].get("scale",HELD_SCALE))
+	if state.form in ["bell","censer","fan"]:
+		# Height changes the wrist position. The hand-held prop keeps its authored dimensions.
+		var basis := (rig.global_basis.orthonormalized()*Basis(q)).scaled(Vector3.ONE*scale_factor)
+		return Transform3D(basis,rig.to_global(palm)-basis*sampled_point(state,ORACLE_GRIP))
 	return rig.global_transform * Transform3D(Basis(q).scaled(Vector3.ONE*scale_factor),palm+sampled_point(state,index))
 
 ## Resolve delayed projectile events at the original contact pose, even after the actor moves.
 static func cache_releases(field: Dictionary, body: int) -> void:
 	if releases.has(body): return
 	var cache := {}
-	for form in ["bow", "crossbow", "ring"]:
+	for form in ["bow", "crossbow", "ring", "fan"]:
 		for variant: Dictionary in Motion.profile(form).basic_variants:
 			var clip: String = variant.clip
 			var time := float(grips[form].impact_seconds)
@@ -126,15 +135,29 @@ static func cache_releases(field: Dictionary, body: int) -> void:
 			var transforms := Native.contact_bones(field,clip,time)
 			var palm := grip_center(field,form,form=="bow",transforms)
 			var center := palm + point(key,0)
+			var lift := 0.0
+			for sole in field.soles: lift = maxf(lift,-(transforms[sole.bone]*Vector3(sole.point)).y)
+			center += Vector3.UP*lift
+			if form=="fan":
+				var rim: Array[Vector3]=[]
+				for socket: Array in grips.fan.rim_points[clip]:
+					rim.append(Basis(rotation(key,3)) * ((point(socket,0)-point(key,ORACLE_GRIP))*float(grips.fan.scale)))
+				cache[clip]={"palm":palm+Vector3.UP*lift,"rim":rim}
+				continue
 			var scale_factor := BOW_SCALE if form=="bow" else HELD_SCALE
 			var local := Vector3(0,.282,0) if form=="ring" else point(key,NOCK)-Vector3.UP*.2
 			center += Basis(rotation(key,3)) * (local*scale_factor)
-			var lift := 0.0
-			for sole in field.soles: lift = maxf(lift,-(transforms[sole.bone]*Vector3(sole.point)).y)
-			cache[clip] = center+Vector3.UP*lift
+			cache[clip] = center
 	releases[body] = cache
 
-static func release_offset(body: int, clip: String, height: float) -> Vector3:
+static func release_offset(body: int, clip: String, height: float, rim_index := 1) -> Vector3:
+	if grips.fan.release_centers.has(clip):
+		if rim_index < 0 or rim_index > 2: return Vector3.INF
+		var hand: Dictionary=releases.get(body,{}).get(clip,{})
+		if not hand.is_empty():
+			return Vector3(hand.palm)*Vector3(1,height,1)+Vector3(hand.rim[rim_index])
+		var fallback := point(grips.fan.release_centers[clip][rim_index],0)
+		return fallback+Vector3.UP*(height-1.0)*float(grips.fan.release_palm_height[clip])
 	var offset: Vector3 = releases.get(body,{}).get(clip,Vector3.INF)
 	if not offset.is_finite():
 		# A remote release can arrive before an avatar with this body has been built.

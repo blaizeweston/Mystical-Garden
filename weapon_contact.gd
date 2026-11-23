@@ -12,7 +12,7 @@ static func describe(form: String,stats: Dictionary) -> Dictionary:
  var span: float=float(p.span) if float(p.span)>0 else 1.9
  var clip: String=str(p.get("variants",{}).get(pattern,p.clip))
  var variant:=Motion.variant_by_clip(form,str(stats.get("weapon_variant","")))
- if (form in ["knives","scythe"] and pattern=="line") or (form=="whip" and pattern=="sweep"):
+ if (form in ["knives","scythe","bell","censer"] and pattern=="line") or (form=="bell" and pattern=="sweep") or (form=="whip" and pattern=="sweep"):
   variant={}
  if not variant.is_empty():
   pattern=str(variant.get("delivery",pattern));span=float(variant.get("span",span));clip=variant.clip

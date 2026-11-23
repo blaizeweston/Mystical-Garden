@@ -72,7 +72,8 @@ func host_run():
 
  for index in Field.Reviewed.FORMS.size():
   var form: String=Field.Reviewed.FORMS[index]
-  p.frame=2 if index<3 else 3;p.weapon_kind=index if index<3 else int({"knives":0,"scythe":1,"whip":2}[form])
+  p.frame=2 if index<3 else 4 if form in ["bell","censer","fan"] else 3
+  p.weapon_kind=index if index<3 else int({"knives":0,"scythe":1,"whip":2,"bell":0,"censer":1,"fan":2}[form])
   p[WeaponActions.STATE]=WeaponActions.State.new()
   game.encounter.set_hp(-1,1000);game.tactics.position=Vector3(0,0,1.25)
   mark("equip-"+form)
