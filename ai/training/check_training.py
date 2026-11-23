@@ -159,6 +159,48 @@ def test_replace_waits_for_open_file(folder: Path) -> None:
     check(S.read_json(target) == {"version": 2} and holder.closed, "an atomic write waits for a reader to let go, then succeeds")
 
 
+def test_evaluation(schema: MobSchema, folder: Path) -> None:
+    """evaluate.py's fight-by-fight comparison, summaries, critic diagnosis and report, on made-up fights."""
+    import evaluate as E
+    from mob_net import MobCritic, MobPolicy
+    names = ["idle_wander", "approach", "flee"]
+
+    def fight(seed: int, index: int, outcome: str, damage: float) -> dict:
+        return {"seed": seed, "index": index, "mode": "engaged" if index % 2 else "explore", "party": 2, "mobs": 4,
+                "outcome": outcome, "seconds": 30.0, "damage_to_party": damage, "party_hp": 200.0, "downs": 0, "mobs_killed": 2,
+                "first_sight": 5.0, "first_within_3m": 8.0, "reward_values": {"damage": damage / 100.0, "hp_lost": -0.5},
+                "awake_behaviours": [0, 3, 1], "idle_behaviours": [4, 0, 0],
+                "time": {"mob_seconds": 100.0, "aware": 60.0, "sees": 40.0, "within_3m": 10.0, "3_to_8m": 30.0, "8_to_16m": 40.0, "beyond_16m": 20.0}}
+
+    base = [fight(1, i, "timeout", 20.0) for i in range(10)]
+    same = E.paired(base, base)
+    check(all(abs(v) < 1e-12 and abs(e) < 1e-12 for v, e in same.values()), "identical brains differ by nothing on the same fights")
+    better = [fight(1, i, "wipe", 60.0 + i) for i in range(10)]
+    difference = E.paired(better, base)
+    check(abs(difference["wipe"][0] - 1.0) < 1e-9 and abs(difference["party_hp_lost"][0] - 0.2225) < 1e-9,
+          "fight-by-fight differences match the fights")
+    summary = E.summarise(base, names)
+    check(abs(sum(summary["awake_behaviours"].values()) - 1.0) < 1e-9 and abs(summary["time"]["aware"] - 0.6) < 1e-9,
+          "behaviour shares add up and time shares are per mob-second")
+    shards = folder / "eval_shards"
+    shards.mkdir()
+    R.write_shard(shards / "eval_1.shard", schema, synthetic(schema, [20, 15, 9]), 1)
+    torch.manual_seed(3)
+    state = {"policy": MobPolicy(schema).state_dict(), "critic": MobCritic(schema).state_dict(), "version": 5, "samples": 1000}
+    contestant = E.Contestant("v5 (0M)", folder / "unused.bin", state)
+    found = E.diagnose(contestant, shards, schema, T.load_settings())
+    shares = sum(h["share_of_entropy_sum"] for h in found["heads"].values())
+    check(found["rows"] == 44 and np.isfinite(found["explained_variance_full"]) and abs(shares - 1.0) < 1e-6,
+          "the critic diagnosis reads recorded decisions and splits entropy by head")
+
+    class Args:
+        episodes, seed = 10, 1
+    scripted = E.Contestant(E.SCRIPTED, folder / "unused.bin")
+    text, data = E.report([scripted, contestant], {E.SCRIPTED: base, "v5 (0M)": better}, {"v5 (0M)": found}, names, Args)
+    check("Same fights, difference from scripted" in text and "Entropy by action head" in text and data["baseline"] == E.SCRIPTED,
+          "the report compares every brain with the first one")
+
+
 def main() -> int:
     schema = MobSchema()
     with tempfile.TemporaryDirectory() as temporary:
@@ -168,6 +210,7 @@ def main() -> int:
         test_masked_terms(schema)
         test_trainer(schema, folder)
         test_replace_waits_for_open_file(folder)
+        test_evaluation(schema, folder)
     print("PASSED" if not failures else f"FAILED: {len(failures)} check(s)")
     return 1 if failures else 0
 
