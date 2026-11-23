@@ -17,7 +17,8 @@
     "speed": 0,
     "variants": {
       "line": "Attack_blade_line"
-    }
+    },
+    "basic_variants": [{"clip": "Attack_rootblade_forehand"}, {"clip": "Attack_rootblade_backhand"}]
   },
   "spear": {
     "duration": 0.42,
@@ -83,7 +84,8 @@
     "muzzle_forward": 1.05,
     "muzzle_side": 0,
     "speed": 23,
-    "variants": {}
+    "variants": {},
+    "basic_variants": [{"clip": "Attack_staff_forward"}, {"clip": "Attack_staff_side"}]
   },
   "wand": {
     "duration": 0.28,

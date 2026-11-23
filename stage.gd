@@ -1190,7 +1190,8 @@ func ensure_finale_form(actor: Dictionary,finale: bool) -> void:
 			if is_instance_valid(original): original.visible=not finale
 
 
-## Detached visible-tip query; physical collision stays in the host weapon queue.
+## Read-only rendering query. Reliable release facts survive a skipped pose frame;
+## the current matching pose uses its visible marker. Collision stays host-owned.
 func weapon_release_point(event: Dictionary) -> Vector3:
 	var release: Variant=event.get("weapon_release",{})
 	if not release is Dictionary:return Vector3.INF
@@ -1202,7 +1203,7 @@ func weapon_release_point(event: Dictionary) -> Vector3:
 	var height:=float(release.get("height",0))
 	var yaw:=float(release.get("yaw",NAN))
 	var clip:=str(event.get("clip",""))
-	var form: String="wand" if clip in ["Attack_wand_forward","Attack_wand_sweep"] else ""
+	var form: String="wand" if clip in ["Attack_wand_forward","Attack_wand_sweep"] else "staff" if clip in ["Attack_staff_forward","Attack_staff_side"] else ""
 	var focus_cast := clip in ["Attack_focus_push","Attack_focus_gather"]
 	if focus_cast: form="orb"
 	var reviewed_form := str(event.get("form",""))
@@ -1226,6 +1227,6 @@ func weapon_release_point(event: Dictionary) -> Vector3:
 	if not actor.is_empty() and actor.get("rig_kind",-1)==body and actor.get("motion_key","")=="weapon:"+str(event.get("combo",-1)) and actor.field_rig.get(form+"_active",false):
 		var weapon: Node3D=actor.get("visual_weapon")
 		if is_instance_valid(weapon) and weapon.has_node("WeaponTip"):return weapon.get_node("WeaponTip").global_position
-	var offset: Vector3=preload("res://wand_animation.gd").release_offset(body,clip,height)
+	var offset: Vector3=preload("res://wand_animation.gd").release_offset(body,clip,height) if form=="wand" else preload("res://staff_animation.gd").release_offset(body,clip,height)
 	if not offset.is_finite():return Vector3.INF
 	return WILD_OFFSET+Vector3(position[0],position[1],position[2])+Basis(Vector3.UP,yaw)*offset

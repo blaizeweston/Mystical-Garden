@@ -20,28 +20,8 @@ static func add_clips(library: AnimationLibrary, visual: Node3D, skeleton: Skele
 	for name in CLIPS:Native.add_from(library,visual,skeleton,CLIPS[name],name)
 
 static func calibration(skeleton: Skeleton3D, player: AnimationPlayer, pelvis: int) -> Dictionary:
-	var old: Array[Quaternion]=[]
-	for bone in skeleton.get_bone_count():old.append(skeleton.get_bone_pose_rotation(bone))
-	var hips:=skeleton.get_bone_pose_position(pelvis)
-	var idle:=Locomotion.clip_pose(skeleton,player,pelvis,Locomotion.IDLE,4.0/24.0)
-	var ready:=Locomotion.sample_clip(skeleton,player.get_animation("Ready_maul"),pelvis,0,idle.rotations)
-	for bone in skeleton.get_bone_count():skeleton.set_bone_pose_rotation(bone,ready.rotations[bone])
-	skeleton.set_bone_pose_position(pelvis,idle.pelvis)
-	skeleton.force_update_all_bone_transforms()
-	var result: Dictionary={"pelvis_basis":skeleton.get_bone_global_pose(pelvis).basis.orthonormalized()}
-	var source: Dictionary=sample_at("Ready_maul",0)
-	for side in ["r","l"]:
-		var bone:=skeleton.find_bone("hand_"+side)
-		var wrist:=skeleton.get_bone_global_pose(bone)
-		var center:=Vector3.ZERO
-		for finger in ["index","middle","ring","pinky"]:
-			for joint in [2,3]:center+=skeleton.get_bone_global_pose(skeleton.find_bone("%s_%02d_%s"%[finger,joint,side])).origin
-		var key: String="right" if side=="r" else "left"
-		result[key]={"bone":bone,"point":wrist.affine_inverse()*(center/8.0),"alignment":Basis(source[key]).inverse()*wrist.basis}
-	for bone in skeleton.get_bone_count():skeleton.set_bone_pose_rotation(bone,old[bone])
-	skeleton.set_bone_pose_position(pelvis,hips)
-	skeleton.force_update_all_bone_transforms()
-	return result
+	return Native.paired_calibration(skeleton,player,pelvis,"Ready_maul",sample_at("Ready_maul",0))
+
 
 static func clear(field: Dictionary) -> void:
 	for key in ["was_active","last_attack","recover_elapsed","entry_elapsed","entry_sample","entry_rotations","sequence","rotations"]:
@@ -84,7 +64,7 @@ static func rotations(field: Dictionary, motion: Dictionary, phase: float, activ
 	if active and not state.get("entry_sample",{}).is_empty() and not state.get("entry_rotations",[]).is_empty():
 		state.entry_elapsed=float(state.get("entry_elapsed",0.0))+maxf(0,delta)
 		var weight:=smoothstep(0,REGRIP_SECONDS,float(state.entry_elapsed))
-		sample=blend_samples(state.entry_sample,sample,weight)
+		sample=Native.blend_grip_samples(state.entry_sample,sample,weight)
 		for bone in rotations.size():
 			if Native.upper_body(field.skeleton.get_bone_name(bone)):rotations[bone]=state.entry_rotations[bone].slerp(rotations[bone],weight)
 	state.rotations=rotations
@@ -93,24 +73,4 @@ static func rotations(field: Dictionary, motion: Dictionary, phase: float, activ
 
 ## Detached samples: grip coordinates in model metres, other values in rig space.
 static func sample_at(name: String, seconds: float) -> Dictionary:
-	var samples: Array=data.clips[name].samples
-	var frame:=clampf(seconds*float(data.fps),0,samples.size()-1)
-	var index:=floori(frame)
-	return blend_samples(decoded(samples[index]),decoded(samples[mini(index+1,samples.size()-1)]),frame-index)
-
-static func decoded(sample: Dictionary) -> Dictionary:
-	var result:=sample.duplicate()
-	for key in ["weapon","right","left"]:
-		var values: Array=sample[key]
-		result[key]=Quaternion(values[0],values[1],values[2],values[3]).normalized()
-	for key in ["right_elbow","left_elbow","right_point","shoulder_center"]:
-		var values: Array=sample[key]
-		result[key]=Vector3(values[0],values[1],values[2])
-	return result
-
-static func blend_samples(a: Dictionary, b: Dictionary, weight: float) -> Dictionary:
-	var result: Dictionary={}
-	for key in ["weapon","right","left"]:result[key]=a[key].slerp(b[key],weight)
-	for key in ["right_elbow","left_elbow","right_point","shoulder_center"]:result[key]=a[key].lerp(b[key],weight)
-	for key in ["right_grip","left_grip","arm_length"]:result[key]=lerpf(a[key],b[key],weight)
-	return result
+	return Native.grip_sample(data,name,seconds)

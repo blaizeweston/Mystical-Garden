@@ -4,12 +4,12 @@ extends RefCounted
 const Motion = preload("res://weapon_motion.gd")
 const Polearms = preload("res://plant_polearms.gd")
 const DEFINITIONS := {
-	"blade": {"carry_pitch":22.0,"mesh_roll":90.0,"clips":["Sword_Regular_A","Sword_Regular_B"],"recoveries":["Sword_Regular_A_Rec","Sword_Regular_B_Rec"],"impact":0.85},
+	"blade": {"carry_pitch":22.0,"mesh_roll":90.0,"relaxed":true,"hand_bound":true,"clips":["Attack_rootblade_forehand","Attack_rootblade_backhand"],"recoveries":["Recover_rootblade_left","Recover_rootblade_right"],"impact":21.0/47.0,"separate_recovery":true,"recovery_seconds":0.18},
 	"knives": {"carry_pitch":24.0,"mesh_roll":90.0,"relaxed":true,"clips":["Sword_Regular_B","Sword_Regular_A"],"recoveries":["Sword_Regular_B_Rec","Sword_Regular_A_Rec"],"impact":0.85},
 	"spear": {"carry_pitch":90.0,"mesh_roll":0.0,"clips":["Attack_spear","Attack_spear_sweep"]},
 	"hammer": {"carry_pitch":19.0,"mesh_roll":90.0,"clips":["Attack_maul_overhead","Attack_maul_sweep"],"recoveries":["Recover_maul_overhead","Recover_maul_sweep"]},
 	"scythe": {"carry_pitch":33.0,"mesh_roll":-90.0,"relaxed":true,"procedural_stance":true,"carry_twist":0.0,"windup_twist":-60.0,"strike_twist":-35.0,"strike_lean":4.0,"clips":[]},
-	"staff": {"carry_pitch":24.0,"mesh_roll":0.0,"clips":["Spell_Simple_Shoot"],"impact":0.55},
+	"staff": {"carry_pitch":24.0,"mesh_roll":0.0,"clips":["Attack_staff_forward","Attack_staff_side"],"recoveries":["Recover_staff_forward","Recover_staff_side"],"separate_recovery":true,"impact":0.55},
 	"wand": {"carry_pitch":25.0,"mesh_roll":0.0,"relaxed":true,"hand_bound":true,"clips":["Attack_wand_forward","Attack_wand_sweep"],"recoveries":["Recover_wand_forward","Recover_wand_sweep"],"separate_recovery":true,"impact":17.0/39.0},
 	"orb": {"carry_pitch":0.0,"mesh_roll":0.0,"clips":["Attack_focus_push","Attack_focus_gather"],"recoveries":["Recover_focus_push","Recover_focus_gather"],"separate_recovery":true,"impact":0.48},
 	"bow": {"carry_pitch":8.0,"mesh_roll":0.0,"relaxed":true,"procedural_stance":true,"carry_twist":0.0,"strike_twist":-55.0,"clips":[]},

@@ -37,25 +37,93 @@ static func add_from(result: AnimationLibrary, visual: Node3D, skeleton: Skeleto
 		result.add_animation(renamed if not renamed.is_empty() else str(name),clip)
 	donor.free()
 
-static func pose(field: Dictionary, form: String, phase: float, combo: int, baseline: Array[Quaternion]=[]) -> Array[Quaternion]:
+## One time mapping for imported rotations and their companion grip samples.
+static func playback(player: AnimationPlayer, form: String, phase: float, combo: int, preferred_clip: String="") -> Dictionary:
 	var definition: Dictionary=Poses.DEFINITIONS.get(form,{})
 	var clips: Array=definition.get("clips",[])
-	if clips.is_empty(): return []
-	var index := posmod(combo,clips.size())
+	if clips.is_empty(): return {}
+	var index := clips.find(preferred_clip) if clips.has(preferred_clip) else posmod(combo,clips.size())
 	var name: String=clips[index]
-	var player: AnimationPlayer=field.player
 	var length := player.get_animation(name).length
 	var recoveries: Array=definition.get("recoveries",[])
 	var recovery: String=recoveries[index] if index<recoveries.size() else ""
-	var total := length+(player.get_animation(recovery).length if not recovery.is_empty() else 0.0)
+	var total := length+(player.get_animation(recovery).length if not recovery.is_empty() and not definition.get("separate_recovery",false) else 0.0)
 	var impact := length*float(definition.get("impact",0.55))
 	var contact := float(Motion.profile(form).release)
 	var time := lerpf(0.0,impact,clampf(phase/contact,0,1)) if phase<=contact else lerpf(impact,total,clampf((phase-contact)/(1.0-contact),0,1))
 	if time>length and not recovery.is_empty(): name=recovery; time-=length
+	return {"clip":name,"time":clampf(time,0.0,player.get_animation(name).length-0.00001)}
+
+static func pose(field: Dictionary, form: String, phase: float, combo: int, baseline: Array[Quaternion]=[], preferred_clip: String="") -> Array[Quaternion]:
+	var timing:=playback(field.player,form,phase,combo,preferred_clip)
+	if timing.is_empty():return []
+	var name: String=timing.clip
+	var time: float=timing.time
+	var player: AnimationPlayer=field.player
 	if player.current_animation!=name: player.play(name)
-	time=clampf(time,0.0,player.get_animation(name).length-0.00001)
 	player.seek(time,false)
 	return Locomotion.sample_clip(field.skeleton,player.get_animation(name),field.pelvis,time,baseline).rotations
+
+
+## Calibrate authored two-hand grips without retaining or changing the current pose.
+static func paired_calibration(skeleton: Skeleton3D, player: AnimationPlayer, pelvis: int, ready_name: String, ready_sample: Dictionary) -> Dictionary:
+	var old: Array[Quaternion]=[]
+	for bone in skeleton.get_bone_count():old.append(skeleton.get_bone_pose_rotation(bone))
+	var hips:=skeleton.get_bone_pose_position(pelvis)
+	var idle:=Locomotion.clip_pose(skeleton,player,pelvis,Locomotion.IDLE,4.0/24.0)
+	var ready:=Locomotion.sample_clip(skeleton,player.get_animation(ready_name),pelvis,0,idle.rotations)
+	for bone in skeleton.get_bone_count():skeleton.set_bone_pose_rotation(bone,ready.rotations[bone])
+	skeleton.set_bone_pose_position(pelvis,idle.pelvis)
+	skeleton.force_update_all_bone_transforms()
+	var result: Dictionary={"pelvis_basis":skeleton.get_bone_global_pose(pelvis).basis.orthonormalized()}
+	var source: Dictionary=ready_sample
+	for side in ["r","l"]:
+		var bone:=skeleton.find_bone("hand_"+side)
+		var wrist:=skeleton.get_bone_global_pose(bone)
+		var center:=Vector3.ZERO
+		for finger in ["index","middle","ring","pinky"]:
+			for joint in [2,3]:center+=skeleton.get_bone_global_pose(skeleton.find_bone("%s_%02d_%s"%[finger,joint,side])).origin
+		var key: String="right" if side=="r" else "left"
+		result[key]={"bone":bone,"point":wrist.affine_inverse()*(center/8.0),"alignment":Basis(source[key]).inverse()*wrist.basis}
+	for bone in skeleton.get_bone_count():skeleton.set_bone_pose_rotation(bone,old[bone])
+	skeleton.set_bone_pose_position(pelvis,hips)
+	skeleton.force_update_all_bone_transforms()
+	return result
+
+static func grip_sample(data: Dictionary, name: String, seconds: float) -> Dictionary:
+	var samples: Array=data.clips[name].samples
+	var frame:=clampf(seconds*float(data.fps),0,samples.size()-1)
+	var index:=floori(frame)
+	return blend_grip_samples(decode_grip_sample(samples[index]),decode_grip_sample(samples[mini(index+1,samples.size()-1)]),frame-index)
+
+static func decode_grip_sample(sample: Dictionary) -> Dictionary:
+	var result:=sample.duplicate()
+	for key in ["weapon","right","left"]:
+		var values: Array=sample[key]
+		result[key]=Quaternion(values[0],values[1],values[2],values[3]).normalized()
+	for key in ["right_elbow","left_elbow","right_point","shoulder_center"]:
+		var values: Array=sample[key]
+		result[key]=Vector3(values[0],values[1],values[2])
+	return result
+
+static func blend_grip_samples(a: Dictionary, b: Dictionary, weight: float) -> Dictionary:
+	var result: Dictionary={}
+	for key in ["weapon","right","left"]:result[key]=a[key].slerp(b[key],weight)
+	for key in ["right_elbow","left_elbow","right_point","shoulder_center"]:result[key]=a[key].lerp(b[key],weight)
+	for key in ["right_grip","left_grip","arm_length"]:result[key]=lerpf(a[key],b[key],weight)
+	return result
+
+## Project one palm into the intersection of both arms' reach (rig metres).
+static func fit_grip_pair(desired: Vector3, offset: Vector3, right: Vector4, left: Vector4) -> Vector3:
+	var rear:=desired
+	var rear_center:=Vector3(right.x,right.y,right.z)
+	var support_center:=Vector3(left.x,left.y,left.z)-offset
+	for pass_index in 4:
+		rear=rear_center+(rear-rear_center).limit_length(right.w)
+		rear=support_center+(rear-support_center).limit_length(left.w)
+	if rear.distance_to(rear_center)>right.w+.001:
+		rear=rear_center.lerp(support_center,right.w/(right.w+left.w))
+	return rear
 
 ## Compose the reviewed upper-body contact on standing legs, without seeking a live rig.
 static func contact_bones(field: Dictionary, clip: String, time: float) -> Array[Transform3D]:

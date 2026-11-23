@@ -1,0 +1,52 @@
+{
+  "fps": 24,
+  "source_weapon_scale": 0.9,
+  "source_review": "Mannequin - Rootblade Wrist and Recovery Review - 20261121-194027.blend",
+  "source_review_sha256": "39e6137d5d80d70bf50bd3d2e5376b836316a947a7882b3cadfad66f7d00d785",
+  "clips": {
+    "Attack_rootblade_forehand": {
+      "action": "MG_Rootblade_Slash_Right_to_Left",
+      "file": "rootblade_forehand.glb",
+      "contact_seconds": 0.875,
+      "frames": 48
+    },
+    "Attack_rootblade_backhand": {
+      "action": "MG_Rootblade_Slash_Left_to_Right",
+      "file": "rootblade_backhand.glb",
+      "contact_seconds": 0.875,
+      "frames": 48
+    },
+    "Recover_rootblade_left": {
+      "action": "MG_Rootblade_Recover_From_Left",
+      "file": "rootblade_recover_left.glb",
+      "contact_seconds": 0,
+      "frames": 24
+    },
+    "Recover_rootblade_right": {
+      "action": "MG_Rootblade_Recover_From_Right",
+      "file": "rootblade_recover_right.glb",
+      "contact_seconds": 0,
+      "frames": 24
+    },
+    "Ready_rootblade": {
+      "action": "MG_Rootblade_Ready",
+      "file": "rootblade_ready.glb",
+      "contact_seconds": 0,
+      "frames": 24
+    }
+  },
+  "calibration": {
+    "hand": [
+      0.74022317,
+      -0.3778986,
+      -0.52083904,
+      0.19490787
+    ],
+    "weapon": [
+      0.89855421,
+      -0.05516293,
+      0.1182969,
+      0.41900274
+    ]
+  }
+}

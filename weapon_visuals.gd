@@ -117,7 +117,11 @@ static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw
  if focus_cast:anchor=preload("res://seed_focus_animation.gd").held_center(actor.field_rig)
  elif form=="orb":anchor=(right+left)*.5
  var pose:=FieldRig.weapon_orientation(actor,form,phase,active,yaw,action)
- if form=="hammer" and actor.field_rig.get("maul_active",false):
+ if form=="staff" and actor.field_rig.get("staff_active",false):
+  var sample: Dictionary=actor.field_rig.staff_sample
+  primary.set_meta("handle",Vector3.UP*float(sample.right_grip))
+  primary.set_meta("support_grip",Vector3.UP*float(sample.left_grip))
+ elif form=="hammer" and actor.field_rig.get("maul_active",false):
   var sample: Dictionary=actor.field_rig.maul_sample
   primary.set_meta("handle",Vector3.UP*float(sample.right_grip))
   primary.set_meta("support_grip",Vector3.UP*float(sample.left_grip))

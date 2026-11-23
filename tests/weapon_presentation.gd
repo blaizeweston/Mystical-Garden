@@ -94,7 +94,7 @@ func inspect_carry(actor: Dictionary, form: String) -> void:
 		var rig: Skeleton3D=actor.field_rig.skeleton
 		var pelvis := rig.to_global(rig.get_bone_global_pose(actor.field_rig.pelvis).origin)
 		check(weapon.get_node("CoreSeed").global_position.y>pelvis.y+.15,"focus is above the pelvis while standing and moving")
-	if form in ["blade","knives","staff"]:
+	if form in ["blade","knives"]:
 		check(weapon.global_basis.y.normalized().z>.30,"carry leans forward: "+form)
 	if form in ["blade","knives","hammer","scythe","fan"]:
 		var correction := Poses.orientation(form,0.0,false,0.0,{})
@@ -135,11 +135,6 @@ func inspect_attack(actor: Dictionary, form: String) -> void:
 	if form=="bow":
 		pose(actor,form,contact-.001,true)
 		check(actor.visual_weapon.get_node("NockedArrow").to_global(Vector3(0,.2,-.2)).distance_to(Field.hand(actor,false))<.035,"attack draw stays on the nock")
-	if form=="staff":
-		var profile := Motion.profile(form)
-		var ground: Vector3=actor.model.get_parent_node_3d().global_position
-		var muzzle := ground+Vector3(0,float(profile.height),float(profile.muzzle_forward))
-		check(actor.visual_weapon.get_node("WeaponTip").global_position.distance_to(muzzle)<.08,"spell tip meets the unchanged gameplay muzzle: "+form)
 	if form=="wand":
 		check(actor.visual_weapon.global_basis.y.normalized().y>.8 and actor.visual_weapon.global_basis.y.normalized().z>.15,"approved wand points up and forward")
 		check(absf(Field.hand(actor,false).x)<.5,"wand hand stays drawn in beside the torso")
@@ -147,9 +142,9 @@ func inspect_attack(actor: Dictionary, form: String) -> void:
 	pose(actor,form,0.0,false)
 	var ready := primary.global_basis.get_rotation_quaternion()
 	pose(actor,form,1.0,true)
-	if form in ["hammer","bow","crossbow","ring","knives"]:
+	if form in ["hammer","staff","bow","crossbow","ring","knives"]:
 		for frame in 30:pose(actor,form,0.0,false)
-	if form!="wand":
+	if form not in ["wand","blade"]:
 		check(ready.angle_to(primary.global_basis.get_rotation_quaternion())<.001,"action and its recovery end at the same carry orientation: "+form)
 
 func inspect_continuity(actor: Dictionary, form: String) -> void:

@@ -6,10 +6,12 @@ const Locomotion := preload("res://traveller_locomotion.gd")
 const WeaponAnimation := preload("res://traveller_weapon_animation.gd")
 const WeaponPoses := preload("res://weapon_pose_catalog.gd")
 const Spear := preload("res://spear_animation.gd")
+const Staff := preload("res://staff_animation.gd")
 const Maul := preload("res://maul_animation.gd")
 const Wand := preload("res://wand_animation.gd")
 const Reviewed := preload("res://reviewed_weapon_attacks.gd")
 const SeedFocus := preload("res://seed_focus_animation.gd")
+const Rootblade := preload("res://rootblade_animation.gd")
 
 const MODELS := [
 	preload("res://assets/characters/field_traveller_male.glb"),
@@ -38,9 +40,11 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 		libraries[kind] = Locomotion.library(visual,skeleton)
 		WeaponAnimation.add_clips(libraries[kind],visual,skeleton)
 		Spear.add_clips(libraries[kind],visual,skeleton)
+		Staff.add_clips(libraries[kind],visual,skeleton)
 		Maul.add_clips(libraries[kind],visual,skeleton)
 		Wand.add_clips(libraries[kind],visual,skeleton)
 		WeaponAnimation.add_from(libraries[kind],visual,skeleton,SeedFocus.CASTS)
+		Rootblade.add_clips(libraries[kind],visual,skeleton)
 		WeaponAnimation.add_from(libraries[kind],visual,skeleton,Reviewed.CLIPS)
 	player.add_animation_library("", libraries[kind])
 	var links: Dictionary = {}
@@ -64,10 +68,13 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 		"left":socket(skeleton,"l"), "right":socket(skeleton,"r"), "gait":0.0,
 		"pelvis":skeleton.find_bone("pelvis"),
 		"spear":Spear.calibration(skeleton,player,skeleton.find_bone("pelvis")),
+		"staff":Staff.calibration(skeleton,player,skeleton.find_bone("pelvis")),
 		"maul":Maul.calibration(skeleton,player,skeleton.find_bone("pelvis")),
 		"wand":Wand.calibration(skeleton,player,skeleton.find_bone("pelvis")),
 		"review_joints":Reviewed.grip_joints(skeleton), "reviewed": {}, "focus": {}, "focus_pelvis_basis": SeedFocus.idle_hip_basis(skeleton, player),
+		"rootblade":Rootblade.calibration(skeleton,player,skeleton.find_bone("pelvis")),
 	}
+	cache_staff_releases(field,kind)
 	Reviewed.cache_releases(field, kind)
 	SeedFocus.cache_contacts(field, kind)
 	Wand.cache_releases(skeleton,player,field.pelvis,field.wand,kind)
@@ -85,9 +92,10 @@ static func hand(actor: Dictionary, left: bool) -> Vector3:
 	var field: Dictionary = actor.field_rig
 	if field.reviewed.has("form"):
 		return field.skeleton.to_global(Reviewed.grip_center(field,field.reviewed.form,left))
-	var grips: Dictionary=field.maul if field.get("maul_active",false) else field.spear if field.get("spear_active",false) else field
+	var grips: Dictionary=field.staff if field.get("staff_active",false) else field.maul if field.get("maul_active",false) else field.spear if field.get("spear_active",false) else field
 	var anchor: Dictionary = grips.left if left else grips.right
 	if not left and field.get("wand_active",false):anchor=field.wand.right
+	if not left and field.get("rootblade_active",false):anchor=field.rootblade.right
 	var skeleton: Skeleton3D = field.skeleton
 	return skeleton.to_global(skeleton.get_bone_global_pose(anchor.bone) * anchor.point)
 
@@ -97,10 +105,16 @@ static func weapon_orientation(actor: Dictionary, form: String, phase: float, ac
 		var field: Dictionary=actor.field_rig
 		var skeleton: Skeleton3D=field.skeleton
 		return (skeleton.global_basis*skeleton.get_bone_global_pose(field.wand.right.bone).basis*Basis(field.wand.mount)).orthonormalized()
+	if form=="staff" and actor.field_rig.get("staff_active",false):
+		return (actor.field_rig.skeleton.global_basis*Basis(actor.field_rig.staff_sample.weapon)).orthonormalized()
 	if form=="hammer" and actor.field_rig.get("maul_active",false):
 		return (actor.field_rig.skeleton.global_basis*Basis(actor.field_rig.maul_sample.weapon)).orthonormalized()
 	if form=="spear" and actor.field_rig.get("spear_active",false):
 		return (actor.field_rig.skeleton.global_basis*Basis(actor.field_rig.spear_sample.weapon)).orthonormalized()
+	if form=="blade" and actor.field_rig.get("rootblade_active",false):
+		var field: Dictionary=actor.field_rig
+		var skeleton: Skeleton3D=field.skeleton
+		return (skeleton.global_basis*skeleton.get_bone_global_pose(field.rootblade.right.bone).basis*Basis(field.rootblade.mount)).orthonormalized()
 	return WeaponPoses.orientation(form,phase,active,yaw,motion)
 
 
@@ -115,6 +129,9 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	var locomotion := Locomotion.pose(actor,field,delta)
 	var spear_basic := form=="spear" and not bool(motion.get("ability",false))
 	field.spear_active=spear_basic
+	var staff_basic := form=="staff" and not bool(motion.get("ability",false))
+	field.staff_active=staff_basic
+	if not staff_basic:Staff.clear(field)
 	var wand_basic := form=="wand" and not bool(motion.get("ability",false))
 	field.wand_active=wand_basic
 	if not wand_basic:Wand.clear(field)
@@ -125,6 +142,8 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	var maul_basic := form=="hammer" and not bool(motion.get("ability",false))
 	field.maul_active=maul_basic
 	if not maul_basic:Maul.clear(field)
+	var rootblade_basic := form=="blade" and not bool(motion.get("ability",false))
+	field.rootblade_active=rootblade_basic
 	var basic_stance := not bool(motion.get("ability",false)) and WeaponPoses.procedural_stance(form)
 	var constrained_pose := not bool(motion.get("ability",false)) and WeaponPoses.DEFINITIONS.has(form) and (active or not WeaponPoses.relaxed_carry(form))
 	var body_pose := WeaponPoses.body_pose(form,phase,active) if not bool(motion.get("ability",false)) else Vector2.ZERO
@@ -139,13 +158,22 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 		wand_pose=Wand.pose(field,motion,phase,active,delta)
 		native_action=wand_pose.rotations
 		body_pose=Vector2.ZERO
-	if active and not bool(motion.get("ability",false)) and not reviewed_basic and not focus_basic and not wand_basic and not maul_basic and not spear_basic:
-		native_action=WeaponAnimation.pose(field,form,phase,int(motion.get("combo",0)),locomotion.rotations)
+	var rootblade_pose: Dictionary={}
+	if rootblade_basic:
+		rootblade_pose=Rootblade.pose(field,motion,phase,active,delta,locomotion.rotations)
+		native_action=rootblade_pose.rotations
+	else:
+		Rootblade.clear(field)
+	if active and not bool(motion.get("ability",false)) and not reviewed_basic and not focus_basic and not wand_basic and not maul_basic and not spear_basic and not rootblade_basic and not staff_basic:
+		native_action=WeaponAnimation.pose(field,form,phase,int(motion.get("combo",0)),locomotion.rotations,str(motion.get("clip","")))
 	if spear_basic:
 		native_action=Spear.rotations(field,motion,phase,active,locomotion.rotations)
 		body_pose=Vector2.ZERO
 	if maul_basic:
 		native_action=Maul.rotations(field,motion,phase,active,locomotion.rotations,delta)
+		body_pose=Vector2.ZERO
+	if staff_basic:
+		native_action=Staff.rotations(field,motion,phase,active,locomotion.rotations,delta)
 		body_pose=Vector2.ZERO
 	var global_bases: Array[Basis] = []
 	var pose_blend := 1.0-exp(-20.0*maxf(delta,0))
@@ -153,6 +181,7 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	# Imported attacks replace upper-body rotations only; locomotion keeps the legs.
 	var action_weight := smoothstep(0.0,.16,phase)*(1.0-smoothstep(.78,1.0,phase)) if active else 0.0
 	if wand_basic:action_weight=float(wand_pose.weight)
+	if rootblade_basic:action_weight=float(rootblade_pose.weight)
 	for index in skeleton.get_bone_count():
 		var parent := skeleton.get_bone_parent(index)
 		var parent_basis := global_bases[parent] if parent>=0 else Basis.IDENTITY
@@ -165,7 +194,7 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 		var native_bone := not native_action.is_empty() and WeaponAnimation.upper_body(bone_name)
 		# Constrained grips solve these joints below. Imported arm twists would fight
 		# that solution; retain native torso/free-arm motion and locomotion wrists.
-		var grip_joint := not reviewed_basic and not wand_basic and not maul_basic and not spear_basic and constrained_pose and grip_controls_joint(form,bone_name)
+		var grip_joint := not reviewed_basic and not wand_basic and not maul_basic and not spear_basic and not staff_basic and constrained_pose and grip_controls_joint(form,bone_name)
 		var has_action := action_weight>0.0 and not basic_stance and not grip_joint and (native_bone or not link.is_empty())
 		if has_action:
 			var action_pose: Quaternion
@@ -181,10 +210,13 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 			rotation=(parent_basis.inverse()*adjustment*parent_basis).get_rotation_quaternion()*rotation
 		# IK needs a fresh input pose, never a blend containing last frame's IK
 		# rotations. Feeding that result back accumulates wrist twist.
-		rotation = native_action[index] if (spear_basic or maul_basic) and WeaponAnimation.upper_body(bone_name) else rotation.normalized() if grip_joint else old_pose[index].slerp(rotation,lerpf(pose_blend,1.0,action_weight) if has_action else pose_blend).normalized()
-		if maul_basic and bone_name=="spine_01":
+		rotation = native_action[index] if (spear_basic or maul_basic or staff_basic) and WeaponAnimation.upper_body(bone_name) else rotation.normalized() if grip_joint else old_pose[index].slerp(rotation,lerpf(pose_blend,1.0,action_weight) if has_action else pose_blend).normalized()
+		if rootblade_basic and WeaponAnimation.upper_body(bone_name) and bone_name.ends_with("_r"):
+			var target: Quaternion=field.rootblade.ready[index].slerp(native_action[index],action_weight)
+			rotation=old_pose[index].slerp(target,lerpf(pose_blend,1.0,action_weight)).normalized()
+		if (maul_basic or staff_basic) and bone_name=="spine_01":
 			# Keep the reviewed torso/grip direction while locomotion turns the hips.
-			rotation=(parent_basis.inverse()*field.maul.pelvis_basis*Basis(rotation)).orthonormalized().get_rotation_quaternion()
+			rotation=(parent_basis.inverse()*(field.staff if staff_basic else field.maul).pelvis_basis*Basis(rotation)).orthonormalized().get_rotation_quaternion()
 		if wand_basic and WeaponAnimation.upper_body(bone_name) and bone_name.ends_with("_r"):
 			var target: Quaternion=field.wand.ready[index].slerp(native_action[index],action_weight)
 			rotation=old_pose[index].slerp(target,lerpf(pose_blend,1.0,action_weight)).normalized()
@@ -204,11 +236,16 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	actor.model.position.y=field.floor_lift
 	if not WeaponPoses.DEFINITIONS.has(form) or (active and bool(motion.get("ability",false))):
 		return
+	if staff_basic:
+		pose_staff_hands(skeleton,field)
+		return
 	if maul_basic:
 		pose_maul_hands(skeleton,field)
 		return
 	if spear_basic:
 		pose_spear_hands(skeleton,field,motion,phase,active)
+		return
+	if rootblade_basic:
 		return
 	if reviewed_basic and form in ["bow","crossbow"]:
 		# Preserve the reviewed elbow plane and finger rotations. Correct only the
@@ -326,17 +363,7 @@ static func hold_polearm(actor: Dictionary, skeleton: Skeleton3D, field: Diction
 
 static func hold_pair(skeleton: Skeleton3D, field: Dictionary, desired: Vector3, separation: Vector3, weight: float, right_elbow := Vector3(-1,-.78,-.24), left_elbow := Vector3(1,-.78,-.24)) -> void:
 	var offset := skeleton.global_basis.inverse()*separation
-	var rear := skeleton.to_local(desired)
-	var right := palm_reach(skeleton,field.right)
-	var left := palm_reach(skeleton,field.left)
-	var rear_center := Vector3(right.x,right.y,right.z)
-	var support_center := Vector3(left.x,left.y,left.z)-offset
-	# Project the rear palm into the intersection of both arms' reach in rig space.
-	for pass_index in 4:
-		rear = rear_center+(rear-rear_center).limit_length(right.w)
-		rear = support_center+(rear-support_center).limit_length(left.w)
-	if rear.distance_to(rear_center)>right.w+.001:
-		rear = rear_center.lerp(support_center,right.w/(right.w+left.w))
+	var rear:=WeaponAnimation.fit_grip_pair(skeleton.to_local(desired),offset,palm_reach(skeleton,field.right),palm_reach(skeleton,field.left))
 	pose_hand(skeleton,field.right,skeleton.to_global(rear),right_elbow,weight)
 	pose_hand(skeleton,field.left,skeleton.to_global(rear+offset),left_elbow,weight)
 
@@ -425,3 +452,54 @@ static func set_world_rotation(skeleton: Skeleton3D, bone: int, rotation: Basis)
 	var parent_rotation := skeleton.get_bone_global_pose(parent).basis.orthonormalized()
 	var local := parent_rotation.transposed()*rotation.orthonormalized()
 	skeleton.set_bone_pose_rotation(bone,local.get_rotation_quaternion().normalized())
+
+
+static func pose_staff_hands(skeleton: Skeleton3D, field: Dictionary) -> void:
+	var sample: Dictionary=field.staff_sample
+	var grips: Dictionary=field.staff
+	for side in ["right","left"]:
+		set_world_rotation(skeleton,grips[side].bone,Basis(sample[side])*Basis(grips[side].alignment))
+	var wrist: int=grips.right.bone
+	var elbow:=skeleton.get_bone_parent(wrist)
+	var shoulder:=skeleton.get_bone_parent(elbow)
+	var arm_length:=skeleton.get_bone_global_rest(shoulder).origin.distance_to(skeleton.get_bone_global_rest(elbow).origin)+skeleton.get_bone_global_rest(elbow).origin.distance_to(skeleton.get_bone_global_rest(wrist).origin)
+	var center:=shoulder_position(skeleton,grips.right).lerp(shoulder_position(skeleton,grips.left),.5)
+	var palm: Vector3=center+skeleton.global_basis*(Vector3(sample.right_point)-Vector3(sample.shoulder_center))*arm_length/float(sample.arm_length)
+	# Weapons keep their model size when character height changes. Fit to that
+	# world-space shaft, not a stretched copy of the skeleton's Y axis.
+	var orientation: Basis=(skeleton.global_basis*Basis(sample.weapon)).orthonormalized()
+	var separation:=orientation.y*(float(sample.left_grip)-float(sample.right_grip))*Polearms.SCALE
+	hold_pair(skeleton,grips,palm,separation,1.0,sample.right_elbow,sample.left_elbow)
+
+
+static func cache_staff_releases(field: Dictionary, body: int) -> void:
+	if Staff.release_layouts.has(body):return
+	var skeleton: Skeleton3D=field.skeleton
+	var player: AnimationPlayer=field.player
+	var old: Array[Quaternion]=[]
+	for bone in skeleton.get_bone_count():old.append(skeleton.get_bone_pose_rotation(bone))
+	var hips:=skeleton.get_bone_pose_position(field.pelvis)
+	var idle:=Locomotion.clip_pose(skeleton,player,field.pelvis,Locomotion.IDLE,4.0/24.0)
+	var layouts: Dictionary={}
+	for clip in ["Attack_staff_forward","Attack_staff_side"]:
+		var time:=float(Staff.data.clips[clip].contact_seconds)
+		var pose:=Locomotion.sample_clip(skeleton,player.get_animation(clip),field.pelvis,time,idle.rotations)
+		for bone in skeleton.get_bone_count():skeleton.set_bone_pose_rotation(bone,pose.rotations[bone])
+		skeleton.set_bone_pose_position(field.pelvis,idle.pelvis)
+		skeleton.force_update_all_bone_transforms()
+		var sample:=Staff.sample_at(clip,time)
+		var grips: Dictionary=field.staff
+		for side in ["right","left"]:set_world_rotation(skeleton,grips[side].bone,Basis(sample[side])*Basis(grips[side].alignment))
+		var wrist: int=grips.right.bone
+		var elbow:=skeleton.get_bone_parent(wrist)
+		var shoulder:=skeleton.get_bone_parent(elbow)
+		var length:=skeleton.get_bone_global_rest(shoulder).origin.distance_to(skeleton.get_bone_global_rest(elbow).origin)+skeleton.get_bone_global_rest(elbow).origin.distance_to(skeleton.get_bone_global_rest(wrist).origin)
+		var center:=skeleton.to_local(shoulder_position(skeleton,grips.right).lerp(shoulder_position(skeleton,grips.left),.5))
+		var lowest:=INF
+		for sole in field.soles:lowest=minf(lowest,(skeleton.get_bone_global_pose(sole.bone)*sole.point).y)
+		layouts[clip]={"weapon":Basis(sample.weapon),"desired":center+(Vector3(sample.right_point)-Vector3(sample.shoulder_center))*length/float(sample.arm_length),
+			"right":palm_reach(skeleton,grips.right),"left":palm_reach(skeleton,grips.left),"right_grip":sample.right_grip,"grip_distance":sample.left_grip-sample.right_grip,"lowest":lowest}
+	for bone in skeleton.get_bone_count():skeleton.set_bone_pose_rotation(bone,old[bone])
+	skeleton.set_bone_pose_position(field.pelvis,hips)
+	skeleton.force_update_all_bone_transforms()
+	Staff.release_layouts[body]=layouts

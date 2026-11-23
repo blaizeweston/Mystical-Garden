@@ -69,6 +69,18 @@ func run() -> void:
 	var leader := Vector3(2.5, 0, -3.125)
 	var drop := Vector3(-8.5, 0, 4.25)
 	var frame := Codec.encode(10, people, campaign, scouts, leader, 487, 500, drop, 74, 25)
+	check(Codec.CLIPS.find("Attack_spear_sweep")==24 and Codec.CLIPS.find("Attack_whip_sweep")==25,
+		"existing protocol-41 clip IDs retain their indices")
+	var established_attacks := ["Attack_wand_forward", "Attack_wand_sweep", "Attack_focus_push", "Attack_focus_gather", "Attack_bow_upright", "Attack_bow_canted", "Attack_crossbow_raised", "Attack_crossbow_low", "Attack_ring_sidearm", "Attack_ring_rising", "Attack_knives_right", "Attack_knives_left"]
+	for index in established_attacks.size():
+		check(Codec.CLIPS.find(established_attacks[index])==28+index, "existing multiplayer attack keeps its published clip ID")
+	for clip in ["Attack_rootblade_forehand","Attack_rootblade_backhand","Attack_staff_forward","Attack_staff_side"]:
+		var named_people:=people.duplicate(true)
+		named_people[1].attack_anim.clip=clip
+		var named_frame:=Codec.encode(10,named_people,campaign,scouts,leader,487,500,drop,74,25)
+		var named:=Codec.decode(named_frame)
+		check(named_frame.size()==frame.size() and not named.is_empty() and named.people[1].attack_anim.clip==clip,
+			"Reviewed weapon clip round-trips without changing snapshot size")
 	var viewer := Codec.for_viewer(frame, 317, true, true)
 	check(frame.size() == Codec.MAX_FRAME and frame.size() <= Codec.PAYLOAD_BUDGET, "full four-player and twenty-scout frame fits the budget")
 	var decoded := Codec.decode(viewer)

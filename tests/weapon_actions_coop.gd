@@ -64,6 +64,12 @@ func host_run():
  mark("spear-ready")
  check(await until(func():return marked("spear-checked")),"guest sees imported thrust then sweep")
  check(await until(func():return game.enemy_health()<1000 and game.encounter.hp(flank)<1000),"host damages front and flank using the alternating areas after release")
+ p.weapon_kind=0;p[WeaponActions.STATE]=WeaponActions.State.new()
+ game.encounter.set_hp(-1,1000);game.encounter.clear_scouts()
+ mark("rootblade-ready")
+ check(await until(func():return marked("rootblade-checked")),"guest sees alternating Rootblade slashes and both returns")
+ check(game.enemy_health()<1000,"Rootblade contact remains host authoritative")
+
  for index in 4:
   var form: String=Field.Reviewed.FORMS[index]
   p.frame=2 if index<3 else 3;p.weapon_kind=index if index<3 else 0
@@ -189,6 +195,38 @@ func guest_run():
  check(clips==["Attack_spear","Attack_spear_sweep"] and shapes==["line","sweep"],"host-selected thrust precedes sweep without a guest-side counter")
  check(visible_clips.has("Attack_spear") and visible_clips.has("Attack_spear_sweep"),"both imported clips run on the visible guest rig")
  mark("spear-checked")
+ if not await until(func():return marked("rootblade-ready") and Motion.form(game.players.get(id,{}))=="blade"):
+  check(false,"Rootblade loadout arrives");return
+ var blade_clips: Array[String]=[]
+ var blade_visible: Array[String]=[]
+ var blade_returns: Array[String]=[]
+ var blade_events: Array[String]=[]
+ ready_at=Time.get_ticks_msec()+6000;send_at=0
+ while Time.get_ticks_msec()<ready_at and (blade_clips.size()<2 or blade_visible.size()<2 or blade_returns.size()<2 or blade_events.size()<2):
+  var now:=Time.get_ticks_msec()
+  if now>=send_at:
+   send_at=now+50;game.submit_combat.rpc_id(1,Vector2(0,1),true)
+  var animation: Dictionary=game.players[id].get("attack_anim",{})
+  if animation.get("active",false) and str(animation.get("clip","")).begins_with("Attack_rootblade") and not blade_clips.has(animation.clip):blade_clips.append(animation.clip)
+  var view: Dictionary=game.stage.avatar_models.get(id,{})
+  if not view.is_empty():
+   var name:=str(view.field_rig.player.current_animation)
+   if name.begins_with("Attack_rootblade") and not blade_visible.has(name):blade_visible.append(name)
+   if name.begins_with("Recover_rootblade") and not blade_returns.has(name):blade_returns.append(name)
+  for received in game.guest_replication.received_events():
+   var event: Dictionary=received.event
+   if event.kind=="swing" and event.get("form","")=="blade":
+    if not blade_events.has(event.clip):blade_events.append(event.clip)
+    check(event.pattern=="sweep" and is_equal_approx(float(event.span),1.9) and is_zero_approx(float(event.get("yaw_offset",0))),"both Rootblade slashes replicate the same existing indicator")
+  await process_frame
+ game.submit_combat.rpc_id(1,Vector2(0,1),false)
+ check(blade_clips==["Attack_rootblade_forehand","Attack_rootblade_backhand"],"host selects forehand then backhand without a guest counter")
+ check(blade_visible.size()==2 and blade_events.size()==2,"both Rootblade clips arrive in rendered poses and swing events")
+ check(blade_returns.has("Recover_rootblade_left") and blade_returns.has("Recover_rootblade_right"),"guest plays both imported return clips")
+ check(await until(func():return not game.players[id].get("attack_anim",{}).get("active",false) and not game.stage.avatar_models[id].field_rig.rootblade.has("last_clip")),"stopping after either slash settles back to ready")
+ print("ROOTBLADE GUEST clips=",blade_clips," visible=",blade_visible," returns=",blade_returns," indicators=",blade_events)
+ mark("rootblade-checked")
+
  for form in Field.Reviewed.FORMS:
   if not await until(func():return marked("equip-"+form) and Motion.form(game.players.get(id,{}))==form):
    check(false,"guest receives "+form+" loadout");return
