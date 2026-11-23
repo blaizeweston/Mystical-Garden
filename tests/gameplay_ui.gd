@@ -61,6 +61,8 @@ func run() -> void:
 	ui.present_feedback("Save needs reconciliation.",true)
 	check(control(ui,"ToastPanel").visible and control(ui,"ToastPanel").z_index==1,"pending notice remains above other overlays")
 	ui.close_panels()
+	await inspect_card_borders(ui)
+	ui.close_panels()
 	var state := {"hp":50,"max_hp":100,"wild":false,"party":[]}
 	ui.present_hud(state,false)
 	state.hp=99
@@ -116,3 +118,27 @@ func run() -> void:
 	await process_frame
 	if not failed: print("PASS: standalone gameplay UI ownership, exclusive overlays, detached HUD/travel, revision-bound cards, details, exhaustion and confirmed action requests")
 	quit(1 if failed else 0)
+
+func inspect_card_borders(ui: Node) -> void:
+	var grades := ["Common", "Uncommon", "Rare", "Epic", "Unique", "Mythic"]
+	var textures := ["common_paper_birch", "uncommon_moss_green", "rare_slate_blue",
+		"epic_amethyst", "unique_dusty_rose", "mythic_garnet"]
+	var cards: HBoxContainer = control(ui, "CheckpointCards")
+	for offset in [0, 3]:
+		var shown := offer(40 + offset)
+		for i in 3:
+			var choice: Dictionary = shown.choices[i]
+			choice.unique = grades[offset+i] == "Unique"
+			choice.rarity = "" if choice.unique else grades[offset+i]
+			choice.title = "Incendiary Followthrough" if i == 0 else "Light Grip"
+		ui.show_checkpoint_offer(shown, 12, 3, false)
+		for frame in 3: await process_frame
+		for i in 3:
+			var panel: PanelContainer = cards.get_child(i)
+			var border: StyleBoxTexture = panel.get_theme_stylebox("panel")
+			check(border.texture.resource_path.get_file() == textures[offset+i] + ".png", "border matches offered " + grades[offset+i])
+			var title: Label = panel.get_child(0).get_child(0)
+			var scope: Label = panel.get_child(0).get_child(1)
+			check(title.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER and is_equal_approx(title.size.x,scope.size.x), "title is centered across the card")
+			check(title.get_line_count() > 1 if i == 0 else title.get_line_count() == 1, "long title wraps while short titles fit on one line")
+			check(title.position.y + title.size.y <= scope.position.y, "wrapped title leaves room for the next row")

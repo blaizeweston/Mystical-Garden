@@ -5,6 +5,14 @@ signal requested(command: String, data: Dictionary)
 signal overlay_opened
 
 const Style = preload("res://root_ui.gd")
+const CARD_BORDERS: Dictionary[String, Texture2D] = {
+	"Common": preload("res://assets/ui/card_borders/common_paper_birch.png"),
+	"Uncommon": preload("res://assets/ui/card_borders/uncommon_moss_green.png"),
+	"Rare": preload("res://assets/ui/card_borders/rare_slate_blue.png"),
+	"Epic": preload("res://assets/ui/card_borders/epic_amethyst.png"),
+	"Unique": preload("res://assets/ui/card_borders/unique_dusty_rose.png"),
+	"Mythic": preload("res://assets/ui/card_borders/mythic_garnet.png"),
+}
 const Appearance = preload("res://character_appearance.gd")
 const LOOK_NAMES = Appearance.OPTIONS
 var _panels: Dictionary = {}
@@ -137,16 +145,20 @@ func show_checkpoint_offer(offer: Dictionary, wallet: int, floor_number: int, wa
 	var width: float = 225
 	for data in cards:
 		var frame := Style.panel(_checkpoint_cards,Color("#14262b"),Vector2(12,12))
+		var grade: String = "Unique" if data.unique else data.rarity
+		var frame_style: StyleBoxTexture = frame.get_theme_stylebox("panel")
+		frame_style.texture = CARD_BORDERS.get(grade, frame_style.texture)
 		frame.custom_minimum_size = Vector2(width,340)
 		var card := VBoxContainer.new()
 		card.add_theme_constant_override("separation",10)
 		frame.add_child(card)
 		var title := Style.label(card,18,Color("#e4d7a5"))
 		title.text = str(data.title)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		title.add_theme_color_override("font_color",Color({"Common":"#d0d1b3","Uncommon":"#a3c57b","Rare":"#83b7d7","Epic":"#b99adb"}.get(str(data.get("rarity","Common")),"#e4d7a5")))
 		title.custom_minimum_size = Vector2(width-28,0)
 		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		Style.label(card,14,Color("#a3c57b")).text = "%s · %s" % [data.scope,"Unique" if data.unique else data.rarity]
+		Style.label(card,14,Color("#a3c57b")).text = "%s · %s" % [data.scope,grade]
 		var scroll := ScrollContainer.new()
 		scroll.custom_minimum_size = Vector2(width-28,166)
 		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL

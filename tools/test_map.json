@@ -767,6 +767,7 @@
       "items",
       "presentation"
     ],
+    "assets/ui/card_borders/**": ["gameplay_ui"],
     "assets/ui/**": [
       "presentation",
       "progression"
