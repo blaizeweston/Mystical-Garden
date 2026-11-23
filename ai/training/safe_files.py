@@ -12,11 +12,16 @@ import io
 import json
 import os
 import re
+import time
 from pathlib import Path
 
 import torch
 
 CHECKPOINT_PATTERN = re.compile(r"^ckpt_(\d+)\.pt$")
+## Windows refuses to replace a file another process has open (a worker reading the manifest, the dashboard,
+## antivirus). Such locks last moments, so a replace is retried this many times, REPLACE_WAIT seconds apart.
+REPLACE_ATTEMPTS = 100
+REPLACE_WAIT = 0.1
 
 
 def sha256_hex(data: bytes) -> str:
@@ -30,7 +35,19 @@ def atomic_write_bytes(path: Path, data: bytes) -> None:
         out.write(data)
         out.flush()
         os.fsync(out.fileno())
-    os.replace(temporary, path)
+    replace(temporary, path)
+
+
+def replace(source: Path, target: Path) -> None:
+    """os.replace, retried while another process briefly holds the target open (Windows: Access is denied)."""
+    for attempt in range(REPLACE_ATTEMPTS):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if attempt == REPLACE_ATTEMPTS - 1:
+                raise
+            time.sleep(REPLACE_WAIT)
 
 
 def atomic_write_json(path: Path, value: object) -> None:

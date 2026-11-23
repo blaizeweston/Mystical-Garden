@@ -142,6 +142,17 @@ def test_trainer(schema: MobSchema, folder: Path) -> None:
     check(T.pid_alive(os.getpid()) and not T.pid_alive(0), "the running-process test sees this process")
 
 
+def test_replace_waits_for_open_file(folder: Path) -> None:
+    """A reader holding the target open (as a worker reading the manifest does) only delays an atomic write."""
+    import threading
+    target = folder / "held.json"
+    S.atomic_write_json(target, {"version": 1})
+    holder = target.open("rb")
+    threading.Timer(0.4, holder.close).start()
+    S.atomic_write_json(target, {"version": 2})
+    check(S.read_json(target) == {"version": 2} and holder.closed, "an atomic write waits for a reader to let go, then succeeds")
+
+
 def main() -> int:
     schema = MobSchema()
     with tempfile.TemporaryDirectory() as temporary:
@@ -150,6 +161,7 @@ def main() -> int:
         test_advantages()
         test_masked_terms(schema)
         test_trainer(schema, folder)
+        test_replace_waits_for_open_file(folder)
     print("PASSED" if not failures else f"FAILED: {len(failures)} check(s)")
     return 1 if failures else 0
 

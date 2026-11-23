@@ -182,12 +182,24 @@ func write_shard(folder: String, name: String, worker: int) -> int:
 	if failed != OK:
 		DirAccess.remove_absolute(temporary)
 		return failed
-	var status := DirAccess.rename_absolute(temporary, folder.path_join(name + ".shard"))
+	var status := rename_retrying(temporary, folder.path_join(name + ".shard"))
 	if status != OK:
 		DirAccess.remove_absolute(temporary)
 		return status
 	clear()
 	return OK
+
+
+## DirAccess.rename_absolute, retried for up to about two seconds while antivirus or another process briefly
+## holds a file open, which makes Windows refuse the rename.
+static func rename_retrying(from: String, to: String) -> int:
+	var status := DirAccess.rename_absolute(from, to)
+	for attempt in 40:
+		if status == OK:
+			break
+		OS.delay_msec(50)
+		status = DirAccess.rename_absolute(from, to)
+	return status
 
 
 static func sha256(data: PackedByteArray) -> PackedByteArray:

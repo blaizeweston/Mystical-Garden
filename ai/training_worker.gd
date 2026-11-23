@@ -188,7 +188,7 @@ func _write_progress(progress: Dictionary) -> void:
 		return
 	file.store_string(JSON.stringify(progress))
 	file.close()
-	DirAccess.rename_absolute(path + ".tmp", path)
+	Recorder.rename_retrying(path + ".tmp", path)
 
 
 func _backlog() -> int:
