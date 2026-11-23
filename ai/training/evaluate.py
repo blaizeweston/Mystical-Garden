@@ -42,6 +42,7 @@ HERE = Path(__file__).resolve().parent
 PROJECT = HERE.parent.parent
 REWARDS_PATH = HERE / "rewards.json"
 SCRIPTED = "scripted"
+RANDOM = "random"
 BLOCKS = 8
 JOB_TIMEOUT_SECONDS = 3600
 
@@ -80,11 +81,15 @@ def default_checkpoints(run_dir: Path, milestones: int) -> list[Path]:
 
 
 class Contestant:
-    def __init__(self, label: str, policy_file: Path, state: dict | None = None) -> None:
+    """A brain to compare: "policy" (a checkpoint), "scripted" (the game's brain) or "random" (every legal option
+    equally likely, the baseline for how much choices matter at all)."""
+
+    def __init__(self, label: str, policy_file: Path, state: dict | None = None, kind: str | None = None) -> None:
         self.label = label
         self.policy_file = policy_file
         self.state = state
-        self.scripted = state is None
+        self.kind = kind or ("policy" if state else "scripted")
+        self.scripted = self.kind == "scripted"
         self.samples = int(state.get("samples", 0)) if state else 0
         self.version = int(state.get("version", 0)) if state else 0
 
@@ -118,6 +123,18 @@ def prepare(paths: list[Path], schema: MobSchema, out: Path) -> list[Contestant]
     return contestants
 
 
+def random_brain(schema: MobSchema, out: Path) -> Contestant:
+    """A policy whose every logit is zero, so each head picks uniformly among its legal options."""
+    policy = MobPolicy(schema)
+    with torch.no_grad():
+        policy.heads.weight.zero_()
+        policy.heads.bias.zero_()
+    file = out / "policies" / "policy_random.bin"
+    file.parent.mkdir(parents=True, exist_ok=True)
+    export_weights(policy, file)
+    return Contestant(RANDOM, file, kind="random")
+
+
 def squad_mix(samples: int, settings: dict) -> float:
     mob = json.loads(REWARDS_PATH.read_text(encoding="utf-8"))["mob"]
     start, end = float(mob.get("squad_mix_start", 0.2)), float(mob.get("squad_mix_end", 0.2))
@@ -149,7 +166,7 @@ def run_jobs(contestants: list[Contestant], settings: dict, args, out: Path) -> 
                        "--out", str(result), "--squad-mix", f"{mix:.4f}"]
             if contestant.scripted:
                 command.append("--scripted")
-            elif block == 0 and args.record > 0:
+            elif contestant.kind == "policy" and block == 0 and args.record > 0:
                 command += ["--record", str(min(args.record, count)), "--shards", str(out / "shards" / f"c{index:02d}")]
             jobs.append((name, command))
     total = len(jobs)
@@ -484,6 +501,7 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--record", type=int, default=12, help="episodes per checkpoint whose decisions the critic diagnosis uses")
     parser.add_argument("--no-scripted", action="store_true")
+    parser.add_argument("--no-random", action="store_true", help="leave out the random brain (uniform over legal options)")
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
     if args.episodes < 1:
@@ -506,6 +524,8 @@ def main() -> int:
     if not contestants:
         raise SystemExit("None of the checkpoints could be used.")
     contestants.sort(key=lambda c: c.samples)
+    if not args.no_random:
+        contestants.insert(0, random_brain(schema, out))
     if not args.no_scripted:
         contestants.insert(0, Contestant(SCRIPTED, contestants[-1].policy_file))
     print("Brains: " + ", ".join(c.label for c in contestants))
@@ -515,7 +535,7 @@ def main() -> int:
     names = [entry["name"] for entry in json.loads((PROJECT / "mob_sim" / "mob_contract.json").read_text(encoding="utf-8"))["behaviours"]]
     diagnoses = {}
     for index, contestant in enumerate(contestants):
-        if not contestant.scripted:
+        if contestant.kind == "policy":
             found = diagnose(contestant, out / "shards" / f"c{index:02d}", schema, settings)
             if found:
                 diagnoses[contestant.label] = found

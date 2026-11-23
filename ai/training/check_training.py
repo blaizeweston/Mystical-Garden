@@ -195,6 +195,10 @@ def test_evaluation(schema: MobSchema, folder: Path) -> None:
     check(found["rows"] == 44 and np.isfinite(found["explained_variance_full"]) and abs(shares - 1.0) < 1e-6,
           "the critic diagnosis reads recorded decisions and splits entropy by head")
 
+    uniform = E.random_brain(schema, folder)
+    check(uniform.kind == "random" and not uniform.scripted and uniform.policy_file.stat().st_size > 1000,
+          "the random brain is exported as a policy of its own kind")
+
     class Args:
         episodes, seed = 10, 1
     scripted = E.Contestant(E.SCRIPTED, folder / "unused.bin")
