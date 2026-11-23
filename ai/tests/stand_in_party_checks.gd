@@ -1,6 +1,7 @@
 extends SceneTree
-## Checks the training party (ai/stand_in_party.gd): stats and timers reach the simulation, dodges, armour,
-## going down, darkness, skills, and that a harder party fights better against the scripted brain.
+## Checks the training party (ai/stand_in_party.gd): stats, classes and timers reach the simulation, dodges,
+## armour, guard, bark armour, healing, going down, darkness, skills, and that a harder party fights better against
+## the scripted brain.
 
 const Battlefield = preload("res://battlefield.gd")
 const Events = preload("res://mob_sim/mob_events.gd")
@@ -12,7 +13,7 @@ const Sim = preload("res://mob_sim/mob_sim.gd")
 const StandIns = preload("res://ai/stand_in_party.gd")
 
 const ROSTER := ["rootbound", "rootbound", "thornmaw", "gallhorn", "nightbloom", "bellcap", "wasp", "willow"]
-const FULL_PARTY := ["warrior", "ranger", "mage", "warden"]
+const FULL_PARTY := ["warden", "ranger", "oracle", "weaver"]
 
 var failures := 0
 var checks := 0
@@ -26,6 +27,7 @@ func _initialize() -> void:
 		return
 	test_publishing()
 	test_hits()
+	test_effects()
 	test_darkness()
 	test_patrol()
 	test_fights()
@@ -72,10 +74,15 @@ func test_publishing() -> void:
 	var world := make_world(5)
 	var sim: Sim = world[1]
 	var party := StandIns.new(sim, world[0], 1)
-	party.reset(["warrior", "ranger"], [Vector2(0, 0), Vector2(1, 0)], 0.5)
+	party.reset(["warden", "ranger"], [Vector2(0, 0), Vector2(1, 0)], 0.5)
 	var stats: PackedFloat32Array = sim.party.stats
-	check(stats[Party.Stat.MELEE_DAMAGE] == 16.0 and stats[Party.STAT_COUNT + Party.Stat.RANGED_RANGE] == 9.0,
+	check(stats[Party.Stat.MELEE_DAMAGE] == 11.0 and stats[Party.STAT_COUNT + Party.Stat.RANGED_RANGE] == 6.0,
 		"each player's class stats reach the simulation")
+	check(stats[Party.Stat.CLASS] == 1.0 and stats[Party.STAT_COUNT + Party.Stat.CLASS] == 3.0,
+		"each player's class reaches the simulation as its place in the contract's party classes")
+	check(stats[Party.Stat.SPEED_SCALE] == 1.0 and stats[Party.Stat.GUARD] == 0.0, "a fresh player moves at full speed, unguarded")
+	for label: String in party.CLASSES:
+		check(sim.contract.party_classes.has(label), "the training class %s is one of the game's classes" % label)
 	check(sim.party.present[0] != 0 and sim.party.present[1] != 0 and sim.party.present[2] == 0, "only the party's players are present")
 
 
@@ -83,16 +90,18 @@ func test_hits() -> void:
 	var world := make_world(6)
 	var sim: Sim = world[1]
 	var party := StandIns.new(sim, world[0], 2)
-	party.reset(["warrior"], [Vector2(0, 0)], 0.5)
+	party.reset(["warden"], [Vector2(0, 0)], 0.5)
+	party.has_bark[0] = 0
+	party.skill_ready[0] = sim.clock.tick + 100000
 	var mob := add_mob(sim, "rootbound", Vector2(1, 0))
 	sim.events.push(Events.Kind.HIT, sim.clock.tick, mob, sim.pool.generation[mob], 0, 0, 0.0, 0.0, 100.0)
 	party.after_tick()
-	var full: float = StandIns.CLASSES.warrior.hp
-	check(is_equal_approx(party.hp[0], full - 75.0), "armour takes its share of a hit")
+	var full: float = StandIns.CLASSES.warden.hp
+	check(is_equal_approx(party.hp[0], full - 70.0), "armour takes its share of a hit")
 	party.dodge_until[0] = sim.clock.tick + 10
 	sim.events.push(Events.Kind.HIT, sim.clock.tick, mob, sim.pool.generation[mob], 0, 0, 0.0, 0.0, 100.0)
 	party.after_tick()
-	check(party.hits_dodged == 1 and is_equal_approx(party.hp[0], full - 75.0), "a hit during a dodge does nothing")
+	check(party.hits_dodged == 1 and is_equal_approx(party.hp[0], full - 70.0), "a hit during a dodge does nothing")
 	party.dodge_until[0] = 0
 	sim.events.push(Events.Kind.HIT, sim.clock.tick, mob, sim.pool.generation[mob], 0, 0, 0.0, 0.0, 1000.0)
 	party.after_tick()
@@ -100,11 +109,60 @@ func test_hits() -> void:
 	check(party.down[0] != 0 and party.wiped() and sim.party.alive[0] == 0, "a player at zero health goes down and the party is wiped")
 
 
+## Guard blocks whole hits, bark armour soaks part of one, roots show as lost speed, and the oracle heals.
+func test_effects() -> void:
+	var world := make_world(9)
+	var sim: Sim = world[1]
+	var party := StandIns.new(sim, world[0], 5)
+	party.reset(["warden", "oracle"], [Vector2(0, 0), Vector2(1, 0)], 0.5)
+	party.has_bark.fill(0)
+	party.skill_ready[1] = sim.clock.tick + 100000
+	var mob := add_mob(sim, "rootbound", Vector2(1.5, 0))
+	var now: int = sim.clock.tick
+	party.skill_ready[0] = now
+	party.target[0] = -1
+	party._try_skill(0, StandIns.CLASSES.warden, now)
+	check(party.guard_charges[0] == 0, "a warden keeps its guard while no mob winds up on it")
+	sim.pool.windup_until[mob] = now + 20
+	sim.pool.aim_player[mob] = 0
+	party._try_skill(0, StandIns.CLASSES.warden, now)
+	sim.pool.windup_until[mob] = 0
+	party.before_tick()
+	check(party.guard_charges[0] == 1 and is_equal_approx(sim.party.stats[Party.Stat.GUARD], 0.25),
+		"a warden raises its guard against a wind-up and the mobs can see it")
+	var full: float = party.hp[0]
+	sim.events.push(Events.Kind.HIT, now, mob, sim.pool.generation[mob], 0, 0, 0.0, 0.0, 40.0)
+	party.after_tick()
+	check(party.blocked == 1 and is_equal_approx(party.hp[0], full), "a guard charge blocks a whole hit")
+	party.before_tick()
+	check(sim.party.stats[Party.Stat.GUARD] == 0.0, "a spent guard no longer shows")
+	party.has_bark[0] = 1
+	party.bark_ready[0] = now
+	party.target[0] = mob
+	party._try_bark(0, now)
+	party.before_tick()
+	check(is_equal_approx(sim.party.stats[Party.Stat.BARK], StandIns.BARK.capacity) and is_equal_approx(sim.party.stats[Party.STAT_COUNT + Party.Stat.BARK], StandIns.BARK.capacity),
+		"bark armour reaches the player and an ally beside it")
+	sim.events.push(Events.Kind.HIT, now, mob, sim.pool.generation[mob], 0, 0, 0.0, 0.0, 50.0)
+	party.after_tick()
+	var after_armour: float = 50.0 * (1.0 - float(StandIns.CLASSES.warden.armour))
+	check(is_equal_approx(party.hp[0], full - after_armour * 0.6) and is_equal_approx(party.bark[0], StandIns.BARK.capacity - after_armour * 0.4),
+		"bark armour soaks its share of an unblocked hit")
+	party.rooted_until[1] = now + 30
+	party.before_tick()
+	check(sim.party.stats[Party.STAT_COUNT + Party.Stat.SPEED_SCALE] == 0.0 and sim.party.stats[Party.Stat.SPEED_SCALE] == 1.0,
+		"a rooted player shows no speed and a free one full speed")
+	party.hp[1] = 40.0
+	party.skill_ready[1] = now
+	party._try_skill(1, StandIns.CLASSES.oracle, now)
+	check(is_equal_approx(party.hp[1], 40.0 + StandIns.HEAL.amount) and party.healed > 0.0, "the oracle heals a hurt ally nearby")
+
+
 func test_darkness() -> void:
 	var world := make_world(7)
 	var sim: Sim = world[1]
 	var party := StandIns.new(sim, world[0], 3)
-	party.reset(["ranger", "mage"], [Vector2(0, 0), Vector2(1, 0)], 0.5, 0.1)
+	party.reset(["ranger", "weaver"], [Vector2(0, 0), Vector2(1, 0)], 0.5, 0.1)
 	for step in 6:
 		sim.clock.advance()
 		party.before_tick()
@@ -122,7 +180,7 @@ func test_patrol() -> void:
 	for point: Vector2 in open:
 		if points.size() < 3 and point != start and point.distance_to(start) < 2.5:
 			points.append(point)
-	party.reset(["warrior", "ranger", "mage"], points, 0.5)
+	party.reset(["warden", "ranger", "oracle"], points, 0.5)
 	var placed := party.plan_patrol(open, 4)
 	var farthest := 0.0
 	for point: Vector2 in party.patrol:
@@ -151,8 +209,8 @@ func test_fights() -> void:
 	var results := {}
 	for skill: float in [0.1, 0.9]:
 		var totals := {"kills": 0, "taken": 0.0, "dealt": 0.0, "dodges": 0, "downs": 0, "fields": 0, "ticks": 0, "usec": 0,
-			"windups": 0, "hits": 0}
-		for seed_value in [11, 22, 33]:
+			"windups": 0, "hits": 0, "blocked": 0, "healed": 0.0}
+		for seed_value in [11, 22, 33, 44, 55, 66, 77, 88]:
 			var world := make_world(seed_value)
 			var sim: Sim = world[1]
 			var open: Array = world[2]
@@ -191,6 +249,8 @@ func test_fights() -> void:
 			totals.taken += party.damage_taken
 			totals.dealt += party.damage_dealt
 			totals.dodges += party.dodges
+			totals.blocked += party.blocked
+			totals.healed += party.healed
 			totals.downs += 4 - party.alive_count()
 			totals.fields += fields_seen
 		results[skill] = totals
@@ -204,3 +264,4 @@ func test_fights() -> void:
 	check(high.kills >= low.kills and high.taken / maxf(1.0, high.kills) < low.taken / maxf(1.0, low.kills),
 		"a harder party kills more and takes less damage per kill")
 	check(high.fields > 0, "class skills leave player fields")
+	check(low.blocked + high.blocked > 0 and low.healed + high.healed > 0.0, "in real fights the warden guards and the oracle heals")

@@ -17,6 +17,9 @@ var players := 0
 var allies := 0
 var attacks := 0
 var message_symbols := 0
+## The game's player classes, in the order the party profile counts them. A host publishes each player's class as
+## its position here plus one (MobParty.Stat.CLASS); 0 means unknown.
+var party_classes := PackedStringArray()
 var behaviour_count := 0
 var manoeuvre_count := 0
 var names := PackedStringArray()
@@ -48,6 +51,7 @@ func _init(path: String = PATH) -> void:
 	allies = int(data.slots.allies)
 	attacks = int(data.slots.attacks)
 	message_symbols = int(data.slots.message_symbols)
+	party_classes = PackedStringArray(data.get("party_classes", []))
 	rules = data.rules
 	perception = data.perception
 	manoeuvres = PackedStringArray(data.manoeuvres)

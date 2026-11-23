@@ -3,7 +3,8 @@ extends RefCounted
 ## It stands in for the game, so the simulation must run with abilities.resolve_hits on; the party reads the
 ## HIT events mobs make and deals its own damage through MobSim.damage_mob.
 ##
-## Each player has a class (stats, attack and skill) and the party shares a difficulty from 0 to 1, which sets
+## Each player has one of the game's classes (stats, attack and skill, approximated from class_catalog.gd) and the
+## party shares a difficulty from 0 to 1, which sets
 ## reaction time, dodge chance, aim, focus fire and kiting. Players go down at zero health and stay down until
 ## reset(). At night (darkness below 1) players carry lights and only see lit or nearby mobs, by the same rule
 ## as the arena (MobPerception.player_sees).
@@ -40,22 +41,31 @@ const BODY_CLEARANCE := 0.3
 ## rates a little tighter than BODY_CLEARANCE.
 const STEP_CLEARANCE := 0.12
 
-## Class profiles in the game's health units (a player has about 100 health and a mob's hit takes about 10).
-## range > 3 is ranged; area > 0 splashes; skill is "fire", "root" or "".
+## The game's classes (mob_contract.json party_classes), in its health units (a player has about 100 health and a
+## mob's hit takes about 10). Reach, swing time and skill cooldown follow each class's first weapon and skill in
+## class_catalog.gd. range > 3 is ranged; area > 0 splashes; skill is "guard", "root", "heal" or "".
 const CLASSES := {
-	"warrior": {"hp": 115.0, "speed": 5.0, "damage": 16.0, "range": 2.3, "interval": 0.7, "area": 0.0, "armour": 0.25,
-		"dodge_s": 2.0, "skill": "", "skill_s": 0.0},
-	"rogue": {"hp": 85.0, "speed": 5.8, "damage": 13.0, "range": 1.9, "interval": 0.45, "area": 0.0, "armour": 0.05,
-		"dodge_s": 1.2, "skill": "", "skill_s": 0.0},
-	"ranger": {"hp": 80.0, "speed": 5.2, "damage": 10.0, "range": 9.0, "interval": 0.75, "area": 0.0, "armour": 0.05,
+	"warden": {"hp": 130.0, "speed": 4.7, "damage": 11.0, "range": 2.25, "interval": 0.8, "area": 0.0, "armour": 0.3,
+		"dodge_s": 2.2, "skill": "guard", "skill_s": 4.8},
+	"weaver": {"hp": 80.0, "speed": 5.0, "damage": 9.0, "range": 4.0, "interval": 0.75, "area": 0.0, "armour": 0.05,
+		"dodge_s": 1.8, "skill": "root", "skill_s": 6.0},
+	"ranger": {"hp": 80.0, "speed": 5.2, "damage": 10.0, "range": 6.0, "interval": 0.85, "area": 0.0, "armour": 0.05,
 		"dodge_s": 1.6, "skill": "", "skill_s": 0.0},
-	"mage": {"hp": 75.0, "speed": 5.0, "damage": 8.0, "range": 8.0, "interval": 1.1, "area": 1.6, "armour": 0.0,
-		"dodge_s": 1.8, "skill": "fire", "skill_s": 8.0},
-	"warden": {"hp": 130.0, "speed": 4.7, "damage": 10.0, "range": 2.0, "interval": 0.8, "area": 0.0, "armour": 0.35,
-		"dodge_s": 2.2, "skill": "root", "skill_s": 10.0},
+	"reaper": {"hp": 85.0, "speed": 5.8, "damage": 13.0, "range": 1.7, "interval": 0.45, "area": 0.0, "armour": 0.05,
+		"dodge_s": 1.2, "skill": "", "skill_s": 0.0},
+	"oracle": {"hp": 90.0, "speed": 5.0, "damage": 8.0, "range": 2.7, "interval": 0.85, "area": 1.6, "armour": 0.1,
+		"dodge_s": 1.8, "skill": "heal", "skill_s": 8.0},
 }
-const FIRE_FIELD := {"radius": 2.5, "ms": 4000, "dps": 10.0}
 const ROOT_FIELD := {"radius": 2.2, "ms": 2500}
+## The warden's Guard: blocks the next hits whole while it lasts (class_catalog.gd: 1150 ms, one charge). It is
+## raised when a mob within reach winds up an attack on the warden.
+const GUARD := {"ms": 1150, "charges": 1, "reach": 8.0}
+## Bark armour from the wood affinity (wood_affinity.gd Ironbark): grants capacity to the player and living allies
+## nearby; it absorbs part of each unblocked hit. BARK_SHARE of players have it.
+const BARK := {"capacity": 30.0, "ms": 6000, "cooldown_s": 8.0, "radius": 2.65, "absorb": 0.4}
+const BARK_SHARE := 0.35
+## The oracle's Renewal: heals living players nearby when one of them is hurt.
+const HEAL := {"amount": 15.0, "radius": 6.0, "below": 0.85}
 ## A patrolling player moves on to its next point within this distance of the current one.
 const PATROL_REACHED := 2.0
 ## A patrolling player waits while anyone standing is farther behind than this.
@@ -98,6 +108,12 @@ var dodge_ready := PackedInt32Array()
 var dodge_until := PackedInt32Array()
 var rooted_until := PackedInt32Array()
 var skill_ready := PackedInt32Array()
+var guard_until := PackedInt32Array()
+var guard_charges := PackedInt32Array()
+var has_bark := PackedByteArray()
+var bark := PackedFloat32Array()
+var bark_until := PackedInt32Array()
+var bark_ready := PackedInt32Array()
 ## Mob wind-ups already judged for dodging, by slot * 8 + player, mapped to the tick a dodge may start.
 var _reaction := {}
 var _cursor := 0
@@ -108,6 +124,9 @@ var kills := 0
 var dodges := 0
 var hits_dodged := 0
 var detours := 0
+var blocked := 0
+var absorbed := 0.0
+var healed := 0.0
 
 
 func _init(simulation: RefCounted, battlefield: RefCounted, seed_value: int) -> void:
@@ -130,11 +149,13 @@ func reset(party_classes: Array, points: Array, skill: float, light := 1.0) -> v
 	_progress_at.clear()
 	for table in [hp, max_hp]:
 		table.resize(count)
-	for table in [down]:
+	for table in [down, has_bark]:
 		table.resize(count)
 		table.fill(0)
+	bark.resize(count)
+	bark.fill(0.0)
 	for table: PackedInt32Array in [target, attack_ready, attack_due, attack_slot, dodge_ready, dodge_until, rooted_until, skill_ready,
-			_routed_at, _progress_tick, _detour_until, patrol_leg]:
+			_routed_at, _progress_tick, _detour_until, patrol_leg, guard_until, guard_charges, bark_until, bark_ready]:
 		table.resize(count)
 		table.fill(0)
 	target.fill(-1)
@@ -150,6 +171,7 @@ func reset(party_classes: Array, points: Array, skill: float, light := 1.0) -> v
 		hp[player] = profile.hp
 		max_hp[player] = profile.hp
 		skill_ready[player] = now + Clock.from_ms(float(profile.skill_s) * 500.0)
+		has_bark[player] = int(rng.randf() < BARK_SHARE)
 	for player in range(count, sim.contract.players):
 		sim.party.clear_player(player)
 	sim.set_darkness(ambient < 1.0, ambient)
@@ -158,6 +180,7 @@ func reset(party_classes: Array, points: Array, skill: float, light := 1.0) -> v
 		var ranged: bool = profile.range > 3.0
 		sim.party.set_stats(player, PackedFloat32Array([0.0 if ranged else profile.damage, profile.damage if ranged else 0.0,
 			0.0 if ranged else profile.range, profile.range if ranged else 0.0, profile.speed, 1.0 / float(profile.interval), profile.armour]))
+		sim.party.set_class(player, sim.contract.party_classes.find(classes[player]) + 1)
 	_reaction.clear()
 	_cursor = sim.events.head
 	damage_taken = 0.0
@@ -166,6 +189,9 @@ func reset(party_classes: Array, points: Array, skill: float, light := 1.0) -> v
 	dodges = 0
 	hits_dodged = 0
 	detours = 0
+	blocked = 0
+	absorbed = 0.0
+	healed = 0.0
 	for player in count:
 		_progress_tick[player] = now
 	_publish()
@@ -235,6 +261,8 @@ func _publish() -> void:
 	for player in count:
 		party.set_player(player, position[player], velocity[player], 0.0 if down[player] != 0 else hp[player], max_hp[player])
 		party.set_timers(player, dodge_ready[player], attack_due[player] if attack_due[player] >= 0 else 0, dodge_until[player])
+		party.set_effects(player, 0.0 if now < rooted_until[player] else 1.0, guard_charges[player] if now < guard_until[player] else 0,
+			bark[player] if now < bark_until[player] else 0.0)
 		if ambient < 1.0 and down[player] == 0 and now % LIGHT_TICKS == 0:
 			lights.append_array(PackedFloat32Array([snappedf(position[player].x, 0.5), snappedf(position[player].y, 0.5), PLAYER_LIGHT, 1.0]))
 	if ambient < 1.0 and now % LIGHT_TICKS == 0:
@@ -246,7 +274,8 @@ func _publish() -> void:
 		sim.perception.lights = lights
 
 
-## A mob's attack reached a player: dodges ignore it, armour reduces it, roots and pulls apply.
+## A mob's attack reached a player: dodges ignore it, a guard charge blocks it, armour reduces it, bark armour
+## absorbs part of the rest, and roots and pulls apply.
 func _take_hit(event: Dictionary, now: int) -> void:
 	var player := int(event.a)
 	if player < 0 or player >= count or down[player] != 0:
@@ -254,7 +283,16 @@ func _take_hit(event: Dictionary, now: int) -> void:
 	if now < dodge_until[player]:
 		hits_dodged += 1
 		return
+	if now < guard_until[player] and guard_charges[player] > 0:
+		guard_charges[player] -= 1
+		blocked += 1
+		return
 	var amount := float(event.value) * (1.0 - float(CLASSES[classes[player]].armour))
+	if now < bark_until[player] and bark[player] > 0.0 and amount > 0.0:
+		var soaked := minf(bark[player], amount * float(BARK.absorb))
+		bark[player] -= soaked
+		absorbed += soaked
+		amount -= soaked
 	if amount > 0.0:
 		var dealt := minf(amount, hp[player])
 		hp[player] -= dealt
@@ -284,6 +322,7 @@ func _act(player: int, now: int) -> void:
 	_move(player, profile, now)
 	_try_attack(player, profile, now)
 	_try_skill(player, profile, now)
+	_try_bark(player, now)
 
 
 func _sees(player: int, slot: int) -> bool:
@@ -534,18 +573,68 @@ func _consider_dodge(player: int, now: int) -> bool:
 	return false
 
 
-## Class skills: the mage drops a fire field and the warden a binding field on the densest group of mobs near
-## its target. Both are ground fields, so they do not touch flyers.
+## Class skills: the warden raises its guard when threatened, the oracle heals the hurt, and the weaver drops a
+## binding field on the densest group of mobs near its target (a ground field, so it does not touch flyers).
 func _try_skill(player: int, profile: Dictionary, now: int) -> void:
 	var skill: String = profile.skill
+	if skill.is_empty() or now < skill_ready[player]:
+		return
+	if skill == "guard":
+		_try_guard(player, profile, now)
+	elif skill == "heal":
+		_try_heal(player, profile, now)
+	else:
+		_try_field(player, profile, now)
+
+
+func _try_field(player: int, profile: Dictionary, now: int) -> void:
 	var slot := target[player]
-	if skill.is_empty() or now < skill_ready[player] or slot < 0 or sim.pool.alive[slot] == 0:
+	if slot < 0 or sim.pool.alive[slot] == 0:
 		return
 	var at := Vector2(sim.pool.xz[slot * 2], sim.pool.xz[slot * 2 + 1])
 	if position[player].distance_to(at) > float(profile.range) + 2.0 or not _sees(player, slot):
 		return
 	skill_ready[player] = now + Clock.from_ms(float(profile.skill_s) * 1000.0)
-	if skill == "fire":
-		sim.add_player_field(at, FIRE_FIELD.radius, FIRE_FIELD.ms, player, FIRE_FIELD.dps)
-	else:
-		sim.add_player_field(at, ROOT_FIELD.radius, ROOT_FIELD.ms, player, 0.0, 1.0, true)
+	sim.add_player_field(at, ROOT_FIELD.radius, ROOT_FIELD.ms, player, 0.0, 1.0, true)
+
+
+func _try_guard(player: int, profile: Dictionary, now: int) -> void:
+	var pool = sim.pool
+	var threatened := false
+	for slot in pool.active:
+		if pool.windup_until[slot] > 0 and pool.aim_player[slot] == player:
+			var mob := Vector2(pool.xz[slot * 2], pool.xz[slot * 2 + 1])
+			if position[player].distance_to(mob) <= float(GUARD.reach):
+				threatened = true
+				break
+	if not threatened:
+		return
+	skill_ready[player] = now + Clock.from_ms(float(profile.skill_s) * 1000.0)
+	guard_until[player] = now + Clock.from_ms(float(GUARD.ms))
+	guard_charges[player] = int(GUARD.charges)
+
+
+func _try_heal(player: int, profile: Dictionary, now: int) -> void:
+	var hurt := false
+	for mate in count:
+		if down[mate] == 0 and position[mate].distance_to(position[player]) <= float(HEAL.radius) and hp[mate] < max_hp[mate] * float(HEAL.below):
+			hurt = true
+	if not hurt:
+		return
+	skill_ready[player] = now + Clock.from_ms(float(profile.skill_s) * 1000.0)
+	for mate in count:
+		if down[mate] == 0 and position[mate].distance_to(position[player]) <= float(HEAL.radius):
+			var gain := minf(float(HEAL.amount), max_hp[mate] - hp[mate])
+			hp[mate] += gain
+			healed += gain
+
+
+## A player with the wood affinity grants bark armour to itself and living allies nearby while it fights.
+func _try_bark(player: int, now: int) -> void:
+	if has_bark[player] == 0 or now < bark_ready[player] or target[player] < 0:
+		return
+	bark_ready[player] = now + Clock.from_ms(float(BARK.cooldown_s) * 1000.0)
+	for mate in count:
+		if down[mate] == 0 and position[mate].distance_to(position[player]) <= float(BARK.radius):
+			bark[mate] = maxf(bark[mate] if now < bark_until[mate] else 0.0, float(BARK.capacity))
+			bark_until[mate] = now + Clock.from_ms(float(BARK.ms))

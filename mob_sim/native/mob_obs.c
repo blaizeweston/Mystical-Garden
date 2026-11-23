@@ -131,13 +131,15 @@ MoResult mo_create(const void *const *items, const int64_t *lengths, MobObs **ou
         lengths[MC_ATTACK_SHAPE] != attack_cells || lengths[MC_ATTACK_RANGE] != attack_cells || lengths[MC_ATTACK_AREA] != attack_cells ||
         lengths[MC_ATTACK_WINDUP] != attack_cells || lengths[MC_ATTACK_RECOVERY] != attack_cells ||
         lengths[MC_HOLD_TICKS] != dim[MD_BEHAVIOURS] || lengths[MC_TARGET_KIND] != dim[MD_BEHAVIOURS] ||
-        lengths[MC_TRAITS] != (int64_t)species * MT_COUNT || dim[MD_HAZARD_SLOTS] <= 0) {
+        lengths[MC_TRAITS] != (int64_t)species * MT_COUNT || dim[MD_HAZARD_SLOTS] <= 0 || dim[MD_CLASSES] < 0 ||
+        dim[MD_CLASSES] > MO_MAX_CLASSES) {
         return MO_ERR_ARGUMENT;
     }
     const int *fields = items[MC_FIELDS];
     for (int i = 0; i < MF_COUNT; i++) {
         if (fields[i] < 0 || fields[i] >= size) return MO_ERR_ARGUMENT;
     }
+    if (fields[MF_PARTY_CLASSES] + dim[MD_CLASSES] > size) return MO_ERR_ARGUMENT;
     MobObs *o = calloc(1, sizeof(*o));
     if (o == NULL) return MO_ERR_MEMORY;
     memcpy(o->dim, dim, sizeof(o->dim));
@@ -547,11 +549,22 @@ static void write_hazards(Ctx *c, int slot, int kind) {
     }
 }
 
-/* Player combat stats, which a mob knows once it has sensed the player; wind-ups and dodges only while in sight. */
+/* Player combat stats, which a mob knows once it has sensed the player; wind-ups, dodges and effects (speed
+ * change, guard, bark armour) only while in sight. The party's classes are counted for every mob, as a share of the
+ * player slots. */
 static void write_player_stats(Ctx *c, int slot) {
     const MobObs *o = c->o;
     const int *f = o->field;
     int players = o->dim[MD_PLAYERS];
+    int classes = o->dim[MD_CLASSES];
+    int counts[MO_MAX_CLASSES] = {0};
+    for (int player = 0; player < players; player++) {
+        int number = (int)c->party_stats[player * MP_COUNT + MP_CLASS];
+        if (c->party_present[player] != 0 && number >= 1 && number <= classes) counts[number - 1]++;
+    }
+    for (int index = 0; index < classes; index++) {
+        if (counts[index] > 0) put(c, f[MF_PARTY_CLASSES] + index, (double)counts[index] / players);
+    }
     for (int player = 0; player < players; player++) {
         int row = slot * players + player;
         if (c->party_present[player] == 0 || c->seen_tick[row] < 0) continue;
@@ -570,6 +583,11 @@ static void write_player_stats(Ctx *c, int slot) {
         put(c, f[MF_E_WINDING] + shift, sees && c->tick < timer[MPT_WINDUP_UNTIL]);
         put(c, f[MF_E_DODGING] + shift, sees && c->tick < timer[MPT_DODGE_UNTIL]);
         put(c, f[MF_E_LIGHT] + shift, light_at(c, c->seen_x[row], c->seen_z[row]));
+        if (sees) {
+            put(c, f[MF_E_SPEED_CHANGE] + shift, stat[MP_SPEED_SCALE] - 1.0);
+            put(c, f[MF_E_GUARDED] + shift, stat[MP_GUARD]);
+            put(c, f[MF_E_BARK] + shift, stat[MP_BARK]);
+        }
     }
 }
 

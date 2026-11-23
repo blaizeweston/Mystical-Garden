@@ -40,6 +40,8 @@ const FIELD_KEYS := [
 	["context_hazard", ["present", "dx", "dy", "radius", "time_to_impact", "hostile", "mob_is_inside"]],
 	["enemy", ["melee_damage", "ranged_damage", "melee_range", "ranged_range", "speed", "attack_speed", "dodge_cooldown", "armour",
 		"winding_up", "dodging", "light_level"]],
+	["context_party", ["class_count"]],
+	["enemy", ["speed_change", "guarded", "bark_armour"]],
 ]
 
 var schema: Schema
@@ -104,7 +106,8 @@ func _configure(batch: Batch) -> bool:
 	var dims := PackedInt32Array([pool.capacity, contract.players, contract.allies, pool.attacks, table.count, contract.behaviour_count,
 		contract.message_symbols, schema.observation_size, History.BUCKETS, History.ONE_SECOND_BUCKETS, schema.blocks.self_ability.repeat,
 		schema.blocks.context_cover.repeat, Species.Shape.BUFF, Species.Shape.SUMMON, Contract.TargetKind.ALLY,
-		Pool.FLAG_LEADER | Pool.FLAG_ELITE, schema.blocks.context_hazard.repeat, Fields.Owner.PLAYERS, Fields.FLAG_GROUND])
+		Pool.FLAG_LEADER | Pool.FLAG_ELITE, schema.blocks.context_hazard.repeat, Fields.Owner.PLAYERS, Fields.FLAG_GROUND,
+		contract.party_classes.size()])
 	var strides := PackedInt32Array([schema.blocks.self_ability.stride, schema.blocks.enemy.stride, schema.blocks.ally.stride,
 		schema.blocks.context_cover.stride, schema.blocks.context_hazard.stride])
 	var reals := PackedFloat32Array([schema.clip, Builder.WALL_RANGE, Builder.COVER_CLEARANCE, Builder.FACING_DOT,

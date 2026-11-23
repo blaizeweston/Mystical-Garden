@@ -21,6 +21,8 @@ class Block:
     offset: int
     stride: int = 0
     fields: dict[str, tuple[int, int]] = field(default_factory=dict)
+    ## Fields the schema marks as masked: always zero until their mechanics exist.
+    masked: set[str] = field(default_factory=set)
 
     @property
     def size(self) -> int:
@@ -60,6 +62,8 @@ class MobSchema:
             for item in entry["fields"]:
                 size = int(item.get("size", 1))
                 block.fields[item["name"]] = (block.stride, size)
+                if item.get("masked"):
+                    block.masked.add(item["name"])
                 block.stride += size
             cursor += block.size
             blocks.append(block)

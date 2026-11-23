@@ -147,6 +147,8 @@ func _validate() -> void:
 		errors.append("The ally target block does not match the player slots.")
 	if int(blocks.ally.sizes.message) != 2 * contract.message_symbols:
 		errors.append("The ally message block does not match the message symbols.")
+	if int(blocks.context_party.sizes.class_count) != contract.party_classes.size():
+		errors.append("The party class counts do not match the contract's party classes.")
 	if archetypes.size() > int(blocks.self_archetype.sizes.archetype):
 		errors.append("There are more archetypes than archetype slots.")
 

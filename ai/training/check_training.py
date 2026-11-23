@@ -255,6 +255,42 @@ def test_message_warm_start(folder: Path) -> None:
         old_heads, new_heads = before.split_logits(before(obs, hidden)[0]), after.split_logits(after(obs, hidden)[0])
     same = all(torch.allclose(old_heads[h], new_heads[h]) for h in old_heads if not h.startswith("message")) and         all(torch.allclose(old_heads[h][:, 0], new_heads[h][:, 0]) for h in ("message_a", "message_b"))
     check(same, "the warm start keeps every choice the network made with messages off")
+    test_message_growth(folder)
+
+
+def test_message_growth(folder: Path) -> None:
+    """Going from 4 to 16 symbols keeps every learned symbol on both channels; the new ones start as symbol 0."""
+    import json
+    import convert_checkpoint as C
+    from mob_net import MobCritic, MobPolicy
+    from mob_schema import CONTRACT_PATH, SCHEMA_PATH
+    contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+    schema_data = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    contract["rules"]["messages_enabled"] = True
+    files = {}
+    for symbols in (4, 16):
+        contract["slots"]["message_symbols"] = symbols
+        for block in schema_data["observation"]:
+            for item in block["fields"]:
+                if item["name"] == "message":
+                    item["size"] = 2 * symbols
+        files[symbols] = (folder / f"schema_{symbols}.json", folder / f"contract_{symbols}.json")
+        files[symbols][0].write_text(json.dumps(schema_data), encoding="utf-8")
+        files[symbols][1].write_text(json.dumps(contract), encoding="utf-8")
+    small, large = MobSchema(*files[4]), MobSchema(*files[16])
+    torch.manual_seed(6)
+    state = {"policy": MobPolicy(small).state_dict(), "critic": MobCritic(small).state_dict()}
+    weights, proof = C.convert(state, small, C.contract_names(small, files[4][1]), large, C.contract_names(large, files[16][1]))
+    check(proof["largest_logit_difference"] < 1e-5, "growing to 16 symbols keeps every old choice")
+    old_start, new_start = C.message_groups(small, "ally", False), C.message_groups(large, "ally", False)
+    old_w, new_w = state["policy"]["ally_encoder.weight"], weights["policy"]["ally_encoder.weight"]
+    kept = all(torch.equal(old_w[:, old_start[channel] + symbol], new_w[:, new_start[channel] + symbol]) for channel in (0, 1) for symbol in range(4))
+    check(kept, "each channel's learned symbols keep their own weights when symbols are added")
+    C.open_messages(weights, large, 4)
+    heard = C.message_proof(weights, large, 4)
+    check(max(heard.values()) < 1e-5, f"new symbols mean what symbol 0 means and start as likely ({max(heard.values()):.1e})")
+    learned = torch.equal(new_w[:, new_start[0] + 1], old_w[:, old_start[0] + 1])
+    check(learned, "the warm start leaves the learned symbols 1-3 alone")
 
 
 def main() -> int:

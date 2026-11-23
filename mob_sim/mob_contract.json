@@ -5,8 +5,9 @@
 		"players": 4,
 		"allies": 6,
 		"attacks": 4,
-		"message_symbols": 4
+		"message_symbols": 16
 	},
+	"party_classes": ["warden", "weaver", "ranger", "reaper", "oracle"],
 	"behaviours": [
 		{"name": "idle_wander", "target": "none", "hold_ms": 400, "summary": "Roam near spawn or leader"},
 		{"name": "search", "target": "enemy", "hold_ms": 500, "summary": "Go to the target's last known position, then sweep"},

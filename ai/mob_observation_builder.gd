@@ -50,6 +50,7 @@ var _counts: Schema.Block
 var _walls: Schema.Block
 var _cover: Schema.Block
 var _hazard: Schema.Block
+var _party: Schema.Block
 var _enemy: Schema.Block
 var _ally: Schema.Block
 var _leader: Schema.Block
@@ -73,6 +74,7 @@ func _init(model_schema: Schema) -> void:
 	_walls = schema.blocks.context_walls
 	_cover = schema.blocks.context_cover
 	_hazard = schema.blocks.context_hazard
+	_party = schema.blocks.context_party
 	_enemy = schema.blocks.enemy
 	_ally = schema.blocks.ally
 	_leader = schema.blocks.leader
@@ -98,10 +100,11 @@ func _bind_all() -> void:
 	_bind(_walls, ["wall_distance"])
 	_bind(_cover, ["present", "dx", "dy", "distance", "blocks_target_sight"])
 	_bind(_hazard, ["present", "dx", "dy", "radius", "time_to_impact", "hostile", "mob_is_inside"])
+	_bind(_party, ["class_count"])
 	_bind(_enemy, ["present", "visible", "time_since_seen", "dx", "dy", "distance", "relative_vx", "relative_vy", "hp_fraction", "max_hp",
 		"downed", "facing_me", "has_sight_of_me", "damage_they_dealt_me", "damage_i_dealt_them", "allies_targeting", "melee_damage",
 		"ranged_damage", "melee_range", "ranged_range", "speed", "attack_speed", "dodge_cooldown", "armour", "winding_up", "dodging",
-		"light_level"])
+		"light_level", "speed_change", "guarded", "bark_armour"])
 	_bind(_ally, MATE_FIELDS)
 	_bind(_leader, MATE_FIELDS + ["ability_cooldown"])
 	_bind(_player, ["present", "alive", "x", "z", "vx", "vz", "hp_fraction", "max_hp"])
@@ -263,9 +266,23 @@ func _write_hazards(batch: Batch, base: int, slot: int, kind: int, tick: int) ->
 
 
 ## Player combat stats, known once a player is sensed; wind-ups and dodges only while in sight.
+## Player stats once sensed; wind-ups, dodges and effects only while in sight. The party's classes are counted
+## for every mob, as a share of the player slots (as mob_obs.c).
 func _write_player_stats(batch: Batch, base: int, slot: int, tick: int) -> void:
 	var party := batch.party
 	var senses := batch.perception
+	var players := batch.contract.players
+	var classes := batch.contract.party_classes.size()
+	var counts := PackedInt32Array()
+	counts.resize(classes)
+	counts.fill(0)
+	for player in players:
+		var number := int(party.stats[player * Party.STAT_COUNT + Party.Stat.CLASS])
+		if party.present[player] != 0 and number >= 1 and number <= classes:
+			counts[number - 1] += 1
+	for index in classes:
+		if counts[index] > 0:
+			_put(base + _party.offset + _party.at("class_count") + index, float(counts[index]) / players)
 	for player in batch.contract.players:
 		var row := slot * batch.contract.players + player
 		if party.present[player] == 0 or senses.seen_tick[row] < 0:
@@ -285,6 +302,10 @@ func _write_player_stats(batch: Batch, base: int, slot: int, tick: int) -> void:
 		_put(at + _at("enemy.winding_up"), float(sees and tick < party.timers[timer + Party.Clocks.WINDUP_UNTIL]))
 		_put(at + _at("enemy.dodging"), float(sees and tick < party.timers[timer + Party.Clocks.DODGE_UNTIL]))
 		_put(at + _at("enemy.light_level"), senses.nav.sense_light_at(senses.seen_x[row], senses.seen_z[row]))
+		if sees:
+			_put(at + _at("enemy.speed_change"), party.stats[stat + Party.Stat.SPEED_SCALE] - 1.0)
+			_put(at + _at("enemy.guarded"), party.stats[stat + Party.Stat.GUARD])
+			_put(at + _at("enemy.bark_armour"), party.stats[stat + Party.Stat.BARK])
 
 
 func _write_capabilities(batch: Batch, base: int, slot: int, kind: int) -> void:

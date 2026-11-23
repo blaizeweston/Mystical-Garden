@@ -54,4 +54,4 @@ To train on another computer: clone the repository at the same commit, copy `mob
 ## Not built yet
 
 - Curriculum stages, self-play against a learned player net and past checkpoints, and evaluation against the scripted brain (Phase 6, part E).
-- Intelligence handicaps other than sampling temperature, the party profile, and player resistances and buffs (still masked in schema v2).
+- Intelligence handicaps other than sampling temperature, player resistances, and the spare party profile and player effect inputs (still masked). The party's classes, and each player's speed change, guard and bark armour, are live: the training party publishes them, and the game will once it has a host bridge.

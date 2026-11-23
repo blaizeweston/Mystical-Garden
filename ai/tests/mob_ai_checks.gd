@@ -79,12 +79,12 @@ func check(condition: bool, label: String) -> void:
 
 func test_schema(schema: Schema) -> void:
 	check(schema.errors.is_empty(), "the schema loads without errors " + str(schema.errors))
-	check(schema.observation_size == 576, "the observation has 576 values")
+	check(schema.observation_size == 744, "the observation has 744 values")
 	check(schema.global_size == 52, "the critic state has 52 values")
 	var encoder_sizes := {}
 	for block in schema.ordered_blocks:
 		encoder_sizes[block.encoder] = int(encoder_sizes.get(block.encoder, 0)) + block.stride * block.repeat
-	check(encoder_sizes == {"self": 157, "enemy": 136, "ally": 240, "leader": 43}, "each encoder receives the agreed size")
+	check(encoder_sizes == {"self": 157, "enemy": 136, "ally": 384, "leader": 67}, "each encoder receives the agreed size")
 	var builder := Builder.new(schema)
 	check(builder.errors.is_empty(), "every live field has a source and no masked field does " + str(builder.errors))
 	var file := FileAccess.open(LAYOUT, FileAccess.WRITE)
@@ -166,6 +166,7 @@ func test_native_observations(schema: Schema, dark := false) -> void:
 		arena.sim.set_darkness(true, 0.1)
 		for player in party.count:
 			party.set_stats(player, PackedFloat32Array([10.0 + player, 6.0, 2.0 + player * 0.5, 8.0, 4.5, 1.1, 0.1 * player]))
+			party.set_class(player, player % 6)
 	for tick in LOCKSTEP_TICKS:
 		arena.before_tick()
 		if dark:
@@ -174,6 +175,7 @@ func test_native_observations(schema: Schema, dark := false) -> void:
 				lights.append_array(PackedFloat32Array([party.x[player], party.z[player], 5.5, 1.0]))
 				var now: int = arena.sim.clock.tick
 				party.set_timers(player, now + (tick * 7 + player * 13) % 90, now + (tick + player) % 40 - 20, now + (tick * 3 + player) % 30 - 15)
+				party.set_effects(player, 0.25 * ((tick + player) % 6), (tick + player * 3) % 5, float((tick * 3 + player) % 40))
 			arena.sim.perception.lights = lights
 		arena.sim.tick()
 		arena.after_tick()

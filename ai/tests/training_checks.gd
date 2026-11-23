@@ -60,7 +60,7 @@ func test_starts() -> void:
 			var env := make_env({"explore_share": 1.0 if explore else 0.0, "night_share": 0.0, "elite_share": 0.0, "floors": [1, 1]}, seed_value)
 			env._new_map()
 			var start: Vector2 = env.open[seed_value * 31 % env.open.size()]
-			env.party.reset(["warrior"], [start], 0.5)
+			env.party.reset(["warden"], [start], 0.5)
 			var placed: Dictionary = env._spawn_mobs(start, explore)
 			var pool = env.sim.pool
 			for slot in pool.active:

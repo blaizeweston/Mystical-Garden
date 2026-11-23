@@ -18,9 +18,9 @@
 		"relative": {"kind": "vision"}
 	},
 	"masked_reasons": {
-		"party_profile": "No party profile is published to the simulation yet.",
+		"party_profile": "Spare party profile inputs, kept for later party information.",
 		"player_resists": "Player resistances are not published to the simulation yet.",
-		"player_effects": "Player buffs and debuffs are not published to the simulation yet."
+		"player_effects": "A spare player effect input, kept for a later buff or debuff."
 	},
 	"observation": [
 		{"name": "self_capabilities", "encoder": "self", "fields": [
@@ -113,7 +113,8 @@
 			{"name": "mob_is_inside", "scale": "flag"}
 		]},
 		{"name": "context_party", "encoder": "self", "fields": [
-			{"name": "profile", "scale": "unit", "size": 12, "masked": "party_profile"}
+			{"name": "class_count", "scale": "unit", "size": 5},
+			{"name": "profile_spare", "scale": "unit", "size": 7, "masked": "party_profile"}
 		]},
 		{"name": "enemy", "encoder": "enemy", "repeat": 4, "fields": [
 			{"name": "present", "scale": "flag"},
@@ -137,10 +138,10 @@
 			{"name": "resist_auto", "scale": "unit", "masked": "player_resists"},
 			{"name": "resist_ability_1", "scale": "unit", "masked": "player_resists"},
 			{"name": "resist_ability_2", "scale": "unit", "masked": "player_resists"},
-			{"name": "buff_count", "scale": "count", "masked": "player_effects"},
-			{"name": "buff_strength", "scale": "unit", "masked": "player_effects"},
-			{"name": "debuff_count", "scale": "count", "masked": "player_effects"},
-			{"name": "debuff_strength", "scale": "unit", "masked": "player_effects"},
+			{"name": "speed_change", "scale": "unit"},
+			{"name": "guarded", "scale": "unit"},
+			{"name": "bark_armour", "scale": "health"},
+			{"name": "effect_spare", "scale": "unit", "masked": "player_effects"},
 			{"name": "winding_up", "scale": "flag"},
 			{"name": "dodging", "scale": "flag"},
 			{"name": "downed", "scale": "flag"},
@@ -165,7 +166,7 @@
 			{"name": "role_support", "scale": "flag"},
 			{"name": "behaviour", "scale": "flag", "size": 16},
 			{"name": "enemy_target", "scale": "flag", "size": 5},
-			{"name": "message", "scale": "flag", "size": 8}
+			{"name": "message", "scale": "flag", "size": 32}
 		]},
 		{"name": "leader", "encoder": "leader", "fields": [
 			{"name": "present", "scale": "flag"},
@@ -181,7 +182,7 @@
 			{"name": "role_support", "scale": "flag"},
 			{"name": "behaviour", "scale": "flag", "size": 16},
 			{"name": "enemy_target", "scale": "flag", "size": 5},
-			{"name": "message", "scale": "flag", "size": 8},
+			{"name": "message", "scale": "flag", "size": 32},
 			{"name": "ability_cooldown", "scale": "seconds", "size": 3}
 		]}
 	],

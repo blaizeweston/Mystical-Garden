@@ -11,9 +11,14 @@ var vz := PackedFloat32Array()
 var hp := PackedFloat32Array()
 var max_hp := PackedFloat32Array()
 var attackers := PackedInt32Array()
-## Combat stats per player, set by the host with set_stats: STAT_COUNT floats each, in Stat order.
-enum Stat { MELEE_DAMAGE, RANGED_DAMAGE, MELEE_RANGE, RANGED_RANGE, SPEED, ATTACK_SPEED, ARMOUR }
-const STAT_COUNT := 7
+## Combat stats per player: STAT_COUNT floats each, in Stat order. The host sets the first seven with set_stats,
+## the class with set_class and the changing effects with set_effects. CLASS is the player's class as its position
+## in the contract's party_classes plus one (0 unknown); SPEED_SCALE is its current move speed over its normal one
+## (0 rooted, below 1 slowed, above 1 hastened); GUARD is its remaining guard charges over MAX_GUARD_CHARGES; BARK
+## is its remaining bark armour in health points.
+enum Stat { MELEE_DAMAGE, RANGED_DAMAGE, MELEE_RANGE, RANGED_RANGE, SPEED, ATTACK_SPEED, ARMOUR, CLASS, SPEED_SCALE, GUARD, BARK }
+const STAT_COUNT := 11
+const MAX_GUARD_CHARGES := 4.0
 var stats := PackedFloat32Array()
 ## Per player, in ticks: when its dodge is ready, when its current wind-up ends, when its current dodge ends.
 enum Clocks { DODGE_READY, WINDUP_UNTIL, DODGE_UNTIL }
@@ -33,6 +38,8 @@ func _init(players: int) -> void:
 	attackers.fill(0)
 	stats.resize(players * STAT_COUNT)
 	stats.fill(0.0)
+	for slot in players:
+		stats[slot * STAT_COUNT + Stat.SPEED_SCALE] = 1.0
 	timers.resize(players * TIMER_COUNT)
 	timers.fill(0)
 
@@ -42,6 +49,18 @@ func _init(players: int) -> void:
 func set_stats(slot: int, values: PackedFloat32Array) -> void:
 	for index in mini(values.size(), STAT_COUNT):
 		stats[slot * STAT_COUNT + index] = values[index]
+
+
+## class_number is the player's class position in the contract's party_classes plus one; 0 means unknown.
+func set_class(slot: int, class_number: int) -> void:
+	stats[slot * STAT_COUNT + Stat.CLASS] = class_number
+
+
+## The player's changing effects: move speed over its normal speed, guard charges left and bark armour left.
+func set_effects(slot: int, speed_scale: float, guard_charges: int, bark: float) -> void:
+	stats[slot * STAT_COUNT + Stat.SPEED_SCALE] = speed_scale
+	stats[slot * STAT_COUNT + Stat.GUARD] = clampf(guard_charges / MAX_GUARD_CHARGES, 0.0, 1.0)
+	stats[slot * STAT_COUNT + Stat.BARK] = maxf(0.0, bark)
 
 
 func set_timers(slot: int, dodge_ready: int, windup_until: int, dodge_until: int) -> void:
