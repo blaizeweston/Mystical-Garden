@@ -30,8 +30,9 @@ func run():
   game.expedition_transitions.enter(1)
   check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(guest),"host cannot depart alone")
   game.garden_action(1,"travel_unready:"+str(game.participation.travel_epoch()))
-  check(await until(func():return game.participation.has_vote(id)),"guest readiness reaches host")
-  check(await until(func():return not game.participation.has_vote(id)),"guest can withdraw readiness")
+  var party=UIFixture.control(game,"player_hud").party_panel
+  check(await until(func():return party.visible and party.rows.any(func(row):return row.id==id and row.get("ready")==true)),"guest readiness reaches the host's party list")
+  check(await until(func():return party.rows.any(func(row):return row.id==id and row.get("ready")==false)),"withdrawing readiness updates the guest's row on the host")
   check(await until(func():return game.participation.has_vote(id)),"guest can confirm again")
   check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(guest),"guest cannot depart without host")
   game.expedition_transitions.enter(1)
@@ -61,7 +62,11 @@ func run():
   game.send_travel_ready(false)
   check(await until(func():return ExpeditionCase.is_wild(game.players.get(game.multiplayer.get_unique_id(),{}))),"guest enters with host")
   check(await until(func():return game.party_travel_state().get("kind","")=="advance" and game.participation.floor()==1),"ordinary stage ready prompt arrives")
+  var party=UIFixture.control(game,"player_hud").party_panel
+  check(await until(func():return party.visible and party.rows.any(func(row):return row.id==1 and row.get("ready")==true) and party.rows.any(func(row):return row.get("local",false) and not row.ready)),"guest sees the host ready and themselves not ready in the left party list")
   game.send_travel_ready(false)
+  check(await until(func():return game.participation.floor()==6 and game.party_travel_state().get("kind","")=="advance"),"checkpoint ready prompt arrives")
+  game.send_action(false)
   check(await until(func():return UIFixture.control(game,"checkpoint_menu").visible and game.participation.floor()==6),"upgrade cards arrive")
   game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),"skip"))
   check(await until(func():return not UIFixture.control(game,"checkpoint_menu").visible),"card confirmation closes cards")

@@ -295,7 +295,7 @@
       ]
     },
     "party_ui": {
-      "label": "Compact teammate portraits, names, health and fallen indicators",
+      "label": "Party portraits, health, fallen indicators and travel readiness",
       "files": [
         "party_hud.gd",
         "party_hud.gd.uid"
@@ -1509,9 +1509,6 @@
       "expeditions"
     ],
     "send_travel_ready": [
-      "expeditions"
-    ],
-    "update_ready_panel": [
       "expeditions"
     ],
     "update_combat_tracking": [
@@ -3489,6 +3486,7 @@
       "kind": "pair",
       "systems": [
         "expeditions",
+        "party_ui",
         "weapons",
         "life",
         "gate_access",

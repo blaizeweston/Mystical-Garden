@@ -64,10 +64,8 @@ static func request(game: Node,id: int,kind: String) -> void:
   if kind=="extract" and not game.extraction_checkpoint_open(): game.tell(id,"Extraction opens at every sixth cleared gate.");return
  if p.pos.distance_to(point(game,kind))>preload("res://gate_interaction.gd").travel_range(game,kind): game.tell(id,"Confirm readiness at the Heart." if kind=="depart" and game.participation.route()==game.Campaign.HEART else "Confirm readiness at the party's gate.");return
  begin(game,kind)
- if kind=="advance" and game.upgrade_checkpoint_open() and int(game.checkpoint_ready.get(id,0))!=game.participation.floor():
-  # Open the existing cards, without treating a card choice as travel consent.
-  if game.persistence_session.is_guarded(): game.activate_checkpoint()
-  else: game.Transactions.run(game,func(): game.expedition_transitions.commit_checkpoint(id,true))
+ # Each player claims their own upgrade before casting a separate travel vote.
+ if kind=="advance" and game.activate_checkpoint(id):
   return
  game.participation.set_vote(id,signature(game,p,kind))
  validate(game)
@@ -147,9 +145,9 @@ static func departure_cost(game: Node,ids: Array) -> Dictionary:
 
 static func snapshot(game: Node,id: int) -> Dictionary:
  if game.participation.travel_kind().is_empty(): return {}
- var names: Array=[]
+ var voters: Array=[]
  for peer in game.participation.travel_members():
-  if game.players.has(peer): names.append({"name":game.players[peer].character.get("name","Wanderer"),"ready":game.participation.has_vote(peer)})
+  if game.players.has(peer): voters.append({"id":peer,"name":game.players[peer].character.get("name","Wanderer"),"ready":game.participation.has_vote(peer)})
  var goal: String=game.Campaign.NAMES[game.participation.route()]
  if game.participation.travel_kind()=="depart" and game.participation.route()!=game.Campaign.HEART and game.Campaign.SHORTCUT_COST[game.participation.route()]>0: goal+=" (%d shared parts)"%game.Campaign.SHORTCUT_COST[game.participation.route()]
- return {"goal":goal,"kind":game.participation.travel_kind(),"epoch":game.participation.travel_epoch(),"ready":game.participation.has_vote(id),"members":names}
+ return {"goal":goal,"kind":game.participation.travel_kind(),"epoch":game.participation.travel_epoch(),"ready":game.participation.has_vote(id),"members":voters}

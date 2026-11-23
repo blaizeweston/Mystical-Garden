@@ -23,9 +23,24 @@ func run():
  game._process(.016);var panel=UIFixture.control(game,"player_hud").party_panel
  check(panel.visible and panel.rows.size()==2 and panel.mouse_filter==Control.MOUSE_FILTER_IGNORE,"Wilds-only non-interactive HUD")
  check(panel.size.x<=190 and panel.size.y<=150,"bounded compact footprint")
+ # Readiness follows peer identity even when two voters have the same name and the vote order differs.
+ other.character.name=p.character.name
+ var voting_rows:=Hud.members(game.players,1,[{"id":42,"ready":false},{"id":1,"ready":true}])
+ panel.update_party(voting_rows,false)
+ check(panel.visible and panel.rows.size()==3,"Garden shows the party during an active ready check")
+ var self_row: Dictionary=voting_rows.filter(func(row):return row.id==1).front()
+ var other_row: Dictionary=voting_rows.filter(func(row):return row.id==42).front()
+ var fallen_row: Dictionary=voting_rows.filter(func(row):return row.id==19).front()
+ check(self_row.name==other_row.name and self_row.local and self_row.ready and not other_row.local and not other_row.ready,
+  "voters with identical names have independent indicators and the viewer can identify their own row")
+ check(not fallen_row.has("ready"),"a teammate outside the vote has no readiness indicator")
+ panel.loadout_left=123.0
+ panel.update_party(voting_rows,false)
+ check(panel.visible and panel.get_rect().end.x<panel.loadout_left and panel.z_index>0,"voters fit beside the open workbench and remain readable above its shade")
+ panel.loadout_left=INF
  fallen[PlayerVitals.STATE]=PlayerVitals.Health.new(40,80);fallen[PlayerLifecycle.STATE]=PlayerLifecycle.start_life();game._process(.016)
  check(not panel.rows[0].fallen and panel.rows[0].max_hp==80,"revival clears skull and respects reduced maximum health")
- ExpeditionCase.set_membership(game, p, false);game._process(.016);check(not panel.visible,"hidden in Garden")
+ ExpeditionCase.set_membership(game, p, false);game._process(.016);check(not panel.visible and panel.rows.all(func(row):return not row.has("ready")),"hidden in Garden with previous vote indicators cleared")
  ExpeditionCase.remove_actor(game, 42);ExpeditionCase.remove_actor(game, 19);ExpeditionCase.set_membership(game, p, true);game._process(.016);check(not panel.visible,"hidden when alone")
  ExpeditionCase.set_membership(game, p, false);p.pos=game.stage.gate_position()+Vector3(2.65,0,0)
  check(game.at_weapon_gate(p),"gate crafting accepts visually adjacent player")

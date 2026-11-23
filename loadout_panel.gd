@@ -306,8 +306,6 @@ func present(data: Dictionary) -> void:
 		notice.text = "This connected class path needs review before it can change or enter combat."
 	var travel: Dictionary=data.travel
 	if not travel.is_empty():
-		var rows: Array=[]
-		for member in travel.members: rows.append(str(member.name)+(": Ready" if member.ready else ": Not ready"))
-		notice.text+="\n"+str(travel.get("goal","Party"))+": "+" / ".join(rows)
+		notice.text+="\nDestination: "+str(travel.goal)
 	elif not str(data.notice).is_empty(): notice.text+="\n"+str(data.notice)
 

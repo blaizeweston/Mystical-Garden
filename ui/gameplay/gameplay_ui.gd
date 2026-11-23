@@ -196,11 +196,11 @@ func show_checkpoint_offer(offer: Dictionary, wallet: int, floor_number: int, wa
 func present_travel(state: Dictionary, heart_route: bool) -> void:
 	_travel_panel.visible=not state.is_empty() and not _overlay.visible
 	if state.is_empty(): return
-	var count:=0;var rows: Array=[]
+	var count := 0
 	for member in state.members:
-		count+=int(member.ready);rows.append(str(member.name)+(" - Ready" if member.ready else " - Not ready"))
+		count += int(member.ready)
 	var title: String={"depart":"Enter "+str(state.get("goal","the Wilds")),"advance":"Next stage","extract":"Extract to Garden"}.get(str(state.kind),"Party travel")
-	_travel_label.text="%s - %d/%d ready\n%s"%[title,count,state.members.size(),"\n".join(rows)]
+	_travel_label.text="%s - %d/%d ready"%[title,count,state.members.size()]
 	_ready_button.text="Ready at Heart" if state.kind=="depart" and heart_route else "Ready at Gate"
 	_ready_button.disabled=bool(state.ready);_unready_button.disabled=not bool(state.ready)
 
@@ -364,6 +364,8 @@ func show_deposit(items: Array) -> void:
 func present_hud(state: Dictionary, chart_expanded: bool) -> void:
 	if panel_is_open("summary") and not bool(state.get("wild",false)): close_panels()
 	_player_hud.set_chart_expanded(chart_expanded)
+	# At the Garden gate the workbench and the party vote can both be open.
+	_player_hud.party_panel.loadout_left = _panels.loadout.get_global_rect().position.x if panel_is_open("loadout") else INF
 	_player_hud.update_state(state.duplicate(true))
 
 func redraw_hud() -> void:

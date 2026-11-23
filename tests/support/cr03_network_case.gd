@@ -423,6 +423,8 @@ func host(menu: Node) -> void:
 			mark("attack-speed-"+str(id), JSON.stringify(fixture))
 			mark("wallet-"+str(id), str(fixture.balance))
 		game.expedition_transitions.checkpoint(1,true)
+		check(ids.all(func(id):return UpgradeCards.ledger(game.players[id])==null),
+			"standing at the gate while the host interacts does not generate guest offers")
 		check(UIFixture.control(game,"checkpoint_cards").get_child_count()==3,"host receives a full offer after mixed-class combat")
 		check_speed_face(game, planned[1])
 		game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),str(planned[1].choice)))
@@ -1085,6 +1087,9 @@ func guest(menu: Node, role: String) -> void:
 	if affinity_cards_case:
 		var offer_received := func() -> bool:
 			return read("affinity-cards")=="ok" and game.ui.checkpoint_revision()>0 and UIFixture.control(game,"checkpoint_cards").get_child_count()==3
+		if not check(await until(func():return read("affinity-cards")=="ok"),"host completed its own selection"):return
+		check(not UIFixture.control(game,"checkpoint_menu").visible,"nearby guest picker stays closed until interaction")
+		game.send_action(false)
 		if not check(await until(offer_received),"mixed-class guest receives three eligible cards"):return
 		var speed: Dictionary = JSON.parse_string(read("attack-speed-"+str(id)))
 		if int(speed.spent) > 0:

@@ -251,6 +251,10 @@ func verify_offers() -> void:
 	check(claimed.copies()==receipts and claimed.amount(offered.id)==int(offered.amount),
 		"mutating receipt and contribution projections cannot alter owned cards")
 	at_checkpoint(6)
+	game.ui.close_panels()
+	action(rev,"reroll")
+	check(Cards.ledger(player)==claimed and not UIFixture.control(game,"checkpoint_menu").visible,
+		"a delayed command from the previous floor cannot open the next checkpoint offer")
 	var next := checkpoint_view()
 	check(next.choices.size()==3 and next.revision>rev and next.reroll_cost==2
 		and Cards.ledger(player).copies()==receipts and Cards.ledger(player).completed_floor()==3,

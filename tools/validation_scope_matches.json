@@ -204,7 +204,7 @@
 
 
       "party_panel": {
-        "match": "\"party\":preload(\"res://party_hud.gd\").members(players,local_id),",
+        "match": "\"party\":preload(\"res://party_hud.gd\").members(players,local_id,travel.get(\"members\",[])),",
         "baseline": ""
       },
       "gate_range": {
@@ -4928,7 +4928,7 @@
         "baseline": ""
       },
       "ar08_lifecycle_2": {
-        "match": "  result.append({\"id\":int(id),\"slot\":int(Session.slot_for(p,id)),\"name\":display_name,\"hp\":maxf(0,hp),\"max_hp\":maxi(1,PlayerVitals.maximum_hp(p)),\"lost_health\":int(p.get(\"lost_health\",0)),\"fallen\":PlayerLifecycle.fallen(p) or hp<=0,\"appearance\":Array(appearance)})\n",
+        "match": "  var row: Dictionary={\"id\":int(id),\"slot\":int(Session.slot_for(p,id)),\"name\":display_name,\"hp\":maxf(0,hp),\"max_hp\":maxi(1,PlayerVitals.maximum_hp(p)),\"lost_health\":int(p.get(\"lost_health\",0)),\"fallen\":PlayerLifecycle.fallen(p) or hp<=0,\"appearance\":Array(appearance)}\n",
         "baseline": "  result.append({\"id\":int(id),\"slot\":int(Session.slot_for(p,id)),\"name\":name,\"hp\":maxf(0,hp),\"max_hp\":maxi(1,PlayerVitals.maximum_hp(p)),\"lost_health\":int(p.get(\"lost_health\",0)),\"fallen\":bool(p.get(\"fallen\",false)) or hp<=0,\"appearance\":Array(appearance)})\n"
       },
       "ar07_vitals_1": {
@@ -4944,8 +4944,8 @@
         "baseline": " mouse_filter=Control.MOUSE_FILTER_IGNORE;position=Vector2(20,65)"
       },
       "cb02_party_hud_3_2": {
-        "match": "  var display_name: String=row.name\n  var name_width:=100\n  while font.get_string_size(display_name,HORIZONTAL_ALIGNMENT_LEFT,-1,12).x>name_width and display_name.length()>1:display_name=display_name.left(display_name.length()-2)+\"…\"\n  draw_string(font,at+Vector2(46,16),display_name,HORIZONTAL_ALIGNMENT_LEFT,name_width+3,12,Color(\"#ddd5b9\"))\n  Orb.paint(self,at+Vector2(161,22),12.0,0.0 if row.fallen else row.hp,row.max_hp,row.get(\"lost_health\",0))\n  var vitals: String=\"Fallen\" if row.fallen else \"%d / %d HP\"%[int(row.hp),row.max_hp]\n  draw_string(font,at+Vector2(46,34),vitals,HORIZONTAL_ALIGNMENT_LEFT,100,10,Color(\"#baae97\"))",
-        "baseline": "  var name: String=row.name\n  while font.get_string_size(name,HORIZONTAL_ALIGNMENT_LEFT,-1,12).x>125 and name.length()>1:name=name.left(name.length()-2)+\"\u2026\"\n  draw_string(font,at+Vector2(46,16),name,HORIZONTAL_ALIGNMENT_LEFT,128,12,Color(\"#ddd5b9\"))"
+        "match": "  if not compact: Orb.paint(self,at+Vector2(161,22),12.0,0.0 if row.fallen else row.hp,row.max_hp,row.get(\"lost_health\",0))\n  var vitals: String=\"Fallen\" if row.fallen else \"%d / %d HP\"%[int(row.hp),row.max_hp]\n",
+        "baseline": ""
       },
       "cb02_party_hud_2_1": {
         "match": "\"max_hp\":maxi(1,int(p.get(\"max_hp\",10))),\"lost_health\":int(p.get(\"lost_health\",0)),\"fallen\"",

@@ -94,6 +94,9 @@ func host_run():
   actor.character[tree.profile_key]=tree.state([tree.nodes[0].id])
  game.expedition_transitions.enter(1)
  check(await until(func():return game.participation.vote_count()==3),"first three readiness votes arrive")
+ var party_panel=UIFixture.control(game,"player_hud").party_panel
+ check(await until(func():return party_panel.visible and party_panel.rows.size()==4 and party_panel.rows.all(func(row):return row.get("ready")==game.participation.has_vote(row.id))),
+  "four named HUD rows display the three confirmations and the outstanding vote")
  check(not ExpeditionCase.is_wild(game.players[1]) and game.participation.travel_members().size()==4,"three votes cannot launch four players")
  mark("last_ready")
  check(await until(func():return game.players.values().all(func(p):return ExpeditionCase.is_wild(p))),"all four depart together")

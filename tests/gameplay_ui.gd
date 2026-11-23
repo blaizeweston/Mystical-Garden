@@ -95,7 +95,8 @@ func run() -> void:
 	ui.close_panels()
 	ui.present_travel({"kind":"depart","goal":"the Heart","members":[{"name":"Ally","ready":true}],"ready":true},true)
 	check(control(ui,"TravelPanel").visible and control(ui,"ReadyButton").disabled
-		and control(ui,"ReadyButton").text=="Ready at Heart","ready display uses a detached travel projection")
+		and control(ui,"ReadyButton").text=="Ready at Heart" and control(ui,"TravelLabel").text=="Enter the Heart - 1/1 ready",
+		"ready controls show the travel goal and count without a second list of players")
 	control(ui,"UnreadyButton").pressed.emit()
 	check(requests.back()=={"command":"ready","data":{"unready":true}},"travel display emits an intention, not a membership mutation")
 	ui.present_menu({"session_text":"Solo","role":"Solo","can_host":true,"can_join":true,

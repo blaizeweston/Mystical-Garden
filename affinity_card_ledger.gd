@@ -60,8 +60,11 @@ class Ledger extends RefCounted:
 			result[copy.id] = int(result.get(copy.id, 0)) + 1
 		return result
 
+	func has_offer_for(floor_number: int) -> bool:
+		return not _offer.is_empty() and int(_offer.floor) == floor_number
+
 	func open_offer(floor_number: int, revision: int, seed_value: int, stats: Dictionary, dodge_base: int) -> Ledger:
-		if int(_offer.get("floor", 0)) == floor_number:
+		if has_offer_for(floor_number):
 			return self
 		var options := [] if exhausted() else roll(seed_value, floor_number, stats, dodge_base)
 		return Ledger.new(_copies, _make_offer(floor_number, revision, options, 0), _completed_floor)
@@ -69,7 +72,7 @@ class Ledger extends RefCounted:
 	# A refused operation cannot change the current ledger or authorize a debit.
 	func plan_choice(floor_number: int, revision: int, choice: String, next_revision: int,
 			seed_value: int, essence: int, stats: Dictionary, dodge_base: int) -> Dictionary:
-		if _offer.is_empty() or int(_offer.floor) != floor_number or int(_offer.revision) != revision:
+		if not has_offer_for(floor_number) or int(_offer.revision) != revision:
 			return {"refresh": true}
 		# Readiness can be cleared on fall. Skip can acknowledge a closed offer.
 		if choice == "skip":

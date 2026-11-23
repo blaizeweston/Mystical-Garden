@@ -165,22 +165,32 @@ func host(menu: Node, mismatch: bool) -> void:
 	world.encounter.clear_scouts()
 	world.encounter_rewarded=true
 	local.pos=world.battlefield.advance
-	remote.pos=local.pos
+	# Inside the party's gathering margin, just outside personal interaction range.
+	remote.pos=local.pos+Vector3.RIGHT*(preload("res://gate_interaction.gd").RANGE+0.1)
 	remote[world.ExpeditionWallet.STATE] = world.ExpeditionWallet.Wallet.new()
 	local[world.ExpeditionWallet.STATE] = world.ExpeditionWallet.Wallet.new(0, world.run_wallet(local))
 	var host_wallet = world.wallet_for(local)
 	world.expedition_transitions.checkpoint(1,true)
 	var cards_api = world.AffinityCards
+	if not check(cards_api.ledger(local)!=null and cards_api.ledger(remote)==null,
+		"host gate interaction offers cards only to the host while the guest is out of reach"):return
+	world.expedition_transitions.checkpoint(guest_id(world),true)
+	check(cards_api.ledger(remote)==null,"guest cannot open cards using the party gathering margin")
 	var host_offer: Dictionary = cards_api.ledger(local).offer()
-	var initial_ledger = cards_api.ledger(remote)
-	var initial: Dictionary = initial_ledger.offer()
 	check(UIFixture.control(world,"checkpoint_cards").get_child_count()==3 and "free" in UIFixture.control(world,"checkpoint_notice").text
 		and world.run_wallet(local)==0 and not world.has_method("buy_upgrade"),
 		"new cards are offered at zero Essence and the retired purchase implementation is absent")
-	world.present_checkpoint_cards(guest_id(world))
+	remote.pos=local.pos
+	world.garden_action(guest_id(world),world.affinity_checkpoint_action(host_offer.revision,"reroll"))
+	check(cards_api.ledger(remote)==null,"a card command cannot open an unrequested offer")
+	world.send_garden_action(world.affinity_checkpoint_action(host_offer.revision,"0"))
+	mark("guest-at-gate")
+	if not check(await until(func():return cards_api.ledger(remote)!=null),"guest opens cards through their own interaction"):return
+	var initial_ledger = cards_api.ledger(remote)
+	var initial: Dictionary = initial_ledger.offer()
+	world.expedition_transitions.checkpoint(guest_id(world),true)
 	check(cards_api.ledger(remote)==initial_ledger and initial_ledger.offer()==initial,
 		"reopening the guest's offer preserves its full revision")
-	world.send_garden_action(world.affinity_checkpoint_action(host_offer.revision,"0"))
 	mark("cards")
 	if not check(await until(func(): return read("guest-cards")=="ok" and cards_api.ledger(remote).copies().size()==1),
 		"guest pays for rerolls and acquires one copy through the host"):return
@@ -236,6 +246,9 @@ func guest(menu: Node, mismatch: bool) -> void:
 		return
 	print("CASE CR02 action_ready ",JSON.stringify({"current_identity":not Core.cast_key(world,world.players[world.local_player_id()]).is_empty()}))
 	world.send_garden_action("class_skill")
+	if not check(await until(func():return read("guest-at-gate")=="ok"),"guest reaches the cleared gate"):return
+	check(not UIFixture.control(world,"checkpoint_menu").visible,"guest picker stays closed until the guest interacts")
+	world.send_action(false)
 	var offer_received := func() -> bool:
 		return read("cards")=="ok" and world.ui.checkpoint_revision()>0 and UIFixture.control(world,"checkpoint_cards").get_child_count()==3 and "12 Essence" in UIFixture.control(world,"checkpoint_notice").text
 	if not check(await until(offer_received),

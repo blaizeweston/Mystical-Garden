@@ -73,7 +73,7 @@ flowchart LR
   settings["Bindings<br/> audio<br/> display and aim settings"]
   presentation["HUD<br/> world drawing<br/> animation and effects"]
   diagnostics["Saved diagnostic logs and report export"]
-  party_ui["Compact teammate portraits<br/> names<br/> health and fallen indicators"]
+  party_ui["Party portraits<br/> health<br/> fallen indicators and travel readiness"]
   gate_access["Gate interaction distances<br/> prompts and readiness boundaries"]
   garden_observations["Garden location hierarchy<br/> observation commands<br/> receipts and presentation"]
   garden_costs["Garden offering previews and existing party material claims"]
@@ -452,7 +452,7 @@ flowchart LR
 | settings | `preference_file.gd`, `preference_file.gd.uid`, `app_settings.gd`, `settings_panel.gd` | `serializer_integrity`, `guarded_lifecycle`, `guarded_lifecycle_coop`, `diagnostics`, `exploration_ui`, `garden_growth`, `garden_growth_coop`, `menu_controls`, `mouse_combat`, `mouse_combat_coop`, `network_warden_coop`, `player_hud`, `start_menu`, `soundscape` |
 | presentation | `root_ui.gd`, `stage.gd`, `combat_effects.gd`, `enemy_death_effects.gd`, `boss_lair_visuals.gd`, `weapon_visuals.gd`, `game_metrics.gd`, `network_movement.gd`, `network_movement.gd.uid`, `combat_feedback.gd`, `combat_feedback.gd.uid`, `assets/characters/weapon_actions.json`, `status_feedback.gd`, `status_feedback.gd.uid` | `staff_attacks`, `staff_attacks_coop`, `rootblade_attacks`, `maul_attacks`, `maul_attacks_coop`, `reviewed_weapon_attacks`, `seed_focus_attacks`, `wand_attacks`, `wand_attacks_coop`, `spear_attacks`, `weapon_presentation`, `actor_presentation`, `world_presentation`, `world_guidance`, `guest_replication`, `world_replication`, `garden_cinematic_view`, `gameplay_ui`, `world_snapshot_codec`, `boss_lairs`, `boss_phase_fights`, `character_locomotion`, `character_overhaul`, `character_rig`, `combat_animation`, `combat_readability`, `combat_readability_coop`, `enemy_roster`, `enemy_support`, `expedition_pressure`, `expedition_pressure_coop`, `expedition_track`, `expedition_track_coop`, `exploration_ui`, `garden_presentation`, `gate_elites`, `gate_elites_coop`, `health_points`, `inventory_party`, `loot_revival`, `natural_world`, `network_movement_coop`, `network_presentation`, `party_hud_gates`, `party_hud_gates_coop`, `player_hud`, `status_feedback`, `status_feedback_coop`, `supplied_network_smoke`, `support_deaths`, `support_rite_responses_coop`, `terrain_generation`, `terrain_generation_coop`, `tree_portraits`, `weapon_actions`, `weapon_actions_coop`, `wilds_skill_tactics_coop`, `regular_enemy_responses_coop`, `thief_escape_coop` |
 | diagnostics | `diagnostic_journal.gd`, `diagnostic_watch.gd`, `diagnostics_boot.gd`, `playtest_storage.gd`, `diagnostics_panel.gd` | `serializer_integrity`, `guarded_lifecycle`, `guarded_lifecycle_coop`, `diagnostics`, `diagnostics_coop`, `four_players_coop`, `network_movement_coop` |
-| party_ui | `party_hud.gd`, `party_hud.gd.uid` | `world_guidance`, `gameplay_ui`, `four_players_coop`, `loot_revival_coop`, `network_presentation`, `party_hud_gates`, `party_hud_gates_coop`, `player_hud` |
+| party_ui | `party_hud.gd`, `party_hud.gd.uid` | `world_guidance`, `gameplay_ui`, `four_players_coop`, `loot_revival_coop`, `network_presentation`, `party_hud_gates`, `party_hud_gates_coop`, `party_ready_coop`, `player_hud` |
 | gate_access | `gate_interaction.gd`, `gate_interaction.gd.uid` | `checkpoint_extraction`, `crafting_availability_coop`, `four_players_coop`, `gate_crafting_rules`, `gate_garden_services`, `party_hud_gates`, `party_hud_gates_coop`, `party_ready`, `party_ready_coop`, `run_flow`, `shrines_hits` |
 | garden_observations | `garden_interaction_catalog.gd`, `garden_interaction_catalog.gd.uid`, `garden_interaction_state.gd`, `garden_interaction_state.gd.uid`, `garden_interaction_service.gd`, `garden_interaction_service.gd.uid`, `garden_interaction_view.gd`, `garden_interaction_view.gd.uid`, `garden_commands_world.gd`, `garden_commands_world.gd.uid` | `garden_commands`, `garden_view_ports_coop`, `garden_view_ports`, `garden_cleanup`, `garden_conduit`, `garden_conduit_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `menu_controls` |
 | garden_costs | `garden_inventory_gateway.gd`, `garden_inventory_gateway.gd.uid` | `crafting_availability_coop`, `foundations`, `garden_altar`, `garden_interactions`, `garden_interactions_coop`, `inventory_party` |
@@ -748,7 +748,6 @@ flowchart LR
 | `update_combat_tracking` | enemies |
 | `update_garden_altar` | seeds |
 | `update_pressure` | enemies |
-| `update_ready_panel` | expeditions |
 | `upgrade_checkpoint_open` | expeditions |
 | `use_heart_research` | knowledge |
 | `wallet_for` | expedition_wallet |

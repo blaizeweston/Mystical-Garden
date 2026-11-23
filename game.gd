@@ -1851,13 +1851,16 @@ func collect_drop(player: Dictionary) -> void:
 	refresh_drop()
 
 
-func activate_checkpoint() -> bool:
-	if not upgrade_checkpoint_open() or checkpoint_all_ready(): return false
+func activate_checkpoint(id: int) -> bool:
+	var player: Dictionary = players.get(id, {})
+	if not multiplayer.is_server() or not Life.alive(player) or not upgrade_checkpoint_open():
+		return false
+	if player.pos.distance_to(battlefield.advance) > preload("res://gate_interaction.gd").RANGE or int(checkpoint_ready.get(id, 0)) == participation.floor():
+		return false
 	if not checkpoint_pending:
 		checkpoint_pending=true
 		checkpoint_ready.clear()
-	for id in players:
-		if Life.alive(players[id]): present_checkpoint_cards(id)
+	present_checkpoint_cards(id)
 	return true
 
 func milestone_message(message: String, extracted: bool) -> String:
@@ -2123,7 +2126,8 @@ func _process(_delta: float) -> void:
 	var rendered_pack := scout_snapshot(cooldown_now) if multiplayer.is_server() else guest_replication.scouts()
 	stage.draw_state(rendered_players, local_id, tactics.position, enemy_health(), tactics.winding_up, LeaderBehavior.strike_radius(self), drop_pos, visible_drop, data[3], participation.depth(), route_rooms(), graft_altar_open(), briar_bound, tactics.longlimb, campaign_state,
 		rendered_pack, _delta,view_id)
-	update_ready_panel(p,local_id)
+	var travel := party_travel_state()
+	ui.present_travel(travel,participation.route()==Campaign.HEART)
 	world_view.present_effects({"site":participation.route(),"floor":participation.floor(),"seed":participation.seed(),
 		"wild":wild,"local_id":local_id,"observer":observer,"advance":visual_field.advance,
 		"deaths":death_events_snapshot() if multiplayer.is_server() and wild else p.get("death_events",[]) if wild else [],
@@ -2199,7 +2203,7 @@ func _process(_delta: float) -> void:
 		"can_leave":network_session.role()!="Solo","can_save":multiplayer.is_server(),"can_bank":can_checkpoint_bank(p),"wild":wild,
 		"look":Array(p.get("character",{}).get("appearance",p.get("appearance",[0,0,0,0,0])))})
 	ui.present_context(prompt,details)
-	ui.present_hud({"party":preload("res://party_hud.gd").members(players,local_id),
+	ui.present_hud({"party":preload("res://party_hud.gd").members(players,local_id,travel.get("members",[])),
 		"location": Campaign.NAMES[participation.route()] if wild else "Mystical Garden",
 		"floor":participation.floor(),
 		"encounter": "%d foes" % [int(enemy_health() > 0) + living_scout_count()] if wild else "Your living sanctuary",
@@ -2784,8 +2788,7 @@ func _affinity_checkpoint_command(id: int, player: Dictionary, action: String) -
 	if fields.size() != 2 or not fields[0].is_valid_int():
 		return
 	var ledger := AffinityCards.ledger(player)
-	if ledger == null:
-		present_checkpoint_cards(id)
+	if ledger == null or not ledger.has_offer_for(participation.floor()):
 		return
 	var stats := combat_build(player).weapon_base_stats()
 	var revision := int(get_meta(AffinityCards.SERIAL, 0)) + 1
@@ -3287,10 +3290,6 @@ func party_travel_state() -> Dictionary:
 func send_travel_ready(unready: bool) -> void:
 	var state:=party_travel_state()
 	if not state.is_empty(): send_garden_action(("travel_unready:" if unready else "travel_ready:")+str(state.epoch))
-
-func update_ready_panel(player: Dictionary,id: int) -> void:
-	var state: Dictionary=PartyTravel.snapshot(self,id) if multiplayer.is_server() else player.get("party_travel",{})
-	ui.present_travel(state,participation.route()==Campaign.HEART)
 
 func update_combat_tracking(delta: float) -> void:
 	for id in players:

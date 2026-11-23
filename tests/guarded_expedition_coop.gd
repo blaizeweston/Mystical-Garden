@@ -260,6 +260,10 @@ func guest_run() -> void:
  verified.path=C
  check(verified.load_profile(false)==OK and verified.data.monsters[int(read("rewards"))]==1,"guest disk confirms one kill receipt")
  mark("saw-rewards")
+ if not await until(func():return marked("cards")):
+  check(false,"host reaches the upgrade gate")
+  return
+ world.send_action(false)
  if not await until(func():return marked("cards") and UIFixture.control(world,"checkpoint_menu").visible):
   check(false,"guest sees checkpoint cards")
   return

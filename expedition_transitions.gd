@@ -212,8 +212,8 @@ func checkpoint(id: int, descend: bool) -> void:
 		if not game.persistence_session.can_write() or not game.encounter_rewarded or not game.Life.alive(game.players.get(id,{})): return
 	if game.PartyTravel.members(game,"advance").size()>1:
 		game.PartyTravel.request(game,id,"advance" if descend else "extract");return
+	if descend and game.activate_checkpoint(id): return
 	if game.persistence_session.is_guarded():
-		if descend and game.players[id].pos.distance_to(game.battlefield.advance)<=preload("res://gate_interaction.gd").RANGE and game.activate_checkpoint(): return
 		game.run_guarded_action(id, game.Transactions.Scope.PAIR, func(effects):
 			if not game.network_session.matches(id,binding): return false
 			if not commit_checkpoint(id,descend,effects,binding): return false
@@ -247,14 +247,7 @@ func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding :
 			game.action_feedback(effects,id, "Gather your expedition party at this checkpoint.")
 			return false
 	if descend and game.upgrade_checkpoint_open():
-		if effects != null and not game.checkpoint_all_ready(): return false
-		if not game.checkpoint_pending:
-			game.checkpoint_pending=true
-			game.checkpoint_ready.clear()
-		if not game.checkpoint_all_ready():
-			for peer_id in game.players:
-				if game.Life.alive(game.players[peer_id]): game.present_checkpoint_cards(peer_id)
-			return false
+		if not game.checkpoint_all_ready(): return false
 		game.checkpoint_pending=false
 		game.checkpoint_ready.clear()
 		if effects == null:
