@@ -1751,6 +1751,8 @@ The visible travellers alternate the upright and canted bow shots, raised and lo
 
 The four Blender filenames and source hashes are in `assets/characters/ranger_and_knife_grips.json`. Run `tools/export_reviewed_weapon_attacks.py` in Blender to regenerate the grip samples, the 20 clips in `assets/characters/ranger_and_knife_attacks.glb` and the bow’s Draw shape. Geometry and timing checks are in `tests/reviewed_weapon_attacks.gd`. The independent host/guest checks are in `tests/weapon_actions_coop.gd`.
 
+Harvest Scythe alternates two overhand sweeps with separate recoveries. The hooked edge crosses on the first stroke and reverses on the return. Both contact at 48% of the basic attack. The `scythe.basic_variants` entries in `assets/characters/weapon_actions.json` define the two ground sectors used by the indicator and host collision. The crafted line uses its own attack. To revise the animation or hand placement, open the Blender source named in `assets/characters/scythe_grips.json` and run `tools/export_scythe.py`.
+
 Root Lash alternates a forehand flick and a backhand that gathers a loop on the traveller’s left and extends forward. Both contact at 46% of the attack. The `whip` entry in `assets/characters/weapon_actions.json` defines their ground paths as lateral metres and fractions of resolved reach. `weapon_contact.gd` uses those paths for the hit indicator and host collision. The crafted sweep keeps its separate sector. To revise the motion, open the Blender review named in `assets/characters/root_lash_grips.json` and run `tools/export_root_lash.py` to regenerate the five body clips and the matching 18-link poses. `tests/weapon_actions.gd` checks both travellers against the indicator at base and increased reach.
 
 ### Seed Focus casts

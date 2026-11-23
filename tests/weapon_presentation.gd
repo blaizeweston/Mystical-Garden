@@ -96,7 +96,7 @@ func inspect_carry(actor: Dictionary, form: String) -> void:
 		check(weapon.get_node("CoreSeed").global_position.y>pelvis.y+.15,"focus is above the pelvis while standing and moving")
 	if form in ["blade","knives"]:
 		check(weapon.global_basis.y.normalized().z>.30,"carry leans forward: "+form)
-	if form in ["blade","knives","hammer","scythe","fan"]:
+	if form in ["blade","knives","hammer","fan"]:
 		var correction := Poses.orientation(form,0.0,false,0.0,{})
 		check(absf(correction.z.dot(Vector3.BACK))<.001,"authored broad-face plane corrected by 90 degrees: "+form)
 	if form=="bow":
@@ -107,6 +107,7 @@ func inspect_carry(actor: Dictionary, form: String) -> void:
 		var tip := weapon.to_global(Vector3(.765,.90,0))
 		var blade_root := weapon.to_global(Vector3(0,1.20,0))
 		check(tip.y<blade_root.y-.2,"the scythe blade points down from its head")
+		check(weapon.to_global(weapon.get_meta("support_grip")).distance_to(left)<.003,"the rear hand stays on the scythe shaft")
 	if form=="spear":
 		check(absf(weapon.global_basis.y.normalized().y)<.1,"spear stays level instead of lowering from a rifle pose")
 		check(right.x<-.14,"spear rear grip stays beside the body")
@@ -139,7 +140,7 @@ func inspect_attack(actor: Dictionary, form: String) -> void:
 	pose(actor,form,0.0,false)
 	var ready := primary.global_basis.get_rotation_quaternion()
 	pose(actor,form,1.0,true)
-	if form in ["hammer","staff","bow","crossbow","ring","knives","whip"]:
+	if form in ["hammer","staff","bow","crossbow","ring","knives","whip","scythe"]:
 		for frame in 30:pose(actor,form,0.0,false)
 	if form not in ["wand","blade"]:
 		check(ready.angle_to(primary.global_basis.get_rotation_quaternion())<.001,"action and its recovery end at the same carry orientation: "+form)
@@ -182,7 +183,7 @@ func inspect_body_clearance(actor: Dictionary, form: String) -> void:
 	check(nearest>.14,"forearms remain outside the conservative torso capsule throughout the attack: "+str([form,nearest]))
 
 func inspect_relaxed_recovery(actor: Dictionary, form: String) -> void:
-	if form not in ["bell","censer","fan","scythe"]:return # Reviewed grips have explicit returns to their own ready poses.
+	if form not in ["bell","censer","fan"]:return # Reviewed grips have explicit returns to their own ready poses.
 	# Same clock sample: weapon carry may not replace the original relaxed arms.
 	actor.idle_time=.75
 	Avatar.animate(actor,false,0.0,"",{},1.0)

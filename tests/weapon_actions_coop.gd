@@ -49,7 +49,7 @@ func host_run():
  mark("focus-ready")
  check(await until(func():return marked("focus-checked")),"guest confirms the focus carry pose")
  check(p[WeaponActions.STATE].basic_step()==2 and game.enemy_health()<1000,"host resolves exactly two guest Seed Focus casts")
- p.frame=3;p.weapon_kind=1;p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active();p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
+ p.frame=3;p.weapon_kind=1;p[WeaponActions.STATE]=WeaponActions.State.new()
  game.tactics.position=Vector3(0,0,1.45)
  var before: int=game.enemy_health()
  mark("scythe-ready")
@@ -72,7 +72,7 @@ func host_run():
 
  for index in Field.Reviewed.FORMS.size():
   var form: String=Field.Reviewed.FORMS[index]
-  p.frame=2 if index<3 else 3;p.weapon_kind=index if index<3 else 2 if form=="whip" else 0
+  p.frame=2 if index<3 else 3;p.weapon_kind=index if index<3 else int({"knives":0,"scythe":1,"whip":2}[form])
   p[WeaponActions.STATE]=WeaponActions.State.new()
   game.encounter.set_hp(-1,1000);game.tactics.position=Vector3(0,0,1.25)
   mark("equip-"+form)
@@ -85,6 +85,11 @@ func guest_run():
  game.guest_character.save_profile();check(game.session_world.join()==OK,"guest joins")
  var id:=game.multiplayer.get_unique_id()
  if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and game.guest_replication.has_details() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state");return
+ # Begin the timed redirect after the guest has actually drawn its equipped bow.
+ if not await until(func():
+  var avatar: Dictionary=game.stage.avatar_models.get(id,{})
+  return avatar.has("field_rig") and str(avatar.field_rig.player.current_animation)=="Ready_bow_review"):
+  check(false,"guest renders the equipped bow before requesting a draw");return
  check(not game.players[id].has(WeaponActions.STATE) and not game.players[id].has("strike_at")
   and not game.players[id].has("attack_until"),"guest has detached attack presentation, not a second authoritative timeline")
  var aim:=Vector2(1,0)
@@ -157,13 +162,11 @@ func guest_run():
  game.submit_combat.rpc_id(1,Vector2(0,1),true)
  var scythe_gripped:=await until(func():
   var player: Dictionary=game.stage.avatar_models.get(id,{})
-  if player.is_empty() or str(player.animator.current_animation)!="Attack_scythe":
+  if player.is_empty() or str(player.field_rig.player.current_animation)!="Attack_scythe_crossing":
    return false
   var scythe: Node3D=player.visual_weapon
-  return scythe.has_node("HarvestScytheModel") and scythe.is_visible_in_tree() and scythe.to_global(Vector3.ZERO).distance_to(Field.hand(player,false))<.001 and scythe.to_global(scythe.get_meta("support_grip")).distance_to(Field.hand(player,true))<.035)
+  return scythe.has_node("HarvestScytheModel") and scythe.is_visible_in_tree() and scythe.to_global(scythe.get_meta("handle")).distance_to(Field.hand(player,false))<.001 and scythe.to_global(scythe.get_meta("support_grip")).distance_to(Field.hand(player,true))<.035)
  check(scythe_gripped,"both visible guest hands stay on the scythe through its attack")
- var scythe_actor: Dictionary=game.stage.avatar_models[id]
- check(scythe_actor.field_rig.player.current_animation=="Idle","guest layers the scythe sweep over locomotion rather than a chopping guard")
  check(await until(func():return game.guest_replication.received_events().any(func(e):return e.event.kind=="swing" and str(e.event.get("form",""))=="scythe")),"guest receives the scythe swing visual")
  game.submit_combat.rpc_id(1,Vector2(0,1),false)
  mark("scythe-checked")
@@ -257,6 +260,9 @@ func inspect_alternates(id: int, form: String) -> void:
     if event.kind==("projectile" if Motion.is_projectile(form) else "swing"):
      seen_event=true
      if Motion.is_projectile(form):check(game.stage.weapon_release_point(event).is_finite(),"guest locates "+clip+" release")
+     if form=="scythe":
+      var variant:=Motion.basic_variant(form,step)
+      check(event.pattern=="sweep" and is_equal_approx(float(event.span),float(variant.span)) and is_equal_approx(float(event.yaw_offset),float(variant.yaw_offset)),"guest receives the matching Scythe footprint")
      if form=="whip":
       var path:=preload("res://weapon_contact.gd").lash_path(event,Vector3.ZERO,Vector3.BACK)
       check(path.size()>=3 and absf(path[-1].z-float(event.reach))<.15,"guest receives the matching lash footprint")

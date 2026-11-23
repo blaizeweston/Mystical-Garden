@@ -44,7 +44,7 @@ func inspect(stage: Node3D, actor: Dictionary, body: int, form: String, class_id
 			if form!="ring" or phase<contact*.55:
 				var grip: Vector3=weapon.to_global(weapon.get_meta("handle"))
 				max_grip_error=maxf(max_grip_error,grip.distance_to(Field.hand(actor,form=="bow")))
-			if form=="crossbow":
+			if form in ["crossbow","scythe"]:
 				max_support_error=maxf(max_support_error,weapon.to_global(weapon.get_meta("support_grip")).distance_to(Field.hand(actor,true)))
 			if form=="knives":
 				max_support_error=maxf(max_support_error,actor.secondary_weapon.global_position.distance_to(Field.hand(actor,true)))
@@ -52,6 +52,7 @@ func inspect(stage: Node3D, actor: Dictionary, body: int, form: String, class_id
 				var nock: Vector3=weapon.get_node("NockedArrow").to_global(Vector3(0,.2,-.2))
 				max_support_error=maxf(max_support_error,nock.distance_to(Field.hand(actor,false)))
 			if frame==12: poses.append(rig.get_bone_pose_rotation(rig.find_bone("upperarm_r")))
+		if form=="scythe":inspect_scythe_arc(actor,step,clip)
 		pose(actor,form,clip,contact,true,step)
 		if Motion.is_projectile(form):
 			var center := weapon.to_global(Vector3(0,.282,0)) if form=="ring" else weapon.to_global(Reviewed.sampled_point(actor.field_rig.reviewed,13))
@@ -86,6 +87,40 @@ func inspect(stage: Node3D, actor: Dictionary, body: int, form: String, class_id
 		actor.secondary_weapon.free()
 		actor.erase("secondary_weapon")
 
+func inspect_scythe_arc(actor: Dictionary, step: int, clip: String) -> void:
+	var contact := float(Motion.profile("scythe").release)
+	var variant := Motion.basic_variant("scythe",step)
+	var start := 16 if step==1 else 17
+	var weapon: Node3D=actor.visual_weapon
+	var origin: Vector3=actor.model.global_position
+	var previous := Vector3.ZERO
+	var previous_tip := Vector3.ZERO
+	var minimum := 180.0
+	var maximum := -180.0
+	for half_frame in range((start-1)*2,(start+8)*2+1):
+		var time := half_frame/48.0
+		var impact := 20/24.0
+		var phase := contact*time/impact if time<=impact else contact+(1-contact)*(time-impact)/(30/24.0-impact)
+		pose(actor,"scythe",clip,phase,true,step)
+		var tip := weapon.get_node("WeaponTip") as Node3D
+		var ray := tip.global_position-origin
+		ray.y=0
+		if not previous.is_zero_approx():
+			check(previous.signed_angle_to(ray,Vector3.UP)*(1 if step==1 else -1)>0,"hook leads the "+clip+" sweep")
+			var travel := previous_tip.direction_to(tip.global_position)
+			check(absf(travel.dot(weapon.global_basis.z.normalized()))<.25,"cut follows the blade plane")
+		previous=ray
+		previous_tip=tip.global_position
+		for blade_point in [tip.global_position,weapon.to_global(Vector3(0,1.20,0)),weapon.to_global(Vector3(.492,1.10,0))]:
+			var point: Vector3=blade_point-origin
+			var angle := atan2(point.x,point.z)
+			minimum=minf(minimum,rad_to_deg(angle))
+			maximum=maxf(maximum,rad_to_deg(angle))
+			check(absf(angle-float(variant.yaw_offset))<=float(variant.span)*.5,"cutting blade inside indicated "+clip+" sector")
+	print(clip," cutting arc degrees ",minimum," to ",maximum)
+	var line := preload("res://weapon_contact.gd").describe("scythe",{"pattern":"line","reach":3,"weapon_variant":clip})
+	check(line.clip=="Attack_scythe_line" and line.pattern=="line" and is_zero_approx(float(line.yaw_offset)),"crafted line remains straight")
+
 func run() -> void:
 	var stage := preload("res://stage.gd").new()
 	for form in ["bow","crossbow","ring"]:
@@ -100,7 +135,7 @@ func run() -> void:
 		actor.model.rotation.y=0
 		for index in Reviewed.FORMS.size():
 			var form: String=Reviewed.FORMS[index]
-			inspect(stage,actor,body,form,2 if index<3 else 3,index if index<3 else 2 if form=="whip" else 0)
+			inspect(stage,actor,body,form,2 if index<3 else 3,index if index<3 else int({"knives":0,"scythe":1,"whip":2}[form]))
 	stage.free()
 	pivot.free()
 	await process_frame

@@ -182,6 +182,10 @@ static func draw_reviewed(actor: Dictionary, form: String, phase: float, active:
  var mount:=Reviewed.mount(field,form=="bow")
  var handle := Vector3.UP*.2 if form in ["bow","crossbow"] else Vector3.ZERO
  weapon.global_transform=Transform3D(mount.basis,mount.origin-mount.basis*handle)
+ if form=="scythe":
+  weapon.set_meta("handle",Reviewed.sampled_point(state,Reviewed.SCYTHE_MAIN))
+  weapon.set_meta("support_grip",Reviewed.sampled_point(state,Reviewed.SCYTHE_SUPPORT))
+  return
  if form=="whip":
   weapon.set_meta("handle",Reviewed.point(Reviewed.grips.whip.grip_r,0))
   draw_reviewed_lash(weapon,state,reach,phase,active)

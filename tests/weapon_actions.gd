@@ -28,6 +28,7 @@ func run():
  game.set_process(false);game.set_physics_process(false);WorldViewCase.component(game,"combat").set_process(false)
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.facing=Vector3(0,0,1);p.aim_direction=p.facing;p.mouse_aim=true
  game.battlefield.configure(0,1);game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,1.4)
+ scythe_contacts(game)
  var actor: Dictionary=game.stage.avatar_models.get(1,{})
  game._process(.016);actor=game.stage.avatar_models[1]
  for sex in 2:
@@ -230,4 +231,24 @@ func lash_contacts(game: Node) -> void:
  check(Contact.accepts(game,-1,Vector3.ZERO,Vector3.BACK,"whip",stats),"straight backhand hits at its tip")
  stats.pattern="sweep"
  check(Contact.describe("whip",stats).clip=="Attack_whip_sweep","crafted sweep keeps its own delivery")
+ game.tactics.position=previous
+
+func scythe_contacts(game: Node) -> void:
+ var previous: Vector3=game.tactics.position
+ var reach:=float(game.Classes.DEFINITIONS[3].weapons[1].reach)
+ var facing:=Vector3.BACK.rotated(Vector3.UP,.7)
+ for step in [1,2]:
+  var variant:=Motion.basic_variant("scythe",step)
+  var stats:={"pattern":"sweep","reach":reach,"weapon_variant":variant.clip}
+  var shape:=Contact.describe("scythe",stats)
+  var outline:=Contact.outline(shape,Vector3.ZERO,facing)
+  var polygon:=PackedVector2Array()
+  for point in outline:polygon.append(Vector2(point.x,point.z))
+  # These positions distinguish the two cutting arcs even after accounting for the enemy's radius.
+  for degrees in [22,-95,-35,90]:
+   game.tactics.position=facing.rotated(Vector3.UP,deg_to_rad(degrees))*reach*.98
+   var at: Vector3=game.tactics.position
+   var inside:=Geometry2D.is_point_in_polygon(Vector2(at.x,at.z),polygon)
+   check(inside==(degrees==-35 or (step==1 and degrees==22) or (step==2 and degrees==-95)),"Scythe footprint follows "+str(variant.clip))
+   check(Contact.accepts(game,-1,Vector3.ZERO,facing,"scythe",stats)==inside,"host and indicator agree on "+str([variant.clip,degrees]))
  game.tactics.position=previous

@@ -221,7 +221,11 @@
     "speed": 0,
     "variants": {
       "line": "Attack_scythe_line"
-    }
+    },
+    "basic_variants": [
+      {"clip": "Attack_scythe_crossing", "delivery": "sweep", "span": 1.745329252, "yaw_offset": -0.453785606},
+      {"clip": "Attack_scythe_return", "delivery": "sweep", "span": 1.815142422, "yaw_offset": -0.767944871}
+    ]
   },
   "whip": {
     "duration": 0.5,

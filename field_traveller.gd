@@ -47,6 +47,7 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 		Rootblade.add_clips(libraries[kind],visual,skeleton)
 		WeaponAnimation.add_from(libraries[kind],visual,skeleton,Reviewed.CLIPS)
 		WeaponAnimation.add_from(libraries[kind],visual,skeleton,preload("res://assets/characters/root_lash_attacks.glb"))
+		WeaponAnimation.add_from(libraries[kind],visual,skeleton,preload("res://assets/characters/scythe_attacks.glb"))
 	player.add_animation_library("", libraries[kind])
 	var links: Dictionary = {}
 	for name in DRIVER_JOINTS:
@@ -136,7 +137,7 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	var wand_basic := form=="wand" and not bool(motion.get("ability",false))
 	field.wand_active=wand_basic
 	if not wand_basic:Wand.clear(field)
-	var reviewed_basic: bool = form in Reviewed.FORMS and not bool(motion.get("ability",false)) and motion.get("clip","") not in ["Attack_knives_line","Attack_whip_sweep"]
+	var reviewed_basic: bool = form in Reviewed.FORMS and not bool(motion.get("ability",false)) and motion.get("clip","") not in ["Attack_knives_line","Attack_whip_sweep","Attack_scythe_line"]
 	if not reviewed_basic: field.reviewed.clear()
 	var focus_basic := form == "orb" and not bool(motion.get("ability", false))
 	if not focus_basic: field.focus.clear()
@@ -248,17 +249,21 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 		return
 	if rootblade_basic:
 		return
-	if reviewed_basic and form in ["bow","crossbow"]:
+	if reviewed_basic and form in ["bow","crossbow","scythe"]:
 		# Preserve the reviewed elbow plane and finger rotations. Correct only the
 		# small reach difference between the mannequin and the two traveller rigs.
-		var support_left := form=="crossbow"
+		var support_left := form!="bow"
 		var wrist: int=field.left.bone if support_left else field.right.bone
 		var support := Reviewed.grip_center(field,form,support_left)
 		var socket_point := skeleton.get_bone_global_pose(wrist).affine_inverse()*support
 		var mount := Reviewed.mount(field,not support_left)
-		var local := Reviewed.sampled_point(field.reviewed,Reviewed.SUPPORT_HAND)
-		var prop_scale := Reviewed.BOW_SCALE if form=="bow" else Reviewed.HELD_SCALE
-		var target := mount * (local/prop_scale)
+		var local: Vector3
+		if form=="scythe":
+			local = Reviewed.sampled_point(field.reviewed,Reviewed.SCYTHE_SUPPORT)
+		else:
+			var prop_scale := Reviewed.BOW_SCALE if form=="bow" else Reviewed.HELD_SCALE
+			local = Reviewed.sampled_point(field.reviewed,Reviewed.SUPPORT_HAND)/prop_scale
+		var target := mount * local
 		pose_hand(skeleton,{"bone":wrist,"point":socket_point},target,Vector3.ZERO,1.0,true)
 	if wand_basic or focus_basic or reviewed_basic:return
 	pose_weapon_hands(actor,skeleton,field,form,phase,active,motion,action_weight)
