@@ -600,16 +600,19 @@ Built 2026-11-22. `ai/mob_rewards.gd` turns each tick's events into rewards per 
 
 | Term | Weight |
 |---|---|
-| Damage dealt | +1.0 per health bar of the player hit |
+| Damage dealt | +1.25 per health bar of the player hit (1.0 until the reward update below) |
 | Healing done | +0.6 per health bar of the mob healed (a new `HEALED` event, pushed by corpse tethers) |
-| Player downed | +3.0 for every mob that hit the player in the last 5 seconds |
+| Player downed | +3.75 for every mob that hit the player in the last 5 seconds (3.0 until the reward update) |
 | First sight of the party (added in Part D) | +0.2 once per mob life, the first time it sees any player |
 | Sight of the current target | +0.01 per second, at most 0.005 between decisions, so standing in the open pays little |
 | A support ally alive and casting | +0.02 per second to the support's allies |
 | Own health lost | -0.3 per health bar of its own |
 | Support lost | -1.0 times the support's value, to its allies |
 | Own death | -0.15 times its value (1, or 3 for elites and leaders) |
-| Party wipe | +5.0 to every mob alive |
+| Party wipe | +8.5 to every mob alive (5.0 until the reward update) |
+| Making a player dodge (reward update) | +0.05 when a player dodges the mob's attack (a new `EVADED` event the training party pushes) |
+| Dodging a player's hit (reward update) | +0.01 for each hit the mob's dodge avoids |
+| Landing an ability (reward update) | +0.02 when an ability (attacks 1 to 3) hits a player who was not dodging, so abilities that deal no damage also pay |
 | Intent change | -0.002 |
 
 Squad mix: a share of every reward goes to the mob's allies; the share starts at 20% and the trainer moves it to 60% as training progresses, so mobs learn to value their squad's success. Checks: `ai/tests/mob_reward_checks.gd` (13 checks) covers every term and the squad mix.
@@ -686,3 +689,5 @@ Added 2026-11-22, after the first 213 million decisions. That run showed mobs le
 **Training time.** The trainer now counts wall-clock training time, waiting included, rather than only its own update time, so status and milestones (every 2 hours) follow real time. The conversion recomputed the first run's time from its metrics.
 
 **Dashboard.** `ai/training/dashboard.py` (or `Training Dashboard.cmd`) serves a page on this computer only, refreshing every 15 seconds: status, decisions, policy, training time, workers and speed, waiting shards and checkpoints, and trend charts with per-update values and a moving average for wipes, finding the party, time to find it, damage to the party, mob reward per life, how fights end, entropy, KL against its target, learning rate, clip fraction, critic error and decisions per second. It only reads the run folder. `ai/training/export_view.py` writes the newest checkpoint as TorchScript files for a model viewer such as Netron.
+
+**Reward update and KL measurement.** Added 2026-11-22 at 349 million decisions; reward weights change no shapes, so training continued from its checkpoint with its optimizer. Damage rose to 1.25 per health bar, downs to 3.75 and a wipe to 8.5; making a player dodge earns 0.05, dodging a hit 0.01 and landing an ability 0.02 (see the Part B table). The KL target is now measured on the final pass of each update, since an average over every step read about half the true change; the first run with the average pinned the learning rate at its 0.003 cap while the policy moved further than intended. The cap is now 0.001, and the step average is still logged as `mean_kl`.

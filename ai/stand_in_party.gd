@@ -521,6 +521,7 @@ func _consider_dodge(player: int, now: int) -> bool:
 				break
 		dodge_until[player] = now + DODGE_TICKS
 		dodge_ready[player] = now + Clock.from_ms(float(CLASSES[classes[player]].dodge_s) * 1000.0)
+		sim.events.push(Events.Kind.EVADED, now, slot, pool.generation[slot], player)
 		attack_due[player] = -1
 		dodges += 1
 		_reaction.erase(key)

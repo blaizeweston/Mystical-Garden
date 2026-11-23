@@ -23,6 +23,7 @@ func _initialize() -> void:
 	test_supports()
 	test_sight_cap()
 	test_first_sight()
+	test_dodges_and_abilities()
 	test_squad_mix()
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)
@@ -77,7 +78,7 @@ func test_damage_and_loss() -> void:
 	rewards.take(slot)
 	sim.record_hit(slot, sim.pool.generation[slot], 0, 50.0)
 	step(sim, rewards)
-	check(is_equal_approx(rewards.take(slot), 0.5), "half a player's health bar earns 0.5")
+	check(is_equal_approx(rewards.take(slot), 0.625), "half a player's health bar earns 0.625")
 	sim.damage_mob(slot, 30.0, 0)
 	step(sim, rewards)
 	check(is_equal_approx(rewards.take(slot), -0.09), "losing 30% of its own health costs 0.09")
@@ -96,11 +97,11 @@ func test_downs_and_wipes() -> void:
 	rewards.take(bystander)
 	sim.party.set_player(0, Vector2(0, 6), Vector2.ZERO, 0.0, 100.0)
 	step(sim, rewards)
-	check(is_equal_approx(rewards.take(hitter), 3.0), "the mob that hit a downed player earns 3")
+	check(is_equal_approx(rewards.take(hitter), 3.75), "the mob that hit a downed player earns 3.75")
 	check(is_zero_approx(rewards.take(bystander)), "a mob that never hit the player earns nothing for the down")
 	sim.party.set_player(1, Vector2(0, -6), Vector2.ZERO, 0.0, 100.0)
 	step(sim, rewards)
-	check(is_equal_approx(rewards.take(bystander), 5.0), "every mob alive earns 5 when the party is wiped")
+	check(is_equal_approx(rewards.take(bystander), 8.5), "every mob alive earns 8.5 when the party is wiped")
 
 
 func test_healing_death_and_intent() -> void:
@@ -172,6 +173,33 @@ func test_first_sight() -> void:
 	check(is_zero_approx(rewards.take(slot)) and rewards.totals.found == 1, "seeing players again earns no more")
 
 
+func test_dodges_and_abilities() -> void:
+	var sim := make_sim()
+	var slot := add_mob(sim, "bellcap", Vector2.ZERO)
+	var rewards := solo(sim)
+	step(sim, rewards)
+	rewards.take(slot)
+	var generation: int = sim.pool.generation[slot]
+	sim.events.push(Events.Kind.EVADED, sim.clock.tick, slot, generation, 0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(slot), 0.05), "making a player dodge earns 0.05")
+	sim.events.push(Events.Kind.DODGED, sim.clock.tick, slot, generation, 0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(slot), 0.01), "dodging a player's hit earns 0.01")
+	sim.events.push(Events.Kind.RELEASE, sim.clock.tick, slot, generation, 0)
+	sim.events.push(Events.Kind.HIT, sim.clock.tick, slot, generation, 0, 30)
+	step(sim, rewards)
+	check(is_zero_approx(rewards.take(slot)), "a basic attack landing without damage earns nothing extra")
+	sim.events.push(Events.Kind.RELEASE, sim.clock.tick, slot, generation, 1)
+	sim.events.push(Events.Kind.HIT, sim.clock.tick, slot, generation, 0, 30)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(slot), 0.02), "an ability landing on a player earns 0.02, even without damage")
+	sim.party.set_timers(0, 0, 0, sim.clock.tick + 20)
+	sim.events.push(Events.Kind.HIT, sim.clock.tick, slot, generation, 0, 30)
+	step(sim, rewards)
+	check(is_zero_approx(rewards.take(slot)), "an ability the player dodged earns nothing for landing")
+
+
 func test_squad_mix() -> void:
 	var sim := make_sim()
 	var hitter := add_mob(sim, "rootbound", Vector2.ZERO)
@@ -184,4 +212,4 @@ func test_squad_mix() -> void:
 	rewards.take(mate)
 	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 100.0)
 	step(sim, rewards)
-	check(is_equal_approx(rewards.take(hitter), 0.8) and is_equal_approx(rewards.take(mate), 0.2), "an ally receives the squad's share")
+	check(is_equal_approx(rewards.take(hitter), 1.0) and is_equal_approx(rewards.take(mate), 0.25), "an ally receives the squad's share")

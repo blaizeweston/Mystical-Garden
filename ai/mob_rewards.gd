@@ -9,6 +9,10 @@ extends RefCounted
 ## - Downing a player: +player_downed for every mob that hit them within the assist window.
 ## - Finding the party: a small one-off reward the first time a mob sees any player in its life, so mobs that
 ##   start far away learn to search the floor.
+## - Making a player dodge its attack: a small reward, since the player spends its dodge.
+## - Dodging a player's hit: a smaller one.
+## - Landing an ability (attacks 1 to 3) on a player who was not dodging: a small reward, so abilities that
+##   deal no damage (roots, pulls, slows) also pay.
 ## - Seeing its current target: a small trickle, capped per decision so mobs gain little by standing in the open.
 ## - A support ally alive and casting (winding up or channeling): a small trickle per second, for the mob's allies.
 ## - Health the mob loses: -own_hp_lost per health bar of its own.
@@ -19,6 +23,7 @@ extends RefCounted
 
 const Clock = preload("res://mob_sim/mob_clock.gd")
 const Events = preload("res://mob_sim/mob_events.gd")
+const Party = preload("res://mob_sim/mob_party.gd")
 const Pool = preload("res://mob_sim/mob_pool.gd")
 
 const PATH := "res://ai/training/rewards.json"
@@ -31,12 +36,15 @@ var weights: Dictionary = {}
 var squad_mix := 0.0
 ## Reward earned since each slot's last take().
 var pending := PackedFloat32Array()
-## Totals since the last reset, for reports: damage, healing, downs, wipes, found, sight, support, hp_lost, support_lost, deaths, intent.
+## Totals since the last reset, for reports: damage, healing, downs, wipes, found, evaded, dodged, landed, sight, support,
+## hp_lost, support_lost, deaths, intent.
 var totals := {}
 var _cursor := 0
 var _was_alive := PackedByteArray()
 var _sight_left := PackedFloat32Array()
 var _found := PackedByteArray()
+## The attack each slot released last, which its hits come from.
+var _released := PackedInt32Array()
 ## Last tick each mob hit each player, by slot * players + player.
 var _last_hit := PackedInt32Array()
 var _generation := PackedInt32Array()
@@ -56,6 +64,8 @@ func _init(simulation: RefCounted, path: String = PATH) -> void:
 	_sight_left.fill(_sight_cap())
 	_found.resize(capacity)
 	_found.fill(0)
+	_released.resize(capacity)
+	_released.fill(-1)
 	_generation.resize(capacity)
 	_generation.fill(-1)
 	_last_hit.resize(capacity * players)
@@ -68,7 +78,7 @@ func _init(simulation: RefCounted, path: String = PATH) -> void:
 
 
 func reset_totals() -> void:
-	totals = {"damage": 0.0, "healing": 0.0, "downs": 0, "wipes": 0, "found": 0, "sight": 0.0, "support": 0.0, "hp_lost": 0.0,
+	totals = {"damage": 0.0, "healing": 0.0, "downs": 0, "wipes": 0, "found": 0, "evaded": 0, "dodged": 0, "landed": 0, "sight": 0.0, "support": 0.0, "hp_lost": 0.0,
 		"support_lost": 0.0, "deaths": 0, "intent": 0.0}
 
 
@@ -99,6 +109,7 @@ func _event(event: Dictionary, now: int) -> void:
 			_generation[slot] = int(event.generation)
 			pending[slot] = 0.0
 			_found[slot] = 0
+			_released[slot] = -1
 			for player in players:
 				_last_hit[slot * players + player] = -1000000
 		Events.Kind.DAMAGE_DEALT:
@@ -122,6 +133,18 @@ func _event(event: Dictionary, now: int) -> void:
 					_give(other, loss, "support_lost")
 		Events.Kind.INTENT:
 			_give(slot, float(weights.get("intent_change", -0.002)), "intent")
+		Events.Kind.RELEASE:
+			_released[slot] = int(event.a)
+		Events.Kind.HIT:
+			var target := int(event.a)
+			var dodging: bool = target >= 0 and target < players and \
+				int(event.tick) < sim.party.timers[target * Party.TIMER_COUNT + Party.Clocks.DODGE_UNTIL]
+			if _released[slot] >= 1 and not dodging:
+				_give(slot, float(weights.get("ability_landed", 0.0)), "landed")
+		Events.Kind.EVADED:
+			_give(slot, float(weights.get("made_player_dodge", 0.0)), "evaded")
+		Events.Kind.DODGED:
+			_give(slot, float(weights.get("dodged_attack", 0.0)), "dodged")
 
 
 ## Downs and wipes, from the party's alive flags.
@@ -174,7 +197,7 @@ func _trickles() -> void:
 func _give(slot: int, value: float, kind: String) -> void:
 	if value == 0.0 or slot < 0 or slot >= pending.size():
 		return
-	totals[kind] = totals.get(kind, 0) + (1 if kind in ["downs", "wipes", "deaths", "found"] else value)
+	totals[kind] = totals.get(kind, 0) + (1 if kind in ["downs", "wipes", "deaths", "found", "evaded", "dodged", "landed"] else value)
 	var allies := _allies(slot) if squad_mix > 0.0 else PackedInt32Array()
 	if allies.is_empty():
 		pending[slot] += value

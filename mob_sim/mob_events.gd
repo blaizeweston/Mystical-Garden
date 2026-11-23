@@ -5,7 +5,8 @@ extends RefCounted
 ## HIT: a release or hazard the simulation resolved itself struck a player. a is the player, b root ticks,
 ## value the damage, radius the pull distance toward from_x and from_z.
 ## HEALED: slot healed mob a (itself for a corpse tether) by value.
-enum Kind { SPAWN, DEATH, INTENT, WINDUP, RELEASE, INTERRUPT, DAMAGE_TAKEN, DAMAGE_DEALT, DODGED, HIT, HEALED }
+## EVADED: player a dodged slot's attack. Pushed by a host that resolves player dodges (the training party).
+enum Kind { SPAWN, DEATH, INTENT, WINDUP, RELEASE, INTERRUPT, DAMAGE_TAKEN, DAMAGE_DEALT, DODGED, HIT, HEALED, EVADED }
 
 const CAPACITY := 8192
 

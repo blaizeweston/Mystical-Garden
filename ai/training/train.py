@@ -38,7 +38,7 @@ REWARDS_PATH = HERE / "rewards.json"
 WAIT_SECONDS = 2.0
 ## The learning rate moves by this factor when the KL strays from its target, within these bounds.
 LR_STEP = 1.25
-LR_BOUNDS = (1e-5, 3e-3)
+LR_BOUNDS = (1e-5, 1e-3)
 ## A longer gap between loop passes means the computer slept; it does not count as training time.
 MAX_TICK_SECONDS = 600.0
 
@@ -273,9 +273,13 @@ class Trainer:
         stats = {"replay_gap": self._replay_gap(batch, obs, masks, actions, old_log_prob, index, valid, start_memory)}
         totals = {"policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0, "approx_kl": 0.0, "clip_fraction": 0.0}
         steps = 0
+        # KL is reported from the final pass: by then the policy has moved as far as this update moves it. An
+        # average over every step would include the first, which barely move it, and read about half as high.
+        final_kl, final_steps = 0.0, 0
         size = int(cfg["minibatch_sequences"])
         clip, value_clip = float(cfg["clip"]), float(cfg["value_clip"])
-        for _epoch in range(int(cfg["epochs"])):
+        epochs = int(cfg["epochs"])
+        for epoch in range(epochs):
             order = torch.randperm(windows.shape[0], device=device)
             for start in range(0, windows.shape[0], size):
                 chosen = order[start:start + size]
@@ -302,10 +306,16 @@ class Trainer:
                     totals["policy_loss"] += policy_loss.item()
                     totals["value_loss"] += value_loss.item()
                     totals["entropy"] += entropy_mean.item()
-                    totals["approx_kl"] += ((ratio - 1) - log_ratio).mean().item()
+                    kl = ((ratio - 1) - log_ratio).mean().item()
+                    totals["approx_kl"] += kl
+                    if epoch == epochs - 1:
+                        final_kl += kl
+                        final_steps += 1
                     totals["clip_fraction"] += ((ratio - 1).abs() > clip).float().mean().item()
                 steps += 1
         stats.update({key: round(value / max(1, steps), 5) for key, value in totals.items()})
+        stats["mean_kl"] = stats["approx_kl"]
+        stats["approx_kl"] = round(final_kl / max(1, final_steps), 5)
         stats["value_mean"] = round(values.mean().item(), 4)
         return stats
 
