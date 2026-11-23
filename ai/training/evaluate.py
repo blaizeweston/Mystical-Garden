@@ -81,8 +81,9 @@ def default_checkpoints(run_dir: Path, milestones: int) -> list[Path]:
 
 
 class Contestant:
-    """A brain to compare: "policy" (a checkpoint), "scripted" (the game's brain) or "random" (every legal option
-    equally likely, the baseline for how much choices matter at all)."""
+    """A brain to compare: "policy" (a checkpoint), "sharpened" (a checkpoint sampled at a lower temperature),
+    "scripted" (the game's brain) or "random" (every legal option equally likely, the baseline for how much
+    choices matter at all)."""
 
     def __init__(self, label: str, policy_file: Path, state: dict | None = None, kind: str | None = None) -> None:
         self.label = label
@@ -133,6 +134,24 @@ def random_brain(schema: MobSchema, out: Path) -> Contestant:
     file.parent.mkdir(parents=True, exist_ok=True)
     export_weights(policy, file)
     return Contestant(RANDOM, file, kind="random")
+
+
+def sharpen_policy(policy_state: dict, schema: MobSchema, temperature: float) -> MobPolicy:
+    """The policy with its output layer divided by temperature, so every logit is divided by it."""
+    policy = MobPolicy(schema)
+    policy.load_state_dict(policy_state)
+    with torch.no_grad():
+        policy.heads.weight.div_(temperature)
+        policy.heads.bias.div_(temperature)
+    return policy
+
+
+def sharpened(contestant: Contestant, temperature: float, schema: MobSchema, out: Path) -> Contestant:
+    """The checkpoint's policy with its logits divided by temperature: below 1 it commits harder to the options
+    it already prefers. Exported as its own policy, so Godot samples it exactly as in training."""
+    file = out / "policies" / f"policy_{contestant.version:07d}_t{temperature:g}.bin"
+    export_weights(sharpen_policy(contestant.state["policy"], schema, temperature), file)
+    return Contestant(f"{contestant.label} T{temperature:g}", file, contestant.state, kind="sharpened")
 
 
 def squad_mix(samples: int, settings: dict) -> float:
@@ -502,6 +521,8 @@ def main() -> int:
     parser.add_argument("--record", type=int, default=12, help="episodes per checkpoint whose decisions the critic diagnosis uses")
     parser.add_argument("--no-scripted", action="store_true")
     parser.add_argument("--no-random", action="store_true", help="leave out the random brain (uniform over legal options)")
+    parser.add_argument("--temperatures", type=float, nargs="*", default=[],
+                        help="also play the newest checkpoint at these sampling temperatures (below 1 is sharper)")
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
     if args.episodes < 1:
@@ -524,6 +545,11 @@ def main() -> int:
     if not contestants:
         raise SystemExit("None of the checkpoints could be used.")
     contestants.sort(key=lambda c: c.samples)
+    newest = contestants[-1]
+    for temperature in args.temperatures:
+        if not 0.0 < temperature < 10.0:
+            raise SystemExit("--temperatures must be between 0 and 10.")
+        contestants.append(sharpened(newest, temperature, schema, out))
     if not args.no_random:
         contestants.insert(0, random_brain(schema, out))
     if not args.no_scripted:

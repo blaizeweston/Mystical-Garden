@@ -199,6 +199,18 @@ def test_evaluation(schema: MobSchema, folder: Path) -> None:
     check(uniform.kind == "random" and not uniform.scripted and uniform.policy_file.stat().st_size > 1000,
           "the random brain is exported as a policy of its own kind")
 
+    sharp = E.sharpened(contestant, 0.5, schema, folder)
+    check(sharp.kind == "sharpened" and sharp.label == "v5 (0M) T0.5" and sharp.policy_file.exists(),
+          "a sharpened policy is exported under its own label")
+    plain_policy = MobPolicy(schema)
+    plain_policy.load_state_dict(state["policy"])
+    sharp_policy = E.sharpen_policy(state["policy"], schema, 0.5)
+    sample = torch.randn(3, schema.observation_size)
+    hidden = plain_policy.initial_hidden(3)
+    with torch.no_grad():
+        check(torch.allclose(sharp_policy(sample, hidden)[0], plain_policy(sample, hidden)[0] / 0.5, atol=1e-5),
+              "sharpening at temperature 0.5 doubles every logit")
+
     class Args:
         episodes, seed = 10, 1
     scripted = E.Contestant(E.SCRIPTED, folder / "unused.bin")
