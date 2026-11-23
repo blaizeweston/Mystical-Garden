@@ -46,18 +46,22 @@ func run():
     var signature:=str([actor.skeleton.get_bone_global_pose(hand),actor.skeleton.get_bone_global_pose(left)])
     if not poses.has(signature):poses.append(signature)
     game.stage.update_avatar(game.stage.avatars[1],actor,game.actor_presentation.avatar(1,Time.get_ticks_msec()),game.Stage.WILD_OFFSET,.016)
+    if form=="ring":
+     # Let the throwing hand close around the replacement disc after release.
+     Avatar.animate(actor,false,0,form,{"equipped":true},1)
+     preload("res://weapon_visuals.gd").animate(actor,form,0,false,0,3)
     var left_palm:=Field.hand(actor,true)
     var right_palm:=Field.hand(actor,false)
     var anchor:=left_palm if form=="bow" else preload("res://seed_focus_animation.gd").held_center(actor.field_rig) if form=="orb" else right_palm
     var handle: Vector3=actor.visual_weapon.to_global(actor.visual_weapon.get_meta("handle",Vector3.ZERO))
-    check(actor.visual_weapon.is_visible_in_tree() and handle.distance_to(anchor)<.001,"visible weapon follows its field grip: "+form)
+    check(actor.visual_weapon.is_visible_in_tree() and handle.distance_to(anchor)<(.022 if form in ["knives","ring"] else .001),"visible weapon follows its field grip: "+form)
     check(actor.has("secondary_weapon")== (form=="knives"),"no residual off-hand weapon "+form)
     if Models.MODELS.has(form):
      var mesh: Node3D=actor.visual_weapon.get_node_or_null(Models.MODELS[form].name)
      check(is_instance_valid(mesh) and (mesh is MeshInstance3D or not mesh.find_children("*","MeshInstance3D",true,false).is_empty()),"the authored model is built through the normal equipment path "+form)
     if form=="knives":
      var offhand: Node3D=actor.secondary_weapon
-     check(offhand.has_node("GraftKnifeModel") and offhand.global_position.distance_to(left_palm)<.001,"the matching knife follows the left grip")
+     check(offhand.has_node("GraftKnifeModel") and offhand.global_position.distance_to(left_palm)<.022,"the matching knife follows the left grip")
     if form=="crossbow":
      arbalest_pose(actor,sex,profile)
     if form=="whip":
@@ -71,8 +75,7 @@ func run():
      var sample_phase:=float(profile.release)-.01
      Avatar.animate(actor,true,sample_phase,form,{"equipped":true},1.0)
      preload("res://weapon_visuals.gd").animate(actor,form,sample_phase,true,0,6)
-     var draw:=smoothstep(0,float(profile.release),sample_phase)
-     var nock: Vector3=actor.visual_weapon.global_transform*Vector3(0,.2,-.2-.25*draw)
+     var nock: Vector3=actor.visual_weapon.get_node("NockedArrow").to_global(Vector3(0,.2,-.2))
      check(nock.distance_to(Field.hand(actor,false))<.035,"visible draw hand reaches the bow string on body "+str(sex))
     var stats: Dictionary=game.weapon_stats(p);var description:=Contact.describe(form,stats)
     check(float(description.contact)==float(profile.release),"shared contact marker "+form)

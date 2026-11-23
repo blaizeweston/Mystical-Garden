@@ -64,6 +64,14 @@ func host_run():
  mark("spear-ready")
  check(await until(func():return marked("spear-checked")),"guest sees imported thrust then sweep")
  check(await until(func():return game.enemy_health()<1000 and game.encounter.hp(flank)<1000),"host damages front and flank using the alternating areas after release")
+ for index in 4:
+  var form: String=Field.Reviewed.FORMS[index]
+  p.frame=2 if index<3 else 3;p.weapon_kind=index if index<3 else 0
+  p[WeaponActions.STATE]=WeaponActions.State.new()
+  game.encounter.set_hp(-1,1000);game.tactics.position=Vector3(0,0,1.25)
+  mark("equip-"+form)
+  check(await until(func():return marked("seen-"+form)),"guest confirms both "+form+" attacks")
+  check(p[WeaponActions.STATE].basic_step()==2,"two admitted "+form+" attacks")
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects")
 func guest_run():
  game.guest_character.data.active_class=2
@@ -82,7 +90,7 @@ func guest_run():
  var encounter:=str([game.participation.route(),game.participation.floor(),game.participation.seed()])
  while Time.get_ticks_msec()<deadline:
   var actor: Dictionary=game.stage.avatar_models.get(id,{})
-  if not actor.is_empty() and str(actor.animator.current_animation)=="Attack_bow":
+  if not actor.is_empty() and str(actor.field_rig.player.current_animation)=="Attack_bow_upright":
    saw_clip=true
    if aim.x>0:
     aim=Vector2(0,1)
@@ -91,8 +99,7 @@ func guest_run():
    var arrow: Node3D=weapon.get_node("NockedArrow")
    var phase:=float(actor.get("motion_phase",1.0))
    if arrow.visible and phase>.10 and phase<.55:
-    var draw:=smoothstep(0,.55,phase)
-    var nock:=weapon.to_global(Vector3(0,.2,-.2-.25*draw))
+    var nock:=arrow.to_global(Vector3(0,.2,-.2))
     saw_draw=saw_draw or nock.distance_to(Field.hand(actor,false))<.035
   if game.network_session.transport()==null:
    check(false,"guest stays connected through bow action")
@@ -182,8 +189,39 @@ func guest_run():
  check(clips==["Attack_spear","Attack_spear_sweep"] and shapes==["line","sweep"],"host-selected thrust precedes sweep without a guest-side counter")
  check(visible_clips.has("Attack_spear") and visible_clips.has("Attack_spear_sweep"),"both imported clips run on the visible guest rig")
  mark("spear-checked")
+ for form in Field.Reviewed.FORMS:
+  if not await until(func():return marked("equip-"+form) and Motion.form(game.players.get(id,{}))==form):
+   check(false,"guest receives "+form+" loadout");return
+  await inspect_alternates(id,form)
+  mark("seen-"+form)
  check(await until(func():return marked("done")),"host finishes")
  game.session_world.leave("Weapon animation fixture")
+
+func inspect_alternates(id: int, form: String) -> void:
+ var previously_seen := {}
+ for entry in game.guest_replication.received_events():previously_seen[entry.event.id]=true
+ for step in [1,2]:
+  var clip: String=Motion.basic_variant(form,step).clip
+  var deadline:=Time.get_ticks_msec()+4000
+  var next_send:=0
+  var seen_pose:=false
+  var seen_event:=false
+  while Time.get_ticks_msec()<deadline and not (seen_pose and seen_event):
+   var now:=Time.get_ticks_msec()
+   if now>=next_send:
+    next_send=now+50
+    game.submit_combat.rpc_id(1,Vector2(0,1),not seen_pose)
+   var actor: Dictionary=game.stage.avatar_models.get(id,{})
+   if not actor.is_empty() and str(actor.field_rig.player.current_animation)==clip:seen_pose=true
+   for entry in game.guest_replication.received_events():
+    var event: Dictionary=entry.event
+    if previously_seen.has(event.id) or event.get("clip","")!=clip:continue
+    if event.kind==("swing" if form=="knives" else "projectile"):
+     seen_event=true
+     if form!="knives":check(game.stage.weapon_release_point(event).is_finite(),"guest locates "+clip+" release")
+   await process_frame
+  game.submit_combat.rpc_id(1,Vector2(0,1),false)
+  check(seen_pose and seen_event,"guest sees host-selected pose and contact for "+clip)
 
 func inspect_focus_casts(id: int) -> void:
  var animations: Array[String]=[]

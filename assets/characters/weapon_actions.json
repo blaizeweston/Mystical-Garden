@@ -139,7 +139,8 @@
     "muzzle_forward": 0.65,
     "muzzle_side": -0.12,
     "speed": 32,
-    "variants": {}
+    "variants": {},
+      "basic_variants": [{"clip": "Attack_bow_upright"}, {"clip": "Attack_bow_canted"}]
   },
   "crossbow": {
     "duration": 0.58,
@@ -157,7 +158,8 @@
     "muzzle_forward": 0.72,
     "muzzle_side": 0,
     "speed": 38,
-    "variants": {}
+    "variants": {},
+      "basic_variants": [{"clip": "Attack_crossbow_raised"}, {"clip": "Attack_crossbow_low"}]
   },
   "ring": {
     "duration": 0.45,
@@ -175,7 +177,8 @@
     "muzzle_forward": 0.4,
     "muzzle_side": 0,
     "speed": 25,
-    "variants": {}
+    "variants": {},
+      "basic_variants": [{"clip": "Attack_ring_sidearm"}, {"clip": "Attack_ring_rising"}]
   },
   "knives": {
     "duration": 0.22,
@@ -195,7 +198,8 @@
     "speed": 0,
     "variants": {
       "line": "Attack_knives_line"
-    }
+    },
+      "basic_variants": [{"clip": "Attack_knives_right"}, {"clip": "Attack_knives_left"}]
   },
   "scythe": {
     "duration": 0.58,

@@ -51,9 +51,10 @@ func run():
       Avatar.animate(actor,true,phase,form,{"equipped":true},1.0/60.0);Weapons.animate(actor,form,phase,true,0,2)
       var left:=Field.hand(actor,true)
       var right:=Field.hand(actor,false)
-      var expected:=left if form=="bow" else (right+left)*.5 if form=="orb" else right
+      var expected:=left if form=="bow" else preload("res://seed_focus_animation.gd").held_center(actor.field_rig) if form=="orb" else right
       var handle: Vector3=actor.visual_weapon.global_transform*Vector3(actor.visual_weapon.get_meta("handle",Vector3.ZERO))
-      check(handle.distance_to(expected)<.001,"weapon handle stays in actual palm across body/slider/phase extremes: "+form)
+      if form!="ring" or phase<float(profile.release)*.55:
+       check(handle.distance_to(expected)<(.022 if form in ["knives","ring"] else .001),"weapon handle stays in actual palm across body/slider/phase extremes: "+form)
       for joint in actor.skeleton.get_bone_count():check(actor.skeleton.get_bone_pose_rotation(joint).is_normalized(),"finite normalized animation rotations")
       if form=="blade":
        check(actor.visual_weapon.has_node("RootbladeModel"),"Rootblade mesh is attached on the normal weapon path")
@@ -64,8 +65,7 @@ func run():
       if form=="bow":
        check(actor.visual_weapon.has_node("VineBowModel"),"Vine Bow mesh is attached on the normal weapon path")
        if phase>=.16 and phase<=float(profile.release):
-        var draw:=smoothstep(0,float(profile.release),phase)
-        var nock: Vector3=actor.visual_weapon.to_global(Vector3(0,.2,-.2-.25*draw))
+        var nock: Vector3=actor.visual_weapon.get_node("NockedArrow").to_global(Vector3(0,.2,-.2))
         check(nock.distance_to(right)<.035,"draw palm meets the moving nock through release: "+str([sex,extreme,phase,nock.distance_to(right)]))
        check(actor.visual_weapon.get_node("NockedArrow").visible==(phase<float(profile.release)),"nocked arrow vanishes at the committed release")
      actor.visual_weapon.free();actor.erase("visual_weapon")

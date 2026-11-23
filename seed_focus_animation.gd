@@ -65,21 +65,12 @@ static func held_center(field: Dictionary) -> Vector3:
 ## transforms locally, so resolving a late seed never seeks a live actor's rig.
 static func cache_contacts(field: Dictionary, body: int) -> void:
 	if contact_centers.has(body): return
-	var rig: Skeleton3D = field.skeleton
 	var player: AnimationPlayer = field.player
-	var idle := Locomotion.sample_clip(rig, player.get_animation("Idle"), field.pelvis, 4.0/24.0)
 	var contacts := {}
 	for clip in [PUSH, GATHER]:
 		var animation := player.get_animation(clip)
 		var time := animation.length * float(Motion.profile("orb").release)
-		var cast := Locomotion.sample_clip(rig, animation, field.pelvis, time)
-		var transforms: Array[Transform3D] = []
-		for i in rig.get_bone_count():
-			var rotation: Quaternion = cast.rotations[i] if Native.upper_body(rig.get_bone_name(i)) else idle.rotations[i]
-			var position: Vector3 = idle.pelvis if i == field.pelvis else rig.get_bone_rest(i).origin
-			var local := Transform3D(Basis(rotation), position)
-			var parent := rig.get_bone_parent(i)
-			transforms.append(local if parent < 0 else transforms[parent] * local)
+		var transforms := Native.contact_bones(field,clip,time)
 		var wrists := (transforms[field.left.bone].origin + transforms[field.right.bone].origin) * .5
 		var key: Array = motion.clips[clip][roundi(time * float(motion.samples_per_second))]
 		var center := wrists + Vector3(key[0],key[1],key[2])

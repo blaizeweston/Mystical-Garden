@@ -1,6 +1,7 @@
 extends RefCounted
 # Shared grip-space weapon kit with independently animated bow strings and vine segments.
 const Classes=preload("res://class_catalog.gd")
+const Reviewed=preload("res://reviewed_weapon_attacks.gd")
 const FieldRig=preload("res://field_traveller.gd")
 const WeaponPoses=preload("res://weapon_pose_catalog.gd")
 const Polearms=preload("res://plant_polearms.gd")
@@ -40,6 +41,9 @@ static func build(stage: Node3D,class_id: int,weapon_id: int) -> Node3D:
     var model:=VINE_BOW.instantiate()
     model.name="VineBowModel"
     root.add_child(model)
+    var meshes:=model.find_children("*","MeshInstance3D",true,false)
+    if model is MeshInstance3D:meshes.push_front(model)
+    root.set_meta("flex_mesh",meshes[0])
     handle=Vector3(0,.2,0)
    else:
     root.set_meta("support_grip",handle+Models.ARBALEST_SUPPORT)
@@ -100,6 +104,12 @@ static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw
  var profile: Dictionary=preload("res://weapon_motion.gd").profile(form)
  var contact:=float(profile.release)
  var primary: Node3D=actor.visual_weapon
+ if actor.field_rig.reviewed.get("form","")==form:
+  draw_reviewed(actor,form,phase,active)
+  return
+ if form=="crossbow":
+  primary.set_meta("handle",Models.MODELS.crossbow.grip)
+  primary.set_meta("support_grip",Models.MODELS.crossbow.grip+Models.ARBALEST_SUPPORT)
  var right:=FieldRig.hand(actor,false)
  var left:=FieldRig.hand(actor,true)
  var anchor:=left if form=="bow" else right
@@ -119,7 +129,8 @@ static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw
   primary.set_meta("handle",Vector3.ZERO)
   primary.set_meta("support_grip",Vector3.UP*Polearms.support_distance(form,phase,active,action))
  var held_size := float(actor.field_rig.focus.held_scale) if focus_cast else 1.0
- var basis:=pose.scaled(Vector3.ONE*Polearms.SCALE*maxf(.001,held_size))
+ var carry_scale := Reviewed.BOW_SCALE if form=="bow" else Polearms.SCALE
+ var basis:=pose.scaled(Vector3.ONE*carry_scale*maxf(.001,held_size))
  primary.global_transform=Transform3D(basis,anchor-basis*Vector3(primary.get_meta("handle",Vector3.ZERO)))
  primary.visible=held_size>.001 if focus_cast else not (form in ["ring","orb"] and active and phase>contact and phase<.82)
  if actor.has("secondary_weapon"):
@@ -133,6 +144,10 @@ static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw
    var string: MeshInstance3D=primary.get_node("StringLower" if side<0 else "StringUpper")
    segment(string,limb_tip(form,side),nock+offset)
   var arrow: Node3D=primary.get_node("NockedArrow")
+  arrow.scale=Vector3.ONE
+  if form=="bow":
+   var flex_mesh: MeshInstance3D=primary.get_meta("flex_mesh")
+   flex_mesh.set_blend_shape_value(0,0.0)
   arrow.visible=active and phase<contact
   arrow.position=offset
  if form=="whip":
@@ -152,3 +167,38 @@ static func lash_point(along: float, extension: float, length: float) -> Vector3
  var coil:=1.0-extension
  var turn:=along*TAU*1.45
  return Vector3(sin(turn)*.155*coil,.12-along*.32*coil,along*length*extension+(1-cos(turn))*.105*coil)
+
+
+## Reconstruct the reviewed grips from this frame's traveller wrists.
+static func draw_reviewed(actor: Dictionary, form: String, phase: float, active: bool) -> void:
+ var field: Dictionary=actor.field_rig
+ var state: Dictionary=field.reviewed
+ var weapon: Node3D=actor.visual_weapon
+ var mount:=Reviewed.mount(field,form=="bow")
+ var handle := Vector3.UP*.2 if form in ["bow","crossbow"] else Vector3.ZERO
+ weapon.global_transform=Transform3D(mount.basis,mount.origin-mount.basis*handle)
+ if form=="crossbow":
+  weapon.set_meta("handle",Reviewed.point(Reviewed.grips.crossbow.grip_r,0))
+  weapon.set_meta("support_grip",Reviewed.point(Reviewed.grips.crossbow.grip_l,0))
+ if form=="knives" and actor.has("secondary_weapon"):
+  actor.secondary_weapon.global_transform=Reviewed.mount(field,true,7)
+ if form=="ring":
+  var size:=Reviewed.scalar(state,7)
+  var released := active and phase>=float(preload("res://weapon_motion.gd").profile(form).release)
+  weapon.visible=size>.001 and not (released and float(state.b[7])<.001)
+  weapon.basis=weapon.basis.scaled_local(Vector3.ONE*maxf(size,.001))
+ if form not in ["bow","crossbow"]:return
+ var nock:=Reviewed.sampled_point(state,Reviewed.NOCK)
+ segment(weapon.get_node("StringLower"),Reviewed.sampled_point(state,Reviewed.LOWER_TIP),nock)
+ segment(weapon.get_node("StringUpper"),Reviewed.sampled_point(state,Reviewed.UPPER_TIP),nock)
+ var arrow: Node3D=weapon.get_node("NockedArrow")
+ var rest:=Vector3(0,.2,-.20) if form=="bow" else Models.ARBALEST_NOCK
+ var size:=Reviewed.scalar(state,Reviewed.AMMO_SCALE)
+ arrow.visible=size>.001 and not (active and phase>=float(preload("res://weapon_motion.gd").profile(form).release))
+ # Size the ammunition independently of the 1.5x bow, keeping its tail on the string.
+ var length_factor:=.785/(.85*1.35) if form=="bow" else .44/((Models.ARBALEST_TRACK-Models.ARBALEST_NOCK).length()*.9)
+ arrow.scale=Vector3.ONE*maxf(size,.001)*length_factor
+ arrow.position=nock-arrow.basis*rest
+ if form=="bow":
+  var mesh: MeshInstance3D=weapon.get_meta("flex_mesh")
+  mesh.set_blend_shape_value(0,Reviewed.scalar(state,Reviewed.FLEX))

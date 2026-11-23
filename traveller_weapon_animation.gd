@@ -56,3 +56,18 @@ static func pose(field: Dictionary, form: String, phase: float, combo: int, base
 	time=clampf(time,0.0,player.get_animation(name).length-0.00001)
 	player.seek(time,false)
 	return Locomotion.sample_clip(field.skeleton,player.get_animation(name),field.pelvis,time,baseline).rotations
+
+## Compose the reviewed upper-body contact on standing legs, without seeking a live rig.
+static func contact_bones(field: Dictionary, clip: String, time: float) -> Array[Transform3D]:
+	var rig: Skeleton3D = field.skeleton
+	var player: AnimationPlayer = field.player
+	var idle := Locomotion.sample_clip(rig, player.get_animation("Idle"), field.pelvis, 4.0/24.0)
+	var cast := Locomotion.sample_clip(rig, player.get_animation(clip), field.pelvis, time)
+	var transforms: Array[Transform3D] = []
+	for i in rig.get_bone_count():
+		var rotation: Quaternion = cast.rotations[i] if upper_body(rig.get_bone_name(i)) else idle.rotations[i]
+		var position: Vector3 = idle.pelvis if i == field.pelvis else rig.get_bone_rest(i).origin
+		var local := Transform3D(Basis(rotation), position)
+		var parent := rig.get_bone_parent(i)
+		transforms.append(local if parent < 0 else transforms[parent] * local)
+	return transforms

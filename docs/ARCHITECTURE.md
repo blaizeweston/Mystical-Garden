@@ -1721,6 +1721,14 @@ Visible bolts start at the wand's named `WeaponTip`. Detached release position/y
 
 Focused coverage: `tests/wand_attacks.gd` verifies both clips/returns, grip, straight wrist, 15-degree sweep, matched finish, both bodies/heights, unchanged locomotion/cadence, real queued damage, delayed tip projection, duplicate/stale rejection and rollback. `tests/wand_attacks_coop.gd` covers independent host/guest registration, authoritative alternation, guest poses/grips, tip events, returns and disconnect. Existing presentation, weapon, snapshot, terrain, Spirit and guarded-transaction checks remain relevant; four-player loopback checks admission including fifth-client refusal. These local checks do not establish separate-PC/internet behavior. Real saves, production persistence configuration and existing EXEs are unchanged.
 
+### Vine Bow, Bark Arbalest, Thorn Ring and Graft Knives
+
+The visible travellers alternate the upright and canted bow shots, raised and low arbalest shots, sidearm and rising ring throws, and right crosscut and left rising knife cut. Each pair has a shared ready pose and two authored recoveries. The host chooses the clip using the accepted basic attack count in `assets/characters/weapon_actions.json`. Contact uses the existing weapon timing and delivery, including the crafted knife line.
+
+`reviewed_weapon_attacks.gd` samples the upper-body pose and matching prop placement. `field_traveller.gd` fits the support hand to each traveller’s reach. `weapon_visuals.gd` draws the held props, flexing bow limbs, strings and nocked ammunition. The enlarged bow uses 1.5 times the standard held-mesh scale. Arrows, bolts and thrown rings start at the reviewed release point and then follow the combat projectile.
+
+The four Blender filenames and source hashes are in `assets/characters/ranger_and_knife_grips.json`. Run `tools/export_reviewed_weapon_attacks.py` in Blender to regenerate the grip samples, the 20 clips in `assets/characters/ranger_and_knife_attacks.glb` and the bow’s Draw shape. Geometry and timing checks are in `tests/reviewed_weapon_attacks.gd`. The independent host/guest checks are in `tests/weapon_actions_coop.gd`.
+
 ### Seed Focus casts
 
 The Weaver's Seed Focus alternates Palm Push and Side Gather using the existing host basic-attack sequence in `assets/characters/weapon_actions.json`. Both release at 48% of the pose. The ordinary projectile queue checks terrain, applies splash damage and publishes one release event. Replicas retain their own launch positions.
