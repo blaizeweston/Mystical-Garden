@@ -3165,7 +3165,7 @@ func emit_combat_event(kind: String,shape: String,from: Vector3,to: Vector3,dura
 
 	var latest: Dictionary=combat_events.back()
 	for key in options:
-		if key in ["form","pattern","contact","width","span","yaw_offset","projectile_radius","height","owner","clip","target_token","core_shapes","core_phase"]:latest[key]=options[key]
+		if key in ["form","pattern","contact","width","span","yaw_offset","projectile_radius","height","owner","clip","weapon_release","target_token","core_shapes","core_phase"]:latest[key]=options[key]
 	if kind=="impact" and shape in ["hit","hurt","block","heal"]:
 		latest.amount=maxi(0,roundi(reach));latest.target_id=combo
 		latest.target_token=encounter.token(combo) if shape=="hit" and combo>=0 and combo<encounter.scout_count() else -1

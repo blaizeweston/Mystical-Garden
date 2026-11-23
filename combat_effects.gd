@@ -107,6 +107,11 @@ func circle(mesh: ImmediateMesh,center: Vector3,radius: float,width: float=.06) 
   ribbon(mesh,center+Vector3(cos(first),0,sin(first))*radius,center+Vector3(cos(second),0,sin(second))*radius,width)
 func pose(effect: Dictionary) -> void:
  var event: Dictionary=effect.event
+ if event.kind=="projectile" and event.has("weapon_release") and not effect.has("visual_from"):
+  var origin: Vector3=stage.weapon_release_point(event)
+  if not origin.is_finite():effect.root.visible=false;return
+  effect.visual_from=origin-stage.WILD_OFFSET
+  effect.visual_to=point(event.to)+Vector3.UP*float(event.get("height",1.05))
  var mesh: ImmediateMesh=effect.mesh.mesh;mesh.clear_surfaces();mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
  var t:=clampf(float(effect.age)/float(event.duration),0,1)
  var from:=point(event.from);var to:=point(event.to)
@@ -141,8 +146,12 @@ func pose(effect: Dictionary) -> void:
   else:
    circle(mesh,to+Vector3.UP*.12,maxf(.3,float(event.reach))*t,.045)
  elif event.kind=="projectile":
-  var at: Vector3=from.lerp(to,t)+Vector3.UP*float(event.get("height",1.05))
-  ribbon(mesh,at-direction*(.40+.35*t),at,float(event.get("projectile_radius",.08)))
+  var start: Vector3=effect.get("visual_from",from+Vector3.UP*float(event.get("height",1.05)))
+  var finish: Vector3=effect.get("visual_to",to+Vector3.UP*float(event.get("height",1.05)))
+  var at:=start.lerp(finish,t)
+  direction=start.direction_to(finish)
+  var tail:=minf(.40+.35*t,start.distance_to(at)) if effect.has("visual_from") else .40+.35*t
+  ribbon(mesh,at-direction*tail,at,float(event.get("projectile_radius",.08)))
   if event.shape in ["arrow","bolt","petal"]:
    var tip: Vector3=at
    if event.shape=="petal":

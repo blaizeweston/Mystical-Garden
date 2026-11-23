@@ -115,10 +115,18 @@ func telegraph(peer: int, origin: Vector3, end: Vector3, stats: Dictionary, now:
 func sound(peer: int, form: String, origin: Vector3, is_melee: bool) -> void:
 	preload("res://event_audio.gd").weapon(_world, form, _world.players[peer].pos if is_melee else origin)
 
-func show_projectile(peer: int, form: String, origin: Vector3, end: Vector3, flight: float, stats: Dictionary, secondary_effect: bool) -> int:
+func show_projectile(peer: int, form: String, origin: Vector3, end: Vector3, flight: float, stats: Dictionary, secondary_effect: bool, source_sequence: int = -1) -> int:
 	var color: Color = _world.weapon_effect_color(_world.players[peer])
 	if secondary_effect: color = color.lerp(Color("#e6bd69"), .65)
-	_world.emit_combat_event("projectile", str(Motion.profile(form).shape), origin, end, flight, color, float(stats.reach), 0, Contact.describe(form, stats))
+	var description:=Contact.describe(form,stats)
+	if form in ["wand"] and not stats.get("spirit_replica",false):
+		var actor: Dictionary=_world.players[peer]
+		var look:=preload("res://character_appearance.gd").normalize(Array(actor.character.get("appearance",[])))
+		var variants: Array=Motion.profile(form).basic_variants
+		if not variants.any(func(v):return v.clip==description.clip):description.clip=variants[0].clip
+		description.owner=peer
+		description.weapon_release={"position":[actor.pos.x,actor.pos.y,actor.pos.z],"yaw":atan2((end-origin).x,(end-origin).z),"body":int(look[5]),"height":lerpf(.92,1.08,float(look[6])/100.0)}
+	_world.emit_combat_event("projectile", str(Motion.profile(form).shape), origin, end, flight, color, float(stats.reach), source_sequence if form in ["wand"] else 0, description)
 	return _world.combat_event_serial
 
 func end_projectile(event_id: int, origin: Vector3, end: Vector3) -> void:

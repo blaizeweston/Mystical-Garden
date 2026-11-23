@@ -1,0 +1,67 @@
+{
+  "fps": 96,
+  "source_fps": 24,
+  "source_weapon_scale": 0.9,
+  "source_review": "Mannequin - Thorn Wand 15 Degree Sweep Review - 20261122-01.blend",
+  "source_review_sha256": "cd520fe00083200bfaff4f1f8d6c47fe9324866b7c6ee4c060044f7fa588043e",
+  "source_action_sha256": {
+    "MG_Wand_Forward_Flick": "ad0527f353533591249c4bb8e61f19a8e3da5ff74965868b4f10e36a4199dca5",
+    "MG_Wand_Side_Flick": "b989f054e34c7d6c5ee34e67201ffadba68631d92cc151b62d4e05c125cb576f",
+    "MG_Wand_Recover_Forward": "01cb8820dd5e3c46bb165f65f5a5b807b3d120a9505568d3c4f46c2986137a4c",
+    "MG_Wand_Recover_Side": "01cb8820dd5e3c46bb165f65f5a5b807b3d120a9505568d3c4f46c2986137a4c",
+    "MG_Wand_Ready": "1f68da28e6b17ebe853bdc492f722bec7168bc03647f790df2bb16000a426927"
+  },
+  "sweep_degrees": 15,
+  "clips": {
+    "Attack_wand_forward": {
+      "action": "MG_Wand_Forward_Flick",
+      "file": "wand_forward.glb",
+      "duration_seconds": 1.625,
+      "contact_seconds": 0.7083333333333334
+    },
+    "Attack_wand_sweep": {
+      "action": "MG_Wand_Side_Flick",
+      "file": "wand_sweep.glb",
+      "duration_seconds": 1.625,
+      "contact_seconds": 0.7083333333333334
+    },
+    "Recover_wand_forward": {
+      "action": "MG_Wand_Recover_Forward",
+      "file": "wand_recover_forward.glb",
+      "duration_seconds": 0.7083333333333334,
+      "contact_seconds": 0
+    },
+    "Recover_wand_sweep": {
+      "action": "MG_Wand_Recover_Side",
+      "file": "wand_recover_sweep.glb",
+      "duration_seconds": 0.7083333333333334,
+      "contact_seconds": 0
+    },
+    "Ready_wand_authored": {
+      "action": "MG_Wand_Ready",
+      "file": "wand_ready.glb",
+      "duration_seconds": 0.9583333333333334,
+      "contact_seconds": 0
+    }
+  },
+  "calibration": {
+    "hand": [
+      0.00317092,
+      -0.99890643,
+      -0.04661837,
+      0.00163072
+    ],
+    "weapon": [
+      0.09229589,
+      -0.70105749,
+      -0.0922962,
+      0.70105726
+    ],
+    "grip": [
+      -0.0256042,
+      -0.00561348,
+      -0.10375962
+    ],
+    "knuckle_distance": 0.11969516668337431
+  }
+}

@@ -10,7 +10,7 @@ const DEFINITIONS := {
 	"hammer": {"carry_pitch":19.0,"mesh_roll":90.0,"clips":["Attack_maul_overhead","Attack_maul_sweep"],"recoveries":["Recover_maul_overhead","Recover_maul_sweep"]},
 	"scythe": {"carry_pitch":33.0,"mesh_roll":-90.0,"relaxed":true,"procedural_stance":true,"carry_twist":0.0,"windup_twist":-60.0,"strike_twist":-35.0,"strike_lean":4.0,"clips":[]},
 	"staff": {"carry_pitch":24.0,"mesh_roll":0.0,"clips":["Spell_Simple_Shoot"],"impact":0.55},
-	"wand": {"carry_pitch":25.0,"mesh_roll":0.0,"clips":["Spell_Simple_Shoot"],"impact":0.55},
+	"wand": {"carry_pitch":25.0,"mesh_roll":0.0,"relaxed":true,"hand_bound":true,"clips":["Attack_wand_forward","Attack_wand_sweep"],"recoveries":["Recover_wand_forward","Recover_wand_sweep"],"separate_recovery":true,"impact":17.0/39.0},
 	"orb": {"carry_pitch":0.0,"mesh_roll":0.0,"clips":["Spell_Simple_Shoot"],"impact":0.55},
 	"bow": {"carry_pitch":8.0,"mesh_roll":0.0,"relaxed":true,"procedural_stance":true,"carry_twist":0.0,"strike_twist":-55.0,"clips":[]},
 	"crossbow": {"carry_pitch":8.0,"mesh_roll":0.0,"clips":[]},

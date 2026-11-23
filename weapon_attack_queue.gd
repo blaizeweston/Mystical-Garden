@@ -36,7 +36,7 @@ func schedule(port, peer: int, origin: Vector3, stats: Dictionary, now: int, for
 	var end := origin + direction * float(stats.reach)
 	_serial += 1
 	var shot := {"queue_id":_serial, "hit_group":_serial, "player":peer, "epoch":pose.epoch, "life":pose.life,
-		"binding":pose.binding, "replica":not replica_pose.is_empty(),"replica_position":origin, "release":release, "due":release, "form":form, "origin":origin, "aim":end,
+		"binding":pose.binding, "sequence":pose.get("sequence",-1), "replica":not replica_pose.is_empty(),"replica_position":origin, "release":release, "due":release, "form":form, "origin":origin, "aim":end,
 		"stats":_freeze(stats.duplicate(true)), "hits":[], "remaining":int(stats.targets)}
 	if Motion.is_projectile(form):
 		var path: Dictionary = port.projectile_path(origin, direction, form, float(stats.reach))
@@ -89,7 +89,7 @@ func advance(port, now: int) -> void:
 			for ray in rays:
 				if not is_same(ray, shot): _pending.append(ray)
 				ray.visual_event_id = port.show_projectile(ray.player, ray.form, ray.origin, ray.aim,
-					maxf(.03, (int(ray.due) - int(ray.release)) / 1000.0), ray.stats, ray.get("ranger_secondary", false))
+					maxf(.03, (int(ray.due) - int(ray.release)) / 1000.0), ray.stats, ray.get("ranger_secondary", false), int(ray.get("sequence",-1)))
 		for ray in rays:
 			var complete := _advance_ray(port, ray, now, revision)
 			if revision != _revision: return

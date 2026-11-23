@@ -7,6 +7,7 @@ const WeaponAnimation := preload("res://traveller_weapon_animation.gd")
 const WeaponPoses := preload("res://weapon_pose_catalog.gd")
 const Spear := preload("res://spear_animation.gd")
 const Maul := preload("res://maul_animation.gd")
+const Wand := preload("res://wand_animation.gd")
 
 const MODELS := [
 	preload("res://assets/characters/field_traveller_male.glb"),
@@ -36,6 +37,7 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 		WeaponAnimation.add_clips(libraries[kind],visual,skeleton)
 		Spear.add_clips(libraries[kind],visual,skeleton)
 		Maul.add_clips(libraries[kind],visual,skeleton)
+		Wand.add_clips(libraries[kind],visual,skeleton)
 	player.add_animation_library("", libraries[kind])
 	var links: Dictionary = {}
 	for name in DRIVER_JOINTS:
@@ -53,13 +55,16 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 			var point := rest.origin
 			point.y = 0.006
 			soles.append({"bone":bone, "point":rest.affine_inverse() * point})
-	return {
+	var field: Dictionary={
 		"scene":visual, "skeleton":skeleton, "player":player, "links":links, "soles":soles,
 		"left":socket(skeleton,"l"), "right":socket(skeleton,"r"), "gait":0.0,
 		"pelvis":skeleton.find_bone("pelvis"),
 		"spear":Spear.calibration(skeleton,player,skeleton.find_bone("pelvis")),
 		"maul":Maul.calibration(skeleton,player,skeleton.find_bone("pelvis")),
+		"wand":Wand.calibration(skeleton,player,skeleton.find_bone("pelvis")),
 	}
+	Wand.cache_releases(skeleton,player,field.pelvis,field.wand,kind)
+	return field
 
 
 static func socket(skeleton: Skeleton3D, side: String) -> Dictionary:
@@ -73,11 +78,16 @@ static func hand(actor: Dictionary, left: bool) -> Vector3:
 	var field: Dictionary = actor.field_rig
 	var grips: Dictionary=field.maul if field.get("maul_active",false) else field.spear if field.get("spear_active",false) else field
 	var anchor: Dictionary = grips.left if left else grips.right
+	if not left and field.get("wand_active",false):anchor=field.wand.right
 	var skeleton: Skeleton3D = field.skeleton
 	return skeleton.to_global(skeleton.get_bone_global_pose(anchor.bone) * anchor.point)
 
 
 static func weapon_orientation(actor: Dictionary, form: String, phase: float, active: bool, yaw: float, motion: Dictionary) -> Basis:
+	if form=="wand" and actor.field_rig.get("wand_active",false):
+		var field: Dictionary=actor.field_rig
+		var skeleton: Skeleton3D=field.skeleton
+		return (skeleton.global_basis*skeleton.get_bone_global_pose(field.wand.right.bone).basis*Basis(field.wand.mount)).orthonormalized()
 	if form=="hammer" and actor.field_rig.get("maul_active",false):
 		return (actor.field_rig.skeleton.global_basis*Basis(actor.field_rig.maul_sample.weapon)).orthonormalized()
 	if form=="spear" and actor.field_rig.get("spear_active",false):
@@ -96,6 +106,9 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	var locomotion := Locomotion.pose(actor,field,delta)
 	var spear_basic := form=="spear" and not bool(motion.get("ability",false))
 	field.spear_active=spear_basic
+	var wand_basic := form=="wand" and not bool(motion.get("ability",false))
+	field.wand_active=wand_basic
+	if not wand_basic:Wand.clear(field)
 	var maul_basic := form=="hammer" and not bool(motion.get("ability",false))
 	field.maul_active=maul_basic
 	if not maul_basic:Maul.clear(field)
@@ -103,7 +116,12 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	var constrained_pose := not bool(motion.get("ability",false)) and WeaponPoses.DEFINITIONS.has(form) and (active or not WeaponPoses.relaxed_carry(form))
 	var body_pose := WeaponPoses.body_pose(form,phase,active) if not bool(motion.get("ability",false)) else Vector2.ZERO
 	var native_action: Array[Quaternion] = []
-	if active and not bool(motion.get("ability",false)) and not maul_basic and not spear_basic:
+	var wand_pose: Dictionary={}
+	if wand_basic:
+		wand_pose=Wand.pose(field,motion,phase,active,delta)
+		native_action=wand_pose.rotations
+		body_pose=Vector2.ZERO
+	if active and not bool(motion.get("ability",false)) and not wand_basic and not maul_basic and not spear_basic:
 		native_action=WeaponAnimation.pose(field,form,phase,int(motion.get("combo",0)),locomotion.rotations)
 	if spear_basic:
 		native_action=Spear.rotations(field,motion,phase,active,locomotion.rotations)
@@ -116,6 +134,7 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	skeleton.set_bone_pose_position(field.pelvis,old_hips.lerp(locomotion.pelvis,pose_blend))
 	# Imported attacks replace upper-body rotations only; locomotion keeps the legs.
 	var action_weight := smoothstep(0.0,.16,phase)*(1.0-smoothstep(.78,1.0,phase)) if active else 0.0
+	if wand_basic:action_weight=float(wand_pose.weight)
 	for index in skeleton.get_bone_count():
 		var parent := skeleton.get_bone_parent(index)
 		var parent_basis := global_bases[parent] if parent>=0 else Basis.IDENTITY
@@ -128,7 +147,7 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 		var native_bone := not native_action.is_empty() and WeaponAnimation.upper_body(bone_name)
 		# Constrained grips solve these joints below. Imported arm twists would fight
 		# that solution; retain native torso/free-arm motion and locomotion wrists.
-		var grip_joint := not maul_basic and not spear_basic and constrained_pose and grip_controls_joint(form,bone_name)
+		var grip_joint := not wand_basic and not maul_basic and not spear_basic and constrained_pose and grip_controls_joint(form,bone_name)
 		var has_action := action_weight>0.0 and not basic_stance and not grip_joint and (native_bone or not link.is_empty())
 		if has_action:
 			var action_pose: Quaternion
@@ -148,6 +167,11 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 		if maul_basic and bone_name=="spine_01":
 			# Keep the reviewed torso/grip direction while locomotion turns the hips.
 			rotation=(parent_basis.inverse()*field.maul.pelvis_basis*Basis(rotation)).orthonormalized().get_rotation_quaternion()
+		if wand_basic and WeaponAnimation.upper_body(bone_name) and bone_name.ends_with("_r"):
+			var target: Quaternion=field.wand.ready[index].slerp(native_action[index],action_weight)
+			rotation=old_pose[index].slerp(target,lerpf(pose_blend,1.0,action_weight)).normalized()
+		if wand_basic and bone_name=="spine_01":
+			rotation=(parent_basis.inverse()*field.wand.pelvis_basis*Basis(rotation)).orthonormalized().get_rotation_quaternion()
 		skeleton.set_bone_pose_rotation(index,rotation)
 		global_bases.append(parent_basis*Basis(rotation))
 	skeleton.force_update_all_bone_transforms()
@@ -166,6 +190,7 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	if spear_basic:
 		pose_spear_hands(skeleton,field,motion,phase,active)
 		return
+	if wand_basic:return # Imported closed-fist grip; no procedural wrist solver.
 	pose_weapon_hands(actor,skeleton,field,form,phase,active,motion,action_weight)
 
 

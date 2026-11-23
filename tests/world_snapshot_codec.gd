@@ -55,6 +55,8 @@ func run() -> void:
 		check(Codec.CLIPS.has(profile.clip) and Codec.DELIVERIES.has(profile.delivery), "weapon presentation IDs are in the wire dictionary")
 		for clip in profile.get("variants", {}).values():
 			check(Codec.CLIPS.has(clip), "weapon variant clip is in the wire dictionary")
+		for variant: Dictionary in profile.get("basic_variants",[]):
+			check(Codec.CLIPS.has(variant.clip),"basic variant clip has a compact snapshot ID")
 	for clip in preload("res://subclass_combat.gd").CLIPS.values():
 		check(Codec.CLIPS.has(clip), "class presentation IDs are in the wire dictionary")
 
