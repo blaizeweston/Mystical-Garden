@@ -27,12 +27,12 @@ static func attach(root: Node3D, form: String) -> void:
 	root.add_child(model)
 
 
-static func in_flight(form: String, radius: float) -> Node3D:
+static func in_flight(form: String, radius: float, held_scale := 0.0) -> Node3D:
 	var root := Node3D.new()
 	attach(root,form)
 	var model: Node3D = root.get_child(0)
 	var center := Vector3(0,.282,0) if form=="ring" else Vector3(0,.30,0)
-	var scale_factor := radius/(.35 if form=="ring" else .174)
+	var scale_factor := held_scale if held_scale > 0.0 else radius/(.35 if form=="ring" else .174)
 	var rotation := Basis(Vector3.RIGHT,PI*.5) if form=="ring" else Basis.IDENTITY
 	var basis := rotation.scaled(Vector3.ONE*scale_factor)
 	model.transform=Transform3D(basis,-(basis*center))

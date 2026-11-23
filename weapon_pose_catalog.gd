@@ -11,7 +11,7 @@ const DEFINITIONS := {
 	"scythe": {"carry_pitch":33.0,"mesh_roll":-90.0,"relaxed":true,"procedural_stance":true,"carry_twist":0.0,"windup_twist":-60.0,"strike_twist":-35.0,"strike_lean":4.0,"clips":[]},
 	"staff": {"carry_pitch":24.0,"mesh_roll":0.0,"clips":["Spell_Simple_Shoot"],"impact":0.55},
 	"wand": {"carry_pitch":25.0,"mesh_roll":0.0,"relaxed":true,"hand_bound":true,"clips":["Attack_wand_forward","Attack_wand_sweep"],"recoveries":["Recover_wand_forward","Recover_wand_sweep"],"separate_recovery":true,"impact":17.0/39.0},
-	"orb": {"carry_pitch":0.0,"mesh_roll":0.0,"clips":["Spell_Simple_Shoot"],"impact":0.55},
+	"orb": {"carry_pitch":0.0,"mesh_roll":0.0,"clips":["Attack_focus_push","Attack_focus_gather"],"recoveries":["Recover_focus_push","Recover_focus_gather"],"separate_recovery":true,"impact":0.48},
 	"bow": {"carry_pitch":8.0,"mesh_roll":0.0,"relaxed":true,"procedural_stance":true,"carry_twist":0.0,"strike_twist":-55.0,"clips":[]},
 	"crossbow": {"carry_pitch":8.0,"mesh_roll":0.0,"clips":[]},
 	"ring": {"carry_pitch":160.0,"mesh_roll":-20.0,"relaxed":true,"clips":["OverhandThrow"],"impact":0.60},
@@ -22,7 +22,6 @@ const DEFINITIONS := {
 }
 const CARRY_RIGHT := Vector3(-0.23,-0.36,0.24)
 const CARRY_LEFT := Vector3(0.23,-0.36,0.24)
-const ORB_CARRY := Vector3(0,-0.23,0.30)
 const BOW_DRAW := Vector3(-0.18,-0.08,0.62)
 const UTILITY_WINDUP := Vector3(-0.38,-0.34,0.28)
 const UTILITY_CONTACT := Vector3(-0.10,-0.16,0.57)

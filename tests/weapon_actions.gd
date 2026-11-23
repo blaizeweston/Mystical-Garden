@@ -48,7 +48,7 @@ func run():
     game.stage.update_avatar(game.stage.avatars[1],actor,game.actor_presentation.avatar(1,Time.get_ticks_msec()),game.Stage.WILD_OFFSET,.016)
     var left_palm:=Field.hand(actor,true)
     var right_palm:=Field.hand(actor,false)
-    var anchor:=left_palm if form=="bow" else (left_palm+right_palm)*.5 if form=="orb" else right_palm
+    var anchor:=left_palm if form=="bow" else preload("res://seed_focus_animation.gd").held_center(actor.field_rig) if form=="orb" else right_palm
     var handle: Vector3=actor.visual_weapon.to_global(actor.visual_weapon.get_meta("handle",Vector3.ZERO))
     check(actor.visual_weapon.is_visible_in_tree() and handle.distance_to(anchor)<.001,"visible weapon follows its field grip: "+form)
     check(actor.has("secondary_weapon")== (form=="knives"),"no residual off-hand weapon "+form)
@@ -96,9 +96,10 @@ func run():
      if form=="orb":
       Avatar.animate(actor,true,float(profile.release),form,{"equipped":true,"aim_yaw":0.0},1.0)
       Visuals.animate(actor,form,float(profile.release),true,0.0,float(stats.reach))
-      var focus: Node3D=actor.visual_weapon.get_node("CoreSeed")
-      var muzzle: Vector3=Vector3(flight[0].from[0],flight[0].height,flight[0].from[2])+game.Stage.WILD_OFFSET
-      check(focus.global_position.distance_to(muzzle)<.18,"Seed Focus releases at the lifted focus on both rigs: "+str(focus.global_position-muzzle))
+      var center := Visuals.Models.MODELS.orb.grip as Vector3
+      var release: Vector3=actor.visual_weapon.to_global(center)
+      var muzzle: Vector3=Vector3(flight[0].from[0],float(flight[0].height),flight[0].from[2])+game.Stage.WILD_OFFSET
+      check(release.distance_to(muzzle)<.16,"physical projectile originates in the held seed on both rigs")
      check(absf(float(flight[0].projectile_radius)-float(profile.projectile_radius))<.0001,"projectile width matches collision "+form)
      if form in ["ring","orb"]:
       WorldViewCase.component(game,"combat").sync([flight[0]],[],"weapon-model-flight",p.pos)

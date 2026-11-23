@@ -88,7 +88,7 @@ func inspect_carry(actor: Dictionary, form: String) -> void:
 	var weapon: Node3D=actor.visual_weapon
 	var right := Field.hand(actor,false)
 	var left := Field.hand(actor,true)
-	var expected := left if form=="bow" else (left+right)*.5 if form=="orb" else right
+	var expected := left if form=="bow" else preload("res://seed_focus_animation.gd").held_center(actor.field_rig) if form=="orb" else right
 	check(weapon.to_global(weapon.get_meta("handle",Vector3.ZERO)).distance_to(expected)<.001,"carry stays in actual palms: "+form)
 	if form=="orb":
 		var rig: Skeleton3D=actor.field_rig.skeleton

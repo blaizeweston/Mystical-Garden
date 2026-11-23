@@ -103,7 +103,9 @@ static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw
  var right:=FieldRig.hand(actor,false)
  var left:=FieldRig.hand(actor,true)
  var anchor:=left if form=="bow" else right
- if form=="orb":anchor=(right+left)*.5
+ var focus_cast: bool = form=="orb" and actor.field_rig.focus.has("offset")
+ if focus_cast:anchor=preload("res://seed_focus_animation.gd").held_center(actor.field_rig)
+ elif form=="orb":anchor=(right+left)*.5
  var pose:=FieldRig.weapon_orientation(actor,form,phase,active,yaw,action)
  if form=="hammer" and actor.field_rig.get("maul_active",false):
   var sample: Dictionary=actor.field_rig.maul_sample
@@ -116,9 +118,10 @@ static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw
  elif Polearms.WEAPONS.has(form):
   primary.set_meta("handle",Vector3.ZERO)
   primary.set_meta("support_grip",Vector3.UP*Polearms.support_distance(form,phase,active,action))
- var basis:=pose.scaled(Vector3.ONE*Polearms.SCALE)
+ var held_size := float(actor.field_rig.focus.held_scale) if focus_cast else 1.0
+ var basis:=pose.scaled(Vector3.ONE*Polearms.SCALE*maxf(.001,held_size))
  primary.global_transform=Transform3D(basis,anchor-basis*Vector3(primary.get_meta("handle",Vector3.ZERO)))
- primary.visible=not (form in ["ring","orb"] and active and phase>contact and phase<.82)
+ primary.visible=held_size>.001 if focus_cast else not (form in ["ring","orb"] and active and phase>contact and phase<.82)
  if actor.has("secondary_weapon"):
   var other: Node3D=actor.secondary_weapon
   other.global_transform=Transform3D(WeaponPoses.orientation(form,phase,active,yaw,action,true).scaled(Vector3.ONE*.9),left)

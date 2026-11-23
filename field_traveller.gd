@@ -8,6 +8,7 @@ const WeaponPoses := preload("res://weapon_pose_catalog.gd")
 const Spear := preload("res://spear_animation.gd")
 const Maul := preload("res://maul_animation.gd")
 const Wand := preload("res://wand_animation.gd")
+const SeedFocus := preload("res://seed_focus_animation.gd")
 
 const MODELS := [
 	preload("res://assets/characters/field_traveller_male.glb"),
@@ -38,6 +39,7 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 		Spear.add_clips(libraries[kind],visual,skeleton)
 		Maul.add_clips(libraries[kind],visual,skeleton)
 		Wand.add_clips(libraries[kind],visual,skeleton)
+		WeaponAnimation.add_from(libraries[kind],visual,skeleton,SeedFocus.CASTS)
 	player.add_animation_library("", libraries[kind])
 	var links: Dictionary = {}
 	for name in DRIVER_JOINTS:
@@ -62,7 +64,9 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 		"spear":Spear.calibration(skeleton,player,skeleton.find_bone("pelvis")),
 		"maul":Maul.calibration(skeleton,player,skeleton.find_bone("pelvis")),
 		"wand":Wand.calibration(skeleton,player,skeleton.find_bone("pelvis")),
+		"focus": {}, "focus_pelvis_basis": SeedFocus.idle_hip_basis(skeleton, player),
 	}
+	SeedFocus.cache_contacts(field, kind)
 	Wand.cache_releases(skeleton,player,field.pelvis,field.wand,kind)
 	return field
 
@@ -109,6 +113,8 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	var wand_basic := form=="wand" and not bool(motion.get("ability",false))
 	field.wand_active=wand_basic
 	if not wand_basic:Wand.clear(field)
+	var focus_basic := form == "orb" and not bool(motion.get("ability", false))
+	if not focus_basic: field.focus.clear()
 	var maul_basic := form=="hammer" and not bool(motion.get("ability",false))
 	field.maul_active=maul_basic
 	if not maul_basic:Maul.clear(field)
@@ -116,12 +122,14 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	var constrained_pose := not bool(motion.get("ability",false)) and WeaponPoses.DEFINITIONS.has(form) and (active or not WeaponPoses.relaxed_carry(form))
 	var body_pose := WeaponPoses.body_pose(form,phase,active) if not bool(motion.get("ability",false)) else Vector2.ZERO
 	var native_action: Array[Quaternion] = []
+	if focus_basic:
+		native_action = SeedFocus.sample(field, motion, phase, active, delta)
 	var wand_pose: Dictionary={}
 	if wand_basic:
 		wand_pose=Wand.pose(field,motion,phase,active,delta)
 		native_action=wand_pose.rotations
 		body_pose=Vector2.ZERO
-	if active and not bool(motion.get("ability",false)) and not wand_basic and not maul_basic and not spear_basic:
+	if active and not bool(motion.get("ability",false)) and not focus_basic and not wand_basic and not maul_basic and not spear_basic:
 		native_action=WeaponAnimation.pose(field,form,phase,int(motion.get("combo",0)),locomotion.rotations)
 	if spear_basic:
 		native_action=Spear.rotations(field,motion,phase,active,locomotion.rotations)
@@ -170,8 +178,10 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 		if wand_basic and WeaponAnimation.upper_body(bone_name) and bone_name.ends_with("_r"):
 			var target: Quaternion=field.wand.ready[index].slerp(native_action[index],action_weight)
 			rotation=old_pose[index].slerp(target,lerpf(pose_blend,1.0,action_weight)).normalized()
-		if wand_basic and bone_name=="spine_01":
-			rotation=(parent_basis.inverse()*field.wand.pelvis_basis*Basis(rotation)).orthonormalized().get_rotation_quaternion()
+		if focus_basic and WeaponAnimation.upper_body(bone_name):
+			rotation = native_action[index]
+		if (wand_basic or focus_basic) and bone_name=="spine_01":
+			rotation=(parent_basis.inverse()*(field.focus_pelvis_basis if focus_basic else field.wand.pelvis_basis)*Basis(rotation)).orthonormalized().get_rotation_quaternion()
 		skeleton.set_bone_pose_rotation(index,rotation)
 		global_bases.append(parent_basis*Basis(rotation))
 	skeleton.force_update_all_bone_transforms()
@@ -190,7 +200,7 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	if spear_basic:
 		pose_spear_hands(skeleton,field,motion,phase,active)
 		return
-	if wand_basic:return # Imported closed-fist grip; no procedural wrist solver.
+	if wand_basic or focus_basic:return # Both casts use their imported hand poses.
 	pose_weapon_hands(actor,skeleton,field,form,phase,active,motion,action_weight)
 
 
@@ -261,15 +271,6 @@ static func pose_weapon_hands(actor: Dictionary, skeleton: Skeleton3D, field: Di
 	elif form=="crossbow":
 		var rear := center+aim*Vector3(-.075,-.20,.18)
 		hold_pair(skeleton,field,rear,orientation*WeaponModels.ARBALEST_SUPPORT*Polearms.SCALE,1.0)
-	elif form=="orb":
-		var profile: Dictionary = preload("res://weapon_motion.gd").profile(form)
-		var focus: Dictionary = WeaponModels.MODELS.orb
-		var offset: Vector3 = (focus.core-focus.grip)*Polearms.SCALE
-		var ground: Vector3 = actor.model.get_parent_node_3d().global_position
-		var release_center := ground+aim*(Vector3(0,float(profile.height),float(profile.muzzle_forward))-offset)
-		var held_center := (center+aim*WeaponPoses.ORB_CARRY).lerp(release_center,WeaponPoses.pulse(form,phase,active))
-		var separation := aim*Vector3(-.26,0,0)
-		hold_pair(skeleton,field,held_center-separation*.5,separation,1.0)
 	elif Polearms.WEAPONS.has(form):
 		hold_polearm(actor,skeleton,field,form,phase,active,motion,action_weight if WeaponPoses.relaxed_carry(form) else 1.0)
 	elif form in ["staff","wand"]:

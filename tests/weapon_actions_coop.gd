@@ -44,8 +44,11 @@ func host_run():
  check(game.enemy_health()<80,"projectile hits on the host")
  check(not game.combat_events.any(func(e):return e.kind=="windup"),"host has no generic bow circle")
  p.frame=1;p.weapon_kind=2;p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active()
+ p[WeaponActions.STATE]=WeaponActions.State.new()
+ game.encounter.set_hp(-1,1000)
  mark("focus-ready")
  check(await until(func():return marked("focus-checked")),"guest confirms the focus carry pose")
+ check(p[WeaponActions.STATE].basic_step()==2 and game.enemy_health()<1000,"host resolves exactly two guest Seed Focus casts")
  p.frame=3;p.weapon_kind=1;p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active();p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
  game.tactics.position=Vector3(0,0,1.45)
  var before: int=game.enemy_health()
@@ -134,6 +137,7 @@ func guest_run():
   var seed: Node3D=player.visual_weapon.get_node("CoreSeed")
   return seed.global_position.y>pelvis.y+.15)
  check(focus_lifted,"guest receives a focus carried above the pelvis")
+ await inspect_focus_casts(id)
  mark("focus-checked")
  if not await until(func():return marked("scythe-ready") and Motion.form(game.players.get(id,{}))=="scythe"):
   check(false,"host scythe loadout arrives");return
@@ -180,3 +184,26 @@ func guest_run():
  mark("spear-checked")
  check(await until(func():return marked("done")),"host finishes")
  game.session_world.leave("Weapon animation fixture")
+
+func inspect_focus_casts(id: int) -> void:
+ var animations: Array[String]=[]
+ var releases: Array[String]=[]
+ var deadline:=Time.get_ticks_msec()+6000
+ var next_send:=0
+ while Time.get_ticks_msec()<deadline and releases.size()<2:
+  var now:=Time.get_ticks_msec()
+  if now>=next_send:
+   next_send=now+50
+   game.submit_combat.rpc_id(1,Vector2(0,1),true)
+  var actor: Dictionary=game.stage.avatar_models[id]
+  var clip:=str(actor.field_rig.player.current_animation)
+  if clip in ["Attack_focus_push","Attack_focus_gather"] and not animations.has(clip):animations.append(clip)
+  for received in game.guest_replication.received_events():
+   var event: Dictionary=received.event
+   if event.kind!="projectile" or event.get("form","")!="orb" or releases.has(event.clip):continue
+   releases.append(event.clip)
+   check(event.get("owner",0)==id and event.has("weapon_release") and game.stage.weapon_release_point(event).is_finite(),"guest resolves the cast's hand origin")
+  await process_frame
+ game.submit_combat.rpc_id(1,Vector2(0,1),false)
+ check(animations==["Attack_focus_push","Attack_focus_gather"] and releases==animations,"both rendered casts match the host projectile order")
+ check(await until(func():return game.stage.avatar_models[id].field_rig.player.current_animation=="Ready_focus"),"guest returns to the shared cradle")

@@ -1203,8 +1203,20 @@ func weapon_release_point(event: Dictionary) -> Vector3:
 	var yaw:=float(release.get("yaw",NAN))
 	var clip:=str(event.get("clip",""))
 	var form: String="wand" if clip in ["Attack_wand_forward","Attack_wand_sweep"] else ""
+	var focus_cast := clip in ["Attack_focus_push","Attack_focus_gather"]
+	if focus_cast: form="orb"
 	if body not in [0,1] or not is_finite(yaw) or not is_finite(height) or height<.92 or height>1.08 or form.is_empty():return Vector3.INF
 	var actor: Dictionary=avatar_models.get(int(event.get("owner",0)),{})
+	if focus_cast:
+		var local_center := preload("res://seed_focus_animation.gd").contact_offset(body,clip,height)
+		var captured := WILD_OFFSET+Vector3(position[0],position[1],position[2])+Basis(Vector3.UP,yaw)*local_center
+		if actor.is_empty() or actor.get("rig_kind",-1)!=body or actor.get("motion_key","")!="weapon:"+str(event.get("combo",-1)):
+			return captured
+		if actor.field_rig.player.current_animation==clip and actor.field_rig.focus.has("offset"):
+			var held := preload("res://seed_focus_animation.gd").held_center(actor.field_rig)
+			# A late event can arrive while the same actor is already moving away.
+			if held.distance_to(captured)<=float(event.projectile_radius): return held
+		return captured
 	if not actor.is_empty() and actor.get("rig_kind",-1)==body and actor.get("motion_key","")=="weapon:"+str(event.get("combo",-1)) and actor.field_rig.get(form+"_active",false):
 		var weapon: Node3D=actor.get("visual_weapon")
 		if is_instance_valid(weapon) and weapon.has_node("WeaponTip"):return weapon.get_node("WeaponTip").global_position

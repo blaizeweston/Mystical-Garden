@@ -67,7 +67,8 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
     var growth: Node3D=stage.build_crop(plant_index,2,false)
     growth.reparent(effect.root,false);growth.position=point(event.to);effect.growth=growth
   if event.kind=="projectile" and event.get("form","")==event.shape and event.shape in ["orb","ring"]:
-   var model:=preload("res://plant_weapon_models.gd").in_flight(event.shape,float(event.projectile_radius))
+   var held_scale := preload("res://plant_polearms.gd").SCALE if event.shape=="orb" and event.has("weapon_release") else 0.0
+   var model:=preload("res://plant_weapon_models.gd").in_flight(event.shape,float(event.projectile_radius),held_scale)
    effect.root.add_child(model)
    effect.glyph=model
   elif event.kind=="projectile" and event.shape in ["spell","needle","orb","ring"]:

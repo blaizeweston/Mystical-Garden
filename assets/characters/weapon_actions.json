@@ -116,11 +116,12 @@
     "clip": "Attack_orb",
     "ready": "Ready_orb",
     "grip": "right",
-    "height": 1.53,
-    "muzzle_forward": 0.4,
+    "height": 1.365,
+    "muzzle_forward": 0.50,
     "muzzle_side": 0,
     "speed": 18,
-    "variants": {}
+    "variants": {},
+    "basic_variants": [{"clip":"Attack_focus_push"},{"clip":"Attack_focus_gather"}]
   },
   "bow": {
     "duration": 0.48,
