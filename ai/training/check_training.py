@@ -219,6 +219,44 @@ def test_evaluation(schema: MobSchema, folder: Path) -> None:
           "the report compares every brain with the first one")
 
 
+def test_message_warm_start(folder: Path) -> None:
+    """Turning messages on keeps the network's choices and makes it ignore mates' symbols until it learns them."""
+    import json
+    import convert_checkpoint as C
+    from mob_net import MobCritic, MobPolicy
+    from mob_schema import CONTRACT_PATH, SCHEMA_PATH
+    contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+    paths = {}
+    for enabled in (False, True):
+        contract["rules"]["messages_enabled"] = enabled
+        paths[enabled] = folder / f"contract_messages_{int(enabled)}.json"
+        paths[enabled].write_text(json.dumps(contract), encoding="utf-8")
+    quiet, talking = MobSchema(SCHEMA_PATH, paths[False]), MobSchema(SCHEMA_PATH, paths[True])
+    check(not C.messages_enabled(paths[False]) and C.messages_enabled(paths[True]), "the converter reads whether messages are on")
+    torch.manual_seed(5)
+    state = {"policy": MobPolicy(quiet).state_dict(), "critic": MobCritic(quiet).state_dict()}
+    names = C.contract_names(quiet, paths[False])
+    weights, proof = C.convert(state, quiet, names, talking, C.contract_names(talking, paths[True]))
+    check(proof["largest_logit_difference"] < 1e-5, "turning messages on converts every weight unchanged")
+    check(C.message_proof(weights, talking)["logit_difference"] > 1e-3, "before the warm start, mates' symbols change the choices")
+    before = MobPolicy(talking)
+    before.load_state_dict(weights["policy"])
+    C.open_messages(weights, talking)
+    heard = C.message_proof(weights, talking)
+    check(max(heard.values()) < 1e-5, f"after the warm start, symbols change nothing and start equally likely ({max(heard.values()):.1e})")
+    after = MobPolicy(talking)
+    after.load_state_dict(weights["policy"])
+    obs = torch.clamp(torch.randn(64, talking.observation_size), -talking.clip, talking.clip)
+    for start in C.message_groups(talking, "ally", True) + C.message_groups(talking, "leader", True):
+        obs[:, start:start + talking.head_sizes["message_a"]] = 0.0
+        obs[:, start] = 1.0
+    hidden = torch.zeros(64, talking.network["recurrent_hidden"])
+    with torch.no_grad():
+        old_heads, new_heads = before.split_logits(before(obs, hidden)[0]), after.split_logits(after(obs, hidden)[0])
+    same = all(torch.allclose(old_heads[h], new_heads[h]) for h in old_heads if not h.startswith("message")) and         all(torch.allclose(old_heads[h][:, 0], new_heads[h][:, 0]) for h in ("message_a", "message_b"))
+    check(same, "the warm start keeps every choice the network made with messages off")
+
+
 def main() -> int:
     schema = MobSchema()
     with tempfile.TemporaryDirectory() as temporary:
@@ -229,6 +267,7 @@ def main() -> int:
         test_trainer(schema, folder)
         test_replace_waits_for_open_file(folder)
         test_evaluation(schema, folder)
+        test_message_warm_start(folder)
     print("PASSED" if not failures else f"FAILED: {len(failures)} check(s)")
     return 1 if failures else 0
 

@@ -2,7 +2,9 @@
 
 Use it after the schema or contract gains inputs or options (for example a new behaviour). Every weight that
 still has a place is copied there; inputs that are new start with zero weight, and new options start as a copy
-of a similar existing option (roam starts as idle_wander). The optimizer starts fresh. The old checkpoints are
+of a similar existing option (roam starts as idle_wander). When messages are turned on, every symbol starts with
+symbol 0's weights, so the network ignores messages at first (see open_messages). The optimizer starts fresh
+when weights change shape. The old checkpoints are
 moved into checkpoints/schema_<old hash>/ so the trainer cannot fall back to one it can no longer load.
 
 Stop training first. Then:
@@ -197,6 +199,74 @@ def prove(state, old, new, old_obs, new_obs, old_options, new_options, policy) -
             "largest_memory_difference": float((new_next - old_next).abs().max())}
 
 
+def messages_enabled(contract_path: Path) -> bool:
+    data = json.loads(contract_path.read_text(encoding="utf-8"))
+    return bool(data.get("rules", {}).get("messages_enabled", False))
+
+
+def message_groups(schema: MobSchema, block: str, absolute: bool) -> list[int]:
+    """The first input column of every message's one-hot symbols: per slot of the block (absolute=False, the
+    encoder's input) or for every repeat of it in the whole observation (absolute=True, the critic's input)."""
+    found = next(b for b in schema.blocks if b.name == block)
+    offset, size = found.fields["message"]
+    symbols = schema.head_sizes["message_a"]
+    repeats = range(found.repeat) if absolute else range(1)
+    base = found.offset if absolute else 0
+    return [base + index * found.stride + start for index in repeats for start in range(offset, offset + size, symbols)]
+
+
+def open_messages(weights: dict, schema: MobSchema) -> None:
+    """Prepares a network trained with messages off for messages on. With messages off every mate's message was
+    symbol 0, so only symbol 0's input weights learned anything; the others still hold their random start. Every
+    symbol gets symbol 0's weights, so at first a mob ignores which symbol a mate sends, and every message head
+    option gets symbol 0's row, so each symbol starts equally likely. Training then finds what is worth saying."""
+    symbols = schema.head_sizes["message_a"]
+
+    def spread(tensor: torch.Tensor, starts: list[int]) -> None:
+        for start in starts:
+            tensor[:, start + 1:start + symbols] = tensor[:, start:start + 1]
+
+    policy, critic = weights["policy"], weights["critic"]
+    spread(policy["ally_encoder.weight"], message_groups(schema, "ally", False))
+    spread(policy["leader_encoder.weight"], message_groups(schema, "leader", False))
+    spread(critic["layers.0.weight"], message_groups(schema, "ally", True) + message_groups(schema, "leader", True))
+    position = 0
+    for head in HEAD_NAMES:
+        size = schema.head_sizes[head]
+        if head in ("message_a", "message_b"):
+            for name in ("heads.weight", "heads.bias"):
+                policy[name][position + 1:position + size] = policy[name][position:position + 1]
+        position += size
+
+
+def message_proof(weights: dict, schema: MobSchema) -> dict:
+    """Mates sending random symbols instead of symbol 0 must change nothing yet, and every symbol must be as likely."""
+    torch.manual_seed(11)
+    policy, critic = MobPolicy(schema), MobCritic(schema)
+    policy.load_state_dict(weights["policy"])
+    critic.load_state_dict(weights["critic"])
+    rows, symbols = 256, schema.head_sizes["message_a"]
+    quiet = torch.clamp(torch.randn(rows, schema.observation_size), -schema.clip, schema.clip)
+    starts = message_groups(schema, "ally", True) + message_groups(schema, "leader", True)
+    for start in starts:
+        quiet[:, start:start + symbols] = 0.0
+    talking = quiet.clone()
+    for start in starts:
+        quiet[:, start] = 1.0
+        talking[torch.arange(rows), start + torch.randint(0, symbols, (rows,))] = 1.0
+    hidden = torch.tanh(torch.randn(rows, schema.network["recurrent_hidden"]))
+    global_state = torch.randn(rows, schema.global_size)
+    with torch.no_grad():
+        quiet_logits, quiet_next = policy(quiet, hidden)
+        talking_logits, talking_next = policy(talking, hidden)
+        value_gap = (critic(quiet, global_state) - critic(talking, global_state)).abs().max()
+        heads = policy.split_logits(quiet_logits)
+    spread = max(float((heads[h] - heads[h][:, :1]).abs().max()) for h in ("message_a", "message_b"))
+    return {"logit_difference": float((quiet_logits - talking_logits).abs().max()),
+            "memory_difference": float((quiet_next - talking_next).abs().max()),
+            "value_difference": float(value_gap), "symbol_spread": spread}
+
+
 def wall_seconds(metrics: Path) -> float | None:
     """Training time from the metrics log: the time between updates, leaving out pauses."""
     if not metrics.exists():
@@ -234,7 +304,11 @@ def main() -> int:
         if old is None:
             print("The checkpoint's schema is not in this repository's history; it cannot be converted.")
             return 1
-        old_names = contract_names(old, Path(temporary) / "contract.json")
+        old_contract = Path(temporary) / "contract.json"
+        if not old_contract.exists():
+            old_contract = CONTRACT_PATH
+        old_names = contract_names(old, old_contract)
+        was_quiet = not messages_enabled(old_contract)
     new_names = contract_names(new)
     weights, proof = convert(state, old, old_names, new, new_names)
     print(f"Converted {path.name}: observation {old.observation_size} -> {new.observation_size}, options {old.logit_count} -> {new.logit_count}.")
@@ -242,6 +316,15 @@ def main() -> int:
     if proof["largest_logit_difference"] > 1e-4 or proof["largest_memory_difference"] > 1e-4:
         print("The converted policy does not match the old one; nothing was changed.")
         return 1
+    if was_quiet and messages_enabled(CONTRACT_PATH):
+        open_messages(weights, new)
+        heard = message_proof(weights, new)
+        print(f"Messages turned on: mates' symbols change nothing yet (logits {heard['logit_difference']:.2e}, "
+              f"memory {heard['memory_difference']:.2e}, value {heard['value_difference']:.2e}); symbols start equally likely "
+              f"(spread {heard['symbol_spread']:.2e}).")
+        if max(heard.values()) > 1e-4:
+            print("The message warm start did not hold; nothing was changed.")
+            return 1
     converted = dict(state)
     converted.update(weights)
     converted["schema_hash"] = new.hash_hex

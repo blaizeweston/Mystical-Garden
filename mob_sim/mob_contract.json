@@ -31,7 +31,7 @@
 		"decision_ticks_smart": 6,
 		"decision_ticks_dim": 30,
 		"sleep_after_ms": 5000,
-		"messages_enabled": false,
+		"messages_enabled": true,
 		"goal_fields": 12,
 		"goal_refresh_ticks": 6
 	},

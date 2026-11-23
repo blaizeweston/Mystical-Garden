@@ -189,7 +189,8 @@ func test_masks() -> void:
 	var enemy_base := contract.head_offsets[Contract.Head.ENEMY_TARGET]
 	check(masks[enemy_base] == 1 and masks[enemy_base + 1] == 1 and masks[enemy_base + 2] == 0, "only known players can be targeted")
 	var message_base := contract.head_offsets[Contract.Head.MESSAGE_A]
-	check(masks[message_base] == 1 and masks[message_base + 1] == 0, "messages stay silent for now")
+	var talking := bool(contract.rules.messages_enabled)
+	check(masks[message_base] == 1 and masks[message_base + 1] == int(talking), "message symbols are legal only when messages are on")
 	sim.pool.ready_at[slot] = sim.clock.tick + 600
 	run_ticks(sim, 8)
 	check(brain.last_masks[contract.id("melee_attack")] == 0, "an attack on cooldown is masked")
