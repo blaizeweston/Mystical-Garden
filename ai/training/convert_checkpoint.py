@@ -14,6 +14,7 @@ The checkpoint's schema is found in the repository's history by its hash, so no 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
 import shutil
@@ -56,9 +57,10 @@ def line_endings(versions) -> list[bytes]:
 
 
 def find_schema(schema_hash: str, folder: Path) -> MobSchema | None:
-    """The schema and contract, from the working copy or any commit, whose hash matches."""
+    """The schema and contract, from the working copy or any commit, whose hash matches. Checkpoints from before
+    the hash ignored line endings carry a hash of the raw bytes, which is matched too."""
     current = MobSchema()
-    if current.hash_hex == schema_hash:
+    if schema_hash in (current.hash_hex, legacy_hash(SCHEMA_PATH.read_bytes(), CONTRACT_PATH.read_bytes())):
         return current
     schemas = line_endings(git_file(c, SCHEMA_PATH) for c in git_versions(SCHEMA_PATH))
     contracts = line_endings(git_file(c, CONTRACT_PATH) for c in git_versions(CONTRACT_PATH))
@@ -68,9 +70,14 @@ def find_schema(schema_hash: str, folder: Path) -> MobSchema | None:
             schema_file.write_bytes(schema_bytes)
             contract_file.write_bytes(contract_bytes)
             candidate = MobSchema(schema_file, contract_file)
-            if candidate.hash_hex == schema_hash:
+            if schema_hash in (candidate.hash_hex, legacy_hash(schema_bytes, contract_bytes)):
                 return candidate
     return None
+
+
+def legacy_hash(schema_bytes: bytes, contract_bytes: bytes) -> str:
+    """The hash used before line endings were ignored: of the raw file bytes."""
+    return hashlib.sha256(schema_bytes + contract_bytes).hexdigest()
 
 
 def contract_names(schema: MobSchema, contract_path: Path | None = None) -> list[str]:
@@ -238,8 +245,11 @@ def main() -> int:
     converted = dict(state)
     converted.update(weights)
     converted["schema_hash"] = new.hash_hex
-    # The optimizer's memory no longer fits the reshaped weights; the trainer starts a new one.
-    converted.pop("optimizer", None)
+    # When only the schema's hash changed, every weight keeps its shape and the optimizer's memory still fits.
+    # Otherwise it no longer fits the reshaped weights and the trainer starts a new one.
+    same_shapes = all(tuple(state["policy"][k].shape) == tuple(v.shape) for k, v in weights["policy"].items()) and         all(tuple(state["critic"][k].shape) == tuple(v.shape) for k, v in weights["critic"].items())
+    if not same_shapes:
+        converted.pop("optimizer", None)
     seconds = wall_seconds(run_dir / "logs" / "metrics.jsonl")
     if seconds is not None:
         converted["seconds"] = seconds

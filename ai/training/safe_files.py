@@ -55,6 +55,19 @@ def append_line(path: Path, line: str) -> None:
         os.fsync(out.fileno())
 
 
+def load_training_settings(folder: Path) -> dict:
+    """training.json, with training.local.json on top when it exists. The local file holds one computer's own
+    paths and worker count and is not committed. Its sections (episodes, shards, trainer) merge key by key."""
+    settings = json.loads((folder / "training.json").read_text(encoding="utf-8-sig"))
+    local = read_json(folder / "training.local.json")
+    for key, value in (local or {}).items():
+        if isinstance(value, dict) and isinstance(settings.get(key), dict):
+            settings[key] = {**settings[key], **value}
+        else:
+            settings[key] = value
+    return settings
+
+
 def remove_temporaries(folder: Path) -> int:
     removed = 0
     if folder.exists():

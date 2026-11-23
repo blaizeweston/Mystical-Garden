@@ -1,8 +1,9 @@
 """A live training dashboard in the browser. Reads the run folder only, so it is safe while training runs.
 
-  python dashboard.py [--run-dir <folder>] [--port 8765] [--no-browser]
+  python dashboard.py [--run-dir <folder>] [--port 8765] [--no-browser] [--lan]
 
-Serves http://127.0.0.1:<port>/ (this computer only) and opens it. The page refreshes itself every 15 seconds.
+Serves http://127.0.0.1:<port>/ (this computer only) and opens it. With --lan it also answers other computers on
+the local network, at the addresses it prints; Windows asks once whether to let Python through its firewall. The page refreshes itself every 15 seconds.
 Close the window running this script to stop the dashboard; training is not affected.
 """
 
@@ -10,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import socket
 import sys
 import threading
 import time
@@ -28,7 +30,7 @@ FIELDS = ("samples", "version", "wipe_rate", "explore_found_rate", "explore_firs
 
 
 def default_run_dir() -> Path:
-    settings = json.loads((HERE / "training.json").read_text(encoding="utf-8"))
+    settings = S.load_training_settings(HERE)
     configured = settings.get("run_dir") or ""
     return Path(configured) if configured else Path.home() / "Documents" / "Godot" / "mob-training" / "run"
 
@@ -127,7 +129,16 @@ def snapshot(run_dir: Path, metrics: Metrics) -> dict:
     }
 
 
-def serve(run_dir: Path, port: int, open_browser: bool) -> None:
+def lan_addresses() -> list[str]:
+    """This computer's IPv4 addresses on its networks, for other computers to reach the dashboard."""
+    try:
+        addresses = socket.gethostbyname_ex(socket.gethostname())[2]
+    except OSError:
+        addresses = []
+    return [a for a in addresses if not a.startswith("127.") and not a.startswith("169.254.")]
+
+
+def serve(run_dir: Path, port: int, open_browser: bool, lan: bool = False) -> None:
     metrics = Metrics(run_dir / "logs" / "metrics.jsonl")
 
     class Handler(BaseHTTPRequestHandler):
@@ -151,7 +162,7 @@ def serve(run_dir: Path, port: int, open_browser: bool) -> None:
 
     for candidate in range(port, port + 20):
         try:
-            server = ThreadingHTTPServer(("127.0.0.1", candidate), Handler)
+            server = ThreadingHTTPServer(("0.0.0.0" if lan else "127.0.0.1", candidate), Handler)
             break
         except OSError:
             continue
@@ -159,8 +170,13 @@ def serve(run_dir: Path, port: int, open_browser: bool) -> None:
         print(f"No free port from {port} to {port + 19}.")
         sys.exit(1)
     url = f"http://127.0.0.1:{server.server_address[1]}/"
-    print(f"Training dashboard for {run_dir}")
-    print(f"Open {url} (close this window to stop the dashboard; training is not affected)")
+    print(f"Training dashboard for {run_dir}", flush=True)
+    print(f"Open {url} (close this window to stop the dashboard; training is not affected)", flush=True)
+    if lan:
+        chosen = server.server_address[1]
+        for address in lan_addresses():
+            print(f"From another computer on this network: http://{address}:{chosen}/", flush=True)
+        print(f"Or by name: http://{socket.gethostname()}:{chosen}/", flush=True)
     if open_browser:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:
@@ -174,8 +190,9 @@ def main() -> int:
     parser.add_argument("--run-dir", type=Path)
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--lan", action="store_true", help="also answer other computers on the local network")
     args = parser.parse_args()
-    serve(args.run_dir or default_run_dir(), args.port, not args.no_browser)
+    serve(args.run_dir or default_run_dir(), args.port, not args.no_browser, args.lan)
     return 0
 
 

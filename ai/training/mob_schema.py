@@ -31,7 +31,8 @@ class MobSchema:
     def __init__(self, schema_path: Path = SCHEMA_PATH, contract_path: Path = CONTRACT_PATH) -> None:
         schema_bytes = schema_path.read_bytes()
         contract_bytes = contract_path.read_bytes()
-        self.hash_hex = hashlib.sha256(schema_bytes + contract_bytes).hexdigest()
+        # Windows line endings become Unix ones first, so the hash is the same on every checkout (as in mob_schema.gd).
+        self.hash_hex = hashlib.sha256(schema_bytes.replace(b"\r\n", b"\n") + contract_bytes.replace(b"\r\n", b"\n")).hexdigest()
         data = json.loads(schema_bytes)
         contract = json.loads(contract_bytes)
         self.version = int(data["version"])

@@ -44,7 +44,7 @@ MAX_TICK_SECONDS = 600.0
 
 
 def load_settings() -> dict:
-    return json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    return S.load_training_settings(SETTINGS_PATH.parent)
 
 
 def default_run_dir(settings: dict) -> Path:

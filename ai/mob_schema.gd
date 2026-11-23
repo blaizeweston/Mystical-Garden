@@ -68,13 +68,27 @@ func _init(path: String = PATH) -> void:
 	_validate()
 
 
-## Both languages hash the raw file bytes so a model can be matched to its schema.
+## Both languages hash the file bytes with Windows line endings turned into Unix ones, so a model matches its
+## schema on any computer, whatever line endings its checkout uses.
 static func _hash(schema: PackedByteArray, contract_bytes: PackedByteArray) -> String:
 	var context := HashingContext.new()
 	context.start(HashingContext.HASH_SHA256)
-	context.update(schema)
-	context.update(contract_bytes)
+	context.update(_unix_lines(schema))
+	context.update(_unix_lines(contract_bytes))
 	return context.finish().hex_encode()
+
+
+static func _unix_lines(data: PackedByteArray) -> PackedByteArray:
+	var out := PackedByteArray()
+	out.resize(data.size())
+	var size := 0
+	for index in data.size():
+		if data[index] == 13 and index + 1 < data.size() and data[index + 1] == 10:
+			continue
+		out[size] = data[index]
+		size += 1
+	out.resize(size)
+	return out
 
 
 func _compile(entries: Array, reasons: Dictionary, table: Dictionary, ordered: Array[Block], kinds: PackedByteArray, inverses: PackedFloat32Array) -> int:

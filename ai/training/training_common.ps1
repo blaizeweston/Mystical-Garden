@@ -1,7 +1,24 @@
 # Shared by start_training.ps1, stop_training.ps1 and training_status.ps1.
 
+# training.json, with training.local.json (one computer's own paths and worker count, not committed) on top.
+# Sections such as episodes and trainer merge key by key.
 function Get-TrainingSettings {
-    Get-Content (Join-Path $PSScriptRoot 'training.json') -Raw | ConvertFrom-Json
+    $settings = Get-Content (Join-Path $PSScriptRoot 'training.json') -Raw | ConvertFrom-Json
+    $localPath = Join-Path $PSScriptRoot 'training.local.json'
+    if (Test-Path $localPath) {
+        $local = Get-Content $localPath -Raw | ConvertFrom-Json
+        foreach ($property in $local.PSObject.Properties) {
+            $current = $settings.PSObject.Properties[$property.Name]
+            if ($current -and $current.Value -is [pscustomobject] -and $property.Value -is [pscustomobject]) {
+                foreach ($inner in $property.Value.PSObject.Properties) {
+                    $current.Value | Add-Member -NotePropertyName $inner.Name -NotePropertyValue $inner.Value -Force
+                }
+            } else {
+                $settings | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value -Force
+            }
+        }
+    }
+    $settings
 }
 
 function Resolve-RunDir([string]$RunDir, $Settings) {

@@ -19,6 +19,8 @@ const Schema = preload("res://ai/mob_schema.gd")
 const Env = preload("res://ai/training_env.gd")
 
 const SETTINGS_PATH := "res://ai/training/training.json"
+## One computer's own settings, not committed. Its sections merge key by key over training.json.
+const LOCAL_SETTINGS_PATH := "res://ai/training/training.local.json"
 const WAIT_MS := 1000
 
 var run_dir := ""
@@ -61,6 +63,14 @@ func _run() -> int:
 		printerr("Could not read ", SETTINGS_PATH)
 		return 2
 	settings = parsed
+	if FileAccess.file_exists(LOCAL_SETTINGS_PATH):
+		var local: Variant = JSON.parse_string(FileAccess.get_file_as_string(LOCAL_SETTINGS_PATH))
+		if local is Dictionary:
+			for key: String in local:
+				if local[key] is Dictionary and settings.get(key) is Dictionary:
+					settings[key].merge(local[key], true)
+				else:
+					settings[key] = local[key]
 	base_episodes = settings.episodes
 	schema_hash = schema.hash_hex
 	for folder in ["shards", "workers"]:

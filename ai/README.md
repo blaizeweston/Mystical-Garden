@@ -47,7 +47,9 @@ Training runs in the background and resumes where it left off. Double-click `tra
 ./ai/training/stop_training.ps1
 ```
 
-Watch it with `training/Training Dashboard.cmd`. Progress lives in `Documents\Godot\mob-training\run` (change `run_dir` in `training/training.json`). Stopping saves a checkpoint; a crash or power loss loses at most the last 10 minutes. `ai/tests/run_training_smoke.ps1` checks the controls in a throwaway folder.
+Watch it with `training/Training Dashboard.cmd`, or from another computer on the same network with `Training Dashboard (LAN).cmd` (Windows asks once whether to let Python through its firewall). Progress lives in `Documents\Godot\mob-training\run` (change `run_dir` in `training/training.json`). Stopping saves a checkpoint; a crash or power loss loses at most the last 10 minutes. `ai/tests/run_training_smoke.ps1` checks the controls in a throwaway folder.
+
+To train on another computer: clone the repository at the same commit, copy `mob_sim/bin/mob_nav.dll` (not in git) and the run folder, install Python with `training/requirements.txt`, and put that computer's own `godot`, `python` and `workers` in `training/training.local.json` (not committed; it overrides `training.json`). Then run `training/check_setup.ps1`, which checks everything, plays two episodes as a test and says what is missing. Run training on only one computer at a time, and copy the run folder back when you move it.
 
 ## Not built yet
 
