@@ -117,14 +117,29 @@ def speed(rows: list[dict]) -> float | None:
     return sum(r["_new"] for r in rows) / seconds if seconds >= 6 else None
 
 
+def change_versions() -> list[int]:
+    return sorted(int(entry.get("version", 0)) for entry in (S.read_json(CHANGES) or {}).get("changes", []))
+
+
 def bucketed(rows: list[dict]) -> list[dict]:
-    """At most MAX_POINTS points, each the mean of consecutive updates, so long runs stay quick to draw."""
+    """At most about MAX_POINTS points, each the mean of consecutive updates, so long runs stay quick to draw. No
+    point mixes updates from either side of a listed change, so a jump in level stays a clean step."""
     if not rows:
         return []
     size = max(1, -(-len(rows) // MAX_POINTS))
+    breaks = change_versions()
+    groups, group = [], []
+    for row in rows:
+        version = row.get("version")
+        crossed = group and version is not None and group[-1].get("version") is not None and \
+            any(group[-1]["version"] < at <= version for at in breaks)
+        if len(group) == size or crossed:
+            groups.append(group)
+            group = []
+        group.append(row)
+    groups.append(group)
     points = []
-    for start in range(0, len(rows), size):
-        group = rows[start:start + size]
+    for group in groups:
         point = {"time": group[-1]["time"], "t": group[-1]["_t"], "samples": group[-1]["samples"],
                  "version": group[-1].get("version")}
         for field in FIELDS:
@@ -196,12 +211,24 @@ def worker_ages(workers: list[dict], now: float) -> None:
             progress["age"] = None
 
 
-def snapshot(run_dir: Path, metrics: Metrics, hours: float | None) -> dict:
+def since_change(rows: list[dict]) -> list[dict]:
+    """The updates since the newest listed change that has updates after it, plus a quarter as many before it for
+    context. All of them when no change falls inside the rows."""
+    for at in reversed(change_versions()):
+        start = next((i for i, r in enumerate(rows) if r.get("version") is not None and r["version"] >= at), None)
+        if start is not None and start > 0 and len(rows) - start >= 2:
+            return rows[max(0, start - (len(rows) - start) // 4):]
+    return rows
+
+
+def snapshot(run_dir: Path, metrics: Metrics, hours: float | None, focus: bool = False) -> dict:
     rows, events = metrics.refresh()
     now = time.time()
     # Ranges and comparisons count back from the latest update, so a paused run still shows its last hours.
     latest = rows[-1]["_t"] if rows else now
     shown = [r for r in rows if r["_t"] >= latest - hours * 3600] if hours else rows
+    if focus:
+        shown = since_change(shown)
     checkpoints = []
     folder = run_dir / "checkpoints"
     for path in sorted(folder.glob("ckpt_*.pt"), key=S.checkpoint_version) + sorted((folder / "milestones").glob("ckpt_*.pt"), key=S.checkpoint_version):
@@ -242,11 +269,13 @@ def serve(run_dir: Path, port: int, open_browser: bool, lan: bool = False) -> No
         def do_GET(self) -> None:  # noqa: N802 - the standard library's name
             url = urlparse(self.path)
             if url.path == "/data":
+                query = parse_qs(url.query)
                 try:
-                    hours = float(parse_qs(url.query).get("hours", ["0"])[0]) or None
+                    hours = float(query.get("hours", ["0"])[0]) or None
                 except ValueError:
                     hours = None
-                body, kind = json.dumps(snapshot(run_dir, metrics, hours)).encode("utf-8"), "application/json"
+                focus = query.get("focus", ["0"])[0] == "1"
+                body, kind = json.dumps(snapshot(run_dir, metrics, hours, focus)).encode("utf-8"), "application/json"
             elif url.path in ("/", "/index.html"):
                 body, kind = PAGE.read_bytes(), "text/html; charset=utf-8"
             else:

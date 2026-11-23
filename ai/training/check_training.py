@@ -293,6 +293,27 @@ def test_message_growth(folder: Path) -> None:
     check(learned, "the warm start leaves the learned symbols 1-3 alone")
 
 
+def test_dashboard_eras() -> None:
+    """The dashboard never averages across a listed change, and its focus view starts shortly before the newest."""
+    import dashboard as D
+    at = D.change_versions()[-1]
+    rows = [{"time": "2026-01-01 00:00:00", "_t": float(i), "samples": i * 100, "version": at - 3001 + i * 3, "_gap": 1.0, "_new": 100}
+            for i in range(2000)]
+    for row in rows:
+        row["damage_to_party"] = 1.0 if row["version"] >= at else 0.0
+    old_max = D.MAX_POINTS
+    D.MAX_POINTS = 100
+    try:
+        points = D.bucketed(rows)
+    finally:
+        D.MAX_POINTS = old_max
+    means = {p["damage_to_party"] for p in points}
+    check(means == {0.0, 1.0}, f"no dashboard point mixes updates from both sides of a change ({sorted(means)[:4]})")
+    focus = D.since_change(rows)
+    after = sum(1 for r in rows if r["version"] >= at)
+    check(focus[0]["version"] < at and len(focus) == after + after // 4, "the focus view keeps a quarter as much context before the change")
+
+
 def main() -> int:
     schema = MobSchema()
     with tempfile.TemporaryDirectory() as temporary:
@@ -304,6 +325,7 @@ def main() -> int:
         test_replace_waits_for_open_file(folder)
         test_evaluation(schema, folder)
         test_message_warm_start(folder)
+        test_dashboard_eras()
     print("PASSED" if not failures else f"FAILED: {len(failures)} check(s)")
     return 1 if failures else 0
 

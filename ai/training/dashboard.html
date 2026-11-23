@@ -73,6 +73,7 @@ td.num { text-align: right; white-space: nowrap; padding-left: 8px; }
     <div class="seg" id="range"><button data-v="1">1 h</button><button data-v="6">6 h</button><button data-v="24">24 h</button><button data-v="0">All</button></div>
     <div class="seg" id="axis"><button data-v="samples">Decisions</button><button data-v="t">Time</button></div>
     <div class="seg" id="smooth" title="Moving-average strength"><button data-v="60">Low</button><button data-v="25">Med</button><button data-v="10">High</button></div>
+    <div class="seg" id="focus" title="Since last change: the scale fits training since the newest numbered change, and earlier training is shown in grey for context. Everything: the whole range on one scale."><button data-v="change">Since last change</button><button data-v="all">Everything</button></div>
   </div>
 </header>
 <div class="layout">
@@ -105,8 +106,8 @@ let data = null, hoverX = null, frame = 0;
 const prefs = load();
 
 function load() {
-  try { return Object.assign({hours: 0, axis: "samples", smooth: 25}, JSON.parse(localStorage.getItem("mob-dashboard") || "{}")); }
-  catch (error) { return {hours: 0, axis: "samples", smooth: 25}; }
+  try { return Object.assign({hours: 0, axis: "samples", smooth: 25, focus: "change"}, JSON.parse(localStorage.getItem("mob-dashboard") || "{}")); }
+  catch (error) { return {hours: 0, axis: "samples", smooth: 25, focus: "change"}; }
 }
 function save() { try { localStorage.setItem("mob-dashboard", JSON.stringify(prefs)); } catch (error) { /* private mode */ } }
 function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
@@ -124,14 +125,33 @@ function age(seconds) {
   if (seconds < 5400) return Math.round(seconds / 60) + " min";
   return (seconds / 3600).toFixed(1) + " h";
 }
-function smooth(values, span) {
+// The moving average restarts at each numbered change, so a jump in level is not smeared across it.
+function smooth(values, span, era) {
   const out = [];
   for (let i = 0; i < values.length; i++) {
     let sum = 0, count = 0;
-    for (let j = Math.max(0, i - span + 1); j <= i; j++) if (values[j] !== null) { sum += values[j]; count++; }
+    for (let j = Math.max(0, i - span + 1); j <= i; j++) if (values[j] !== null && era[j] === era[i]) { sum += values[j]; count++; }
     out.push(count ? sum / count : null);
   }
   return out;
+}
+function changeMarks() {
+  return data.changes.filter(m => m.kind === "change").map(m => prefs.axis === "t" ? m.t : m.samples).sort((a, b) => a - b);
+}
+// Where "Since last change" starts: the newest numbered change with some training after it, or null.
+function focusStart(points) {
+  if (prefs.focus !== "change" || points.length < 2) return null;
+  const first = points[0][prefs.axis], last = points[points.length - 1][prefs.axis];
+  const marks = changeMarks().filter(at => at > first && at < last);
+  if (!marks.length) return null;
+  const at = marks[marks.length - 1];
+  return points.filter(p => p[prefs.axis] >= at).length >= 2 ? at : null;
+}
+// The points a chart shows. In focus the dashboard script already sends training since the change plus a short
+// stretch before it for context.
+function shownPoints() {
+  const points = data.points;
+  return {points, focus: focusStart(points)};
 }
 
 const charts = CHARTS.map(spec => {
@@ -173,7 +193,7 @@ function xs(points) { return points.map(p => p[prefs.axis]); }
 function draw(chart) {
   if (!chart.canvas || !data) return;
   const {spec, canvas} = chart;
-  const points = data.points;
+  const {points, focus} = shownPoints();
   const ratio = window.devicePixelRatio || 1;
   const width = canvas.clientWidth, height = canvas.clientHeight;
   if (width < 10 || height < 10) return;
@@ -184,10 +204,14 @@ function draw(chart) {
   const keys = spec.stack || [spec.key];
   const x = xs(points);
   const series = keys.map(k => points.map(p => (p[k] === undefined ? null : p[k])));
-  const span = Math.max(2, Math.round(points.length / prefs.smooth));
-  const smoothed = series.map(s => smooth(s, span));
+  const marks = changeMarks();
+  const era = x.map(v => marks.filter(at => at <= v).length);
+  const recent = x.map(v => focus === null || v >= focus);
+  const span = Math.max(2, Math.round(recent.filter(Boolean).length / prefs.smooth));
+  const smoothed = series.map(s => smooth(s, span, era));
   chart.layout = null;
-  const values = (spec.stack ? [0, 1] : series.flat().filter(v => v !== null)).concat(spec.target ? [spec.target] : []);
+  // In focus the scale fits only training since the change; earlier values may run off the chart.
+  const values = (spec.stack ? [0, 1] : series.flatMap(s => s.filter((v, j) => v !== null && recent[j]))).concat(spec.target ? [spec.target] : []);
   if (points.length < 2 || values.length === 0) {
     g.fillStyle = css("--muted"); g.font = "12px system-ui"; g.fillText("No data in this range yet", 8, 20);
     chart.now.textContent = "";
@@ -195,7 +219,7 @@ function draw(chart) {
   }
   let lo = Math.min(...values), hi = Math.max(...values);
   if (spec.pct || spec.key === "speed") lo = Math.min(lo, 0);
-  if (hi - lo < 1e-12) { hi += 1; lo -= spec.pct ? 0 : 1; }
+  if (hi - lo < 1e-12) { const room = Math.max(Math.abs(hi) * 0.1, 1e-6); hi += room; lo -= spec.pct ? 0 : room; }
   const pad = {l: 52, r: 10, t: 16, b: 22};
   const x0 = x[0], x1 = x[x.length - 1];
   const X = v => pad.l + (v - x0) / Math.max(1e-9, x1 - x0) * (width - pad.l - pad.r);
@@ -243,23 +267,35 @@ function draw(chart) {
   const path = (s, colour, lineWidth) => {
     g.strokeStyle = colour; g.lineWidth = lineWidth; g.beginPath();
     let started = false;
-    s.forEach((v, j) => { if (v === null) { started = false; return; } const px = X(x[j]), py = Y(v); started ? g.lineTo(px, py) : g.moveTo(px, py); started = true; });
+    s.forEach((v, j) => { if (v === null || (j > 0 && era[j] !== era[j - 1])) started = false; if (v === null) return;
+      const px = X(x[j]), py = Y(v); started ? g.lineTo(px, py) : g.moveTo(px, py); started = true; });
     g.stroke();
   };
-  if (spec.stack) {
-    const colours = ["--wipe", "--cleared", "--timeout"].map(css);
-    let base = x.map(() => 0);
-    smoothed.forEach((s, i) => {
-      const top = s.map((v, j) => base[j] + (v || 0));
-      g.fillStyle = colours[i]; g.globalAlpha = 0.75; g.beginPath();
-      top.forEach((v, j) => j ? g.lineTo(X(x[j]), Y(v)) : g.moveTo(X(x[j]), Y(v)));
-      for (let j = base.length - 1; j >= 0; j--) g.lineTo(X(x[j]), Y(base[j]));
-      g.closePath(); g.fill(); g.globalAlpha = 1;
-      base = top;
-    });
+  // Draws the series inside a clip: grey before the focus change, in colour after it.
+  const plot = (left, right, grey) => {
+    g.save(); g.beginPath(); g.rect(left, pad.t, right - left, height - pad.t - pad.b); g.clip();
+    if (spec.stack) {
+      const colours = ["--wipe", "--cleared", "--timeout"].map(css);
+      let base = x.map(() => 0);
+      smoothed.forEach((s, i) => {
+        const top = s.map((v, j) => base[j] + (v || 0));
+        g.fillStyle = colours[i]; g.globalAlpha = grey ? 0.22 : 0.75; g.beginPath();
+        top.forEach((v, j) => j ? g.lineTo(X(x[j]), Y(v)) : g.moveTo(X(x[j]), Y(v)));
+        for (let j = base.length - 1; j >= 0; j--) g.lineTo(X(x[j]), Y(base[j]));
+        g.closePath(); g.fill(); g.globalAlpha = 1;
+        base = top;
+      });
+    } else {
+      path(series[0], grey ? "rgba(128, 136, 150, 0.18)" : css("--raw"), 1);
+      path(smoothed[0], grey ? css("--restart") : css("--accent"), 2);
+    }
+    g.restore();
+  };
+  if (focus === null) {
+    plot(pad.l, width - pad.r, false);
   } else {
-    path(series[0], css("--raw"), 1);
-    path(smoothed[0], css("--accent"), 2);
+    plot(pad.l, X(focus), true);
+    plot(X(focus), width - pad.r, false);
   }
   // The value now, or at the pointer, with its trend over the visible range.
   let index = smoothed[0].length - 1;
@@ -274,7 +310,7 @@ function draw(chart) {
   const value = smoothed.map(s => s[index]);
   let trend = "";
   if (hoverX === null && !spec.stack) {
-    const sm = smoothed[0].filter(v => v !== null);
+    const sm = smoothed[0].filter((v, j) => v !== null && recent[j]);
     const earlier = sm[Math.max(0, Math.floor(sm.length * 0.75) - 1)], last = sm[sm.length - 1];
     if (sm.length > 4) {
       const change = last - earlier, scale = Math.max(1e-12, hi - lo);
@@ -284,7 +320,7 @@ function draw(chart) {
     }
   }
   chart.now.innerHTML = trend + (spec.stack ? value.map(v => fmt(spec, v)).join(" / ") : fmt(spec, value[0]));
-  chart.layout = {X, x, index, pad, width};
+  chart.layout = {X, x, index, pad, width, points};
 }
 
 function redraw() {
@@ -302,7 +338,7 @@ function hover(chart, event) {
   redraw();
   let index = 0, best = Infinity;
   x.forEach((v, j) => { const d = Math.abs(v - hoverX); if (d < best) { best = d; index = j; } });
-  const p = data.points[index];
+  const p = l.points[index];
   let near = "";
   for (const mark of data.changes) {
     const at = prefs.axis === "t" ? mark.t : mark.samples;
@@ -377,17 +413,18 @@ function segment(id, key, number) {
     if (!b) return;
     prefs[key] = number ? Number(b.dataset.v) : b.dataset.v;
     save(); mark();
-    if (key === "hours") refresh(); else redraw();
+    if (key === "hours" || key === "focus") refresh(); else redraw();
   });
   mark();
 }
 segment("range", "hours", true);
 segment("axis", "axis", false);
 segment("smooth", "smooth", true);
+segment("focus", "focus", false);
 
 async function refresh() {
   try {
-    const response = await fetch("/data?hours=" + prefs.hours, {cache: "no-store"});
+    const response = await fetch("/data?hours=" + prefs.hours + "&focus=" + (prefs.focus === "change" ? 1 : 0), {cache: "no-store"});
     data = await response.json();
     header(); side(); layout(); redraw();
   } catch (error) {
