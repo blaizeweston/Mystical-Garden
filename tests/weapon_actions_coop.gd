@@ -70,9 +70,9 @@ func host_run():
  check(await until(func():return marked("rootblade-checked")),"guest sees alternating Rootblade slashes and both returns")
  check(game.enemy_health()<1000,"Rootblade contact remains host authoritative")
 
- for index in 4:
+ for index in Field.Reviewed.FORMS.size():
   var form: String=Field.Reviewed.FORMS[index]
-  p.frame=2 if index<3 else 3;p.weapon_kind=index if index<3 else 0
+  p.frame=2 if index<3 else 3;p.weapon_kind=index if index<3 else 2 if form=="whip" else 0
   p[WeaponActions.STATE]=WeaponActions.State.new()
   game.encounter.set_hp(-1,1000);game.tactics.position=Vector3(0,0,1.25)
   mark("equip-"+form)
@@ -254,9 +254,12 @@ func inspect_alternates(id: int, form: String) -> void:
    for entry in game.guest_replication.received_events():
     var event: Dictionary=entry.event
     if previously_seen.has(event.id) or event.get("clip","")!=clip:continue
-    if event.kind==("swing" if form=="knives" else "projectile"):
+    if event.kind==("projectile" if Motion.is_projectile(form) else "swing"):
      seen_event=true
-     if form!="knives":check(game.stage.weapon_release_point(event).is_finite(),"guest locates "+clip+" release")
+     if Motion.is_projectile(form):check(game.stage.weapon_release_point(event).is_finite(),"guest locates "+clip+" release")
+     if form=="whip":
+      var path:=preload("res://weapon_contact.gd").lash_path(event,Vector3.ZERO,Vector3.BACK)
+      check(path.size()>=3 and absf(path[-1].z-float(event.reach))<.15,"guest receives the matching lash footprint")
    await process_frame
   game.submit_combat.rpc_id(1,Vector2(0,1),false)
   check(seen_pose and seen_event,"guest sees host-selected pose and contact for "+clip)

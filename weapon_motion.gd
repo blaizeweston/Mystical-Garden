@@ -25,6 +25,12 @@ static func variant_by_clip(name: String, clip: String) -> Dictionary:
  return {}
 static func is_projectile(name: String) -> bool:
  return bool(profile(name).get("projectile",false))
+
+## Only the flexible portion grows with reach. The character and hilt keep their dimensions.
+static func lash_reach_scale(reach: float) -> float:
+ var base_reach:=float(Classes.DEFINITIONS[3].weapons[2].reach)
+ var vine_length:=float(PROFILES.whip.vine_length)
+ return maxf(.02,vine_length+reach-base_reach)/vine_length
 # Skeletal poses are authored in Blender. Runtime adds no second arm/body animation.
 static func pose(name: String,phase: float,active: bool,combo: int=0) -> Dictionary:
  var t:=clampf(phase,0,1);var p:=profile(name);var pulse:=sin(t*PI) if active else 0.0

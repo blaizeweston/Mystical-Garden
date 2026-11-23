@@ -53,7 +53,7 @@ func inspect(stage: Node3D, actor: Dictionary, body: int, form: String, class_id
 				max_support_error=maxf(max_support_error,nock.distance_to(Field.hand(actor,false)))
 			if frame==12: poses.append(rig.get_bone_pose_rotation(rig.find_bone("upperarm_r")))
 		pose(actor,form,clip,contact,true,step)
-		if form!="knives":
+		if Motion.is_projectile(form):
 			var center := weapon.to_global(Vector3(0,.282,0)) if form=="ring" else weapon.to_global(Reviewed.sampled_point(actor.field_rig.reviewed,13))
 			var offset := Reviewed.release_offset(body,clip,actor.model.scale.y)
 			max_release_error=maxf(max_release_error,center.distance_to(actor.model.get_parent_node_3d().global_position+offset))
@@ -99,9 +99,10 @@ func run() -> void:
 		Avatar.swap(actor,body)
 		actor.model.rotation.y=0
 		for index in Reviewed.FORMS.size():
-			inspect(stage,actor,body,Reviewed.FORMS[index],2 if index<3 else 3,index if index<3 else 0)
+			var form: String=Reviewed.FORMS[index]
+			inspect(stage,actor,body,form,2 if index<3 else 3,index if index<3 else 2 if form=="whip" else 0)
 	stage.free()
 	pivot.free()
 	await process_frame
-	if not failed: print("PASS: both travellers play all eight reviewed attacks, grips, releases and ready recoveries")
+	if not failed: print("PASS: both travellers play the reviewed attacks, grips, releases and ready recoveries")
 	quit(1 if failed else 0)

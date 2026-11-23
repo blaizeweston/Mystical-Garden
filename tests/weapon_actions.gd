@@ -66,6 +66,7 @@ func run():
      arbalest_pose(actor,sex,profile)
     if form=="whip":
      lash_pose(actor,sex)
+     lash_contacts(game)
     if form in ["spear","staff","wand"]:
      Avatar.animate(actor,true,float(profile.release),form,{"equipped":true},1.0)
      preload("res://weapon_visuals.gd").animate(actor,form,float(profile.release),true,0,float(game.Classes.DEFINITIONS[c].weapons[w].reach),{"delivery":"line" if form=="spear" else "projectile"})
@@ -171,13 +172,62 @@ func arbalest_pose(actor: Dictionary, sex: int, profile: Dictionary) -> void:
 
 func lash_pose(actor: Dictionary, sex: int) -> void:
  var weapon: Node3D=actor.visual_weapon
- var segments: Array=weapon.get_meta("vine_segments")
- Visuals.animate(actor,"whip",0,false,0,3.0)
- var coil: Vector3=segments[-1].transform*(Vector3.UP*.5)
- Visuals.animate(actor,"whip",float(Motion.profile("whip").release),true,0,3.0)
- var extended: Vector3=segments[-1].transform*(Vector3.UP*.5)
- check(coil.length()<.45 and extended.z>2.7,"the Root Lash coils and extends on body "+str(sex))
- for index in range(1,segments.size()):
-  var end: Vector3=segments[index-1].transform*(Vector3.UP*.5)
-  var start: Vector3=segments[index].transform*(Vector3.DOWN*.5)
-  check(end.distance_to(start)<.001,"braided lash meshes meet through the extension")
+ var links: Array=weapon.get_meta("vine_segments")
+ var model: Node3D=actor.model
+ var old_yaw:=model.rotation.y
+ var contact:=float(Motion.profile("whip").release)
+ for reach in [3.4,4.4]:
+  for step in [1,2]:
+   var clip: String=Motion.basic_variant("whip",step).clip
+   var yaw:=0.73 if step==2 else -0.35
+   model.rotation.y=yaw
+   var action:={"equipped":true,"clip":clip,"aim_yaw":yaw,"combo":step}
+   var direction:=Vector3.BACK.rotated(Vector3.UP,yaw)
+   var shape:=Contact.describe("whip",{"weapon_variant":clip,"reach":reach,"pattern":"line"})
+   var origin:=model.global_position
+   var outline:=Contact.outline(shape,origin,origin+direction)
+   var polygon:=PackedVector2Array()
+   for point in outline:polygon.append(Vector2(point.x,point.z))
+   check(not Geometry2D.triangulate_polygon(polygon).is_empty(),"lash indicator has a drawable interior")
+   Avatar.animate(actor,true,contact*.45,"whip",action,.016)
+   Visuals.animate(actor,"whip",contact*.45,true,yaw,reach,action)
+   var coil: Vector3=links[-1].to_global(Vector3.UP*.5)
+   Avatar.animate(actor,true,contact,"whip",action,.016)
+   Visuals.animate(actor,"whip",contact,true,yaw,reach,action)
+   var tip: Vector3=links[-1].to_global(Vector3.UP*.5)
+   var path:=Contact.lash_path(shape,origin,origin+direction)
+   var max_error:=0.0
+   check(coil.distance_to(tip)>1.5 and absf((tip-origin).dot(direction)-reach)<.2,"coil extends to resolved reach: "+str([sex,clip,reach,tip-origin]))
+   for i in links.size():
+    var end: Vector3=links[i].to_global(Vector3.UP*.5)
+    check(Geometry2D.is_point_in_polygon(Vector2(end.x,end.z),polygon),"contact link within indicator: "+str([sex,clip,i,model.to_local(end)]))
+    var ground:=Vector3(end.x,origin.y,end.z)
+    var distance:=INF
+    for j in range(1,path.size()):
+     distance=minf(distance,ground.distance_to(Geometry3D.get_closest_point_to_segment(ground,path[j-1],path[j])))
+    max_error=maxf(max_error,distance)
+    if i>0:check(links[i].to_global(Vector3.DOWN*.5).distance_to(links[i-1].to_global(Vector3.UP*.5))<.001,"continuous vine")
+   if step==2:
+    var root_point: Vector3=links[0].to_global(Vector3.DOWN*.5)
+    check(root_point.direction_to(tip).dot(direction)>.999,"backhand reaches directly forward")
+   print("LASH CONTACT body=",sex," clip=",clip," reach=",reach," max centreline error (m)=",max_error)
+   Avatar.animate(actor,true,1,"whip",action,.016)
+   Avatar.animate(actor,false,0,"whip",action,.01)
+   check(actor.field_rig.player.current_animation==clip.replace("Attack_","Recover_"),"individual lash recovery")
+   Avatar.animate(actor,false,0,"whip",action,1)
+   check(actor.field_rig.player.current_animation=="Ready_whip_review","lash returns to ready")
+ model.rotation.y=old_yaw
+
+func lash_contacts(game: Node) -> void:
+ var previous: Vector3=game.tactics.position
+ var stats:={"pattern":"line","reach":3.4,"weapon_variant":"Attack_whip_forehand"}
+ var radius:=preload("res://enemy_hurtbox.gd").radius(game,-1)
+ game.tactics.position=Vector3(-.41-radius-.13,0,.82)
+ check(Contact.accepts(game,-1,Vector3.ZERO,Vector3.BACK,"whip",stats),"forehand connects at its visible bend")
+ stats.weapon_variant="Attack_whip_backhand"
+ check(not Contact.accepts(game,-1,Vector3.ZERO,Vector3.BACK,"whip",stats),"straight backhand misses the forehand-only target")
+ game.tactics.position=Vector3(.05,0,3.4)
+ check(Contact.accepts(game,-1,Vector3.ZERO,Vector3.BACK,"whip",stats),"straight backhand hits at its tip")
+ stats.pattern="sweep"
+ check(Contact.describe("whip",stats).clip=="Attack_whip_sweep","crafted sweep keeps its own delivery")
+ game.tactics.position=previous

@@ -12,10 +12,12 @@ static func describe(form: String,stats: Dictionary) -> Dictionary:
  var span: float=float(p.span) if float(p.span)>0 else 1.9
  var clip: String=str(p.get("variants",{}).get(pattern,p.clip))
  var variant:=Motion.variant_by_clip(form,str(stats.get("weapon_variant","")))
- if not variant.is_empty() and not (form=="knives" and pattern=="line"):
+ if not variant.is_empty() and not (form=="knives" and pattern=="line") and not (form=="whip" and pattern=="sweep"):
   pattern=str(variant.get("delivery",pattern));span=float(variant.get("span",span));clip=variant.clip
  return {"form":form,"pattern":pattern,"span":span,"yaw_offset":float(variant.get("yaw_offset",0.0)),"width":p.width,"reach":float(stats.reach),"contact":float(p.release),"projectile_radius":p.projectile_radius,"height":p.height,"clip":clip}
 static func outline(shape: Dictionary,origin: Vector3,aim: Vector3) -> PackedVector3Array:
+ var path:=lash_path(shape,origin,aim)
+ if not path.is_empty():return path_outline(path,float(shape.width))
  var result:=PackedVector3Array();var reach:=float(shape.reach)
  var direction: Vector3=(aim-origin).normalized()
  if direction.is_zero_approx():direction=Vector3.FORWARD
@@ -33,12 +35,67 @@ static func outline(shape: Dictionary,origin: Vector3,aim: Vector3) -> PackedVec
   result.append(origin)
   for i in 33:result.append(origin+direction.rotated(Vector3.UP,-float(shape.span)*.5+i*float(shape.span)/32.)*reach)
  return result
+
+## Reviewed ground trace at impact. X is lateral metres, Y is a fraction of resolved reach.
+static func lash_path(shape: Dictionary, origin: Vector3, aim: Vector3) -> PackedVector3Array:
+ var path:=PackedVector3Array()
+ if shape.get("form","")!="whip" or shape.get("pattern","")!="line":return path
+ var samples: Array=Motion.variant_by_clip("whip",shape.get("clip","")).get("contact_path",[])
+ if samples.is_empty():return path
+ var forward:=Vector3(aim.x-origin.x,0,aim.z-origin.z).normalized()
+ if forward.is_zero_approx():forward=Vector3.FORWARD
+ var lateral:=Vector3.UP.cross(forward)
+ var base_reach:=float(Motion.Classes.DEFINITIONS[3].weapons[2].reach)
+ var scale:=Motion.lash_reach_scale(float(shape.reach))
+ var outlet: Vector3=origin+lateral*float(samples[1][0])+forward*float(samples[1][1])*base_reach
+ path.append(origin)
+ for point: Array in samples.slice(1):
+  var at:=origin+lateral*float(point[0])+forward*float(point[1])*base_reach
+  path.append(outlet+(at-outlet)*scale)
+ return path
+
+static func path_outline(path: PackedVector3Array, width: float) -> PackedVector3Array:
+ var left:=PackedVector3Array()
+ var right:=PackedVector3Array()
+ var first:=path[0].direction_to(path[1])
+ var last:=path[-2].direction_to(path[-1])
+ for i in range(1,path.size()-1):
+  var incoming:=path[i-1].direction_to(path[i])
+  var outgoing:=path[i].direction_to(path[i+1])
+  var side: Vector3=(incoming+outgoing).normalized().cross(Vector3.UP)
+  var offset:=side*width/side.dot(incoming.cross(Vector3.UP))
+  var turn:=incoming.signed_angle_to(outgoing,Vector3.UP)
+  if absf(turn)<.0001:
+   left.append(path[i]+offset)
+   right.append(path[i]-offset)
+   continue
+  var outside:=left if turn>0 else right
+  var sign_side:=1.0 if turn>0 else -1.0
+  var steps:=maxi(1,ceili(absf(turn)/(PI/16.0)))
+  for step in steps+1:
+   outside.append(path[i]+incoming.cross(Vector3.UP).rotated(Vector3.UP,turn*step/steps)*width*sign_side)
+  if turn>0:right.append(path[i]-offset)
+  else:left.append(path[i]+offset)
+ for i in 17:
+  var angle:=i*PI/16.0
+  left.append(path[-1]+(last.cross(Vector3.UP)*cos(angle)+last*sin(angle))*width)
+ right.reverse()
+ left.append_array(right)
+ for i in 17:
+  var angle:=i*PI/16.0
+  left.append(path[0]-(first.cross(Vector3.UP)*cos(angle)+first*sin(angle))*width)
+ return left
 static func accepts(game: Node,target: int,origin: Vector3,aim: Vector3,form: String,stats: Dictionary) -> bool:
  var profile:=describe(form,stats);var center: Vector3=game.enemy_position(target)
  var edge:=Hurt.contact(game,target,origin);var radius:=Hurt.radius(game,target)
  if not game.battlefield.clear_line(origin,edge):return false
  if profile.pattern=="radial":return center.distance_to(origin)<=float(profile.reach)+radius
  if profile.pattern=="line":
+  var path:=lash_path(profile,origin,aim)
+  if not path.is_empty():
+   for i in range(1,path.size()):
+    if center.distance_to(Geometry3D.get_closest_point_to_segment(center,path[i-1],path[i]))<=float(profile.width)+radius:return true
+   return false
   var direction: Vector3=(aim-origin).normalized()
   var closest:=Geometry3D.get_closest_point_to_segment(center,origin,origin+direction*float(profile.reach))
   return closest.distance_to(center)<=float(profile.width)+radius

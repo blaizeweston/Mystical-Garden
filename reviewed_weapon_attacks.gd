@@ -4,7 +4,7 @@ const CLIPS := preload("res://assets/characters/ranger_and_knife_attacks.glb")
 const Motion := preload("res://weapon_motion.gd")
 const Locomotion := preload("res://traveller_locomotion.gd")
 const Native := preload("res://traveller_weapon_animation.gd")
-const FORMS := ["bow", "crossbow", "ring", "knives"]
+const FORMS := ["bow", "crossbow", "ring", "knives", "whip"]
 const FPS := 48.0
 const HELD_SCALE := preload("res://plant_polearms.gd").SCALE
 const BOW_SCALE := HELD_SCALE*1.5
@@ -16,8 +16,13 @@ const NOCK := 13
 const AMMO_SCALE := 16
 const FLEX := 17
 const SUPPORT_HAND := 18
-static var grips: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/characters/ranger_and_knife_grips.json"))
+static var grips: Dictionary = load_grips()
 static var releases: Dictionary = {}
+
+static func load_grips() -> Dictionary:
+	var result: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/characters/ranger_and_knife_grips.json"))
+	result.whip = JSON.parse_string(FileAccess.get_file_as_string("res://assets/characters/root_lash_grips.json"))
+	return result
 
 static func sample(field: Dictionary, form: String, action: Dictionary, phase: float, active: bool, delta: float) -> Array[Quaternion]:
 	var player: AnimationPlayer = field.player

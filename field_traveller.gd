@@ -46,6 +46,7 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 		WeaponAnimation.add_from(libraries[kind],visual,skeleton,SeedFocus.CASTS)
 		Rootblade.add_clips(libraries[kind],visual,skeleton)
 		WeaponAnimation.add_from(libraries[kind],visual,skeleton,Reviewed.CLIPS)
+		WeaponAnimation.add_from(libraries[kind],visual,skeleton,preload("res://assets/characters/root_lash_attacks.glb"))
 	player.add_animation_library("", libraries[kind])
 	var links: Dictionary = {}
 	for name in DRIVER_JOINTS:
@@ -135,7 +136,7 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	var wand_basic := form=="wand" and not bool(motion.get("ability",false))
 	field.wand_active=wand_basic
 	if not wand_basic:Wand.clear(field)
-	var reviewed_basic: bool = form in Reviewed.FORMS and not bool(motion.get("ability",false)) and motion.get("clip","") != "Attack_knives_line"
+	var reviewed_basic: bool = form in Reviewed.FORMS and not bool(motion.get("ability",false)) and motion.get("clip","") not in ["Attack_knives_line","Attack_whip_sweep"]
 	if not reviewed_basic: field.reviewed.clear()
 	var focus_basic := form == "orb" and not bool(motion.get("ability", false))
 	if not focus_basic: field.focus.clear()

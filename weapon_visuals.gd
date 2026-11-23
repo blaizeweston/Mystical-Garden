@@ -105,8 +105,9 @@ static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw
  var contact:=float(profile.release)
  var primary: Node3D=actor.visual_weapon
  if actor.field_rig.reviewed.get("form","")==form:
-  draw_reviewed(actor,form,phase,active)
+  draw_reviewed(actor,form,phase,active,reach)
   return
+ if form=="whip":primary.set_meta("handle",Models.MODELS.whip.grip)
  if form=="crossbow":
   primary.set_meta("handle",Models.MODELS.crossbow.grip)
   primary.set_meta("support_grip",Models.MODELS.crossbow.grip+Models.ARBALEST_SUPPORT)
@@ -174,13 +175,17 @@ static func lash_point(along: float, extension: float, length: float) -> Vector3
 
 
 ## Reconstruct the reviewed grips from this frame's traveller wrists.
-static func draw_reviewed(actor: Dictionary, form: String, phase: float, active: bool) -> void:
+static func draw_reviewed(actor: Dictionary, form: String, phase: float, active: bool, reach: float) -> void:
  var field: Dictionary=actor.field_rig
  var state: Dictionary=field.reviewed
  var weapon: Node3D=actor.visual_weapon
  var mount:=Reviewed.mount(field,form=="bow")
  var handle := Vector3.UP*.2 if form in ["bow","crossbow"] else Vector3.ZERO
  weapon.global_transform=Transform3D(mount.basis,mount.origin-mount.basis*handle)
+ if form=="whip":
+  weapon.set_meta("handle",Reviewed.point(Reviewed.grips.whip.grip_r,0))
+  draw_reviewed_lash(weapon,state,reach,phase,active)
+  return
  if form=="crossbow":
   weapon.set_meta("handle",Reviewed.point(Reviewed.grips.crossbow.grip_r,0))
   weapon.set_meta("support_grip",Reviewed.point(Reviewed.grips.crossbow.grip_l,0))
@@ -206,3 +211,19 @@ static func draw_reviewed(actor: Dictionary, form: String, phase: float, active:
  if form=="bow":
   var mesh: MeshInstance3D=weapon.get_meta("flex_mesh")
   mesh.set_blend_shape_value(0,Reviewed.scalar(state,Reviewed.FLEX))
+## Each link inherits the reviewed rotation in grip space. Reach upgrades lengthen the released vine.
+static func draw_reviewed_lash(weapon: Node3D,state: Dictionary,reach: float,phase: float,active: bool) -> void:
+ var links: Array=weapon.get_meta("vine_segments")
+ var release:=float(preload("res://weapon_motion.gd").profile("whip").release)
+ var envelope:=smoothstep(0,release,phase)*(1.0-smoothstep(release,1,phase)) if active else 0.0
+ var motion:=preload("res://weapon_motion.gd")
+ var length:=float(motion.PROFILES.whip.vine_length)*lerpf(1.0,motion.lash_reach_scale(reach),envelope)/(Reviewed.HELD_SCALE*links.size())
+ var joint:=Vector3.UP*.12
+ for i in links.size():
+  var index:=7+i*4
+  var rotation:=Reviewed.rotation(state.a,index).slerp(Reviewed.rotation(state.b,index),state.fraction)
+  var bone:=Basis(rotation)
+  var end:=joint+bone.y*length
+  var thickness:=lerpf(1.32,.27,(i+1.0)/links.size())
+  links[i].transform=Transform3D(bone.scaled_local(Vector3(thickness,length,thickness)),(joint+end)*.5)
+  joint=end

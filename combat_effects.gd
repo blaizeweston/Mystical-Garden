@@ -277,11 +277,19 @@ func pose(effect: Dictionary) -> void:
   var outline:=preload("res://weapon_contact.gd").outline(shape,from,to)
   var center:=from if event.pattern!="line" else from.lerp(to,.5)
   mesh.surface_set_color(Color(1,1,1,.12))
-  for i in outline.size():
-   for vertex in [center,outline[i],outline[(i+1)%outline.size()]]:mesh.surface_add_vertex(vertex+Vector3.UP*.09)
+  var lash:=preload("res://weapon_contact.gd").lash_path(shape,from,to)
+  if not lash.is_empty():
+   var polygon:=PackedVector2Array()
+   for vertex in outline:polygon.append(Vector2(vertex.x,vertex.z))
+   for i in Geometry2D.triangulate_polygon(polygon):mesh.surface_add_vertex(outline[i]+Vector3.UP*.09)
+  else:
+   for i in outline.size():
+    for vertex in [center,outline[i],outline[(i+1)%outline.size()]]:mesh.surface_add_vertex(vertex+Vector3.UP*.09)
   mesh.surface_set_color(Color.WHITE)
   for i in outline.size():ribbon(mesh,outline[i]+Vector3.UP*.10,outline[(i+1)%outline.size()]+Vector3.UP*.10,.045)
-  if event.pattern=="line":ribbon(mesh,from+Vector3.UP*.85,to+Vector3.UP*.85,float(event.width)*2)
+  if not lash.is_empty():
+   for i in range(1,lash.size()):ribbon(mesh,lash[i-1]+Vector3.UP*.10,lash[i]+Vector3.UP*.10,.035)
+  elif event.pattern=="line":ribbon(mesh,from+Vector3.UP*.85,to+Vector3.UP*.85,float(event.width)*2)
   elif event.shape=="smoke" and event.pattern=="sweep":
    var reach:=float(event.reach)
    var angle:=lerpf(-float(event.span)*.5,float(event.span)*.5,clampf(t/float(event.get("contact",.5)),0,1))
