@@ -140,6 +140,12 @@ def test_trainer(schema: MobSchema, folder: Path) -> None:
     again = S.load_checkpoint(run / "checkpoints", log=lambda text: None)
     check(again is not None, "an unreadable latest.json still finds a good checkpoint")
     check(T.pid_alive(os.getpid()) and not T.pid_alive(0), "the running-process test sees this process")
+    for kl in (0.0,) * 40:
+        resumed.adapt_learning_rate(kl)
+    check(abs(resumed.learning_rate - float(settings["trainer"]["max_learning_rate"])) < 1e-12, "the learning rate rises no higher than max_learning_rate")
+    for kl in (1.0,) * 200:
+        resumed.adapt_learning_rate(kl)
+    check(abs(resumed.learning_rate - T.LR_FLOOR) < 1e-12, "the learning rate falls no lower than its floor")
 
 
 def test_replace_waits_for_open_file(folder: Path) -> None:

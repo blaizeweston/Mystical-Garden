@@ -36,9 +36,11 @@ HERE = Path(__file__).resolve().parent
 SETTINGS_PATH = HERE / "training.json"
 REWARDS_PATH = HERE / "rewards.json"
 WAIT_SECONDS = 2.0
-## The learning rate moves by this factor when the KL strays from its target, within these bounds.
+## The learning rate moves by this factor when the KL strays from its target, from LR_FLOOR up to the trainer
+## setting max_learning_rate (DEFAULT_LR_CAP when it is not set).
 LR_STEP = 1.25
-LR_BOUNDS = (1e-5, 1e-3)
+LR_FLOOR = 1e-5
+DEFAULT_LR_CAP = 1e-3
 ## A longer gap between loop passes means the computer slept; it does not count as training time.
 MAX_TICK_SECONDS = 600.0
 
@@ -178,7 +180,8 @@ class Trainer:
             self.log(f"Kept milestone {self.version} for later opponents and comparisons.")
 
     def _set_learning_rate(self, value: float) -> None:
-        self.learning_rate = min(LR_BOUNDS[1], max(LR_BOUNDS[0], value))
+        cap = float(self.cfg.get("max_learning_rate", DEFAULT_LR_CAP))
+        self.learning_rate = min(cap, max(LR_FLOOR, value))
         for group in self.optimizer.param_groups:
             group["lr"] = self.learning_rate
 
