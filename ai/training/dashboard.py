@@ -3,8 +3,12 @@
   python dashboard.py [--run-dir <folder>] [--port 8765] [--no-browser] [--lan]
 
 Serves http://127.0.0.1:<port>/ (this computer only) and opens it. With --lan it also answers other computers on
-the local network, at the addresses it prints; Windows asks once whether to let Python through its firewall. The page refreshes itself every 15 seconds.
-Close the window running this script to stop the dashboard; training is not affected.
+the local network, at the addresses it prints; Windows asks once whether to let Python through its firewall.
+The page refreshes itself every 15 seconds. Close the window running this script to stop the dashboard;
+training is not affected.
+
+Charts mark the changes listed in changes.json (next to this script) and, automatically, restarts and resumes
+from an older checkpoint. Updates lost to such a resume are left out, so the lines never double back.
 """
 
 from __future__ import annotations
@@ -16,17 +20,26 @@ import sys
 import threading
 import time
 import webbrowser
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import safe_files as S
 
 HERE = Path(__file__).resolve().parent
 PAGE = HERE / "dashboard.html"
+CHANGES = HERE / "changes.json"
 MAX_POINTS = 1500
-FIELDS = ("samples", "version", "wipe_rate", "explore_found_rate", "explore_first_sight_s", "damage_to_party", "life_return",
-          "entropy", "approx_kl", "clip_fraction", "value_loss", "learning_rate", "squad_mix", "replay_gap", "cleared", "timeout",
-          "speed", "rows", "episodes")
+## A pause longer than this between updates counts as a restart.
+RESTART_GAP = 120
+FIELDS = ("wipe_rate", "explore_found_rate", "explore_first_sight_s", "damage_to_party", "life_return",
+          "entropy", "approx_kl", "clip_fraction", "value_loss", "learning_rate", "squad_mix", "replay_gap",
+          "wipe", "cleared", "timeout", "speed", "rows", "episodes")
+## Compared hour over hour in the summary.
+SUMMARY = ("wipe_rate", "explore_found_rate", "explore_first_sight_s", "damage_to_party", "life_return", "entropy",
+           "approx_kl", "speed")
+MILESTONES = [250e6 * n for n in range(1, 41)]
 
 
 def default_run_dir() -> Path:
@@ -36,46 +49,72 @@ def default_run_dir() -> Path:
 
 
 class Metrics:
-    """Reads metrics.jsonl as it grows, skipping a line cut short by a power loss."""
+    """Reads metrics.jsonl as it grows, skipping a line cut short by a power loss. When training resumes from an
+    older checkpoint, the updates after it were lost: they are dropped and the resume is recorded as an event."""
 
     def __init__(self, path: Path) -> None:
         self.path = path
         self.rows: list[dict] = []
+        self.events: list[dict] = []
         self.offset = 0
         self.lock = threading.Lock()
 
-    def refresh(self) -> list[dict]:
+    def refresh(self) -> tuple[list[dict], list[dict]]:
         with self.lock:
             if not self.path.exists():
-                return self.rows
+                return self.rows, self.events
             size = self.path.stat().st_size
             if size < self.offset:
-                self.rows, self.offset = [], 0
+                self.rows, self.events, self.offset = [], [], 0
             with self.path.open("rb") as source:
                 source.seek(self.offset)
                 chunk = source.read()
             end = chunk.rfind(b"\n") + 1
             self.offset += end
-            last_time = self.rows[-1]["_t"] if self.rows else None
-            last_samples = self.rows[-1]["samples"] if self.rows else 0
             for line in chunk[:end].splitlines():
                 try:
                     row = json.loads(line)
-                except ValueError:
+                    stamp = time.mktime(time.strptime(row["time"], "%Y-%m-%d %H:%M:%S"))
+                except (ValueError, KeyError):
                     continue
-                stamp = time.mktime(time.strptime(row["time"], "%Y-%m-%d %H:%M:%S"))
-                episodes = max(1, int(row.get("episodes", 0)))
-                outcomes = row.get("outcomes", {})
-                row["cleared"] = outcomes.get("cleared", 0) / episodes
-                row["timeout"] = outcomes.get("timeout", 0) / episodes
-                # Seconds since the previous update; minutes mean training was paused, which speed ignores.
-                gap = stamp - last_time if last_time is not None else 0.0
-                row["_gap"] = gap if 0 < gap < 120 else 0.0
-                row["_new"] = row["samples"] - last_samples if row["_gap"] > 0 else 0
-                row["_t"] = stamp
-                last_time, last_samples = stamp, row["samples"]
-                self.rows.append(row)
-            return self.rows
+                self._add(row, stamp)
+            return self.rows, self.events
+
+    def _add(self, row: dict, stamp: float) -> None:
+        episodes = max(1, int(row.get("episodes", 0)))
+        outcomes = row.get("outcomes", {})
+        for name in ("wipe", "cleared", "timeout"):
+            row[name] = outcomes.get(name, 0) / episodes
+        last = self.rows[-1] if self.rows else None
+        resumed_at = row["samples"] - int(row.get("rows", 0))
+        if last is not None and row["samples"] <= last["samples"]:
+            lost = last["samples"] - resumed_at
+            while self.rows and self.rows[-1]["samples"] > resumed_at:
+                self.rows.pop()
+            self.events.append({"kind": "rewind", "version": row.get("version"), "t": stamp,
+                                "title": "Resumed from an older checkpoint",
+                                "detail": f"{lost / 1e6:.1f}M decisions trained since that checkpoint were lost."})
+            last = self.rows[-1] if self.rows else None
+        elif last is not None and stamp - last["_t"] > RESTART_GAP:
+            self.events.append({"kind": "restart", "version": row.get("version"), "t": stamp, "title": "Restarted",
+                                "detail": f"Training paused for {(stamp - last['_t']) / 60:.0f} minutes."})
+        gap = stamp - last["_t"] if last is not None else 0.0
+        row["_gap"] = gap if 0 < gap < RESTART_GAP else 0.0
+        row["_new"] = row["samples"] - last["samples"] if row["_gap"] > 0 else 0
+        row["_t"] = stamp
+        self.rows.append(row)
+
+
+def mean(rows: list[dict], field: str) -> float | None:
+    values = [r[field] for r in rows if isinstance(r.get(field), (int, float))
+              and not (field == "replay_gap" and r[field] < 0)]
+    return sum(values) / len(values) if values else None
+
+
+def speed(rows: list[dict]) -> float | None:
+    """Decisions over seconds across a stretch: log times only have whole seconds, so single updates are noisy."""
+    seconds = sum(r["_gap"] for r in rows)
+    return sum(r["_new"] for r in rows) / seconds if seconds >= 6 else None
 
 
 def bucketed(rows: list[dict]) -> list[dict]:
@@ -86,46 +125,104 @@ def bucketed(rows: list[dict]) -> list[dict]:
     points = []
     for start in range(0, len(rows), size):
         group = rows[start:start + size]
-        point = {"time": group[-1]["time"]}
+        point = {"time": group[-1]["time"], "t": group[-1]["_t"], "samples": group[-1]["samples"],
+                 "version": group[-1].get("version")}
         for field in FIELDS:
-            values = [r[field] for r in group if isinstance(r.get(field), (int, float)) and r.get(field) is not None
-                      and not (field == "replay_gap" and r[field] < 0)]
-            if field in ("samples", "version"):
-                point[field] = group[-1].get(field)
-            elif field == "speed":
-                # Decisions over seconds across the whole group: log times only have whole seconds.
-                seconds = sum(r["_gap"] for r in group)
-                point[field] = sum(r["_new"] for r in group) / seconds if seconds >= 6 else None
-            else:
-                point[field] = sum(values) / len(values) if values else None
+            point[field] = speed(group) if field == "speed" else mean(group, field)
         points.append(point)
     return points
 
 
-def snapshot(run_dir: Path, metrics: Metrics) -> dict:
-    rows = metrics.refresh()
+def place(rows: list[dict], version: int) -> dict | None:
+    """The first update at or after a policy version."""
+    for row in rows:
+        if row.get("version") is not None and row["version"] >= version:
+            return row
+    return None
+
+
+def changes(rows: list[dict], events: list[dict]) -> list[dict]:
+    marks = []
+    listed = (S.read_json(CHANGES) or {}).get("changes", [])
+    for entry in listed:
+        at = place(rows, int(entry.get("version", 0)))
+        if at is not None:
+            marks.append({"kind": "change", "version": at.get("version"), "t": at["_t"], "samples": at["samples"],
+                          "title": entry.get("title", ""), "detail": entry.get("detail", "")})
+    listed_versions = [m["version"] for m in marks]
+    for event in events:
+        at = place(rows, int(event.get("version") or 0))
+        # A restart for a listed change is that change; it needs no mark of its own.
+        if event["kind"] == "restart" and at is not None and any(abs((at.get("version") or 0) - v) <= 5 for v in listed_versions):
+            continue
+        if at is not None:
+            marks.append({**event, "samples": at["samples"], "t": at["_t"]})
+    marks.sort(key=lambda m: m["t"])
+    number = 0
+    for mark in marks:
+        if mark["kind"] == "change":
+            number += 1
+            mark["number"] = number
+    return marks
+
+
+def summary(rows: list[dict], now: float) -> dict:
+    """Each key figure over the last hour of training against the hour before it."""
+    recent = [r for r in rows if r["_t"] > now - 3600]
+    before = [r for r in rows if now - 7200 < r["_t"] <= now - 3600]
+    result = {}
+    for field in SUMMARY:
+        result[field] = {"now": speed(recent) if field == "speed" else mean(recent, field),
+                         "before": speed(before) if field == "speed" else mean(before, field)}
+    return result
+
+
+def pace(rows: list[dict], now: float) -> dict:
+    recent = [r for r in rows if r["_t"] > now - 3600]
+    if len(recent) < 2:
+        return {}
+    per_second = speed(recent) or 0.0
+    total = rows[-1]["samples"]
+    target = next((m for m in MILESTONES if m > total), None)
+    return {"per_hour": per_second * 3600, "next": target,
+            "eta_hours": (target - total) / per_second / 3600 if target and per_second > 0 else None}
+
+
+def worker_ages(workers: list[dict], now: float) -> None:
+    for progress in workers:
+        try:
+            progress["age"] = now - datetime.fromisoformat(str(progress.get("time"))).timestamp()
+        except ValueError:
+            progress["age"] = None
+
+
+def snapshot(run_dir: Path, metrics: Metrics, hours: float | None) -> dict:
+    rows, events = metrics.refresh()
+    now = time.time()
+    # Ranges and comparisons count back from the latest update, so a paused run still shows its last hours.
+    latest = rows[-1]["_t"] if rows else now
+    shown = [r for r in rows if r["_t"] >= latest - hours * 3600] if hours else rows
     checkpoints = []
     folder = run_dir / "checkpoints"
     for path in sorted(folder.glob("ckpt_*.pt"), key=S.checkpoint_version) + sorted((folder / "milestones").glob("ckpt_*.pt"), key=S.checkpoint_version):
         checkpoints.append({"name": path.name, "version": S.checkpoint_version(path), "milestone": path.parent.name == "milestones",
+                            "age": now - path.stat().st_mtime,
                             "time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(path.stat().st_mtime))})
-    workers = []
-    for path in sorted((run_dir / "workers").glob("w*.json")):
-        progress = S.read_json(path)
-        if progress:
-            workers.append(progress)
+    workers = [w for w in (S.read_json(p) for p in sorted((run_dir / "workers").glob("w*.json"))) if w]
+    worker_ages(workers, now)
     processes = S.read_json(run_dir / "processes.json") or {}
     trainer = S.read_json(run_dir / "trainer.json") or {}
     heartbeat_age = None
     if trainer.get("time"):
-        heartbeat_age = time.time() - time.mktime(time.strptime(trainer["time"], "%Y-%m-%d %H:%M:%S"))
+        heartbeat_age = now - time.mktime(time.strptime(trainer["time"], "%Y-%m-%d %H:%M:%S"))
     return {
-        "run_dir": str(run_dir), "now": time.strftime("%Y-%m-%d %H:%M:%S"), "trainer": trainer, "heartbeat_age": heartbeat_age,
-        "stop_requested": (run_dir / "STOP").exists(), "started": processes.get("started"),
-        "worker_count": len(processes.get("processes", [])) - 1 if processes else 0, "workers": workers,
+        "run_dir": str(run_dir), "host": socket.gethostname(), "now": time.strftime("%Y-%m-%d %H:%M:%S"), "trainer": trainer,
+        "heartbeat_age": heartbeat_age, "stop_requested": (run_dir / "STOP").exists(), "started": processes.get("started"),
+        "worker_count": max(0, len(processes.get("processes", [])) - 1), "workers": workers,
         "shards_waiting": len(list((run_dir / "shards").glob("*.shard"))) if (run_dir / "shards").exists() else 0,
-        "checkpoints": checkpoints, "updates": len(rows), "points": bucketed(rows),
-        "latest": {k: v for k, v in rows[-1].items() if not k.startswith("_") and k != "speed"} if rows else None,
+        "checkpoints": checkpoints, "updates": len(rows), "hours": hours, "points": bucketed(shown),
+        "changes": changes(rows, events), "summary": summary(rows, latest), "pace": pace(rows, latest),
+        "last_update_age": now - rows[-1]["_t"] if rows else None,
     }
 
 
@@ -143,9 +240,14 @@ def serve(run_dir: Path, port: int, open_browser: bool, lan: bool = False) -> No
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802 - the standard library's name
-            if self.path.startswith("/data"):
-                body, kind = json.dumps(snapshot(run_dir, metrics)).encode("utf-8"), "application/json"
-            elif self.path in ("/", "/index.html"):
+            url = urlparse(self.path)
+            if url.path == "/data":
+                try:
+                    hours = float(parse_qs(url.query).get("hours", ["0"])[0]) or None
+                except ValueError:
+                    hours = None
+                body, kind = json.dumps(snapshot(run_dir, metrics, hours)).encode("utf-8"), "application/json"
+            elif url.path in ("/", "/index.html"):
                 body, kind = PAGE.read_bytes(), "text/html; charset=utf-8"
             else:
                 self.send_error(404)
