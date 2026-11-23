@@ -45,7 +45,7 @@
 		"clip": 0.2,
 		"value_clip": 0.2,
 		"value_weight": 0.5,
-		"entropy_weight": 0.01,
+		"entropy_weight": 0.002,
 		"max_grad_norm": 0.5,
 		"max_policy_lag": 3,
 		"squad_mix_samples": 200000000,
