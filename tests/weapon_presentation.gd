@@ -35,6 +35,8 @@ func run() -> void:
 			for weapon_id in 3:
 				var form: String=Classes.DEFINITIONS[class_id].weapons[weapon_id].visual
 				actor.visual_weapon=Weapons.build(stage,class_id,weapon_id)
+				if form=="fan":
+					check(actor.visual_weapon.scale.is_equal_approx(Vector3.ONE*.54),"Fan has its reviewed size on equip")
 				actor.visual_weapon.reparent(actor.model,false)
 				if form=="knives":
 					actor.secondary_weapon=Weapons.build(stage,class_id,weapon_id)
@@ -49,6 +51,11 @@ func run() -> void:
 				inspect_attack(actor,form)
 				inspect_continuity(actor,form)
 				inspect_body_clearance(actor,form)
+				if form=="fan":
+					var cast := {"equipped":true,"ability":true,"clip":"Cast"}
+					Avatar.animate(actor,true,.4,form,cast,.016)
+					Weapons.animate(actor,form,.4,true,0,3.0,cast)
+					check(actor.visual_weapon.global_basis.get_scale().is_equal_approx(Vector3.ONE*.54),"class casts keep the reviewed Fan size")
 				actor.visual_weapon.free()
 				actor.erase("visual_weapon")
 				if actor.has("secondary_weapon"):

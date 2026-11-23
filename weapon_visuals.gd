@@ -70,7 +70,7 @@ static func build(stage: Node3D,class_id: int,weapon_id: int) -> Node3D:
  gem.name="CoreSeed"
  gem.reparent(root,false)
  root.set_meta("handle",handle)
- root.scale=Vector3.ONE*.9
+ root.scale=Vector3.ONE*model_scale(form)
  return root
 static func marker(root: Node3D, label: String, at: Vector3) -> void:
  var marker_node:=Node3D.new()
@@ -137,7 +137,7 @@ static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw
   primary.set_meta("handle",Vector3.ZERO)
   primary.set_meta("support_grip",Vector3.UP*Polearms.support_distance(form,phase,active,action))
  var held_size := float(actor.field_rig.focus.held_scale) if focus_cast else 1.0
- var carry_scale := Reviewed.BOW_SCALE if form=="bow" else Polearms.SCALE
+ var carry_scale := Reviewed.BOW_SCALE if form=="bow" else model_scale(form)
  var basis:=pose.scaled(Vector3.ONE*carry_scale*maxf(.001,held_size))
  primary.global_transform=Transform3D(basis,anchor-basis*Vector3(primary.get_meta("handle",Vector3.ZERO)))
  primary.visible=held_size>.001 if focus_cast else not (form in ["ring","orb"] and active and phase>contact and phase<.82)
@@ -253,3 +253,7 @@ static func draw_reviewed_lash(weapon: Node3D,state: Dictionary,reach: float,pha
   var thickness:=lerpf(1.32,.27,(i+1.0)/links.size())
   links[i].transform=Transform3D(bone.scaled_local(Vector3(thickness,length,thickness)),(joint+end)*.5)
   joint=end
+
+
+static func model_scale(form: String) -> float:
+ return float(Reviewed.grips.fan.scale) if form=="fan" else Polearms.SCALE
