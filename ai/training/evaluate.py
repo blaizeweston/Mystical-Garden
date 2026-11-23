@@ -490,8 +490,9 @@ def main() -> int:
         raise SystemExit("--episodes must be at least 1.")
     if args.processes < 1:
         threads = os.cpu_count() or 4
-        heartbeat = S.read_json(args.run_dir / "logs" / "trainer.json") or {}
-        training = heartbeat.get("state") in ("training", "waiting") and time.time() - (args.run_dir / "logs" / "trainer.json").stat().st_mtime < 120
+        beat_file = args.run_dir / "trainer.json"
+        heartbeat = S.read_json(beat_file) or {}
+        training = heartbeat.get("state") in ("training", "waiting") and time.time() - beat_file.stat().st_mtime < 120
         args.processes = max(1, threads // 4 if training else threads - 2)
         if training:
             print(f"Training is running on this computer: using {args.processes} processes so it keeps most of the processor.")
