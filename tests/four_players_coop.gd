@@ -257,6 +257,13 @@ func verify_vitals_marker(stage: String,index: int) -> void:
  if int(actor.get("vitals_revision",0))!=int(expected.revision):return
  for field in ["hp","max_hp","lost_health","fallen","damage_seq"]:
   if actor.get(field)!=expected[field]:return
+ if stage=="restored":
+  var report: Dictionary=game.ui.visible_expedition_result()
+  if report.is_empty():return
+  check(report.players.size()==4 and report.players[report.personal_index].name=="Player "+str(index) and report.party.kills==1,"four bound records and one party kill")
+  check(report.players.all(func(row):return row.outcome=="Extraction"),"party extraction finalized together")
+  game.ui.close_panels()
+  check(not game.ui.is_overlay_open(),"summary dismisses into normal play")
  mark(ack)
 
 

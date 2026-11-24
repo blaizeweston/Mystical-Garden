@@ -62,10 +62,41 @@ func run() -> void:
 	verify_water()
 	verify_wood()
 	verify_vital()
+	verify_statistics()
 	game.queue_free()
 	await process_frame
 	if not failed: print("PASS: shared affinity status buildup, frozen contributions, cadence, four contributors, expiry and stale identities")
 	quit(int(failed))
+
+func verify_statistics() -> void:
+	reset()
+	var now := Time.get_ticks_msec()
+	var run_id: int = game.participation.run_id()
+	for peer in game.players:
+		if peer != 1: Expedition.Sessions.set_identity(game,game.players[peer],"stats-fixture-"+str(peer))
+		game.expedition_statistics.admit(run_id,game.expedition_stat_identity(peer),str(peer),"Warden",1,now)
+	var at: Vector3 = game.tactics.position
+	Thorn.patch(game,event(1,"core","part_1"),at,1.0,now)
+	Thorn.patch(game,event(2,"core","part_5"),at,1.0,now)
+	Thorn.tick(game,Clock.advance(game,.9),now)
+	var bleed_hp: int = 10000-game.enemy_health()
+	reset()
+	for peer in [1,2,3,4]: Fire.ignite(game,event(peer,"form","part_6"),-1,now)
+	Fire.tick(game,Clock.advance(game,.25),now)
+	reset()
+	var recipient: Dictionary = game.players[2]
+	recipient[Vitals.STATE] = recipient[Vitals.STATE].with_hp(70)
+	Water.drench(game,event(1,"core","part_8"),-1)
+	for index in 2: Water.drench(game,event(2,"catalyst","part_8"),-1)
+	drain_water()
+	var owner: String = game.expedition_stat_identity(1)
+	game.expedition_statistics.finish(run_id,owner,"Extraction",now)
+	game.expedition_statistics.publishable()
+	var report: Dictionary = game.expedition_statistics.result_for(owner)
+	var rows: Array = report.players
+	check(bleed_hp>0 and is_equal_approx(rows[0].affinity.Bleed,bleed_hp*.4) and is_equal_approx(rows[1].affinity.Bleed,bleed_hp*.6),"Bleed tick credits actual accumulated 3:4.5 potency")
+	check(rows[0].affinity.Burning==2 and rows.slice(1).all(func(row):return row.affinity.Burning==1),"immediate personal Fire tick plus one shared tick")
+	check(rows[0].affinity.Surge+rows[1].affinity.Surge==6 and rows[0].healing>0 and rows[1].healing>0,"returning and outbound tides credit both real sources")
 
 func verify_frost() -> void:
 	reset()

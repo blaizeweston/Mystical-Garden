@@ -1182,6 +1182,7 @@
       }
     },
     "game_transaction.gd": {
+      "er01_legacy_capture": {"match": " var statistics: RefCounted = game.get(\"expedition_statistics\")\n var statistics_snapshot: Dictionary = statistics.savepoint() if statistics != null else {}\n", "baseline": ""},
       "receipt_owner": {
         "match": "const MonsterRewards = preload(\"res://monster_rewards.gd\")\nconst EncounterRoster = preload(\"res://encounter_roster.gd\")\nconst EnemyTactics = preload(\"res://enemy_tactics.gd\")\nconst ExpeditionParticipation = preload(\"res://expedition_participation.gd\")\n\n",
         "baseline": ""
@@ -4623,6 +4624,7 @@
       }
     },
     "subclass_combat.gd": {
+      "er01_ally_heal": {"match": "game.Life.Sustain.restore(game,ally,heal_hp,skill.id,-1,id)", "baseline": "game.Life.Sustain.restore(game,ally,heal_hp,skill.id)"},
       "ar08_lifecycle_1": {
         "match": "const PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
         "baseline": ""
@@ -4787,6 +4789,7 @@
       }
     },
     "expedition_life.gd": {
+      "er01_falls": {"match": " if not PlayerLifecycle.fallen(p): game.expedition_statistics.count(game.participation.run_id(),game.expedition_stat_identity(id),\"falls\")\n", "baseline": ""}, "er01_revivals": {"match": " game.expedition_statistics.count(game.participation.run_id(),game.expedition_stat_identity(helper_id),\"revives\")\n", "baseline": ""},
       "ar08_lifecycle_1": {
         "match": "const PlayerLifecycle=preload(\"res://player_lifecycle.gd\")\n",
         "baseline": ""

@@ -53,6 +53,9 @@ func host_run() -> void:
   return
  check(not ExpeditionCase.is_wild(guest) and guest.character.xp==original and leader.character.xp[0]>100
   and world.monster_rewards.pending_count()==0 and world.run_wallet(guest)==0,"forfeiture clears guest rewards while keeping teammate rewards")
+ var report: Dictionary = world.expedition_statistics.result_for(owner)
+ check(report.get("outcome")=="Abandonment" and report.players.size()==2 and report.players[report.personal_index].xp>0 and report.floor==2,"early return freezes two distinct records with gross earned XP")
+ check(report.players.any(func(row):return row.outcome=="In the Wilds") and world.ui.visible_expedition_result().is_empty(),"active host keeps playing")
  var committed: Dictionary=world.progress.character_records[owner].duplicate(true)
  check(committed.profile.xp==original and committed.projection.revision>previous.projection.revision,"lower XP is a newer authoritative revision")
  # An old floor profile must not satisfy the pending exit or restore revoked XP.
@@ -96,6 +99,7 @@ func guest_run() -> void:
   check(false,"guest save abort is visible")
   return
  check(is_instance_valid(world) and world.network_session.role()=="Guest" and world.guest_character.data==before_profile,"failed guest save cannot close or erase the local profile")
+ check(world.ui.visible_expedition_result().get("outcome")=="Abandonment","guest receives host result independently of local save retry")
  mark("save-refused")
  if not await until(func():return marked("retry-exit")):
   check(false,"host correction remains retryable")
@@ -110,6 +114,7 @@ func guest_run() -> void:
  profile.path=C
  check(profile.load_profile(false)==OK and profile.data.xp==[200,210,220,230,240],"guest canonical save contains pre-entry XP after voluntary exit")
  check(current_scene==null or not SessionCase.has_guarded_session(current_scene),"guest returned to title")
+ check(current_scene!=null and current_scene.has_node("ExpeditionResults"),"unread guest results follow the committed exit to title")
  mark("guest-offline")
 
 func run() -> void:
