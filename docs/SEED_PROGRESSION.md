@@ -1,19 +1,38 @@
-> Current expansion: 24 species, seven class levels, 12 choices per class and 104 checkpoint cards. See [current content depth](CONTENT_DEPTH_2026-11-08.md); historical counts below describe earlier milestones.
-
 # Seed lineages and living-root progression
 
-Open **Living Roots** with **O**, or from the Garden menu. It contains Seeds, Heart / Knowledge and Classes tabs. The Heart tab displays existing Garden milestones; the Classes tab now supports the five-class upgrade system described in CLASSES_AND_WEAPONS.md.
+## Current botanical progression (WF02)
 
-## Discovery and sacrifice
+All 24 species grow in ordinary Garden beds. Flowering reproduces the species planted. Natural specimens use the WF01 floor roll, depth bands and biome weights. A find fixes one species for everyone. Each participant can return one concealed seed per specimen and identify it at the starting altar.
 
-- All species can be found as mysterious seeds in the Wilds once their encounter threshold is reached. Rarer tiers have lower weighted chances. Biomes favor particular species; depth unlocks opportunities rather than guaranteeing a drop.
-- Bank a mysterious seed, then identify it at the altar. First identification or successful breeding records the host-world discovery and grants 4 knowledge once.
-- At the altar, choose two identified parent seeds in Living Roots and sacrifice them. Parent order does not matter. One of each is consumed; a matching pair costs two. Successful recipes return one child seed and become permanent discoveries. A failed combination returns one crafting part and a clue.
-- Locked nodes conceal their names. Discovering lower lineages reveals hints. Discovered nodes become enveloped in living roots; connections grow between discovered parents and children.
-- Each species grows in any bed. Mature harvest gives its crafting material and character-owned familiarity. Flowering returns two seeds instead of materials. Higher-tier plants take longer to mature; the original three retain their existing growth times.
-- New material effects apply in both primary and graft slots. Technique upgrades use the primary material scaling. Long reach, strike damage, wind-up damage, enemy recovery, pull, attack speed, knockback, stagger and kill healing are implemented. Powerful damage or sustain plants often slow attacks. Rarity is not a uniform damage multiplier.
+| Natural founder | Earliest global encounter | Species reachable after adding this founder |
+|---|---:|---:|
+| Thorn Bloom and Lantern Moss | 1 | 5 |
+| Ember Fern | 3 | 15 |
+| Moon Lotus | 18 | 17 |
+| Mirror Mint | 22 | 19 |
+| Star Orchid | 31 | 21 |
+| Sun Spire | 35 | 23 |
+| Crownroot | 60 | 24 |
 
-## Initial collection
+The last five founders require natural discovery for new rewards. Their catalog entries carry `seed_acquisition = wild_only`. Their parents still synthesize ordinary materials. Once a founder is obtained it can be shared, propagated and used in other recipes. The table is a reachability exercise with unlimited propagation. Finding other eligible species directly can open different routes.
+
+Theoretical natural chances per eligible floor are shown below. Each range spans the three biomes and includes the 40% specimen roll, before terrain placement failures. The first column uses the founder’s first eligible encounter. Intervening floors change as more species and rarity tiers unlock.
+
+| Founder | At first eligibility | From encounter 60 |
+|---|---:|---:|
+| Moon Lotus | 1.45–1.85% | 1.33–2.00% |
+| Mirror Mint | 0.94–1.50% | 1.33–2.00% |
+| Star Orchid | 1.60–2.40% | 1.67–2.50% |
+| Sun Spire | 1.14–1.71% | 1.67–2.73% |
+| Crownroot | 1.14–1.50% | 1.14–1.50% |
+
+Ordinary caches retain their 20% opportunity, depth, biome and starter rules, drawing from the 19 open species. New Ancient seeds have their contents fixed at the boss's global encounter. Available Rare, Epic and Mythic tiers have relative weights of 25, 55 and 20. Early bosses use the highest available tier if none of those qualify. The altar reveals the concealed result. Pre-WF02 quantity-only Ancient stock retains its original identification roll, including the original chance of a now-exclusive species.
+
+A discovered plant and a tested recipe are separate Garden records. Only a successful offering reveals a seed recipe in Living Roots. A failed pair records its one-material salvage. First species discovery grants 4 Knowledge. Testing a valid seed recipe for an already known species grants 2 once. See [Garden Altar](GARDEN_ALTAR.md) for the transaction rules.
+
+## Historical initial collection
+
+The table below records the initial prototype. For current acquisition, use the table above. Current growth and affinities are defined in `seed_catalog.gd` and the affinity families.
 
 |Species|Rarity|Parents|Possible Wilds find from encounter|Growth (seconds)|Crafting effects|
 |---|---|---|---:|---:|---|

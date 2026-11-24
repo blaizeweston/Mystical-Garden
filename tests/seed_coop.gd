@@ -50,7 +50,7 @@ func run():
 		var id: int=game.multiplayer.get_unique_id()
 		check(game.players[id].reserve_parts[17]==2,"expanded private part inventory arrives")
 		check(game.guest_replication.inventory()[6][23]==3 and game.players[id].reserve_parts[game.Seeds.DEFINITIONS[23].part]==2,"last new seed and material synchronize privately")
-		game.send_garden_action("breed_0_3")
+		game.send_altar_action("combine",[{"source":"stash","item":game.Items.seed_id(0)},{"source":"stash","item":game.Items.seed_id(3)}],1)
 		check(await until(func(): return game.guest_replication.garden_progress().size()>13 and game.guest_replication.garden_progress()[13][4] and game.guest_replication.inventory()[6][4]==1),"seed and permanent tree discovery synchronize")
 		check(game.guest_replication.inventory()[6][0]==0 and game.guest_replication.inventory()[6][3]==0,"updated parent counts synchronize")
 		game.ui.toggle_panel("progression")

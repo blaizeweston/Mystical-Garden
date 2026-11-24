@@ -21,6 +21,7 @@ const CAPABILITIES := {
 	"expedition_travel_consent": 1,
 	"expedition_abandonment_forfeiture": 1,
 	"wild_flora_harvest": 1,
+	"botanical_acquisition": 2,
 }
 
 ## Authored sender, transport/channel, ordered argument types and optional count.

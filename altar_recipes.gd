@@ -12,6 +12,7 @@ static func all() -> Array:
   if plant_definition.parents.size()!=2: continue
   var first:=int(plant_definition.parents[0]);var second:=int(plant_definition.parents[1])
   for mode in ["seeds","parts"]:
+   if mode=="seeds" and Seeds.wild_only(species): continue
    var inputs: Array=[Items.seed_id(first),Items.seed_id(second)] if mode=="seeds" else [Items.part_id(int(Seeds.DEFINITIONS[first].part)),Items.part_id(int(Seeds.DEFINITIONS[second].part))]
    var output: String=Items.seed_id(species) if mode=="seeds" else Items.part_id(int(plant_definition.part))
    definitions.append({"id":key(mode,inputs[0],inputs[1]),"mode":mode,"inputs":inputs,"output":output,"quantity":1})
@@ -28,6 +29,7 @@ static func all() -> Array:
    if not valid: continue
    var category: String="seed" if entry.mode=="seeds" else "plant_part"
    var output:=Items.get_item(entry.output)
+   if entry.mode=="seeds" and (not output.has("legacy_seed") or Seeds.wild_only(output.legacy_seed)): continue
    if output.category!=category or entry.output=="unidentified_seed": continue
    for id in entry.inputs:
     var ingredient:=Items.get_item(str(id))

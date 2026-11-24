@@ -259,18 +259,22 @@ func seed_nodes(known: Array,counts: Array) -> Array:
 		var siblings: Array=tiers[d.tier]
 		var x: float=width/2.0+(siblings.find(i)-(siblings.size()-1)/2.0)*170.0
 		var parents: Array=[]
+		var recorded: bool=_facts.get("recorded_seed_recipes",[]).has(i)
 		var visible_hint: bool=d.parents.is_empty()
 		for parent in d.parents:
-			parents.append(str(parent))
-			visible_hint=visible_hint or known[parent]
+			if recorded: parents.append(str(parent))
+			visible_hint=visible_hint or (known[parent] and not Seeds.wild_only(i))
 		var unlocked: bool=known[i]
 		var info := "[b]%s[/b]\n%s · Tier %d\n\n%s\n\nGrowth: %ds\nStored seeds: %d\nWilds: possible from encounter %d (favours %s)." % [
 			d.name,d.rarity,d.tier,Seeds.modifier_text(i),d.grow_seconds,counts[i],d.wild_min,Campaign.NAMES[int(d.biome)]]
 		if not unlocked:
 			info="[b]Undiscovered possibility[/b]\n\n"+(d.hint if visible_hint else "Discover lower lineages to reveal a clue.")+"\n\nUnidentified seeds can also be found deeper in the Wilds."
-		if unlocked and not parents.is_empty():
+		if not unlocked and Seeds.wild_only(i): info="An undiscovered species of the Wilds."
+		if unlocked and (Seeds.wild_only(i) or d.parents.is_empty()): info+="\n\nNatural Wilds species. No seed-producing recipe."
+		elif unlocked and not recorded: info+="\n\nSpecies discovered. Seed recipe untested."
+		if unlocked and recorded:
 			info+="\n\nRecorded recipe: "+Seeds.NAMES[int(d.parents[0])]+" + "+Seeds.NAMES[int(d.parents[1])]+"."
-		result.append({"id":str(i),"label":d.name,"parents":parents,"position":Vector2(x,base_y-(int(d.tier)-1)*70),"unlocked":unlocked,"detail":info,"color":d.color,"icon":portrait(str(d.id)) if unlocked else null,"summary":(str(d.name)+" · "+str(d.rarity)+"\n"+Seeds.modifier_text(i)) if unlocked else ("Undiscovered seed\n"+(str(d.hint) if visible_hint else "Discover lower lineages to reveal a clue."))})
+		result.append({"id":str(i),"label":d.name,"parents":parents,"position":Vector2(x,base_y-(int(d.tier)-1)*70),"unlocked":unlocked,"detail":info,"color":d.color,"icon":portrait(str(d.id)) if unlocked else null,"summary":(str(d.name)+" · "+str(d.rarity)+"\n"+Seeds.modifier_text(i)) if unlocked else ("An undiscovered species of the Wilds." if Seeds.wild_only(i) else "Undiscovered seed\n"+(str(d.hint) if visible_hint else "Discover lower lineages to reveal a clue."))})
 	return result
 func heart_nodes() -> Array:
 	var state: Dictionary=_facts.get("heart",{})
@@ -383,7 +387,7 @@ func show_details() -> void:
 	if tabs.current_tab==2:
 		details.text="[b]Class progression[/b]\n\nSelect a node to see its requirements and what it unlocks."
 		return
-	details.text="[b]Seed discoveries[/b]\n\nSelect a seed to inspect it. Roots connect discovered species. Undiscovered nodes may offer breeding clues."
+	details.text="[b]Seed discoveries[/b]\n\nSelect a seed to inspect it. Roots connect successfully tested seed recipes. Undiscovered nodes may offer breeding clues."
 
 
 func portrait(key: String) -> Texture2D:

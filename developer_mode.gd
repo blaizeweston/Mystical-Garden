@@ -185,6 +185,8 @@ static func _stock_materials(game: Node, details: Dictionary) -> String:
 		if item.id == "unidentified_seed":
 			var species_count: int = game.Seeds.DEFINITIONS.size()
 			stack.seeds = range(current, minimum).map(func(index): return index % species_count)
+		elif item.id==Inventory.Ancient.ITEM:
+			stack.lineages={"thorn_bloom":missing}
 		Inventory.put(game, player, "stash", stack)
 		added += missing
 

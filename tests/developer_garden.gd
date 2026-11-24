@@ -194,7 +194,7 @@ func test_material_stock(game: Node, tools: Node, base: String) -> void:
 	var restored: RefCounted = game.Progress.new()
 	restored.path = progress.path
 	check(restored.load_garden()==OK and restored.part_count(rare)==Developer.MATERIAL_STOCK+2 and restored.part_count(trophy)==Developer.MATERIAL_STOCK,"rare parts and trophies persist in the Garden save")
-	check(restored.reserve(SessionCase.Session.inventory_owner(player)).stock==stock and restored.item_stashes[SessionCase.Session.inventory_owner(player)].boss_mystery_seed==Developer.SEED_STOCK,"identified and mystery seeds survive reload")
+	check(restored.reserve(SessionCase.Session.inventory_owner(player)).stock==stock and Inventory.Ancient.quantity(restored.item_stashes[SessionCase.Session.inventory_owner(player)].boss_mystery_seed)==Developer.SEED_STOCK,"identified and mystery seeds survive reload")
 
 	progress.add_parts(trophy, -1)
 	progress.add_parts(rare, -3)
@@ -202,7 +202,7 @@ func test_material_stock(game: Node, tools: Node, base: String) -> void:
 	var unknown: Array = game.seed_reserve(player).unknown
 	unknown.pop_back()
 	var extras := Inventory.extra_stash(game, player)
-	extras.boss_mystery_seed -= 1
+	Inventory.Ancient.take(extras.boss_mystery_seed,1)
 	var stable_path: String = progress.path
 	progress.path=base.path_join("missing").path_join("garden.cfg")
 	var shared_before := Inventory.counts(game, player, "shared")

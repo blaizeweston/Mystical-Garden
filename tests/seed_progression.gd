@@ -15,6 +15,25 @@ func check(ok: bool,message: String) -> void:
 		printerr("FAIL seeds: ",message)
 func _initialize():
 	call_deferred("run")
+func ingredients(a: int,b: int) -> Array:
+	var items=preload("res://item_catalog.gd")
+	return [{"source":"stash","item":items.seed_id(a)},{"source":"stash","item":items.seed_id(b)}]
+func verify_closure(game: Node) -> void:
+	var available: Array=[]
+	var recipes: Array=game.Altar.Recipes.all().filter(func(r):return r.mode=="seeds")
+	check(recipes.size()==16,"sixteen active seed recipes")
+	for step in [["thorn_bloom",0],["lantern_moss",5],["ember_fern",15],["moon_lotus",17],["mirror_mint",19],["star_orchid",21],["sun_spire",23],["crownroot",24]]:
+		available.append("seed_"+str(step[0]))
+		var previous := -1
+		while previous!=available.size():
+			previous=available.size()
+			for recipe in recipes:
+				if available.has(recipe.inputs[0]) and available.has(recipe.inputs[1]) and not available.has(recipe.output): available.append(recipe.output)
+		if step[1]>0: check(available.size()==step[1],"reachable after "+str(step[0])+": "+str(available.size()))
+	for plant in Seeds.DEFINITIONS:
+		if plant.parents.is_empty(): continue
+		var parents: Array=plant.parents
+		check(game.Altar.Recipes.find("parts",game.Items.part_id(Seeds.DEFINITIONS[parents[0]].part),game.Items.part_id(Seeds.DEFINITIONS[parents[1]].part)).get("output","")==game.Items.part_id(plant.part),"material synthesis "+plant.id)
 func run():
 	var game=load("res://world.tscn").instantiate()
 	var token=Crypto.new().generate_random_bytes(8).hex_encode()
@@ -23,8 +42,10 @@ func run():
 	root.add_child(game)
 	game.set_process(false)
 	game.set_physics_process(false)
+	verify_closure(game)
 	var g=game.progress
 	var player: Dictionary=game.players[1]
+	player.pos=game.stage.altar_position()
 	for basic in [0,1,3]: g.discover(basic)
 	check(Seeds.DEFINITIONS.size()==24 and Parts.DEFINITIONS.size()>=27,"complete stable registry")
 	for i in Seeds.DEFINITIONS.size():
@@ -38,32 +59,53 @@ func run():
 			g.stock[a]=1
 			g.stock[b]+=1
 			var knowledge: int=g.knowledge
-			var outcome: String=g.breed(b,a,g.stock)
+			if Seeds.wild_only(i):
+				g.personal_parts[d.part]=game.reclamation_cost(i)
+				var before_stock: Array=g.stock.duplicate()
+				game._reclaim_seed(1,player,i,[])
+				check(g.stock==before_stock and g.personal_parts[d.part]==game.reclamation_cost(i),"material alone cannot reclaim an undiscovered founder")
+				var removed: Array=ingredients(a,b)
+				var old_book: String=game.Altar.recipe_key(removed)
+				g.altar_recipes[old_book]={"success":true,"item":game.Items.seed_id(i)}
+				check(not game.Altar.preview(game,player,removed).known,"retired historical success cannot advertise a seed")
+				game.Altar.combine(game,player,removed)
+				check(g.stock[i]==0 and g.knowledge==knowledge and not g.altar_recipes[old_book].success,"disabled recipe only salvages")
+				continue
+			var outcome: String=game.Altar.combine(game,player,ingredients(b,a))
 			check(not outcome.is_empty() and g.stock[i]==1 and g.stock[a]==0 and g.stock[b]==0,"reverse recipe consumes exactly parents "+d.name)
 			check(g.discoveries[i] and g.knowledge==knowledge+4,"permanent first discovery "+d.name)
 			g.stock[a]=1
 			g.stock[b]+=1
 			knowledge=g.knowledge
-			g.breed(a,b,g.stock)
+			game.Altar.combine(game,player,ingredients(a,b))
 			check(g.stock[i]==2 and g.knowledge==knowledge,"repeat recipe does not farm discovery knowledge")
 	g.stock.fill(0)
 	g.stock[0]=2
-	var before: int=g.parts[0]
-	var outcome: String=g.breed(0,0,g.stock)
-	check(outcome.contains("Clue:") and g.parts[0]==before+1 and g.stock[0]==0,"failed sacrifice returns material and clue")
+	var before: int=g.personal_parts[Seeds.DEFINITIONS[0].part]
+	var outcome: String=game.Altar.combine(game,player,ingredients(0,0))
+	check(outcome.contains("Clue:") and g.personal_parts[Seeds.DEFINITIONS[0].part]==before+1 and g.stock[0]==0,"failed sacrifice returns material and clue")
 	var empty_before: Array=g.stock.duplicate()
-	check(g.breed(-1,999,g.stock).is_empty() and g.stock==empty_before,"invalid request is harmless")
+	game.garden_action(1,"breed_0_1")
+	check(g.stock==empty_before and not g.has_method("breed"),"retired command is harmless")
 	var personal: Dictionary=g.reserve("")
 	personal.stock.fill(10)
 	var seen: Dictionary={}
 	for depth_value in [1,3,8,18,35,60]:
 		for n in 5000:
 			var kind: int=g.roll_seed(personal,[],[],n%3,n/5000.0,depth_value)
-			check(int(Seeds.DEFINITIONS[kind].wild_min)<=depth_value,"loot obeys encounter gates")
+			check(not Seeds.wild_only(kind) and int(Seeds.DEFINITIONS[kind].wild_min)<=depth_value,"loot obeys encounter gates")
 			if depth_value==60: seen[kind]=true
-	check(seen.size()==24,"every lineage can be found in the Wilds")
+	check(seen.size()==19,"all 19 open species can appear in caches")
 	for i in Seeds.NAMES.size():
 		var d: Dictionary=Seeds.DEFINITIONS[i]
+		# Start each cultivation case with a genuinely identified seed.
+		if Seeds.wild_only(i):
+			player.pos=game.stage.altar_position()
+			g.unknown.append(i)
+			game.Altar.identify(game,player)
+			var count: int=g.stock[i]
+			game._reclaim_seed(1,player,i,[])
+			check(g.stock[i]==count+1,"identified founder can be reclaimed")
 		player.pos=game.Stage.PLOTS[0]
 		ExpeditionCase.set_membership(game, player, false)
 		player.seed_choice=i
@@ -75,6 +117,13 @@ func run():
 		game.cultivation.harvest(1,0)
 		check(g.part_count(d.part)==before+1 and g.plots[0].species==-1,"all species harvest into correct crafting part "+d.name)
 		check(player.character.plants[i]>0,"per-character familiarity "+d.name)
+		if Seeds.wild_only(i):
+			g.stock[i]=1
+			g.flowering_unlocked=true
+			game.cultivation.plant_seed(1,0)
+			g.advance_growth(float(d.grow_seconds))
+			game.cultivation.harvest_seeds(1,0)
+			check(g.stock[i]>1 and g.plots[0].species==-1,"exclusive propagates in ordinary bed "+d.name)
 		var crop: Node3D=game.stage.build_crop(i,3,false)
 		check(crop.get_child_count()>0,"visible mature crop "+d.name)
 		crop.queue_free()
@@ -92,7 +141,7 @@ func run():
 	player.pos=game.stage.altar_position()
 	g.stock[0]=1
 	g.stock[3]=1
-	game.send_garden_action("breed_0_3")
+	game.send_altar_action("combine",ingredients(0,3),1)
 	check(g.stock[4]>=1,"host validated UI breed action")
 	game.ui.toggle_panel("progression")
 	var panel=UIFixture.control(game,"progression_view")

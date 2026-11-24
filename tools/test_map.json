@@ -180,6 +180,8 @@
       "label": "Seed species, cultivation and crossbreeding",
       "files": [
         "seed_catalog.gd",
+        "ancient_seed.gd",
+        "ancient_seed.gd.uid",
         "altar_recipes.gd",
         "altar_service.gd",
         "planting_panel.gd",
@@ -939,11 +941,6 @@
     ],
     "action_feedback": [
       "persistence_operations"
-    ],
-    "run_seed_experiment": [
-      "seeds",
-      "items",
-      "knowledge"
     ],
     "_donate_part": [
       "items",
@@ -5092,35 +5089,7 @@
     },
 
     "_garden_action": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"], "additive": true},
-
-      "experimental_terrain_3": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      },
       "experimental_terrain_5": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-      "experimental_terrain_7": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-      "experimental_terrain_9": {
         "systems": [
           "hex_terrain",
           "terrain",

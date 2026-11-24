@@ -145,7 +145,7 @@ static func owns_warnings(kind: int) -> bool:
 static func exposed(game: Node, now: int) -> bool:
  return owns_warnings(game.tactics.boss_kind) and now<int(game.tactics.memory.get("lair_open",{}).get("until",0))
 
-static func seed_species(random: RandomNumberGenerator) -> int:
+static func historical_seed_species(random: RandomNumberGenerator) -> int:
  # Roll tier first: high tiers do not get diluted when low-tier content grows.
  var roll=random.randf();var tier=3 if roll<.25 else 4 if roll<.8 else 5
  var seeds: Array=preload("res://seed_catalog.gd").DEFINITIONS

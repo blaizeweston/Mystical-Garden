@@ -31,20 +31,25 @@ static func salvage(draft: Array) -> String:
  return first.item
 static func recipe_key(draft: Array) -> String:
  return Recipes.key(mode_for(draft),draft[0].item,draft[1].item)
-static func known(game,player: Dictionary,draft: Array,recipe: Dictionary) -> bool:
- if game.progress.altar_recipes.has(recipe_key(draft)): return true
- if recipe.is_empty(): return false
- var output:=Items.get_item(recipe.output)
- if output.has("legacy_seed"): return bool(game.progress.discoveries[int(output.legacy_seed)])
- return int(Model.counts(game,player,"stash").get(recipe.output,0))+int(Model.counts(game,player,"shared").get(recipe.output,0))>0
+static func recorded_seed_species(progress) -> Array:
+ var species: Array = []
+ for recipe in Recipes.all():
+  if recipe.mode=="seeds" and progress.altar_recipes.get(recipe.id,{}).get("item","")==recipe.output and progress.altar_recipes[recipe.id].get("success",false):
+   species.append(Items.get_item(recipe.output).legacy_seed)
+ return species
+
 static func preview(game,player: Dictionary,draft: Array) -> Dictionary:
  var reason:=validate(game,player,draft)
  var affordable:=reason.is_empty()
  if not affordable and reason!="Not enough available items for both slots.": return {"known":false,"item":"","can_combine":false,"text":reason}
  var recipe:=Recipes.find(mode_for(draft),draft[0].item,draft[1].item)
- var recorded:=known(game,player,draft,recipe)
+ var entry: Dictionary=game.progress.altar_recipes.get(recipe_key(draft),{})
+ var recorded: bool=(not entry.is_empty() and not entry.get("success",false)) if recipe.is_empty() else (entry.get("success",false) and entry.get("item","")==recipe.output)
+ if not recorded and not recipe.is_empty() and recipe.mode=="parts":
+  # Material previews historically recognize an output already in storage.
+  recorded=int(Model.counts(game,player,"stash").get(recipe.output,0))+int(Model.counts(game,player,"shared").get(recipe.output,0))>0
  if not recorded: return {"known":false,"item":"","can_combine":affordable,"text":"Unknown result. Sacrifice to discover it." if affordable else reason}
- var output: String=recipe.output if not recipe.is_empty() else str(game.progress.altar_recipes.get(recipe_key(draft),{}).get("item",salvage(draft)))
+ var output: String=recipe.output if not recipe.is_empty() else salvage(draft)
  var text: String="Known result: "+str(Items.get_item(output).name)+" · "+str(Items.get_item(output).rarity)+(". Returns salvaged materials." if recipe.is_empty() else ". Adds one to your stash.")
  if not affordable: text+="\n"+reason
  return {"known":true,"item":output,"can_combine":affordable,"text":text}
@@ -70,7 +75,7 @@ static func combine(game,player: Dictionary,draft: Array,effects = null) -> Stri
  var key:=recipe_key(draft)
  var recipe:=Recipes.find(mode,draft[0].item,draft[1].item)
  var fresh: bool=not game.progress.altar_recipes.has(key)
- var output: String=recipe.output if not recipe.is_empty() else str(game.progress.altar_recipes.get(recipe_key(draft),{}).get("item",salvage(draft)))
+ var output: String=recipe.output if not recipe.is_empty() else salvage(draft)
  Model.put(game,player,"stash",{"item":output,"quantity":1})
  var message: String
  if not recipe.is_empty():
@@ -98,11 +103,12 @@ static func combine(game,player: Dictionary,draft: Array,effects = null) -> Stri
  elif not preload("res://save_batch.gd").guarded_active(): report.call()
  return message
 static func ancient_count(game,player: Dictionary) -> int:
- return int(Model.extra_stash(game,player).get("boss_mystery_seed",0))
+ return Model.Ancient.quantity(Model.extra_stash(game,player).get(Model.Ancient.ITEM,{}))
 static func identify_ancient(game,player: Dictionary) -> int:
  var stack:=Model.take(game,player,"stash","boss_mystery_seed",1)
  if stack.is_empty(): return -1
- var species:=preload("res://boss_encounters.gd").seed_species(game.rng)
+ var lineage: String=stack.lineages.keys()[0]
+ var species:=preload("res://boss_encounters.gd").historical_seed_species(game.rng) if lineage==Model.Ancient.LEGACY else Items.Seeds.index_of(lineage)
  game.seed_reserve(player).stock[species]+=1;game.progress.discover(species)
  preload("res://garden_return_service.gd").identified(game.progress,species,true)
  return species

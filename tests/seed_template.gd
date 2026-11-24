@@ -49,6 +49,7 @@ func run() -> void:
    check(UIFixture.control(game,"altar_view").draft[0].item==game.Items.seed_id(a) and UIFixture.control(game,"altar_view").draft[1].item==game.Items.seed_id(b),"recorded recipe selector populates both real sacrifice slots")
    break
  game.ui.close_panels()
+ UIFixture.control(game,"progression_view").present(game.progression_ui_data({"tab":0}))
  var nodes: Array=UIFixture.control(game,"progression_view").seed_nodes(g.discoveries,g.stock)
  check(nodes.any(func(n):return n.id==str(i) and n.parents.size()==2 and n.icon!=null),"tree contains portrait and lineage connections")
  ExpeditionCase.set_membership(game, p, true);p.weapon=part;p.secondary=0;p.catalyst=0;p.pos=Vector3(0,0,-1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.clear_scouts();game.tactics.position=Vector3.ZERO;game.encounter.set_hp(-1, 50)

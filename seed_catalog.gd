@@ -237,6 +237,7 @@ const DEFINITIONS := [
  },
  {
   "id": "moon_lotus",
+  "seed_acquisition": "wild_only",
   "name": "Moon Lotus",
   "tier": 3,
   "rarity": "Rare",
@@ -264,6 +265,7 @@ const DEFINITIONS := [
  },
  {
   "id": "star_orchid",
+  "seed_acquisition": "wild_only",
   "name": "Star Orchid",
   "tier": 4,
   "rarity": "Epic",
@@ -320,6 +322,7 @@ const DEFINITIONS := [
  },
  {
   "id": "sun_spire",
+  "seed_acquisition": "wild_only",
   "name": "Sun Spire",
   "tier": 4,
   "rarity": "Epic",
@@ -495,6 +498,7 @@ const DEFINITIONS := [
  },
  {
   "id": "mirror_mint",
+  "seed_acquisition": "wild_only",
   "name": "Mirror Mint",
   "tier": 3,
   "rarity": "Rare",
@@ -641,6 +645,7 @@ const DEFINITIONS := [
  },
  {
   "id": "crownroot",
+  "seed_acquisition": "wild_only",
   "name": "Crownroot",
   "tier": 5,
   "rarity": "Mythic",
@@ -670,20 +675,11 @@ const DEFINITIONS := [
  }
 ]
 static var NAMES: Array = make_names()
-static var PAIRS: Array = make_pairs()
 
 static func make_names() -> Array:
  var result: Array = []
  for entry in DEFINITIONS:
   result.append(entry.name)
- return result
-
-static func make_pairs() -> Array:
- # Keep the original altar choice order for existing characters.
- var result: Array = [[0,1], [0,0], [1,1]]
- for entry in DEFINITIONS:
-  if entry.parents.size() == 2 and not result.has(entry.parents):
-   result.append(entry.parents.duplicate())
  return result
 
 static func counts(value = 0) -> Array:
@@ -698,7 +694,12 @@ static func species_for_part(part: int) -> int:
    return i
  return -1
 
-static func recipe(first: int, second: int) -> int:
+## Absent acquisition restrictions allow both mystery pools and compatible seed recipes.
+static func wild_only(species: int) -> bool:
+ return DEFINITIONS[species].get("seed_acquisition", "") == "wild_only"
+
+## Pre-altar save conversion needs the historical parentage, including retired pairs.
+static func lineage_child(first: int, second: int) -> int:
  for i in DEFINITIONS.size():
   var parents: Array = DEFINITIONS[i].parents
   if parents.size() == 2 and ((parents[0] == first and parents[1] == second) or (parents[0] == second and parents[1] == first)):

@@ -81,6 +81,10 @@ func run():
  var unknown_before: int=reserve.unknown.size()
  Service.identify(game,p)
  check(reserve.unknown.size()==unknown_before-1 and reserve.stock[4]==1,"explicit identification is still available from altar")
+ check(not Service.preview(game,p,novel).known and not Service.recorded_seed_species(g).has(4),"identifying a species does not reveal its untested seed recipe")
+ var known_points: int=g.knowledge
+ Service.combine(game,p,novel)
+ check(g.knowledge==known_points+2 and Service.recorded_seed_species(g).has(4),"testing an identified species recipe still earns exactly two Knowledge")
  ExpeditionCase.set_membership(game, p, true)
  captured=Service.capture(game,p);Service.combine(game,p,parts)
  check(Service.capture(game,p)==captured,"Wilds request cannot use Garden altar")

@@ -1,4 +1,5 @@
 extends RefCounted
+const Ancient=preload("res://ancient_seed.gd")
 const Seeds=preload("res://seed_catalog.gd")
 const Parts=preload("res://weapon_parts.gd")
 const MONSTER_PART_DESCRIPTION := "Spend at Grafting Altars on expedition reinforcements or eligible adaptations. One successful improvement per player at each altar. Selected monster parts are consumed on a successful purchase."
@@ -8,7 +9,7 @@ static var registry: Dictionary={}
 static func all() -> Dictionary:
  if not registry.is_empty(): return registry
  registry["unidentified_seed"]={"id":"unidentified_seed","name":"Mysterious Seed","category":"seed","rarity":"Unknown","stack_limit":99,"tags":["unidentified"],"monster_tags":[],"icon":"","description":"Identify this seed at the Garden altar. Its species remains concealed.","pouch_allowed":true}
- registry["boss_mystery_seed"]={"id":"boss_mystery_seed","name":"Ancient Mystery Seed","category":"seed","rarity":"Epic","stack_limit":99,"tags":["unidentified","boss"],"monster_tags":[],"icon":"","description":"A rare threat sheltered this seed. Identify at the Garden altar: 25% Rare lineage, 55% Epic lineage, 20% Mythic lineage.","pouch_allowed":true}
+ registry["boss_mystery_seed"]={"id":"boss_mystery_seed","name":"Ancient Mystery Seed","category":"seed","rarity":"Epic","stack_limit":99,"tags":["unidentified","boss"],"monster_tags":[],"icon":"","description":"A rare threat sheltered this seed. Its concealed species comes from the boss’s depth. Identify it at the Garden altar.","pouch_allowed":true}
  for i in Seeds.DEFINITIONS.size():
   var plant_definition: Dictionary=Seeds.DEFINITIONS[i]
   var item: Dictionary={"id":"seed_"+str(plant_definition.id),"name":str(plant_definition.name)+" Seed","category":"seed","rarity":plant_definition.rarity,"stack_limit":99,"tags":plant_definition.tags.duplicate(),"monster_tags":[],"legacy_seed":i,"icon":"res://assets/ui/seeds/"+str(plant_definition.id)+".png","description":Seeds.modifier_text(i),"pouch_allowed":true}
@@ -70,10 +71,13 @@ static func loot_candidates(monster_tags: Array) -> Array:
   for tag in required: matches=matches and monster_tags.has(tag)
   if matches: result.append(entry.id)
  return result
-static func clean_counts(value) -> Dictionary:
+static func clean_counts(value, historical: bool=false) -> Dictionary:
  var result: Dictionary={}
  if value is Dictionary:
   for id in value:
-   if id is String and value[id] is int and value[id]>0 and not get_item(id).is_empty(): result[id]=mini(value[id],1000000)
+   if id==Ancient.ITEM:
+    var stock:=Ancient.clean(value[id],historical)
+    if not stock.is_empty(): result[id]=stock
+   elif id is String and value[id] is int and value[id]>0 and not get_item(id).is_empty(): result[id]=mini(value[id],1000000)
  return result
 

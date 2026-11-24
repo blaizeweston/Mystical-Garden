@@ -66,6 +66,12 @@ func overflow(menu: Node) -> void:
 	if await until(func():return tree.current_scene.get_instance_id()!=old_menu and tree.current_scene.get("return_message") is String,"fifth peer refused at title"):
 		mark("refused")
 
+func submit_altar(game: Node) -> void:
+	game.send_altar_action("identify_all",[],1)
+	var pair: Array=[{"source":"stash","item":"seed_ember_fern"},{"source":"stash","item":"seed_ember_fern"}]
+	game.send_altar_action("combine",pair,2)
+	game.send_altar_action("combine",pair,2)
+
 func host(menu: Node) -> void:
 	menu.host_port=port
 	menu.host_choice.button_pressed=true
@@ -78,6 +84,17 @@ func host(menu: Node) -> void:
 	if not await until(func():return game.players.size()==expected and game.players.values().all(func(actor):return Session.ready(actor)),"party registration"): return
 	var peers: Array=game.players.keys()
 	peers.erase(1)
+	# Each participant identifies concealed boss stock and combines at the shared altar.
+	for peer in game.players:
+		var actor: Dictionary=game.players[peer]
+		actor.pos=game.stage.altar_position()
+		game.InventoryModel.put(game,actor,"stash",{"item":"boss_mystery_seed","quantity":4,"lineages":{"ember_fern":4}})
+	mark("altar")
+	submit_altar(game)
+	if not await until(func():return game.players.values().all(func(actor):return game.seed_reserve(actor).stock[16]==1),"all altar combinations committed once"): return
+	for actor in game.players.values():
+		check(game.seed_reserve(actor).stock[3]==2 and game.Altar.ancient_count(game,actor)==0,"private fixed contents and one consumption per peer")
+	if not await until(func():return peers.all(func(peer):return read("altar-"+str(peer))=="yes"),"private results and shared recipe replicated"): return
 	for peer in game.players: game.players[peer].pos=game.stage.gate_position()
 	game.garden_action(1,"learn_0_66")
 	mark("gate")
@@ -141,6 +158,10 @@ func guest(menu: Node) -> void:
 	var game:=tree.current_scene
 	var peer: int=game.local_player_id()
 	var character: String=game.guest_character.identity
+	if not await until(func():return read("altar")=="yes" and game.players[peer].pos.distance_to(game.stage.altar_position())<1.65,"guest reached altar"): return
+	submit_altar(game)
+	if not await until(func():return game.guest_replication.inventory().size()>6 and game.guest_replication.inventory()[6][16]==1 and game.players[peer].get("recorded_seed_recipes",[]).has(16),"identified stock and tested recipe arrive"): return
+	mark("altar-"+str(peer))
 	if not await until(func():return read("gate")=="yes","host positioned guest"): return
 	game.send_garden_action("learn_0_66")
 	if not await until(func():return not read("depart").is_empty(),"departure vote opened"): return

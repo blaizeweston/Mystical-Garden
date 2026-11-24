@@ -3,6 +3,7 @@ extends RefCounted
 const Session = preload("res://network_session.gd")
 
 const Participation = preload("res://expedition_participation.gd")
+const Ancient=preload("res://ancient_seed.gd")
 const Items=preload("res://item_catalog.gd")
 const POUCH_SLOTS:=1
 const SHARED_OWNER:="__shared_garden_inventory__"
@@ -52,6 +53,7 @@ static func counts(game,player: Dictionary,bucket: String) -> Dictionary:
   result.merge(extras(game,player,bucket),true)
   for part in range(1,game.Parts.DEFINITIONS.size()):
    if game.progress.part_count(part)>0: result[Items.part_id(part)]=game.progress.part_count(part)
+ if result.has(Ancient.ITEM): result[Ancient.ITEM]=Ancient.quantity(result[Ancient.ITEM])
  return result
 static func stacks(values: Dictionary,bucket: String) -> Array:
  var result: Array=[]
@@ -81,6 +83,7 @@ static func take(game,player: Dictionary,bucket: String,id: String,amount: int,p
  if bucket=="pouch":
   var held: Dictionary=player.safe_items[0]
   if id=="unidentified_seed": stack.seeds=held.seeds.slice(0,amount);held.seeds=held.seeds.slice(amount)
+  if id==Ancient.ITEM: stack.lineages=Ancient.take(held.lineages,amount)
   held.quantity-=amount
   if held.quantity==0: player.safe_items.clear()
   player.pouch=not player.safe_items.is_empty()
@@ -96,6 +99,10 @@ static func take(game,player: Dictionary,bucket: String,id: String,amount: int,p
  elif definition.has("legacy_seed") and bucket in ["stash","shared"]: reserve(game,player,bucket).stock[int(definition.legacy_seed)]-=amount
  else:
   var values: Dictionary=player.get("carried_items",{}) if bucket=="carry" else extras(game,player,bucket)
+  if id==Ancient.ITEM:
+   stack.lineages=Ancient.take(values[id],amount)
+   if values[id].is_empty(): values.erase(id)
+   return stack
   values[id]=int(values.get(id,0))-amount
   if int(values[id])<=0: values.erase(id)
  return stack
@@ -125,10 +132,13 @@ static func admit_wild_seed(species: int, game: Node, player: Dictionary) -> boo
 
 static func put(game,player: Dictionary,bucket: String,stack: Dictionary) -> void:
  var id:=str(stack.item);var amount:=int(stack.quantity);var definition:=Items.get_item(id)
+ if id==Ancient.ITEM:
+  if amount<=0 or Ancient.quantity(Ancient.clean(stack.get("lineages")))!=amount: return
  if bucket=="pouch":
   if player.safe_items.is_empty(): player.safe_items.append(stack.duplicate(true))
   else:
    player.safe_items[0].quantity+=amount
+   if id==Ancient.ITEM: Ancient.add(player.safe_items[0].lineages,stack.lineages)
    if id=="unidentified_seed": player.safe_items[0].seeds.append_array(stack.seeds)
   player.pouch=true
  elif id=="unidentified_seed":
@@ -143,7 +153,29 @@ static func put(game,player: Dictionary,bucket: String,stack: Dictionary) -> voi
  else:
   if not player.has("carried_items"): player.carried_items={}
   var values: Dictionary=player.carried_items if bucket=="carry" else extras(game,player,bucket)
-  values[id]=int(values.get(id,0))+amount
+  if id==Ancient.ITEM:
+   if not values.has(id): values[id]={}
+   Ancient.add(values[id],stack.lineages)
+  else: values[id]=int(values.get(id,0))+amount
+## Undo the exact concealed item appended to a Garden bucket on a failed save.
+static func undo_put(game,player: Dictionary,bucket: String,stack: Dictionary) -> void:
+ if stack.item==Ancient.ITEM:
+  var values:=extras(game,player,bucket)
+  Ancient.remove(values[Ancient.ITEM],stack.lineages)
+  if values[Ancient.ITEM].is_empty(): values.erase(Ancient.ITEM)
+ elif stack.item=="unidentified_seed":
+  var seeds: Array=reserve(game,player,bucket).unknown
+  seeds.resize(seeds.size()-int(stack.quantity))
+ else:
+  take(game,player,bucket,stack.item,stack.quantity,false)
+
+static func undo_take(game,player: Dictionary,bucket: String,stack: Dictionary) -> void:
+ if stack.item=="unidentified_seed":
+  var stored: Array=reserve(game,player,bucket).unknown
+  stored.assign(stack.seeds+stored)
+ else:
+  put(game,player,bucket,stack)
+
 static func transfer(game,player: Dictionary,source: String,target: String,id: String,amount: int) -> String:
  normalize_pouch(player)
  if source==target: return ""
@@ -162,7 +194,7 @@ static func transfer(game,player: Dictionary,source: String,target: String,id: S
  if stack.is_empty(): return "That stack changed or is reserved for a weapon. Clear the relevant gate slots and retry."
  put(game,player,target,stack)
  if not Participation.is_wild(player) and not preload("res://save_batch.gd").guarded_active() and game.progress.save_garden()!=OK:
-  var restored:=take(game,player,target,id,amount,false);put(game,player,source,restored)
+  undo_put(game,player,target,stack);undo_take(game,player,source,stack)
   return "Could not save the transfer. Items were returned."
  return "Moved %d %s."%[amount,definition.name]
 static func bank_safe(game,player: Dictionary) -> int:
@@ -175,10 +207,14 @@ static func bank_safe(game,player: Dictionary) -> int:
  player.safe_items.clear();player.pouch=false
  return total
 static func bank_extra(game,player: Dictionary) -> void:
- game.garden_commands.extra_return(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),int(player.get("carried_items",{}).get("boss_mystery_seed",0))>0)
- for id in player.get("carried_items",{}): put(game,player,"stash",{"item":id,"quantity":int(player.carried_items[id])})
+ game.garden_commands.extra_return(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),player.get("carried_items",{}).has(Ancient.ITEM))
+ for id in player.get("carried_items",{}):
+  if id==Ancient.ITEM:
+   var contents: Dictionary=player.carried_items[id]
+   put(game,player,"stash",{"item":id,"quantity":Ancient.quantity(contents),"lineages":contents})
+  else: put(game,player,"stash",{"item":id,"quantity":int(player.carried_items[id])})
  player.carried_items={}
-static func clean_ground(value) -> Array:
+static func clean_ground(value,historical: bool=false) -> Array:
  var result: Array=[]
  if not value is Array: return result
  for entry in value:
@@ -194,5 +230,11 @@ static func clean_ground(value) -> Array:
   if stack.item=="unidentified_seed":
    if not stack.get("seeds") is Array or stack.seeds.size()!=int(stack.quantity): continue
    for species_id in stack.seeds: valid=valid and species_id is int and species_id>=0 and species_id<Items.Seeds.DEFINITIONS.size()
-  if valid: result.append(entry.duplicate(true))
+  if not valid: continue
+  var saved: Dictionary=entry.duplicate(true)
+  if stack.item==Ancient.ITEM:
+   var contents:=Ancient.clean(stack.get("lineages",stack.quantity),historical and not stack.has("lineages"))
+   if Ancient.quantity(contents)!=int(stack.quantity): continue
+   saved.stack.lineages=contents
+  result.append(saved)
  return result

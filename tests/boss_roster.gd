@@ -16,6 +16,43 @@ func check(ok: bool,message: String) -> void:
  if not ok: failed=true;printerr("FAIL bosses: ",message)
 func _initialize() -> void:
  call_deferred("run")
+func verify_ancient(game: Node,p: Dictionary) -> void:
+ var ancient=game.Items.Ancient
+ var random:=RandomNumberGenerator.new()
+ random.seed=73419
+ for depth in [1,10,16,18,22,31,35,51,60,120]:
+  var counts: Dictionary={}
+  for sample in 2000:
+   var stack: Dictionary=ancient.award(depth,random)
+   var species: int=game.Seeds.index_of(stack.lineages.keys()[0])
+   var plant: Dictionary=game.Seeds.DEFINITIONS[species]
+   check(not game.Seeds.wild_only(species) and plant.wild_min<=depth,"depth and exclusivity of boss reward")
+   counts[plant.tier]=int(counts.get(plant.tier,0))+1
+  if depth<16: check(counts.keys()==[1 if depth<6 else 2],"early boss uses highest available tier")
+  elif depth<31: check(counts.keys()==[3],"Rare alone")
+  elif depth<51: check(counts.size()==2 and counts.get(4,0)>1200 and counts.get(3,0)>500,"Rare/Epic weights normalized")
+  else: check(counts.size()==3 and abs(int(counts.get(3,0))-500)<110 and abs(int(counts.get(4,0))-1100)<110 and abs(int(counts.get(5,0))-400)<110,"all tier weights retained")
+ var file:=ConfigFile.new()
+ check(game.progress.save_garden()==OK and file.load(game.progress.path)==OK,"historical save fixture")
+ file.erase_section_key("inventory","ancient_seed_format")
+ var owner: String=game.Session.inventory_owner(p)
+ file.set_value("inventory","stashes",{owner:{ancient.ITEM:3}})
+ file.set_value("inventory","ground",[{"id":"old-drop","position":[0,0,0],"stack":{"item":ancient.ITEM,"quantity":2}}])
+ var restored=game.Progress.new()
+ restored.path=game.progress.path+".historical"
+ check(file.save(restored.path)==OK and restored.load_garden()==OK,"historical stash and ground load")
+ check(restored.item_stashes[owner][ancient.ITEM]=={ancient.LEGACY:3} and restored.ground_items[0].stack.lineages=={ancient.LEGACY:2},"only historical quantities receive legacy entitlement")
+ ancient.add(restored.item_stashes[owner][ancient.ITEM],{"ghost_fern":2})
+ check(restored.save_garden()==OK and restored.load_garden()==OK and restored.item_stashes[owner][ancient.ITEM]=={ancient.LEGACY:3,"ghost_fern":2},"fixed and grandfathered stock survive mixed save/load")
+ var fixed: Dictionary=ancient.award(18,random)
+ restored.ground_items.append({"id":"new-drop","position":[0,0,1],"stack":fixed})
+ check(restored.save_garden()==OK and restored.load_garden()==OK and restored.ground_items.back().stack==fixed,"fixed ground seed survives reloading")
+ var expected:=RandomNumberGenerator.new()
+ expected.state=game.rng.state
+ var historical: int=game.Bosses.historical_seed_species(expected)
+ game.InventoryModel.put(game,p,"stash",{"item":ancient.ITEM,"quantity":1,"lineages":{ancient.LEGACY:1}})
+ check(game.Altar.identify_ancient(game,p)==historical and game.rng.state==expected.state,"legacy unit uses its exact historic identification roll")
+ check(game.Items.clean_counts({ancient.ITEM:1}).is_empty(),"modern quantity-only seed does not acquire historical entitlement")
 func run() -> void:
  var game=load("res://world.tscn").instantiate()
  game.progress.path="res://.godot/boss-roster-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character"
@@ -81,18 +118,19 @@ func run() -> void:
   check(game.wild_item_drops.count(game.wild_item_drops[0])>=1 if not game.wild_item_drops.is_empty() else false,"boss has drops")
   var seeds: Array=game.wild_item_drops.filter(func(d):return d.stack.item=="boss_mystery_seed")
   check(seeds.size()==1,"one opaque ancient seed per player per boss")
-  check(not seeds[0].stack.has("seeds"),"boss seed species remains undisclosed")
+  check(game.Items.Ancient.quantity(seeds[0].stack.lineages)==1 and not game.inventory_floor_snapshot(p).any(func(drop):return drop.has("lineages")),"fixed boss seed remains undisclosed")
  var active_boss_history: Array=game.used_bosses.duplicate()
  game.expedition_transitions.reset()
  check(game.participation.active() and game.used_bosses==active_boss_history and game.boss_floors.has("20"),"active expedition reset is refused without erasing boss history")
  ExpeditionCase.set_membership(game, p, false)
  game.expedition_transitions.reset();check(game.used_bosses.is_empty() and not game.boss_floors.has("20") and game.tactics.boss_kind==-1,"fresh run clears only run-local boss history")
+ verify_ancient(game,p)
  var tiers={};var random=RandomNumberGenerator.new();random.seed=1789
  for i in 5000:
-  var species=game.Bosses.seed_species(random);var tier=int(game.Seeds.DEFINITIONS[species].tier);tiers[tier]=int(tiers.get(tier,0))+1
+  var species=game.Bosses.historical_seed_species(random);var tier=int(game.Seeds.DEFINITIONS[species].tier);tiers[tier]=int(tiers.get(tier,0))+1
  check(not tiers.has(1) and not tiers.has(2) and tiers.get(4,0)>2300 and tiers.get(5,0)>800,"ancient seed tier weighting")
  ExpeditionCase.set_membership(game, p, true);p.safe_items=[];p.pouch=false;p.carried_items={}
- game.InventoryModel.put(game,p,"carry",{"item":"boss_mystery_seed","quantity":2})
+ game.InventoryModel.put(game,p,"carry",{"item":"boss_mystery_seed","quantity":2,"lineages":{"ember_fern":2}})
  game.InventoryModel.transfer(game,p,"carry","pouch","boss_mystery_seed",2)
  check(p.safe_items.size()==1 and p.safe_items[0].quantity==2,"ancient stack fits safe pouch")
  game.InventoryModel.bank_safe(game,p)
@@ -104,11 +142,13 @@ func run() -> void:
  check(game.Altar.ancient_count(game,p)==2 and game.rng.state==saved_rng,"failed identification restores seeds and frozen randomness")
  game.progress.path=saved_path
  var stored=game.InventoryModel.take(game,p,"stash","boss_mystery_seed",2)
- check(stored.quantity==2,"ancient generic stack can be moved intact")
- game.InventoryModel.put(game,p,"stash",{"item":"boss_mystery_seed","quantity":2})
- var before=game.seed_reserve(p).stock.reduce(func(a,b):return a+b,0)
+ check(stored.lineages=={"ember_fern":2},"concealed seeds survive pouch and bank")
+ game.InventoryModel.put(game,p,"stash",stored)
+ var ember: int=game.Seeds.index_of("ember_fern")
+ var before: int=game.seed_reserve(p).stock[ember]
+ var fixed_rng: int=game.rng.state
  var message=game.Altar.identify_all(game,p)
- check(game.Altar.ancient_count(game,p)==0 and game.seed_reserve(p).stock.reduce(func(a,b):return a+b,0)==before+2,"identify all includes ancient seeds: "+message)
+ check(game.Altar.ancient_count(game,p)==0 and game.seed_reserve(p).stock[ember]==before+2 and game.rng.state==fixed_rng,"identify all includes ancient seeds: "+message)
  game.queue_free();await process_frame
  if not failed: print("PASS: 24 enemies, rare nonrepeating boss scheduling, four lairs/move sets, bounded brood, public map descriptors, deduplicated private rewards and ancient identification")
  quit(1 if failed else 0)

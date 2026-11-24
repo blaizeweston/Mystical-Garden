@@ -57,7 +57,7 @@ func host_run() -> void:
   var own: Array=game.inventory_floor_snapshot(game.players[1]);var guest: Array=game.inventory_floor_snapshot(p)
   check(own.size()==2 and guest.size()==2 and own[0].id!=guest[0].id,"independent trophy and seed for both peers")
   for drop in guest:game.pickup_inventory_drop(id,p,drop.id)
-  check(p.carried_parts[game.Parts.monster_part(kind)]>0 and int(p.carried_items.get("boss_mystery_seed",0))>0,"authority credits guest pickup")
+  check(p.carried_parts[game.Parts.monster_part(kind)]>0 and game.Items.Ancient.quantity(p.carried_items.get("boss_mystery_seed",{}))>0,"authority credits guest pickup")
   mark("picked-"+str(kind))
   check(await until(func():return marked("next-"+str(kind))),"guest confirms pickup")
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects normally");game.session_world.leave("Boss fixture complete")

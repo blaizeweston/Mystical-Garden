@@ -30,7 +30,6 @@ const Parts = preload("res://weapon_parts.gd")
 const Campaign = preload("res://campaign.gd")
 
 static var PLANT_NAMES: Array = Seeds.NAMES
-static var ALTAR_PAIRS: Array = Seeds.PAIRS
 const VEILCAP := 2
 
 var path := "user://garden.cfg"
@@ -148,7 +147,7 @@ func _read_garden() -> Error:
 	if not attempted_pairs is Array:
 		attempted_pairs = []
 	for i in PLANT_NAMES.size():
-		discoveries[i] = (saved_discoveries is Array and i < saved_discoveries.size() and saved_discoveries[i] == true) or stock[i] > 0 or planted[i] or (not file.has_section("altar") and (crafted[i] or parts[i] > 0))
+		discoveries[i] = (saved_discoveries is Array and i < saved_discoveries.size() and saved_discoveries[i] == true) or stock[i] > 0 or planted[i] or (not file.has_section("altar") and not Seeds.wild_only(i) and (crafted[i] or parts[i] > 0))
 	discoveries[VEILCAP] = discoveries[VEILCAP] or veilcap_discovered
 	personal_parts = normalized_reserve({"parts": file.get_value("garden", "personal_parts", [])}).parts
 	seed_history = normalized_reserve({"history": file.get_value("garden", "seed_history", [])}).history
@@ -199,12 +198,13 @@ func _read_garden() -> Error:
 	if not origin is String or (not origin.is_empty() and not load("res://guest_profile_projection.gd").valid_origin(origin)):
 		return ERR_INVALID_DATA
 	projection_origin = origin
+	var historical_ancient := not file.has_section_key("inventory","ancient_seed_format")
 	item_stashes={}
 	var stashes=file.get_value("inventory","stashes",{})
 	if stashes is Dictionary:
 		for owner in stashes:
-			if owner is String: item_stashes[owner]=InventoryModel.Items.clean_counts(stashes[owner])
-	ground_items=InventoryModel.clean_ground(file.get_value("inventory","ground",[]))
+			if owner is String: item_stashes[owner]=InventoryModel.Items.clean_counts(stashes[owner],historical_ancient)
+	ground_items=InventoryModel.clean_ground(file.get_value("inventory","ground",[]),historical_ancient)
 	garden_interactions=preload("res://garden_interaction_state.gd").normalize(file.get_value("garden_interactions","state",{}))
 	altar_recipes={}
 	var recorded=file.get_value("altar","recipes",{})
@@ -216,7 +216,8 @@ func _read_garden() -> Error:
 	if needs_altar_backup:
 		for pair in attempted_pairs:
 			if not pair is Array or pair.size()!=2 or not pair[0] is int or not pair[1] is int or pair[0]<0 or pair[1]<0 or pair[0]>=PLANT_NAMES.size() or pair[1]>=PLANT_NAMES.size(): continue
-			var child:=Seeds.recipe(int(pair[0]),int(pair[1]))
+			var child:=Seeds.lineage_child(int(pair[0]),int(pair[1]))
+			if child>=0 and Seeds.wild_only(child): continue
 			var inputs: Array=[InventoryModel.Items.seed_id(int(pair[0])),InventoryModel.Items.seed_id(int(pair[1]))];inputs.sort()
 			var result_id: String
 			if child>=0:
@@ -325,6 +326,7 @@ func _serialize_save(stage := Callable()) -> Error:
 	file.set_value("content","quarantine",content_quarantine)
 	sync_plot_flags()
 	file.set_value("altar","recipes",altar_recipes)
+	file.set_value("inventory","ancient_seed_format",1)
 	file.set_value("inventory","stashes",item_stashes)
 	file.set_value("inventory","ground",ground_items)
 	var growth_state:=preload("res://garden_growth_state.gd").prepare(self)
@@ -516,39 +518,12 @@ func discover(kind: int) -> bool:
 		veilcap_discovered = true
 	return true
 
-func breed(first: int, second: int, stock_for_player: Array) -> String:
-	if first < 0 or second < 0 or first >= PLANT_NAMES.size() or second >= PLANT_NAMES.size() or stock_for_player.size() < PLANT_NAMES.size():
-		return ""
-	if stock_for_player[first] < (2 if first == second else 1) or stock_for_player[second] < 1:
-		return ""
-	stock_for_player[first] -= 1
-	stock_for_player[second] -= 1
-	var pair := [mini(first, second), maxi(first, second)]
-	if not attempted_pairs.has(pair):
-		attempted_pairs.append(pair)
-	var child := Seeds.recipe(first, second)
-	if child < 0:
-		parts[first] += 1
-		return "Incompatible seeds. Recovered one %s part. Clue: %s" % [PLANT_NAMES[first], next_seed_hint(first)]
-	stock_for_player[child] += 1
-	var fresh := discover(child)
-	return ("%s %s. Recipe permanently recorded. One seed gained." % ["Discovered" if fresh else "Cultivated", PLANT_NAMES[child]])
-
 func next_seed_hint(parent: int) -> String:
-	for entry in Seeds.DEFINITIONS:
-		if entry.parents.has(parent) and not discoveries[Seeds.NAMES.find(entry.name)]:
+	for i in Seeds.DEFINITIONS.size():
+		var entry: Dictionary = Seeds.DEFINITIONS[i]
+		if not Seeds.wild_only(i) and entry.parents.has(parent) and not discoveries[i]:
 			return entry.hint
 	return "Different species may share a hidden affinity. Try another lineage."
-
-func experiment(choice: int, stock_for_player: Array) -> String:
-	if choice < 0 or choice >= ALTAR_PAIRS.size():
-		return ""
-	# Legacy callers may provide a short array; expand without losing stock.
-	while stock_for_player.size() < PLANT_NAMES.size():
-		stock_for_player.append(0)
-	var pair: Array = ALTAR_PAIRS[choice]
-	return breed(int(pair[0]), int(pair[1]), stock_for_player)
-
 
 func roll_seed(personal: Dictionary, carried: Array, bundle: Array, site: int, roll: float, encounter: int = 1) -> int:
 	var moss_chance: float = [0.40, 0.68, 0.52][site]
@@ -559,7 +534,7 @@ func roll_seed(personal: Dictionary, carried: Array, bundle: Array, site: int, r
 		var total := 0.0
 		for i in Seeds.DEFINITIONS.size():
 			var entry: Dictionary = Seeds.DEFINITIONS[i]
-			if encounter < int(entry.wild_min):
+			if encounter < int(entry.wild_min) or Seeds.wild_only(i):
 				continue
 			var weight: float = [70.0, 22.0, 6.0, 1.5, 0.25][int(entry.tier) - 1]
 			weight *= 1.5 if int(entry.biome) == site else 1.0

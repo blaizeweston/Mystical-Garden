@@ -10,9 +10,9 @@ Seed offerings use identified seeds from personal storage. Plant-part offerings 
 
 ## Results and discoveries
 
-An unknown combination shows **?** without revealing a result item. Once its result is known, the preview shows the item and rarity. Known seed discoveries from the existing lineage system are recognized. Learned successful and failed altar results are saved for the host's Garden. A known result remains visible even after the last ingredients are consumed; the sacrifice button stays disabled until enough materials are available again.
+An unknown combination shows **?** without revealing a result item. Once its result is known, the preview shows the item and rarity. Identifying the species alone leaves its recipe concealed. Living Roots draws connections for successfully tested seed recipes. Learned successful and failed altar results are saved for the host's Garden. A known result remains visible even after the last ingredients are consumed; the sacrifice button stays disabled until enough materials are available again.
 
-The altar generates **24 lineage recipes** from the existing plant catalog: twelve seed combinations and their twelve material counterparts. Matching two seeds creates the next plant's seed; matching their corresponding plant parts creates that plant's higher-rarity crafting material. Existing paths span Common through Mythic. Pair order does not matter.
+The 24-species catalog supplies 16 seed recipes and all 21 two-parent material syntheses. Matching ordinary materials also retain their refinement recipes. Five historical parent pairs now yield only salvage when offered as seeds. A saved former success cannot grant its old seed or appear in the repeatable recipe picker. Existing seeds, discoveries and Knowledge are preserved. Either ingredient order works.
 
 A material result is usable in the normal crafting system but does **not** award its seed or unlock its plant species. That separation also survives save/load and moving materials into shared storage. Discovering or identifying the seed is still necessary to cultivate that species.
 

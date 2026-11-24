@@ -35,7 +35,7 @@ func run():
  check(Model.transfer(game,friend,"shared","stash",Items.seed_id(0),3).begins_with("Moved") and theirs.stock[0]==3,"friend withdraws actual shared seed stack")
  own.unknown.assign([2,4]);check(Model.transfer(game,p,"stash","shared","unidentified_seed",2).begins_with("Moved"),"mystery stack shares")
  check(Model.transfer(game,friend,"shared","stash","unidentified_seed",2).begins_with("Moved") and theirs.unknown==[2,4],"hidden seed identities survive transfer")
- Model.extra_stash(game,p).boss_mystery_seed=1
+ Model.put(game,p,"stash",{"item":Model.Ancient.ITEM,"quantity":1,"lineages":{"ember_fern":1}})
  check(Model.transfer(game,p,"stash","shared","boss_mystery_seed",1).begins_with("Moved") and Model.transfer(game,friend,"shared","stash","boss_mystery_seed",1).begins_with("Moved"),"ancient mystery seeds also share")
  var paths: Dictionary={};var total:=0
  for part in range(1,game.Parts.DEFINITIONS.size()):

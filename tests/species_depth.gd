@@ -24,7 +24,7 @@ func run() -> void:
   for growth in 4:
    var crop=game.stage.build_crop(i,growth,false);check(crop.get_child_count()>0,"growth model "+d.id);crop.free()
   var a:=int(d.parents[0]);var b:=int(d.parents[1])
-  check(game.Seeds.recipe(b,a)==i,"tiered crossbreeding route "+d.id)
+  check(game.Altar.Recipes.find("seeds",game.Items.seed_id(b),game.Items.seed_id(a)).get("output","")==("" if game.Seeds.wild_only(i) else game.Items.seed_id(i)),"tiered crossbreeding route "+d.id)
   check(not game.Altar.Recipes.find("parts",game.Items.part_id(part),game.Items.part_id(part)).is_empty(),"material refinement route "+d.id)
  check(load("res://content_validator.gd").validate().is_empty(),"all content validates")
  game.queue_free();await process_frame

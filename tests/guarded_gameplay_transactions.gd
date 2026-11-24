@@ -129,7 +129,7 @@ func run() -> void:
  before = disk()
  host.pos = world.stage.altar_position()
  world.seed_reserve(host).unknown.append(1)
- world.garden_action(world.HOST, "altar_identify")
+ world.send_altar_action("identify",[],int(world.players[world.HOST].get("altar_revision",0))+1)
  check(world.seed_reserve(host).unknown.is_empty() and world.status.begins_with("Identified ")
   and disk()[G] != before[G] and disk()[C] == before[C], "identification uses a Garden-only commit before feedback")
  record("altar_identification", before)
@@ -333,7 +333,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
    "altar":
     host.pos = world.stage.altar_position()
     world.seed_reserve(host).unknown.append(1)
-    world.garden_action(world.HOST, "altar_identify")
+    world.send_altar_action("identify",[],int(world.players[world.HOST].get("altar_revision",0))+1)
     ordinary = "Identified %s." % world.Seeds.NAMES[1]
     check(world.seed_reserve(host).unknown.is_empty() and host.altar_message == ordinary,
      "Altar retains the identification result")
@@ -396,7 +396,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
   var replacement_count: int = attempts.replacements
   var retry := Tx.run_gameplay(world, Tx.Scope.GARDEN, refuse_action)
   world.garden_action(world.HOST, "plant_at_1_0")
-  world.garden_action(world.HOST, "altar_identify")
+  world.send_altar_action("identify",[],int(world.players[world.HOST].get("altar_revision",0))+1)
   check(not retry.completed and retry.persistence.state == "pending_recovery" and not retry.persistence.ran
    and retry.notice == CleanupNotice and disk() == committed_disk and Tx.snapshot(world.progress) == committed_memory
    and world.rng.state == committed_rng and world.combat_event_serial == committed_events

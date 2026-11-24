@@ -137,18 +137,8 @@ func gameplay() -> void:
  world.progress.stock[0] = 4
  world.progress.stock[1] = 4
  world.garden_action(1,"experiment")
- check(world.progress.stock[0]==3 and world.progress.stock[1]==3 and disk()[garden_path]!=before[garden_path] and disk()[C]==before[C], "experiment consumes seeds and commits only Garden")
- var breeding_before := disk()
- var breeding_rng: int = world.rng.state
- var breeding_stock: Array = world.progress.stock.duplicate()
- world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.garden_action(1,"breed_0_1")
- world.remove_meta(&"guarded_gameplay_test_fault")
- check(disk()==breeding_before and world.progress.stock==breeding_stock and world.rng.state==breeding_rng
-  and world.status.begins_with("Save cancelled"),"breeding abort restores both parents and RNG")
- record("breeding_abort",breeding_before,{"feedback":world.status})
- world.garden_action(1,"breed_0_1")
- check(world.progress.stock[0]==2 and world.progress.stock[1]==2 and world.status.contains("seed gained"), "breeding consumes one per parent and reports success")
+ check(world.progress.stock[0]==4 and world.progress.stock[1]==4 and disk()==before,"retired experiment commands cannot transact")
  var altar_before := disk()
  var ingredients := [{"source":"stash","item":items.seed_id(0)},{"source":"stash","item":items.seed_id(1)}]
  var recipes_before: Dictionary = world.progress.altar_recipes.duplicate(true)

@@ -58,7 +58,14 @@ func admit_kill(epoch: int, spawn_token: String, death: Dictionary, candidates: 
 		if not candidate.profile_ready or not candidate.wild or candidate.fallen:
 			continue
 		var item := str(roll_trophy.call())
-		var boss_seed := boss and float(roll_seed.call()) < float(definition.get("seed_drop_chance", 1.0))
+		var boss_seed := {}
+		if boss:
+			var chance_roll := float(roll_seed.call())
+			if chance_roll < float(definition.get("seed_drop_chance", 1.0)):
+				# A separate stream freezes the contents without consuming another trophy/drop roll.
+				var random := RandomNumberGenerator.new()
+				random.seed = ("%s/%s/%s" % [key,candidate.identity,var_to_str(chance_roll)]).sha256_buffer().decode_u32(0)
+				boss_seed = preload("res://ancient_seed.gd").award(int(death.depth),random)
 		rewards.append({
 			"id": candidate.id, "class": candidate["class"], "identity": candidate.identity,
 			"item": item, "essence": sparks, "boss_seed": boss_seed, "xp": xp,
