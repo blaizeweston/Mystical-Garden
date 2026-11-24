@@ -222,16 +222,6 @@ func return_outcome(member: Returns.Member,status: String) -> void:
  var world:=_current()
  if world!=null:Returns.outcome(world.progress,member,status)
 
-func member_left(id: int) -> void:
- var world:=_current()
- if world==null or not world.players.has(id) or not Participation.is_wild(world.players[id]):return
- var player: Dictionary=world.players[id]
- var member:=Returns.Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),true)
- Tx.run_gameplay(world,Tx.Scope.PAIR,func():
-  return_outcome(member,"disconnected")
-  world.expedition_statistics.settled_disconnect(member.actor())
-  return true)
-
 func protected_return(member: Returns.Member,stacks: Array) -> void:
  var seeds: Array=[];var ancient:=false
  for stack in stacks:

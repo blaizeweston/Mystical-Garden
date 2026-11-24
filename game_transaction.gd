@@ -28,6 +28,10 @@ static func restore(object: Object,state: Dictionary) -> void:
   elif current is Dictionary and value is Dictionary: restore_dict(current,value)
   else: object.set(key,value)
 static func run(game: Node,action: Callable, verdict := {}):
+ if game.persistence_session.is_blocked():
+  verdict.error = ERR_BUSY
+  game.status = game.persistence_session.pending_notice()
+  return false
  if game.persistence_session.is_guarded():
   if game.persistence_session.can_write():
    game.status = "This action is unavailable in the guarded session."
@@ -43,16 +47,9 @@ static func run(game: Node,action: Callable, verdict := {}):
  if game.network_session.role() != "Guest":
   paths.append(game.local_character.path)
   auxiliary.append_array(game.local_character.migration_backup_paths())
- var result := {}
- var error := Batch.Legacy.run(paths, func(_plan):
-  result.value = _run_legacy(game, action, verdict)
-  return verdict.error, auxiliary)
- verdict.error = error
- if not result.has("value"):
-  game.status = "Save unavailable. Your save files were preserved."
- return result.get("value", false)
+ return _run_legacy(game, action, verdict, paths, auxiliary)
 
-static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Variant:
+static func _run_legacy(game: Node, action: Callable, verdict: Dictionary, paths: PackedStringArray, auxiliary: PackedStringArray) -> Variant:
  var diagnostic_transaction=preload("res://diagnostic_journal.gd").event("save","transaction_begin",{"operation":action.get_method()})
  var world:=snapshot(game.progress);var heart: Dictionary=game.progress.heart.serialize();var campaign:=snapshot(game.progress.campaign)
  var state:=snapshot(game);state.erase("players");var local:=snapshot(game.local_character);var guest:=snapshot(game.guest_character)
@@ -68,21 +65,45 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
  var tactics_savepoint := snapshot(tactics) if tactics != null else {}
  var participation: ExpeditionParticipation = game.get("participation")
  var participation_savepoint := participation.savepoint() if participation != null else {}
- var weapon_savepoint: Dictionary = game.weapon_attacks.savepoint()
- var effect_savepoint: Dictionary = game.effect_timeline.savepoint()
- var begin_error := Batch.begin(game.progress.path)
- if begin_error != OK:
-  verdict.error = begin_error
+ var expedition_snapshot: Dictionary
+ if game.has_method("snapshot_expedition_runtime"):
+  expedition_snapshot = game.snapshot_expedition_runtime()
+ else:
+  expedition_snapshot = {"weapons":game.weapon_attacks.savepoint(), "effects":game.effect_timeline.savepoint()}
+ var execution := {}
+ var gate_error := Batch.Legacy.run(paths, func(_plan):
+  var begin_error := Batch.begin(game.progress.path)
+  if begin_error != OK: return begin_error
+  game.transaction_publishes.clear()
+  _owner = game
+  execution.value = action.call()
+  _owner = null
+  Batch.record_serializer_error(game.progress.save_garden(), game.progress.path)
+  if game.players.has(game.HOST): game.local_character.data = game.players[game.HOST].character
+  if game.network_session.role() != "Guest": Batch.record_serializer_error(game.local_character.save_profile(), game.local_character.path)
+  execution.outcome = Batch.commit()
+  return OK, auxiliary)
+ if not execution.has("outcome"):
+  verdict.error = gate_error
+  game.status = "Save unavailable. Your save files were preserved."
   return false
- game.transaction_publishes.clear()
- var result=action.call()
- # All persistent world mutations and the local character form one commit.
- Batch.record_serializer_error(game.progress.save_garden(), game.progress.path)
- if game.players.has(game.HOST): game.local_character.data=game.players[game.HOST].character
- if game.network_session.role()!="Guest": Batch.record_serializer_error(game.local_character.save_profile(), game.local_character.path)
- var error:=Batch.commit()
- verdict.error = error
- if error!=OK:
+ var final: Batch.Finalization = execution.outcome
+ var boundary := {"value":execution, "error":gate_error, "release_error":gate_error, "state":"finalized", "reason":final.phase}
+ verdict.persistence = boundary
+ game.persistence_session.record_finalization(boundary)
+ var notice: String = _report(game, boundary)
+ verdict.error = OK
+ if final.outcome == Batch.Outcome.UNCERTAIN:
+  verdict.error = final.original_error if final.original_error != OK else final.recovery_error
+  if statistics != null: statistics.hold_uncertain()
+  if rewards != null: rewards.finish_settlement(MonsterRewards.Result.UNCERTAIN)
+  game.transaction_publishes.clear()
+  preload("res://game_metrics.gd").flush(false)
+  game.status = notice
+  return false
+ if final.outcome == Batch.Outcome.ABORTED_RESTORED:
+  var error := final.original_error
+  verdict.error = error
   preload("res://diagnostic_journal.gd").event("save","transaction_rollback",{"error":error,"transaction_seq":diagnostic_transaction},"error")
   preload("res://game_metrics.gd").flush(false)
   preload("res://game_metrics.gd").record("save_rollback",{"error":error})
@@ -103,13 +124,17 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
   restore(game.local_character,local)
   restore(game.guest_character,guest)
   if game.players.has(game.HOST): game.local_character.data=game.players[game.HOST].character
-  game.weapon_attacks.restore_savepoint(weapon_savepoint)
-  game.effect_timeline.restore_savepoint(effect_savepoint)
+  if game.has_method("restore_expedition_runtime"):
+   game.restore_expedition_runtime(expedition_snapshot)
+  else:
+   game.weapon_attacks.restore_savepoint(expedition_snapshot.weapons)
+   game.effect_timeline.restore_savepoint(expedition_snapshot.effects)
   game.rng.state=rng_state
-  game.transaction_publishes.clear();game.status="Could not save this action. Nothing was consumed; please retry."
+  game.transaction_publishes.clear()
+  game.status = notice
   return false
  if rewards != null:
-  rewards.finish_settlement(MonsterRewards.Result.COMMITTED)
+  rewards.finish_settlement(MonsterRewards.Result.CLEANUP_PENDING if final.write_blocked or gate_error != OK else MonsterRewards.Result.COMMITTED)
  preload("res://diagnostic_journal.gd").event("save","transaction_committed",{"transaction_seq":diagnostic_transaction})
  preload("res://game_metrics.gd").flush(true)
  # Presentation confirms only committed outcomes; a rollback must not show damage.
@@ -120,15 +145,26 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
    game.receive_combat_event.rpc(event,str([game.participation.route(),game.participation.floor(),game.participation.seed()]))
  if statistics != null: game.publish_expedition_results()
  var publishes: Array=game.transaction_publishes.duplicate();game.transaction_publishes.clear()
- for id in publishes:
-  if id!=game.HOST and game.players.has(id) and game.network_session.transport()!=null: game.receive_character.rpc_id(id,game.players[id].character)
- return result
+ for publication in publishes:
+  if publication is Callable:
+   publication.call()
+  elif publication != game.HOST and game.players.has(publication) and game.network_session.transport() != null:
+   game.receive_character.rpc_id(publication,game.players[publication].character)
+ if not notice.is_empty(): game.status = notice
+ return execution.value
 
 const CLEANUP_NOTICE := Session.CLEANUP_NOTICE
 enum Scope { LEGACY, GARDEN, PROFILE, PAIR, GUEST_PROFILE }
 
 static var _owner: Node
 static var _participants: Array = []
+
+## Remote settlement notices share the ordinary root's post-commit queue
+## with profile updates. Raw staging (including the arena) has no such root.
+static func queue_legacy_notice(game: Node, id: int, message: String) -> bool:
+ if _owner != game or not Batch.active: return false
+ game.transaction_publishes.append(game.tell.bind(id,message))
+ return true
 
 static func committed(boundary: Dictionary) -> bool:
  var execution: Variant = boundary.get("value")
@@ -149,12 +185,13 @@ static func feedback(result: Dictionary, fallback: String) -> String:
 # Gameplay completion and the recovery notice can coexist.
 static func run_gameplay(game: Node, scope: Scope, action: Callable, legacy_transaction := true) -> Dictionary:
  if not game.persistence_session.is_guarded():
-  # Legacy callers keep their existing business conventions. There is no
-  # typed persistence verdict on that route.
+  if game.persistence_session.is_blocked():
+   return {"completed":false, "value":false, "notice":game.persistence_session.pending_notice(), "persistence":{}}
   var verdict := {}
   var value: Variant = run(game, action, verdict) if legacy_transaction else action.call()
-  var saved: bool = verdict.get("error", OK) == OK
-  return {"completed": saved, "value": value, "notice": "" if saved else game.status, "persistence": {}}
+  var boundary: Dictionary = verdict.get("persistence", {})
+  var saved: bool = committed(boundary) if not boundary.is_empty() else verdict.get("error", OK) == OK
+  return {"completed":saved, "value":value, "notice":game.persistence_session.pending_notice() if saved else game.status, "persistence":boundary}
  if _owner != null:
   return {"completed": false, "value": null, "notice": "Save operation is already in progress.",
    "persistence": _refusal(ERR_BUSY, "nested_gameplay_operation", "busy")}
@@ -174,7 +211,7 @@ static func _report(game: Node, boundary: Dictionary) -> String:
  if outcome_feedback.clear_status: game.status = ""
  elif outcome_feedback.set_status: game.status = notice
  if not notice.is_empty():
-  preload("res://diagnostic_journal.gd").event("save", "guarded_gameplay_result", {
+  preload("res://diagnostic_journal.gd").event("save", "guarded_gameplay_result" if game.persistence_session.is_guarded() else "legacy_gameplay_result", {
    "reason": boundary.reason, "state": boundary.state, "error": boundary.error,
    "outcome": Batch.Outcome.keys()[final.outcome] if final != null else "",
    "phase": final.phase if final != null else "", "attempt": final.attempt_id if final != null else "",

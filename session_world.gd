@@ -65,6 +65,8 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 		return
 	var binding: int = game.network_session.binding(id)
 	if binding == 0: return
+	if game.persistence_session.is_blocked() and not game.persistence_session.is_guarded() and Character.valid_identity(identity) and protocol == Network.PROTOCOL:
+		game.recover_departure_cleanup()
 	if not game.persistence_session.can_write():
 		reject(id, Transactions.feedback_text(game,"The host's Garden is unavailable."),binding)
 		return
@@ -188,7 +190,7 @@ func join(address: String="",port: int=0) -> Error:
 func leave(message: String) -> void:
 	var game = _world.get_ref()
 	Journal.event("network","leave_requested",{"role":game.network_session.role()})
-	if game.persistence_session.is_guarded() and not game.persistence_session.can_write():
+	if not game.persistence_session.can_write():
 		game._stop_guarded_session("This session lost access to its save. Returning to the title.")
 		return
 	if game.active_character_slot>=0 and game.network_session.role() in ["Guest","Connecting"]:
@@ -205,6 +207,9 @@ func leave(message: String) -> void:
 			if not game.persistence_session.pending_notice().is_empty(): return
 		if game.network_session.role() == "Host" and game.participation.active():
 			if not game.expedition_transitions.finish_voluntary(): return
+			if game.persistence_session.is_blocked():
+				game._finish_title_return(message)
+				return
 	if game.persistence_session.is_guarded(): game.persistence_session.begin_shutdown()
 	offline()
 	game.replication.clear_session();game.guest_replication.clear_session();game.net_motion.clear()
@@ -236,49 +241,32 @@ func remove(id: int) -> void:
 		game.motions.erase(id)
 		return
 	Journal.event("network","peer_disconnected",{"actor":id})
-	if game.persistence_session.is_guarded():
-		var leaving: Dictionary = game.players.get(id, {})
-		var leaving_wild = Participation.is_wild(leaving)
-		leaving.erase(ExpeditionWallet.STATE)
-		if not game.multiplayer.is_server() or game.network_session.role()=="Guest" or game.network_session.role()=="Connecting" or game.returning_to_title or game.persistence_session.is_stopping():
-			game.network_session.release_peer(id)
-			game.participation.detach(id)
-			game.players.erase(id)
-			game.motions.erase(id)
-			return
-		if leaving_wild:
-			game.expedition_statistics.freeze_departure(game.participation.run_id(),Session.inventory_owner(leaving),Time.get_ticks_msec())
-		if Session.ready_for(leaving,false):
-			game._capture_pending_departure(id, leaving)
-		var may_settle = game.persistence_session.can_write()
+	var leaving: Dictionary = game.players.get(id, {})
+	var leaving_wild = Participation.is_wild(leaving)
+	leaving.erase(ExpeditionWallet.STATE)
+	if not game.multiplayer.is_server() or game.network_session.role()=="Guest" or game.network_session.role()=="Connecting":
 		game.network_session.release_peer(id)
 		game.participation.detach(id)
 		game.players.erase(id)
 		game.motions.erase(id)
-		game.refresh_drop()
-		if may_settle:
-			PartyTravel.cancel(game,"A player disconnected. Confirm readiness again to continue.")
-			var needs_wipe: bool = (game.participation.active() or leaving_wild) and Life.living_ids(game).is_empty()
-			if needs_wipe: game.expedition_transitions.finish_failed()
-			else: game.flush_kill_rewards()
 		return
-	if game.multiplayer.is_server():
-		game.flush_kill_rewards()
-		if game.players.has(id) and Session.ready_for(game.players[id]):
-			if not Session.inventory_owner(game.players[id]).is_empty(): game.progress.character_records[Session.inventory_owner(game.players[id])]={"profile":game.players[id].character.duplicate(true),"manifest":game.progress.ContentIDs.manifest()}
-			game.recover_pouch(game.players[id])
-			if game.participation.contains(id):
-				game.expedition_statistics.freeze_departure(game.participation.run_id(),Session.inventory_owner(game.players[id]),Time.get_ticks_msec())
-			game.garden_commands.member_left(id)
-		if game.players.has(id): game.players[id].erase(ExpeditionWallet.STATE)
-		game.network_session.release_peer(id)
-		game.participation.detach(id)
-		game.players.erase(id)
+	if leaving_wild:
+		game.expedition_statistics.freeze_departure(game.participation.run_id(),Session.inventory_owner(leaving),Time.get_ticks_msec())
+	if Session.ready_for(leaving,false):
+		game._capture_pending_departure(id, leaving)
+	var may_settle = game.persistence_session.can_write()
+	game.network_session.release_peer(id)
+	game.participation.detach(id)
+	game.players.erase(id)
+	game.motions.erase(id)
+	game.refresh_drop()
+	if may_settle:
 		PartyTravel.cancel(game,"A player disconnected. Confirm readiness again to continue.")
-		game.refresh_drop()
-		game.motions.erase(id)
-		game.expedition_transitions.finish_if_empty()
-		game.resume_checkpoint_if_ready()
+		var needs_wipe: bool = (game.participation.active() or leaving_wild) and Life.living_ids(game).is_empty()
+		if needs_wipe: game.expedition_transitions.finish_failed()
+		elif game.flush_kill_rewards() and not game.persistence_session.is_guarded() and game.persistence_session.can_write():
+			game.expedition_transitions.finish_if_empty()
+			game.resume_checkpoint_if_ready()
 
 
 func server_disconnected() -> void:

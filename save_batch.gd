@@ -82,21 +82,41 @@ static func _recover_fixture(path: String) -> Error:
  var error := config.load(journal)
  if error != OK: return error
  var entries: Variant = config.get_value("transaction", "entries", {})
- if not entries is Dictionary or not entries.keys().all(Legacy.fixture_path):
+ if not entries is Dictionary or entries.is_empty() or not entries.keys().all(Legacy.fixture_path):
   return ERR_INVALID_DATA
- return _recover_locked(journal, entries, config.get_value("transaction", "committed", false))
+ if not config.has_section_key("transaction", "committed"): return ERR_INVALID_DATA
+ var marker: Variant = config.get_value("transaction", "committed")
+ if not marker is bool: return ERR_INVALID_DATA
+ for entry: Variant in entries.values():
+  if not entry is Dictionary or not entry.get("exists") is bool or not entry.get("bytes") is PackedByteArray:
+   return ERR_INVALID_DATA
+ return _recover_locked(journal, entries, marker)
 
 static func _recover_locked(journal: String, entries: Dictionary, committed: bool) -> Error:
  if not committed:
-  for target: String in entries:
-   var entry: Dictionary = entries[target]
-   var error := OK
-   if entry.exists:
-    error = _write_bytes(target + ".recovery", entry.bytes)
-    if error == OK: error = DirAccess.rename_absolute(target + ".recovery", target)
-   elif FileAccess.file_exists(target):
-    error = DirAccess.remove_absolute(target)
+  var error := _restore_legacy_originals(entries)
+  if error != OK: return error
+ return _clean_legacy_artifacts(journal, entries)
+
+static func _restore_legacy_originals(entries: Dictionary) -> Error:
+ for target: String in entries:
+  var prior: Dictionary = entries[target]
+  if prior.exists:
+   var read := Planner._read_bytes(target)
+   if read.ok and read.bytes == prior.bytes: continue
+   var error := _write_bytes(target + ".recovery", prior.bytes)
+   if error == OK: error = DirAccess.rename_absolute(target + ".recovery", target)
    if error != OK: return error
+   read = Planner._read_bytes(target)
+   if not read.ok or read.bytes != prior.bytes: return ERR_INVALID_DATA
+  else:
+   if FileAccess.file_exists(target):
+    var error := DirAccess.remove_absolute(target)
+    if error != OK: return error
+   if FileAccess.file_exists(target) or DirAccess.dir_exists_absolute(target): return ERR_INVALID_DATA
+ return OK
+
+static func _clean_legacy_artifacts(journal: String, entries: Dictionary) -> Error:
  for target: String in entries:
   for suffix in [".txn_link", ".txn_stage", ".recovery"]:
    if not FileAccess.file_exists(target + suffix): continue
@@ -104,18 +124,31 @@ static func _recover_locked(journal: String, entries: Dictionary, committed: boo
    if error != OK: return error
  return DirAccess.remove_absolute(journal)
 
-static func commit() -> Error:
- if _guarded_owner != null: return ERR_BUSY
- if not active: return ERR_UNAUTHORIZED
- var error := failure
- if error == OK and not staged.is_empty():
-  var paths := PackedStringArray(staged.keys())
-  paths.append(journal_path.trim_suffix(".transaction"))
-  error = Legacy.run(paths, func(_plan): return _commit_locked())
+## Before participant replacement, canonical bytes are unchanged. Once writes
+## begin, only an observed commit marker or a verified restoration decides.
+static func commit() -> Finalization:
+ var final := Finalization.new()
+ final.phase = "staging"
+ final.original_error = ERR_BUSY if _guarded_owner != null else ERR_UNAUTHORIZED
+ if _guarded_owner != null or not active: return final
+ final.outcome = Outcome.ABORTED_RESTORED
+ final.write_blocked = false
+ final.original_error = failure
+ final.paths = PackedStringArray(staged.keys())
+ final.journal_anchor = journal_path.trim_suffix(".transaction")
+ if failure == OK:
+  if staged.is_empty():
+   final.outcome = Outcome.COMMITTED
+  else:
+   var paths := final.paths.duplicate()
+   paths.append(final.journal_anchor)
+   var error := Legacy.run(paths, func(_plan): return _commit_locked(final))
+   if error != OK and final.original_error == OK:
+    final.original_error = error
  cancel()
- return error
+ return final
 
-static func _commit_locked() -> Error:
+static func _commit_locked(final: Finalization) -> Error:
  var entries := {}
  var stages := PackedStringArray()
  for path: String in staged:
@@ -131,13 +164,20 @@ static func _commit_locked() -> Error:
   var save_error := _write_bytes(path + ".txn_stage", staged[path])
   if save_error != OK:
    for scratch in stages:
-    if FileAccess.file_exists(scratch): DirAccess.remove_absolute(scratch)
+    if FileAccess.file_exists(scratch):
+     var removed := DirAccess.remove_absolute(scratch)
+     if removed != OK:
+      final.cleanup_error = removed
+      final.write_blocked = true
    return save_error
  var journal := ConfigFile.new()
  journal.set_value("transaction", "entries", entries)
  journal.set_value("transaction", "committed", false)
  var error := journal.save(journal_path)
- if error != OK: return error
+ if error != OK:
+  # No participant was replaced, but a partial journal can require recovery.
+  final.write_blocked = true
+  return error
  for path: String in staged:
   error = _write_bytes(path + ".txn_link", journal_path.to_utf8_buffer())
   if error != OK: break
@@ -145,16 +185,65 @@ static func _commit_locked() -> Error:
   for path: String in staged:
    error = DirAccess.rename_absolute(path + ".txn_stage", path)
    if error != OK: break
- var committed := false
  if error == OK:
   journal.set_value("transaction", "committed", true)
   error = journal.save(journal_path)
-  committed = error == OK
-  if committed:
-   for path in _legacy_serializers:
-    _legacy_serializers[path].confirm_migration(path)
- var recovered := _recover_locked(journal_path, entries, committed)
- return recovered if error == OK else error
+ # A failed marker write can still leave a readable commit record. Never
+ # infer rollback from that write's return code, or from a later unlink.
+ var observed := ConfigFile.new()
+ var read_error := observed.load(journal_path)
+ var marker: Variant = observed.get_value("transaction", "committed") if read_error == OK and observed.has_section_key("transaction","committed") else null
+ final.original_error = error
+ if not marker is bool or observed.get_value("transaction", "entries", {}) != entries:
+  final.outcome = Outcome.UNCERTAIN
+  final.phase = "read_commit_marker"
+  final.recovery_error = read_error if read_error != OK else ERR_INVALID_DATA
+  final.write_blocked = true
+  return OK
+ if not marker:
+  final.phase = "restore_originals"
+  final.original_error = error if error != OK else ERR_INVALID_DATA
+  final.recovery_error = _restore_legacy_originals(entries)
+  if final.recovery_error != OK:
+   final.outcome = Outcome.UNCERTAIN
+   final.write_blocked = true
+  else:
+   final.cleanup_error = _clean_legacy_artifacts(journal_path, entries)
+   final.write_blocked = final.cleanup_error != OK
+  return OK
+ for path in _legacy_serializers:
+  _legacy_serializers[path].confirm_migration(path)
+ final.phase = "cleanup"
+ final.cleanup_error = _clean_legacy_artifacts(journal_path, entries)
+ final.write_blocked = final.cleanup_error != OK
+ final.outcome = Outcome.COMMITTED_CLEANUP_PENDING if final.write_blocked else Outcome.COMMITTED
+ if final.write_blocked:
+  # The live world may resume only after cleanup of this exact commit.
+  final.verification.journal = FileAccess.get_sha256(journal_path)
+  var digests := {}
+  for path: String in staged:
+   digests[path] = Evidence.digest(staged[path])
+  final.verification.participants = digests
+ return OK
+
+## Recovery of a known live commit may only delete its artifacts. An
+## uncertain save must be reconciled by the existing restart recovery path.
+static func finish_legacy_cleanup(final: Finalization) -> Error:
+ if active or guarded_active() or final.outcome != Outcome.COMMITTED_CLEANUP_PENDING: return ERR_BUSY
+ var journal := final.journal_anchor + ".transaction"
+ return Legacy.run(final.paths, func(plan):
+  # A different pending journal can reference the same canonical files.
+  for record: Dictionary in plan.get("journals", []):
+   if record.path != journal: return ERR_BUSY
+  for path: String in final.paths:
+   if FileAccess.get_sha256(path) != final.verification.participants[path]: return ERR_INVALID_DATA
+  if not FileAccess.file_exists(journal):
+   for path: String in final.paths:
+    for suffix in [".txn_link", ".txn_stage", ".recovery"]:
+     if FileAccess.file_exists(path + suffix): return ERR_BUSY
+   return OK
+  if final.verification.journal.is_empty() or FileAccess.get_sha256(journal) != final.verification.journal: return ERR_INVALID_DATA
+  return _clean_legacy_artifacts(journal, final.verification.participants), PackedStringArray(), true)
 
 static func cancel() -> void:
  if _guarded_owner != null: return
@@ -162,7 +251,7 @@ static func cancel() -> void:
  active = false
  staged = {}
 
-# B1 opt-in API. Legacy callers above retain their existing Error/void contract.
+# Guarded and ordinary batches share the durability verdict.
 const Authorization = preload("res://persistence_authorization.gd")
 const Planner = preload("res://persistence_recovery_plan.gd")
 const Evidence = preload("res://persistence_evidence.gd")

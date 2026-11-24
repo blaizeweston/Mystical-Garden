@@ -1,6 +1,6 @@
 extends RefCounted
 ## Owns the profile and protected cargo of disconnected players until the
-## host's guarded settlement has a verified outcome.
+## host's settlement has a verified outcome.
 
 enum Phase { ABSENT, WAITING, SETTLING, RETRYABLE, CLEANUP_PENDING, UNCERTAIN }
 enum Result { COMMITTED, RESTORED, CLEANUP_PENDING, UNCERTAIN }
@@ -48,7 +48,7 @@ func has_wild_departure() -> bool:
 func is_settling() -> bool:
 	return _records.any(func(record: Departure): return record.phase == Phase.SETTLING)
 
-## A guarded action works on detached copies. A verified rollback can retry
+## Settlement works on detached copies. A verified rollback can retry
 ## from the originals even when profile and cargo were already applied.
 func stage(identities_waiting_on_rewards: Array[String]) -> Array[Dictionary]:
 	var work: Array[Dictionary] = []
@@ -76,6 +76,11 @@ func finish(result: Result) -> void:
 				record.payload.clear()
 			Result.UNCERTAIN:
 				record.phase = Phase.UNCERTAIN
+
+func release_committed_cleanup() -> void:
+	for index in range(_records.size() - 1, -1, -1):
+		if _records[index].phase == Phase.CLEANUP_PENDING:
+			_records.remove_at(index)
 
 func _can_stage(record: Departure) -> bool:
 	return record.phase in [Phase.WAITING, Phase.RETRYABLE]

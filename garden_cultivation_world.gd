@@ -90,7 +90,9 @@ func harvest_seeds(id: int,slot: int) -> Dictionary:
 		world.progress.plots[slot].flowering=true
 		_harvest(id,slot)
 		return int(world.progress.plots[slot].species)<0)
-	if result!=true:return reject(id,"Could not save the seed harvest. Nothing was consumed; please retry.")
+	if result!=true:
+		var pending: String = world.persistence_session.pending_notice()
+		return reject(id,pending if not pending.is_empty() else "Could not save the seed harvest. Nothing was consumed; please retry.")
 	preload("res://diagnostic_journal.gd").event("garden","crop_harvested",{"actor":id,"bed":slot,"cycle":before.get("care",{}).get("cycle",""),"species":Seeds.DEFINITIONS[int(before.species)].id,"flowering":true,"preserved":false,"forfeited_bud":State.preserved(before),"rare":false})
 	return {"changed":true}
 func reject(id: int,reason: String) -> Dictionary:
@@ -143,11 +145,10 @@ func harvest(id: int, slot: int) -> bool:
 	if world.persistence_session.is_guarded():
 		return _harvest_guarded(id, slot, false)
 	var bed: Dictionary=world.progress.plots[slot].duplicate(true)
-	var before_rng: int=world.rng.state
 	var rare: int=Parts.rare_part(int(bed.species)) if int(bed.species)>=0 else 0
 	var rare_before: int=world.progress.part_count(rare) if rare>0 else 0
 	var result=Tx.run(world,func(): _harvest(id,slot))
-	if result==false:world.rng.state=before_rng;return false
+	if result==false:return false
 	if int(bed.species)>=0 and int(bed.stage)==3 and int(world.progress.plots[slot].species)<0:
 		_report_harvest(id, slot, bed, bool(bed.flowering), rare>0 and world.progress.part_count(rare)>rare_before)
 		return true

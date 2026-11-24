@@ -226,7 +226,7 @@ func checkpoint(id: int, descend: bool) -> void:
 			return true)
 		return
 	var returned=game.Transactions.run(game,func(): commit_checkpoint(id,descend))
-	if returned==false:game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed())
+	if returned==false and game.persistence_session.can_write():game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed())
 
 # Opening cards is presentation. Buying a card and consenting to a floor
 # change remain separate actions in the guarded route.
@@ -366,11 +366,11 @@ func finish_if_empty() -> void:
 
 func finish_failed() -> bool:
 	var game = _world.get_ref()
-	if game.persistence_session.is_guarded():
+	if game.persistence_session.is_guarded() or (not game.SaveBatch.active and not game.departure_settlement.is_empty()):
 		var result: Dictionary = game.run_guarded_action(game.HOST, game.Transactions.Scope.PAIR, func(effects): commit_failed(effects))
 		return game.Transactions.committed(result.persistence)
 	var returned=game.Transactions.run(game,func(): commit_failed())
-	if returned==false:game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed())
+	if returned==false and game.persistence_session.can_write():game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed())
 	return returned!=false
 
 
@@ -422,7 +422,7 @@ func abandon(id: int, exit_nonce := "") -> void:
 	if not Participation.is_wild(player):
 		# Retransmit a committed correction, never replay forfeiture. This also
 		# handles an exit request arriving just after a successful extraction.
-		if not exit_nonce.is_empty() and (not game.persistence_session.is_guarded() or game.persistence_session.can_publish_state()):
+		if not exit_nonce.is_empty() and game.persistence_session.can_publish_state():
 			confirm_departure(id,exit_nonce)
 		return
 	if game.persistence_session.is_guarded():
@@ -451,7 +451,6 @@ func abandon(id: int, exit_nonce := "") -> void:
 		_return_member(player,"Abandonment")
 		game.checkpoint_ready.erase(id)
 		game.save_action_profile(id,null)
-		game.tell(id,"Expedition abandoned. This run's rewards were forfeited, including banked Class XP and safe-pouch contents.")
 		if game.participation.active() and game.Life.living_ids(game).is_empty():
 			finish_failed()
 		elif not game.participation.active():
@@ -459,10 +458,11 @@ func abandon(id: int, exit_nonce := "") -> void:
 			reset()
 		else:
 			game.resume_checkpoint_if_ready()
-		if id==game.HOST: game.close_run_flow_panel()
-		elif game.network_session.transport()!=null: game.close_run_flow_panel.rpc_id(id)
 		return true)
-	if saved and not exit_nonce.is_empty(): confirm_departure(id,exit_nonce)
+	if saved:
+		game.tell(id,"Expedition abandoned. This run's rewards were forfeited, including banked Class XP and safe-pouch contents.")
+		game.close_flow_for(id)
+		if not exit_nonce.is_empty(): confirm_departure(id,exit_nonce)
 
 func confirm_departure(id: int, nonce: String) -> void:
 	var game = _world.get_ref()
@@ -510,6 +510,7 @@ func complete_guest_exit(intent: int) -> void:
 ## involuntarily disconnected and retain the existing failed-run settlement.
 func finish_voluntary() -> bool:
 	var game = _world.get_ref()
+	if not game.participation.active(): return game.persistence_session.can_publish_state()
 	if game.persistence_session.is_guarded():
 		var saved: Dictionary = game.run_guarded_action(game.HOST,game.Transactions.Scope.PAIR,func(effects): return commit_voluntary(effects))
 		return game.Transactions.committed(saved.persistence)

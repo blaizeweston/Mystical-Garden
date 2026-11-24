@@ -153,7 +153,7 @@ func run() -> void:
  var recovery := Batch.recover(C)
  check(Batch.begin(G) == OK and Batch.write(G, "tentative".to_utf8_buffer()) == OK and Batch.write(C, "tentative".to_utf8_buffer()) == OK, "memory-only staging")
  check(snapshot() == before, "staging performs no disk writes")
- var commit_error := Batch.commit()
+ var commit_error := Batch.commit().original_error
  check(direct == ERR_BUSY and raw_write == ERR_BUSY and raw_sidecar == ERR_UNAUTHORIZED and standalone == ERR_BUSY and recovery == ERR_BUSY and commit_error == ERR_BUSY, "public writers refuse reverse-only evidence")
  unchanged("reverse_link_refusal", before, {"direct":direct, "raw":raw_write, "sidecar":raw_sidecar, "serializer":standalone, "recovery":recovery, "commit":commit_error, "plan":plan.reason, "participants":Array(plan.participants)})
  check(world.new_world(2) == OK and world.delete_world(2, true) == OK, "unrelated healthy Garden can be created and deleted")
@@ -207,7 +207,7 @@ func run() -> void:
  check(DirAccess.remove_absolute(C + ".txn_link") == OK, "fixture remove dangling link")
 
  before = snapshot()
- check(Batch.begin(C) == OK and profile.save_profile() == ERR_UNAUTHORIZED and Batch.commit() == ERR_UNAUTHORIZED,
+ check(Batch.begin(C) == OK and profile.save_profile() == ERR_UNAUTHORIZED and Batch.commit().original_error == ERR_UNAUTHORIZED,
   "unowned staged serializer cannot publish a migration backup")
  unchanged("unowned_serializer_stage", before, {})
 

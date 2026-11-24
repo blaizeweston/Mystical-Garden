@@ -1196,7 +1196,7 @@
         "baseline": ""
       },
       "legacy_commit": {
-        "match": " if rewards != null:\n  rewards.finish_settlement(MonsterRewards.Result.COMMITTED)\n",
+        "match": " if rewards != null:\n  rewards.finish_settlement(MonsterRewards.Result.CLEANUP_PENDING if final.write_blocked or gate_error != OK else MonsterRewards.Result.COMMITTED)\n",
         "baseline": ""
       },
       "guarded_owner": {

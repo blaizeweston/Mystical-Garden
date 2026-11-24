@@ -269,6 +269,9 @@ func _refuse_unowned_world() -> void:
 func _notification(what: int) -> void:
 	if what==NOTIFICATION_WM_WINDOW_FOCUS_OUT: mouse_controls.release(self)
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if persistence_session.is_blocked() and not persistence_session.is_guarded():
+			get_tree().quit()
+			return
 		if expedition_transitions.request_guest_exit(Session.Exit.APPLICATION): return
 		if persistence_session.is_guarded():
 			if not prepare_guarded_exit(): return
@@ -279,7 +282,7 @@ func _notification(what: int) -> void:
 			return
 		if network_session.role() in ["Host","Solo"] and participation.active():
 			if not expedition_transitions.finish_voluntary(): return
-		if character_dirty:
+		if character_dirty and persistence_session.can_write():
 			save_local_character()
 		get_tree().quit()
 
@@ -328,7 +331,10 @@ func _handle_ui_request(command: String, data: Dictionary) -> void:
 		"settings":
 			mouse_controls.release(self)
 			settings_dialog.begin(app_settings)
-		"save": save_progress(HOST,"Garden saved.")
+		"save":
+			if persistence_session.is_blocked() and not persistence_session.is_guarded():
+				recover_departure_cleanup()
+			else: save_progress(HOST,"Garden saved.")
 		"host": request_host_session()
 		"join": request_ip_join()
 		"leave":
@@ -792,8 +798,8 @@ func selected_donation(player: Dictionary) -> int:
 	return choice if choice != Parts.EMPTY and parts[choice] > 0 else next_part(Parts.EMPTY, parts, Parts.EMPTY)
 
 
-# Only the guarded route queues feedback. Legacy callers retain their existing
-# write and publication order. The typed boundary decides whether to publish.
+# An expedition savepoint includes transient input, event and random state.
+# Both writers restore it on confirmed rollback.
 func snapshot_expedition_runtime() -> Dictionary:
 	return {"map_rng":map_rng.state, "heal_rng":Life.Preview.heal_rng.state, "battlefield":battlefield,
 		"mouse":Transactions.snapshot(mouse_controls), "weapons":weapon_attacks.savepoint(), "effects":effect_timeline.savepoint(),
@@ -824,7 +830,7 @@ func run_guarded_action(id: int, scope: Transactions.Scope, action: Callable) ->
 			tell(id, result.notice)
 	if committed:
 		for event in combat_events:
-			if int(event.id)>first_event: publish_combat_event(event)
+			if persistence_session.is_guarded() and int(event.id)>first_event: publish_combat_event(event)
 		for effect in effects:
 			effect.call()
 		if persistence_session.is_blocked() and persistence_session.can_publish_state() and multiplayer.is_server():
@@ -887,10 +893,10 @@ func flush_kill_rewards() -> bool:
 	if persistence_session.is_blocked():
 		return false
 	# The active experimental floor pays run loot promptly and banks Class XP
-	# at a checkpoint. Garden disconnects still use guarded settlement.
+	# at a checkpoint. Disconnected profiles use the departure settlement owner.
 	if _defers_kill_profiles() and participation.active():
 		return true
-	if persistence_session.is_guarded():
+	if persistence_session.is_guarded() or (not SaveBatch.active and not departure_settlement.is_empty()):
 		if not monster_rewards.has_pending() and departure_settlement.is_empty():
 			return true
 		if Life.living_ids(self).is_empty() and departure_settlement.has_wild_departure():
@@ -1148,7 +1154,7 @@ func actor_profile_scope(id: int) -> Transactions.Scope:
 	return Transactions.Scope.PAIR if id == HOST else Transactions.Scope.GARDEN
 
 func save_action_profile(id: int, effects) -> void:
-	if effects == null:
+	if effects == null or not persistence_session.is_guarded():
 		publish_character(id)
 		return
 	record_character(id)
@@ -1280,6 +1286,7 @@ func _report_guest_projection(origin: String, descriptor: Dictionary, dispositio
 
 
 func save_local_character() -> bool:
+	if persistence_session.is_blocked(): return false
 	var active := guest_character if network_session.role() == "Guest" else local_character
 	if persistence_session.is_guarded():
 		var scope := Transactions.Scope.GUEST_PROFILE if network_session.role() == "Guest" else Transactions.Scope.PROFILE
@@ -1480,7 +1487,7 @@ func submit_movement(commands: Array,epoch: String) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if persistence_session.is_guarded():
+	if persistence_session.is_blocked() or persistence_session.is_guarded():
 		if returning_to_title or persistence_session.is_stopping(): return
 		if persistence_session.is_blocked():
 			if multiplayer.is_server() and persistence_session.can_publish_state():
@@ -2039,12 +2046,22 @@ func deferred_save_available(id: int) -> bool:
 	if persistence_session.can_write(): tell(id, "This action is unavailable in the guarded session.")
 	return false
 
+## Only a matching committed journal may release this live world's holds.
+func recover_departure_cleanup() -> bool:
+	if not persistence_session.finish_legacy_cleanup(): return false
+	departure_settlement.release_committed_cleanup()
+	monster_rewards.release_committed_cleanup()
+	status = "Saved. Recovery cleanup completed."
+	return true
+
 func save_session_garden() -> bool:
+	if persistence_session.is_blocked(): return false
 	if persistence_session.is_guarded():
 		return Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func(): return true).completed
 	return progress.save_garden() == OK
 
 func save_progress(id: int, message: String) -> void:
+	if persistence_session.is_blocked(): return
 	if persistence_session.is_guarded():
 		if save_session_garden():
 			tell(id, message)
@@ -2072,7 +2089,7 @@ func refresh_feedback() -> void:
 func tell(id: int, message: String) -> void:
 	if id == HOST:
 		status = message
-	elif network_session.transport() != null:
+	elif network_session.transport() != null and not Transactions.queue_legacy_notice(self,id,message):
 		receive_message.rpc_id(id, Transactions.feedback_text(self, message))
 
 
@@ -2290,7 +2307,7 @@ func prepare_guarded_exit(save_garden := true) -> bool:
 	return not character_dirty or save_local_character()
 
 func return_to_main_menu(message: String = "") -> void:
-	if expedition_transitions.request_guest_exit(Session.Exit.TITLE): return
+	if persistence_session.can_write() and expedition_transitions.request_guest_exit(Session.Exit.TITLE): return
 	if returning_to_title:
 		return
 	returning_to_title = true
@@ -2301,14 +2318,17 @@ func return_to_main_menu(message: String = "") -> void:
 			return
 		_finish_title_return(message if owned else "This session lost access to its save. Returning to the title.")
 		return
+	if persistence_session.is_blocked():
+		_finish_title_return(message)
+		return
 	if network_session.role() in ["Solo","Host"] and not network_session.joined_from_title():
 		if participation.active():
 			if not expedition_transitions.finish_voluntary():
 				returning_to_title = false
 				return
-			for player in players.values():
-				if Participation.is_wild(player):
-					expedition_transitions.return_member(preload("res://network_session.gd").peer_for(player))
+			# The paired departure already saved the Garden and host character.
+			_finish_title_return(message)
+			return
 		if not save_session_garden():
 			returning_to_title = false
 			if not persistence_session.is_guarded(): status = "Could not save this Garden. Use Save Garden before leaving."

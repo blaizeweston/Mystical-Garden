@@ -28,6 +28,7 @@ var _stopping := false
 var _block: Block = Block.NONE
 var _pending_notice := ""
 var _feedback_reported := false
+var _legacy_cleanup: Batch.Finalization
 
 func is_guarded() -> bool:
  return _guarded
@@ -39,7 +40,7 @@ func is_blocked() -> bool:
  return _block != Block.NONE
 
 func can_write() -> bool:
- return not _guarded or (not _stopping and not is_blocked() and owns_leases())
+ return not is_blocked() and (not _guarded or (not _stopping and owns_leases()))
 
 func pending_notice() -> String:
  return _pending_notice if is_blocked() else ""
@@ -74,6 +75,18 @@ func record_finalization(boundary: Dictionary) -> void:
    Batch.Outcome.COMMITTED_CLEANUP_PENDING: _block = Block.COMMITTED_CLEANUP
    Batch.Outcome.UNCERTAIN: _block = Block.UNCERTAIN
    _: _block = Block.READ_ONLY
+
+ # A failed lock release requires reopening under a fresh authorization.
+ if not _guarded and _block == Block.COMMITTED_CLEANUP and boundary.get("release_error", OK) == OK and final.verification.has("participants"):
+  _legacy_cleanup = final
+
+func finish_legacy_cleanup() -> bool:
+ if _legacy_cleanup == null or Batch.finish_legacy_cleanup(_legacy_cleanup) != OK: return false
+ _legacy_cleanup = null
+ _block = Block.NONE
+ _pending_notice = ""
+ _feedback_reported = false
+ return true
 
 func require_departure_recovery() -> void:
  _block = Block.UNCERTAIN

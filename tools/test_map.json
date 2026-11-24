@@ -998,6 +998,7 @@
     "record_character": ["persistence_operations"],
     "run_altar_save": ["persistence_operations"],
     "run_heart_save": ["persistence_operations"],
+    "recover_departure_cleanup": ["persistence_operations","departure_settlement","loot"],
     "save_session_garden": ["persistence_operations"],
     "_init": [
       "foundation"
@@ -1543,6 +1544,8 @@
     ]
   },
   "suites": {
+    "legacy_departure_rejoin": {"kind":"pair","systems":["expedition_statistics","expedition_participation","departure_settlement","network_session","persistence_operations"],"package":false},
+    "legacy_departure_outcomes": {"kind":"unit","systems":["expedition_statistics","expedition_participation","departure_settlement","loot","persistence_operations"],"package":false},
     "expedition_results_rejoin": {"kind":"pair","systems":["expedition_statistics","expedition_participation","departure_settlement","network_session","persistence_operations"],"package":false},
     "expedition_statistics": {"kind":"unit","systems":["expedition_statistics","expedition_participation","combat","incoming_player_hit","life","loot"],"package":false},
     "staff_attacks": {"kind": "unit", "systems": ["weapons", "weapon_attacks", "player_weapon_actions", "avatar_motion_view", "presentation", "combat", "hex_terrain", "world_snapshot", "network_session", "guest_replication"], "profile": "standard", "package": false},

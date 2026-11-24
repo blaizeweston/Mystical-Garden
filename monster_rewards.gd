@@ -144,6 +144,11 @@ func pending_profile_ids() -> Array[String]:
 				identities.append(identity)
 	return identities
 
+func release_committed_cleanup() -> void:
+	for key in _receipts:
+		if _receipts[key].phase == Phase.CLEANUP_PENDING:
+			_receipts[key].phase = Phase.COMMITTED
+
 func retire_completed() -> void:
 	if has_pending():
 		return

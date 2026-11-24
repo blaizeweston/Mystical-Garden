@@ -116,6 +116,7 @@ static func request(game: Node,id: int,kind: String) -> void:
   else: return game.expedition_transitions.commit_checkpoint(id,kind=="advance",null,int(bindings[id]))
   return true)
  if not success:
+  if game.persistence_session.is_blocked(): return
   game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed())
   cancel(game,"Travel could not be saved. Nothing was consumed. Confirm readiness to retry.");return
  clear(game)

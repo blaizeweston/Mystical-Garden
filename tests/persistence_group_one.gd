@@ -140,7 +140,7 @@ func run() -> void:
  unrelated.path = Other
  var denied := Tx.run_guarded(world, func():
   check(unrelated.save_profile() == ERR_UNAUTHORIZED, "undeclared serializer refused")
-  check(Batch.commit() == ERR_BUSY, "legacy commit cannot finalize")
+  check(Batch.commit().original_error == ERR_BUSY, "legacy commit cannot finalize")
   return false, published)
  verify_outcome("foreign_serializer", denied, Batch.Outcome.ABORTED_RESTORED, before)
  check(hashes() == before and notifications == 1, "foreign serializer abort")
