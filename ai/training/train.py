@@ -148,6 +148,7 @@ class Trainer:
 
     def _resume(self) -> None:
         manifest = S.read_json(self.folders["policy"] / "manifest.json") or {}
+        published = int(manifest.get("version", 0))
         loaded = S.load_checkpoint(self.folders["checkpoints"], self.log)
         if loaded is None:
             self.log("No checkpoint found: starting a new policy.")
@@ -171,8 +172,16 @@ class Trainer:
             torch.set_rng_state(state["torch_rng"])
             self.log(f"Resumed from {path.name}: policy {self.version}, {self.samples:,} decisions trained.")
         # Policy versions only grow, so workers always take up the resumed policy, even after a fallback.
-        self.weights_from = self.version if loaded is not None else int(manifest.get("version", 0)) + 1
-        self.version = max(self.version, int(manifest.get("version", 0))) + 1
+        restored = self.version if loaded is not None else 0
+        self.weights_from = restored if loaded is not None else published + 1
+        self.version = max(self.version, published) + 1
+        # A checkpoint older than the last published policy means the weights were rolled back (a resume from an
+        # older checkpoint, or a crash since the last save). Rollouts from the policies in between were played by
+        # weights that no longer exist, including any a worker plays before it picks up this policy, so only
+        # rollouts from the policy published now on are accepted.
+        self.accept_from = self.version if loaded is not None and restored < published else 0
+        if self.accept_from:
+            self.log(f"Rolled back from policy {published} to {restored}: rollouts from before policy {self.accept_from} are ignored.")
         self.export_policy()
 
     def state(self) -> dict:
@@ -242,7 +251,7 @@ class Trainer:
                 self.rejected += 1
                 path.unlink(missing_ok=True)
         for path, rollout in list(self.pending.items()):
-            if rollout.rows and int(rollout.policy_version[0]) < oldest_allowed:
+            if rollout.rows and (int(rollout.policy_version[0]) < oldest_allowed or int(rollout.policy_version.min()) < self.accept_from):
                 self.stale += 1
                 del self.pending[path]
                 path.unlink(missing_ok=True)

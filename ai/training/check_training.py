@@ -154,6 +154,22 @@ def test_trainer(schema: MobSchema, folder: Path) -> None:
     for kl in (1.0,) * 200:
         resumed.adapt_learning_rate(kl)
     check(abs(resumed.learning_rate - T.LR_FLOOR) < 1e-12, "the learning rate falls no lower than its floor")
+    check(resumed.accept_from == 0, "an ordinary resume accepts rollouts from the policy it saved")
+    # Roll back: the newest published policy (here 50) is newer than any checkpoint.
+    published = resumed.version + 40
+    S.atomic_write_json(run / "policy" / "manifest.json", {**S.read_json(run / "policy" / "manifest.json"), "version": published})
+    for leftover in (run / "shards").glob("*.shard"):
+        leftover.unlink()
+    rolled = T.Trainer(run, settings, overrides, log=lambda text: None)
+    check(rolled.accept_from == published + 1 == rolled.version and rolled.weights_from < published,
+          "a resume from an older checkpoint accepts only rollouts from the policy it publishes")
+    for name, version in (("w00_old.shard", published), ("w01_new.shard", published + 1)):
+        played = synthetic(schema, [12, 9, 20, 6])
+        played.policy_version[:] = version
+        R.write_shard(run / "shards" / name, schema, played, version)
+    rolled.collect()
+    left = sorted(p.name for p in (run / "shards").glob("*.shard"))
+    check(left == ["w01_new.shard"] and rolled.stale == 1, "rollouts played by the replaced run are dropped after a rollback")
 
 
 def test_replace_waits_for_open_file(folder: Path) -> None:
