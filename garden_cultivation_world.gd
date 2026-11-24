@@ -142,6 +142,7 @@ func harvest(id: int, slot: int) -> bool:
 	var world:=_current_world()
 	if world==null or not world.multiplayer.is_server():return false
 	if not world.players.has(id) or slot<0 or slot>=world.progress.plots.size():return false
+	if not world.stage.bed_position(slot).is_finite():return false
 	if world.persistence_session.is_guarded():
 		return _harvest_guarded(id, slot, false)
 	var bed: Dictionary=world.progress.plots[slot].duplicate(true)
@@ -207,6 +208,7 @@ func _harvest(id: int, slot: int, effects = null) -> bool:
 func plant_seed(id: int, slot: int) -> bool:
 	var world:=_current_world()
 	if world==null or not world.multiplayer.is_server() or not world.players.has(id) or slot<0 or slot>=world.progress.plots.size():return false
+	if not world.stage.bed_position(slot).is_finite():return false
 	var player: Dictionary = world.players[id]
 	var kind: int = world.selected_seed(player)
 	var stock: Array = world.seed_reserve(player).stock

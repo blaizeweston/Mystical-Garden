@@ -58,7 +58,7 @@ func verify_world(game: Node, mix: Node) -> void:
 	var growth: Node = game.get_node("GardenInteractions/GrowthScenes")
 	growth.set_process(false)
 	game._process(.016)
-	game.progress.heart.complete(game.progress,"plot_4")
+	game.progress.heart.complete(game.progress,"cultivation_grounds")
 	check(game.progress.save_garden()==OK,"research commits")
 	var saved: Dictionary = game.progress.garden_interactions.growth.events.back()
 	game.app_settings.values.garden_cinematics = false

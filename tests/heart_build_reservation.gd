@@ -93,9 +93,9 @@ func check_starting_garden(canopy_outline: PackedVector2Array) -> void:
 	var target := Placement.find(garden.construction, "altar", garden.construction.records[altar].at, 0.2, garden.planar(game.players[1].pos), altar)
 	check(target.is_finite() and garden.place("altar", target, 0.2, altar), "starting altar moves before any expansion/research")
 	check(game.progress.plots == crop_records, "moving the starting structures preserves every crop record")
-	game.run_heart_save(func(): game.progress.heart.unlock_direct("plot_4"))
+	game.run_heart_save(func(): game.progress.heart.complete(game.progress,"cultivation_grounds"))
 	target = Placement.find(garden.construction, "bed", Vector2(-3.25,-5.25), 0.37, garden.planar(game.players[1].pos))
-	check(target.is_finite() and garden.place("bed", target, 0.37), "newly researched bed can be built in the original clearing")
+	check(target.is_finite() and garden.place("bed", target, 0.37,game.progress.structures.next_id-1), "newly researched bed can be built in the original clearing")
 	check(Geometry2D.is_point_in_polygon(target, canopy_outline), "real new bed fits beneath the canopy that previously prohibited construction")
 	check(game.progress.plots.size() == 4 and garden.state.revision == 0 and garden.state.reclaimed_cells == 0
 		and not game.progress.heart.has("clearing_1"), "construction requires no land expansion or clearing research")

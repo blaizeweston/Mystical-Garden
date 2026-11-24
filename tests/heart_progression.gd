@@ -18,7 +18,7 @@ func run():
  var g=game.progress
  var h=g.heart
  var p: Dictionary=game.players[1]
- check((["heart","plot_4","plot_5","plot_6","plot_7","plot_8","plot_9"]+Catalog.required_core()).all(func(id):return not Catalog.get_node(id).is_empty()),"historical stable technology IDs remain available")
+ check((["heart","cultivation_grounds"]+Catalog.required_core()).all(func(id):return not Catalog.get_node(id).is_empty()),"historical stable technology IDs remain available")
  var seen: Array=[]
  var new_state: Dictionary=h.serialize()
  check(Catalog.get_node("rift_hook").is_empty() and not Catalog.enabled("rift_hook") and h.purchase(g,"rift_hook")=="Unknown memory.","retired research cannot be selected")
@@ -31,8 +31,8 @@ func run():
  g.knowledge=400;g.parts.fill(500)
  check(h.phase(g)==1,"knowledge begins organic growth")
  var before: Array=g.parts.duplicate()
- h.purchase(g,"plot_4")
- check(g.plots.size()==3 and h.has("plot_4") and g.knowledge==400 and h.spent==2 and g.parts==before,"bed permission spends only available Knowledge")
+ h.purchase(g,"cultivation_grounds")
+ check(g.plots.size()==3 and h.has("cultivation_grounds") and g.knowledge==400 and h.spent==4 and g.parts==before,"bed permission spends only available Knowledge")
  check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed") and g.plots.size()==4,"researched fourth bed is placed")
  h.purchase(g,"flowering")
  h.purchase(g,"clearing_1")
@@ -58,8 +58,10 @@ func run():
  h.purchase(g,"irrigation")
  check(h.has("irrigation") and is_equal_approx(h.growth_multiplier(),1.2),"irrigation has functional growth bonus")
  for count in range(5,10):
-  h.purchase(g,"plot_%d"%count);check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched bed %d is placed" % count)
- check(g.plots.size()==9,"all nine universal beds expandable")
+  game.slot_claimed=true;p.pos=Vector3(0,0,1.5)
+  check(garden.construct("bed",g.structures.revision) and preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"paid bed %d is placed" % count)
+ game.slot_claimed=claimed;p.pos=original_position
+ check(g.plots.size()==9,"nine universal beds developed")
  var snapshot: Dictionary=h.serialize()
  var parts: Array=g.parts.duplicate()
  var path: String=g.path
@@ -67,7 +69,7 @@ func run():
  game.run_heart_save(h.purchase.bind(g,"clearing_2"))
  check(h.serialize()==snapshot and g.parts==parts,"failed save rolls back technology and costs")
  g.path=path
- for id in Catalog.required_core(): h.unlock_direct(id)
+ for id in Catalog.required_core(): h.complete(g,id)
  h.sync_legacy(g)
  g.veilcap_discovered=true
  g.campaign.memories.assign(g.Campaign.MEMORY_REQUIREMENTS)
@@ -172,7 +174,7 @@ func check_rift_retirement(source: String) -> void:
   check(file.save(migrated.path)==OK and migrated.load_garden()==OK,"load old Garden with "+scenario+" Rift Hook")
   var heart=migrated.heart
   check(heart.available_insight(migrated)==38 and heart.spent==2 and migrated.knowledge==40,"refund only paid Rift Knowledge, keep lifetime total: "+scenario)
-  check(heart.has("plot_4") and not heart.has("rift_hook") and not heart.serialize().has("work"), "retain the other funded unlock: "+scenario)
+  check(heart.has("cultivation_grounds") and not heart.has("rift_hook") and not heart.serialize().has("work"), "retain the other funded unlock: "+scenario)
   var growth: Dictionary=migrated.garden_interactions.growth
   check(growth.events.size()==1 and growth.events[0].sequence==5 and growth.seen.viewer==3 and growth.sequence==5
    and not growth.baseline.tech.has("rift_hook"),"retire obsolete notices without renumbering surviving scenes")

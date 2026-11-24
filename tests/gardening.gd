@@ -48,8 +48,8 @@ func run():
 	game.progress.parts.assign([30,0,0])
 	game.progress.knowledge = 60
 	p.pos = Stage.HEART
-	game.send_garden_action("heart_start_plot_4")
-	check(game.progress.plots.size()==3 and game.progress.heart.has("plot_4") and game.progress.parts[0]==30,"host starts Knowledge-funded bed research")
+	game.send_garden_action("heart_start_cultivation_grounds")
+	check(game.progress.plots.size()==3 and game.progress.heart.has("cultivation_grounds") and game.progress.parts[0]==30,"host starts Knowledge-funded bed research")
 	check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched capacity accepts a placed bed")
 	check(game.progress.plots.size()==4,"research grows a new independent bed")
 	game.progress.save_garden()
@@ -70,13 +70,7 @@ func run():
 	check(migrated.save_garden() == OK and FileAccess.file_exists(legacy_path+".pre-plots-v2.bak"), "legacy save is backed up before format conversion")
 	game.progress.parts[0] = 200
 	game.progress.knowledge = 400
-	for remaining in range(Progress.MAX_PLOTS-game.progress.plots.size()):
-		game.garden_action(1,"heart_start_plot_%d"%(game.progress.plots.size()+1));check(game.progress.heart.has("plot_%d"%(game.progress.plots.size()+1)), "later bed capacity can be researched")
-		check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched capacity accepts a placed bed")
-	var parts_before: int = game.progress.parts[0]
-	check(not game.progress.heart.requirements(game.progress,"plot_10").is_empty() and game.progress.parts[0] == parts_before, "bed cap does not consume resources")
-	game._process(.016)
-	check(game.stage.active_plots == 9, "expanded plots are rendered")
+	check(game.progress.heart.has("cultivation_grounds") and game.progress.plots.size() >= 4, "placed beds have persistent crop slots")
 	await process_frame
 	if not failed: print("PASS: universal plots, growth stages, harvest/replant, flowering, expansion, migration and camera bounds")
 	quit(1 if failed else 0)

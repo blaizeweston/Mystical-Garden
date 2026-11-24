@@ -45,9 +45,15 @@ static func place_structure(world: Node, kind: String) -> bool:
 	# a walkable player position so its access guarantee can be checked.
 	if not garden.barrier.walkable(garden.planar(actor.pos)):actor.pos=garden.return_position()
 	var pawn:=Vector2(actor.pos.x,actor.pos.z)
+	var structure_id := 0
+	for id: int in world.progress.structures.instances:
+		var instance: Dictionary = world.progress.structures.instances[id]
+		if instance.kind==kind and not instance.placed:
+			structure_id=id
+			break
 	for yaw in [.37,0.0]:
 		var position := Placement.find(garden.construction, kind, Vector2(2.34,-4.58), yaw, pawn)
-		if position.is_finite() and garden.place(kind,position,yaw):
+		if position.is_finite() and garden.place(kind,position,yaw,structure_id):
 			world.slot_claimed=claimed;actor.pos=original
 			return true
 	world.slot_claimed=claimed;actor.pos=original

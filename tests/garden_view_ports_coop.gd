@@ -110,7 +110,7 @@ func host_run():
 	check(not game.cultivation.harvest(guest,1) and actor.character.plants[1]==familiarity+1 and garden.parts[1]==material+1 and game.rng.state==harvest_rng,"duplicate guest harvest cannot repeat rewards or RNG")
 	mark("harvest_ready")
 	if not check(await until(func():return marked("harvest_received")),"guest receives its committed harvest profile"):return
-	garden.heart.unlock_direct("monster_studies")
+	garden.heart.complete(garden,"monster_studies")
 	# This fixture owns the disposable world; construction still validates its
 	# research, geometry and actual transaction rather than inventing a station.
 	if not check(await until(func():return game.stage.experimental_garden._may_place()),"Garden construction becomes available after its reveal"):return

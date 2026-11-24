@@ -1,6 +1,7 @@
 extends RefCounted
 const Catalog = preload("res://heart_catalog.gd")
-const VERSION := 3
+const VERSION := 4
+const Structures = preload("res://garden_structure_inventory.gd")
 var unlocked: Array = ["heart"]
 var spent := 0
 var offered: Array = []
@@ -33,9 +34,9 @@ func load_state(file: ConfigFile, owner: RefCounted) -> bool:
 		var receipts: Array = []
 		var retained_cost := 0
 		for id in data.paid:
-			if id is String and Catalog.enabled(id) and not receipts.has(id):
+			if id is String and (Catalog.enabled(id) or Structures.OLD_PRICES.has(id)) and not receipts.has(id):
 				receipts.append(id)
-				retained_cost += int(Catalog.get_node(id).insight)
+				retained_cost += int(Structures.OLD_PRICES.get(id, Catalog.get_node(id).get("insight",0)))
 				unlock_direct(id)
 		# Historic purchases recorded IDs and an aggregate debit. Leave every
 		# supported purchase funded and return only evidenced retired spending.
@@ -43,7 +44,6 @@ func load_state(file: ConfigFile, owner: RefCounted) -> bool:
 		spent -= clampi(spent - retained_cost, 0, retired_cost)
 	if legacy:
 		if file.get_value("garden", "studying_flowering", false) == true: unlock_direct("flowering")
-		for count in range(4,owner.plots.size()+1): unlock_direct("plot_%d"%count)
 		# Pre-tree completion may establish earned, still-supported research and guardian memories.
 		var old_discovery: bool=file.get_value("garden","rift_hook_discovered",false)==true
 		var restored: bool=owner.flowering_unlocked and old_discovery and owner.veilcap_discovered and owner.knowledge>=owner.Campaign.FULL_KNOWLEDGE and owner.campaign.memories_complete()
@@ -51,6 +51,11 @@ func load_state(file: ConfigFile, owner: RefCounted) -> bool:
 		if restored or (old_ending is int and old_ending in [1, 2]):
 			for id in Catalog.required_core(): unlock_direct(id)
 			for id in ["memory_grove","memory_mire","memory_hollow"]: unlock_direct(id)
+	if int(data.get("version",0)) < VERSION:
+		for id in Structures.OLD_PRICES:
+			if id in data.get("paid",[]) or id in data.get("unlocked",[]) or owner.plots.size()>3:
+				unlock_direct("cultivation_grounds")
+				break
 	sync_legacy(owner)
 	return legacy
 
@@ -58,7 +63,6 @@ func unlock_direct(id: String) -> void:
 	if not has(id) and not Catalog.get_node(id).is_empty(): unlocked.append(id)
 
 func sync_legacy(owner: RefCounted) -> void:
-	for count in range(4, owner.plots.size() + 1): unlock_direct("plot_%d" % count)
 	if owner.flowering_unlocked: unlock_direct("flowering")
 	owner.flowering_unlocked = has("flowering")
 	sync_memories(owner)
@@ -79,7 +83,6 @@ func requirements(owner: RefCounted,id: String) -> String:
 	if node.has("memory"): return "Restore this memory through repeated guardian expeditions."
 	for parent in node.parents:
 		if not has(parent): return "Requires "+str(Catalog.get_node(parent).name)+"."
-	if owner.knowledge<int(node.knowledge): return "Requires %d lifetime Knowledge."%int(node.knowledge)
 	if available_insight(owner)<int(node.insight): return "Need %d available Knowledge."%int(node.insight)
 	return ""
 
@@ -95,8 +98,7 @@ func complete(owner: RefCounted, id: String) -> void:
 	var node := Catalog.get_node(id)
 	if node.is_empty() or has(id): return
 	unlock_direct(id)
-	if node.has("plots") and not owner.player_placed_beds and owner.garden_development.is_empty():
-		while owner.plots.size() < int(node.plots): owner.plots.append(owner.empty_plot())
+	Structures.grant_research(owner.structures,id)
 	if id == "flowering": owner.flowering_unlocked = true
 	sync_memories(owner)
 

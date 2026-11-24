@@ -24,7 +24,7 @@ func _resolve_research() -> Array:
 	for id: String in Interactions.requirements(Layout.zone("sheltered_spring")):
 		relevant[id] = true
 	for node: Dictionary in Catalog.DEFINITIONS:
-		if node.has("plots") or node.has("clearing"):
+		if node.id == "cultivation_grounds" or node.has("clearing"):
 			relevant[node.id] = true
 	# Figure out the prerequisite closure before displaying catalog order.
 	for id: String in relevant.keys():
@@ -57,8 +57,6 @@ func research_refusal(id: String) -> String:
 	for parent: String in node.parents:
 		if not unlocked.has(parent):
 			return "Requires %s." % Catalog.get_node(parent).name
-	if knowledge < int(node.knowledge):
-		return "Requires %d lifetime Knowledge." % node.knowledge
 	if available_knowledge() < int(node.insight):
 		return "Requires %d available Knowledge." % node.insight
 	return ""
@@ -76,7 +74,7 @@ func clearing_tier() -> int:
 
 func construction_requirements(kind: String) -> Array:
 	match kind:
-		"bed": return ["plot_4"]
+		"bed": return ["cultivation_grounds"]
 		"study": return ["monster_studies"]
 		"archive": return ["seed_archive"]
 	return []
@@ -94,12 +92,10 @@ func construction_refusal(kind: String, records: Dictionary) -> String:
 	var reason := locked_reason(kind)
 	if not reason.is_empty():
 		return reason
-	if kind == "study":
+	if kind in ["study","archive"]:
 		for record: Dictionary in records.values():
-			if record.kind == "study":
-				return "The Field study is already built. Select it in Move mode."
-	if kind == "bed" and not sandbox and bed_count(records) >= extra_bed_limit():
-		return "All unlocked bed spaces are used. Research the next Garden Bed or relocate an existing bed."
+			if record.kind == kind:
+				return "This unique station is already built."
 	return ""
 
 func bed_count(records: Dictionary) -> int:
@@ -108,9 +104,6 @@ func bed_count(records: Dictionary) -> int:
 		if record.kind == "bed":
 			built += 1
 	return built
-
-func extra_bed_limit() -> int:
-	return _highest_unlocked("plots", STARTER_BEDS) - STARTER_BEDS
 
 func _highest_unlocked(field: String, baseline: int) -> int:
 	var result := baseline

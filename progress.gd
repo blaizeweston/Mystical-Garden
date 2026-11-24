@@ -40,7 +40,9 @@ var discoveries: Array = Seeds.counts(false)
 var attempted_pairs: Array = []
 var seed_history: Array = [-1, 0]
 var personal_parts := Parts.empty_counts()
-const MAX_PLOTS := 9
+const Structures = preload("res://garden_structure_inventory.gd")
+var structures := Structures.new_garden()
+var needs_construction_backup := false
 const GROWTH_TIMES := [0.0, 18.0, 45.0, 80.0]
 var needs_plot_backup := false
 var needs_growth_backup:=false
@@ -117,7 +119,7 @@ func _read_garden() -> Error:
 	plots.clear()
 	needs_plot_backup = not (saved_plots is Array)
 	if saved_plots is Array:
-		for item in saved_plots.slice(0, MAX_PLOTS):
+		for item in saved_plots:
 			if item is Dictionary:
 				var species := clampi(int(item.get("species", -1)), -1, PLANT_NAMES.size() - 1)
 				plots.append({"species": species, "age": maxf(0.0,float(item.get("age",0.0))),
@@ -225,7 +227,7 @@ func _read_garden() -> Error:
 		return ERR_FILE_CORRUPT
 	needs_inventory_backup=not file.has_section("inventory")
 	var heart_data: Variant = file.get_value("heart", "state", {})
-	if not heart_data is Dictionary or heart_data.get("version", 0) not in [0, 1, 2, heart.VERSION]:
+	if not heart_data is Dictionary or heart_data.get("version", 0) not in [0, 1, 2, 3, heart.VERSION]:
 		garden_development_error = "Unsupported Heart research record."
 		return ERR_FILE_CORRUPT
 	needs_research_backup = heart_data.get("version") in [1, 2] or garden_development.get("version") == 1
@@ -234,8 +236,27 @@ func _read_garden() -> Error:
 		# and material consumption were already durable on contribution.
 		for batch in garden_development.queue: knowledge += int(batch.knowledge)
 		garden_development.erase("queue")
-		garden_development.version = GardenDevelopment.VERSION
+		garden_development.version = 2
 	needs_heart_backup=heart.load_state(file,self)
+	needs_construction_backup = not file.has_section_key("construction","inventory")
+	if needs_construction_backup:
+		if plots.size() > Structures.Catalog.ORIGINAL_BEDS.size() or garden_development.get("version") == GardenDevelopment.VERSION:
+			garden_development_error = "Missing construction ownership for saved beds or terrain."
+			return ERR_FILE_CORRUPT
+		structures = Structures.migrate(garden_development,plots,heart.unlocked,heart_data)
+		if not garden_development.is_empty():
+			garden_development.erase("buildings")
+			garden_development.erase("next_id")
+			garden_development.version = GardenDevelopment.VERSION
+	else:
+		var inventory: Variant = file.get_value("construction","inventory")
+		if not Structures.valid(inventory,plots):
+			garden_development_error = "Invalid saved construction inventory."
+			return ERR_FILE_CORRUPT
+		structures = inventory
+	if not Structures.valid(structures,plots):
+		garden_development_error = "Historical structures and crop slots disagree."
+		return ERR_FILE_CORRUPT
 	garden_interactions=preload("res://garden_growth_state.gd").load_history(garden_interactions,self)
 	garden_interactions=preload("res://garden_return_state.gd").initialize(garden_interactions)
 	return OK
@@ -264,11 +285,12 @@ func save_garden_guarded() -> Dictionary:
 	return outcome
 
 func migration_backup_paths() -> PackedStringArray:
-	return PackedStringArray([path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-immediate-heart-v3.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak"])
+	return PackedStringArray([path + ".pre-construction-v1.bak", path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-immediate-heart-v3.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak"])
 
 func confirm_migration(saved_path: String) -> void:
 	if path != saved_path:
 		return
+	needs_construction_backup = false
 	needs_growth_backup = false
 	needs_research_backup = false
 	needs_content_backup = false
@@ -285,13 +307,16 @@ func _migration_backup(target: String, guarded: bool) -> Error:
 	return OK if FileAccess.file_exists(target) else DirAccess.copy_absolute(path, target)
 
 func _serialize_save(stage := Callable()) -> Error:
-	if not garden_development_error.is_empty() or not GardenDevelopment.refusal(garden_development, plots.size()).is_empty():
+	if not Structures.valid(structures,plots) or not garden_development_error.is_empty() or not GardenDevelopment.refusal(garden_development, plots.size()).is_empty():
 		return SaveBatch.record_serializer_error(ERR_FILE_CORRUPT, path)
 	if require_guarded_access or SaveBatch.guarded_active():
 		var operations = load("res://persistence_operations.gd")
 		if not operations.authorizes_serializer(self, stage):
 			return SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, path)
 	ensure_storage()
+	if needs_construction_backup and FileAccess.file_exists(path):
+		var copied := _migration_backup(path + ".pre-construction-v1.bak", stage.is_valid())
+		if copied != OK: return copied
 	if needs_growth_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-tier-growth-v2.bak", stage.is_valid())
 		if copied != OK:
@@ -336,6 +361,7 @@ func _serialize_save(stage := Callable()) -> Error:
 	var growth_state:=preload("res://garden_growth_state.gd").prepare(self)
 	file.set_value("garden_interactions","state",growth_state)
 	file.set_value("garden_development", "state", garden_development)
+	file.set_value("construction","inventory",structures)
 	file.set_value("garden", "plots_v2", plots)
 	file.set_value("garden", "unknown", unknown)
 	file.set_value("garden", "guest_seeds", guest_seeds)

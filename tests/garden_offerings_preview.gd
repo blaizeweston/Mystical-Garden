@@ -82,7 +82,7 @@ func run() -> void:
 	view.set_active(true)
 	check(not view.active, "stored energy cannot bypass the Knowledge prerequisite")
 	view.knowledge.grant_test_knowledge()
-	check(view.knowledge.research("clearing_1") and view.knowledge.research("plot_4"),
+	check(view.knowledge.research("clearing_1") and view.knowledge.research("cultivation_grounds"),
 		"existing research grants eligibility without changing the layout")
 	var model = view.construction.model
 	var id: int = model.commit("bed", Vector2(2.34, -4.58), 0.37, view.pawn)

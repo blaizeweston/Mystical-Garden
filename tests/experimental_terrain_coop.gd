@@ -204,7 +204,7 @@ func host_run(menu: Node) -> void:
 	game.run_heart_save(func():
 		game.progress.knowledge = 30
 		game.progress.add_parts(part, 60)
-		for id in ["plot_4", "clearing_1"]:
+		for id in ["cultivation_grounds", "clearing_1"]:
 			game.progress.heart.purchase(game.progress, id))
 	garden.open_offerings()
 	var quote: Dictionary = garden.funds.quote({offering: 16})
@@ -213,7 +213,7 @@ func host_run(menu: Node) -> void:
 	check(game.progress.part_count(part) == 44, "exact shared part debit")
 	garden.offering_dialog.hide()
 	var new_site := Placement.find(garden.construction, "bed", Vector2(2.34, -4.58), 0.37, garden.planar(keeper.pos))
-	if not check(new_site.is_finite() and garden.place("bed", new_site, 0.37), "build a real cultivation bed while hosting"):
+	if not check(new_site.is_finite() and garden.place("bed", new_site, 0.37, game.progress.structures.next_id-1), "build a real cultivation bed while hosting"):
 		return
 	var bed_id: int = garden.bed_ids[3]
 	var moved: Array = []

@@ -24,6 +24,8 @@
         "files": [
           "garden_development_state.gd",
           "garden_development_state.gd.uid",
+          "garden_structure_inventory.gd",
+          "garden_structure_inventory.gd.uid",
           "garden_structure_catalog.gd",
           "garden_structure_catalog.gd.uid"
         ]
@@ -1546,6 +1548,7 @@
         ],
         "package": true
       },
+      "garden_construction_inventory": {"kind":"unit","systems":["garden_development","garden","knowledge","cultivation_growth","persistence_operations","actor_collision"],"package":true},
       "garden_layout_persistence": {
         "kind": "unit",
         "systems": [
@@ -5207,7 +5210,7 @@
         "additive": true
       }},
     "_input": {
-      "experimental_placement_cancel": {
+      "garden_build_input": {
         "systems": [
           "hex_terrain",
           "garden"
@@ -5781,6 +5784,8 @@
         }
       },
     "assets/terrain_m02/garden_construction.gd": {"newline": "lf", "regions": {
+        "hg02__access_9": {"systems": ["garden_development", "knowledge"]},
+        "hg02_placement_issue_2": {"systems": ["garden_development", "knowledge"]},
         "saved_garden_layout_1": {
           "systems": [
             "garden_development"
@@ -5803,6 +5808,7 @@
         },"forest_query_thickets": {"systems": ["garden_canopy"]}}},
     "assets/terrain_m02/garden_forest_barrier.gd": {"newline": "lf", "regions": {"query_only_thickets": {"systems": ["garden_canopy"]}, "query_only_state": {"systems": ["garden_canopy"]}, "query_only_bind": {"systems": ["garden_canopy"]}, "query_only_assets": {"systems": ["garden_canopy"]}, "query_only_begin": {"systems": ["garden_canopy"]}, "query_only_update": {"systems": ["garden_canopy"]}}},
     "assets/terrain_m02/garden_expansion.gd": {"newline": "lf", "regions": {
+        "hg02_release_structure_landmarks_7": {"systems": ["garden_development", "knowledge"]},
         "saved_garden_layout_1": {
           "systems": [
             "garden_development"
@@ -5810,6 +5816,18 @@
         },"rounded_join_import": {"systems": ["garden_canopy"]}, "rounded_join_proposal": {"systems": ["garden_canopy"]}}},
     "affinity_cards.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "assets/terrain_m02/experimental/experiment_garden.gd": {"newline": "lf", "regions": {
+        "hg02__refresh_structure_views_20": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
+        "hg02__commit_development_19": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
+        "hg02__restore_development_18": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
+        "hg02__restore_development_17": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
+        "hg02__cancel_placement_16": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
+        "hg02_open_development_11": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
+        "hg02__initialize_controls_9": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
+        "hg02__may_place_7": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
+        "hg02__apply_layout_6": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
+        "hg02_receive_snapshot_5": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
+        "hg02__generate_habitat_3": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
+        "hg02_definitions_1": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
         "saved_garden_layout_1": {
           "systems": [
             "garden_development"
@@ -6172,6 +6190,12 @@
     "progress.gd": {
       "newline": "lf",
       "regions": {
+        "hg02__serialize_save_8": {"systems": ["garden_development", "knowledge", "persistence_operations"]},
+        "hg02__serialize_save_7": {"systems": ["garden_development", "knowledge", "persistence_operations"]},
+        "hg02__migration_backup_6": {"systems": ["garden_development", "knowledge", "persistence_operations"]},
+        "hg02__read_garden_4": {"systems": ["garden_development", "knowledge", "persistence_operations"]},
+        "hg02__read_garden_3": {"systems": ["garden_development", "knowledge", "persistence_operations"]},
+        "hg02__read_garden_2": {"systems": ["garden_development", "knowledge", "persistence_operations"]},
         "retired_research_fields": {
           "systems": [
             "knowledge",
@@ -6408,6 +6432,7 @@
     "stage.gd": {
       "newline": "lf",
       "regions": {
+        "hg02_altar_position_3": {"systems": ["garden_development", "knowledge"]},
         "saved_garden_layout_1": {
           "systems": [
             "garden_development"
@@ -6895,6 +6920,7 @@
     "garden_layout.gd": {
       "newline": "lf",
       "regions": {
+        "hg02_zone_beds_1": {"systems": ["garden_development", "knowledge"]},
         "saved_garden_layout_1": {
           "systems": [
             "garden_development"
@@ -6922,6 +6948,7 @@
     "garden_growth_catalog.gd": {
       "newline": "lf",
       "regions": {
+        "hg02_describe_1": {"systems": ["garden_development", "knowledge"]},
         "heart_counts": {
           "systems": [
             "heart_growth_visual"
@@ -7521,36 +7548,6 @@
         },
 
         "ui_copy_6": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_5": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_4": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_3": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_2": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_1": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_0": {
           "systems": [
             "ui_copy"
           ]

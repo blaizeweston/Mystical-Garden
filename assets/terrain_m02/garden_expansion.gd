@@ -9,6 +9,7 @@ const Features = preload("res://assets/terrain_m02/terrain_feature_layout.gd")
 const DIRECTIONS := ["East", "Southeast", "South", "Southwest", "West", "Northwest", "North", "Northeast"]
 const FOREST_SECTORS := 72
 const MIN_GAIN := 7
+const FRONTIER_LOBE_SCALE := 1.12
 
 var terrain: Dictionary
 var layout: Dictionary
@@ -29,7 +30,7 @@ var revision := 0
 var reclaimed_cells := 0
 var expansion_history: Array[int] = []
 
-func _init(cells: Dictionary, features: Dictionary, center_spacing: float, seed_number: int, radius: int, protected_landmarks: Array = []) -> void:
+func _init(cells: Dictionary, features: Dictionary, center_spacing: float, seed_number: int, radius: int, protected_landmarks: Array = [], starting_margin := 0.0) -> void:
 	terrain = cells
 	layout = features
 	spacing = center_spacing
@@ -56,7 +57,7 @@ func _init(cells: Dictionary, features: Dictionary, center_spacing: float, seed_
 	for plant: Dictionary in layout.plants:
 		if plant.kind in ["tree", "sapling"]:
 			occupied.append(Shape.disk(plant.id, "trunk", plant.center, plant.height * 0.14))
-	outline = _initial_outline()
+	outline = _initial_outline(starting_margin)
 	for cell: Vector2i in terrain:
 		var at := Grid.cell_to_world(cell, spacing)
 		if Geometry2D.is_point_in_polygon(at, outline):
@@ -66,7 +67,7 @@ func _init(cells: Dictionary, features: Dictionary, center_spacing: float, seed_
 			elif Shape.in_any(reserved, at):
 				reserved_cells[cell] = true
 
-func _initial_outline() -> PackedVector2Array:
+func _initial_outline(margin: float) -> PackedVector2Array:
 	var result := PackedVector2Array()
 	var targets := PackedVector2Array()
 	# Additional station art sits inside the original M11 sanctuary.
@@ -89,7 +90,7 @@ func _initial_outline() -> PackedVector2Array:
 			var lateral := absf(direction.cross(point))
 			if lateral < 2.25:
 				distance = maxf(distance, direction.dot(point) + 1.72 * cos(PI * lateral / 4.5))
-		result.append(direction * distance)
+		result.append(direction * (distance + margin))
 	return result
 
 func frontier_options() -> Array[Dictionary]:
@@ -183,8 +184,8 @@ func entrance_clear() -> bool:
 
 func _lobe(center: Vector2, aim: Vector2, random: RandomNumberGenerator) -> PackedVector2Array:
 	var result := PackedVector2Array()
-	var depth := spacing * random.randf_range(2.85, 3.5)
-	var width := spacing * random.randf_range(2.65, 3.68)
+	var depth := spacing * FRONTIER_LOBE_SCALE * random.randf_range(2.85, 3.5)
+	var width := spacing * FRONTIER_LOBE_SCALE * random.randf_range(2.65, 3.68)
 	var phase := random.randf() * TAU
 	for i in 42:
 		var angle := TAU * float(i) / 42.0
@@ -345,7 +346,7 @@ func forest_layout() -> Dictionary:
 func release_structure_landmarks() -> void:
 	# Construction becomes the sole placement/collision authority for owned beds/altar.
 	for id: String in landmarks.keys():
-		if id == "altar" or id.begins_with("bed_") or id.begins_with("owned_bed_"):
+		if id in ["altar","native_station_seed_archive","native_station_monster_studies"] or id.begins_with("bed_") or id.begins_with("owned_bed_"):
 			reserved.erase(landmarks[id])
 			root_exclusions.erase(landmarks[id])
 			landmarks.erase(id)

@@ -338,7 +338,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
     check(world.seed_reserve(host).unknown.is_empty() and host.altar_message == ordinary,
      "Altar retains the identification result")
    "conduit":
-    for tech in ["clearing_1","clearing_2","irrigation","plot_4","living_conduit"]:
+    for tech in ["clearing_1","clearing_2","irrigation","cultivation_grounds","living_conduit"]:
      world.progress.heart.complete(world.progress,tech)
     host.pos = Conduit.Layout.Catalog.point(Conduit.POINT).position
     var result = world.garden_commands.configure_conduit(world.HOST,{"point":Conduit.POINT,"revision":0,"mode":"deep"})

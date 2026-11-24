@@ -98,10 +98,30 @@ func host(menu: Node) -> void:
 	garden._refresh_parts()
 	var quote: Dictionary = garden.funds.quote({item: 4})
 	if not check(garden.contribute(quote) and not garden.contribute(quote), "four contributed parts consumed once"): return
-	game.garden_action(1,"heart_start_plot_4")
-	game.garden_action(1,"heart_start_plot_4")
-	if not check(game.progress.knowledge == 4 and game.progress.heart.spent == 2 and garden.funds.energy == 8, "one host purchase and contribution"): return
+	game.garden_action(1,"heart_start_cultivation_grounds")
+	game.garden_action(1,"heart_start_cultivation_grounds")
+	if not check(game.progress.knowledge == 4 and game.progress.heart.spent == 4 and garden.funds.energy == 8, "one host purchase and contribution"): return
 	if not await until(func(): return peers.all(func(peer): return read("heart-"+str(peer))=="yes"), "every guest sees both currencies and unlock"): return
+	# Use the same real Garden with more than nine beds before travelling.
+	game.players[1].pos=Vector3(0,0,1.5)
+	game.run_heart_save(func():
+		game.progress.knowledge+=200
+		game.progress.add_parts(game.Parts.THORN,200)
+		return "")
+	garden._refresh_parts()
+	if not check(garden.contribute(garden.funds.quote({item:150})), "fund additional construction"): return
+	game.garden_action(1,"heart_start_clearing_1")
+	if not check(preload("res://tests/support/garden_placement_case.gd").develop(garden,10), "host develops ten placed beds"): return
+	var tenth: int = garden.bed_ids[9]
+	var site := preload("res://tests/support/garden_placement_case.gd").find(garden.construction,"bed",garden.construction.records[tenth].at,0.2,Vector2(0,1.5),tenth)
+	if not check(garden.place("bed",site,0.2,tenth) and garden.construct("bed",game.progress.structures.revision),"relocate tenth and buy one stored bed"): return
+	game.players[1].pos = game.stage.bed_position(9)
+	game.players[1].seed_choice = 0
+	game.seed_reserve(game.players[1]).stock[0] += 1
+	if not check(game.cultivation.plant_seed(1,9),"plant a real crop in the tenth bed"): return
+	mark("bed-position",var_to_str(site))
+	mark("built",str(garden.funds.energy))
+	if not await until(func():return peers.all(func(peer):return read("built-"+str(peer))=="yes"),"all guests see placed and stored beds"): return
 	# Each participant identifies concealed boss stock and combines at the shared altar.
 	for index in game.players.size():
 		var actor: Dictionary=game.players[game.players.keys()[index]]
@@ -177,9 +197,15 @@ func guest(menu: Node) -> void:
 	var game:=tree.current_scene
 	var peer: int=game.local_player_id()
 	var character: String=game.guest_character.identity
-	if not await until(func(): return game.heart_state().unlocked.has("plot_4") and game.stage.experimental_garden.remote_development.get("energy")==8, "Garden purchase and contribution replicated"): return
-	check(game.heart_state().insight==2 and game.guest_replication.garden_progress()[6]==4, "host Knowledge balances agree")
+	if not await until(func(): return game.heart_state().unlocked.has("cultivation_grounds") and game.stage.experimental_garden.remote_development.get("energy")==8, "Garden purchase and contribution replicated"): return
+	check(game.heart_state().insight==0 and game.guest_replication.garden_progress()[6]==4, "host Knowledge balances agree")
 	mark("heart-"+str(peer))
+	var garden = game.stage.experimental_garden
+	if not await until(func():return not read("built").is_empty() and garden.bed_ids.size()==10 and garden.remote_development.energy==int(read("built")) and game.guest_replication.garden_progress()[12].size()>=30 and game.Progress.decode_plots(game.guest_replication.garden_progress()[12])[9].species==0, "ten beds and current Energy replicated"): return
+	var inventory: Dictionary=garden.remote_development.layout.inventory
+	check(inventory.instances.values().filter(func(e): return not e.placed and e.kind=="bed").size()==1 and game.Progress.decode_plots(game.guest_replication.garden_progress()[12]).size()==10 and garden.construction.records[garden.bed_ids[9]].at.is_equal_approx(str_to_var(read("bed-position"))),"read-only inventory, extended crops and exact moved position")
+	check(not garden.construct("bed",inventory.revision) and not garden.retire_structure(garden.bed_ids[9],inventory.revision,true),"guest cannot buy or refund")
+	mark("built-"+str(peer))
 	if not await until(func():return read("altar")=="yes" and game.players[peer].pos.distance_to(game.stage.altar_position())<1.65,"guest reached altar"): return
 	await submit_altar(game)
 	if not await until(func():return game.guest_replication.inventory().size()>6 and game.guest_replication.inventory()[6][16]==1 and game.players[peer].get("recorded_seed_recipes",[]).has(16),"identified stock and tested recipe arrive"): return
@@ -222,7 +248,7 @@ func guest(menu: Node) -> void:
 		game=tree.current_scene
 		check(game.guest_character.identity==character and game.wild_flora_view(game.local_player_id()).is_empty(),"reconnected character does not recover stale flora")
 		game.request_wild_flora.rpc_id(1,plant.identity,stamp)
-		if not await until(func(): return game.heart_state().unlocked.has("plot_4") and game.stage.experimental_garden.remote_development.get("energy")==8, "rejoined client receives committed Heart and Energy"): return
+		if not await until(func(): return game.heart_state().unlocked.has("cultivation_grounds") and game.stage.experimental_garden.remote_development.get("energy")==int(read("built")) and game.stage.experimental_garden.bed_ids.size()==10, "rejoined client receives committed Heart and Energy"): return
 		mark("rejoined")
 	else:
 		if not await until(func():return game.wild_flora_view(peer).is_empty() and game.participation.floor()==1,"discard old flora after wipe"): return

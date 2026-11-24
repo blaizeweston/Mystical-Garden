@@ -98,8 +98,7 @@ func refresh() -> void:
 		expansion = "Free in test mode"
 	elif model.clearing_tier() > 0:
 		expansion = "Repeatable · Heart growth tier %d" % model.clearing_tier()
-	var beds := "unlimited in test mode" if model.sandbox else "%d of %d available" % [
-		maxi(0, model.extra_bed_limit() - model.bed_count(records)), model.extra_bed_limit()]
+	var beds := "Available" if model.locked_reason("bed").is_empty() else "Research Cultivation Grounds"
 	capabilities.text = "Garden growth: %s\nExtra cultivation beds: %s\nAvailable in Build: %s" % [
 		expansion, beds, ", ".join(available) if not available.is_empty() else "None"]
 
@@ -111,7 +110,7 @@ func _update_detail() -> void:
 	for parent: String in row.parents:
 		required.append(Knowledge.Catalog.get_node(parent).name)
 	var effect := "Supports related Garden research in this lab."
-	if row.has("plots"):
+	if selected=="cultivation_grounds":
 		effect = "Unlocks one extra cultivation bed. Place it using Build."
 	elif selected == "clearing_1":
 		effect = "Unlocks repeatable expansion funded by Heart offerings."
@@ -125,6 +124,6 @@ func _update_detail() -> void:
 		effect = row.description
 	var refusal := model.research_refusal(selected)
 	study.disabled = not refusal.is_empty()
-	detail.text = "%s\nRequires %s\n%d lifetime Knowledge · Spend %d available\n\n%s\n\n%s" % [
-		row.name, ", ".join(required), row.knowledge, row.insight, effect,
+	detail.text = "%s\nRequires %s\nSpend %d available Knowledge\n\n%s\n\n%s" % [
+		row.name, ", ".join(required), row.insight, effect,
 		"Ready. Research completes immediately in the lab." if refusal.is_empty() else refusal]

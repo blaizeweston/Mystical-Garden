@@ -29,8 +29,8 @@ const GRAFT_ALTAR := Vector3(-4.6, 0, 2.4)
 const DEEPER_GATE := Vector3(0, 0, 13.2)
 const HEART := Vector3(0, 0, 0)
 const HEART_STATIONS := {"seed_archive":Vector3(7.2,0,-4.2),"monster_studies":Vector3(-7.8,0,1),"living_archive":Vector3(0,0,9.2)}
-const ALTAR := Vector3(-3.5, 0, -2)
-const PLOTS := [Vector3(3.6, 0, -1.6), Vector3(3.6, 0, 2.6), Vector3(-3.6, 0, 2.6), Vector3(-5.0,0,-5.0), Vector3(0,0,6.4), Vector3(5.7,0,5.4), Vector3(-6,0,5.6), Vector3(7.9,0,1.7), Vector3(3.3,0,-6.8)]
+const ALTAR := preload("res://garden_structure_catalog.gd").ORIGINAL_ALTAR
+const PLOTS := preload("res://garden_structure_catalog.gd").ORIGINAL_BEDS
 const ENEMY_START := Vector3(0, 0, 5.4)
 
 @onready var camera: Camera3D = $Camera
@@ -77,7 +77,9 @@ var garden_tier := -1
 var active_plots := 3
 var garden_extent := 11.5
 var garden_beds: Node3D
+var rendered_plot_data: Array = []
 var plot_key := ""
+var rendered_beds := {} # Crop-slot view cache. Layout changes can move or store an individual bed.
 var scenery: Array[Node3D] = []
 var crown: Node3D
 var foe_surface: StandardMaterial3D
@@ -642,7 +644,8 @@ func altar_position() -> Vector3:
 	return ALTAR if experimental_garden == null else experimental_garden.station_position("altar")
 
 func bed_position(index: int) -> Vector3:
-	return PLOTS[index] if experimental_garden == null else experimental_garden.bed_position(index)
+	if experimental_garden != null: return experimental_garden.bed_position(index)
+	return PLOTS[index] if index >= 0 and index < PLOTS.size() else Vector3.INF
 
 func bed_positions() -> Array:
 	return PLOTS if experimental_garden == null else range(active_plots).map(bed_position)
@@ -858,15 +861,25 @@ static func garden_camera_target(player: Vector3, radius: float) -> Vector3:
 	return Vector3(point.x, 0, point.y)
 
 func update_plots(beds: Array) -> void:
-	if garden_beds == null or plot_key == str(beds):
-		return
-	plot_key = str(beds)
+	if garden_beds == null: return
+	if not plot_key.is_empty() and rendered_plot_data == beds: return
+	rendered_plot_data = beds.duplicate(true)
+	plot_key = "current"
 	active_plots = beds.size()
-	for child in garden_beds.get_children():
-		child.free()
+	for i: int in rendered_beds.keys():
+		if i < beds.size() and bed_position(i).is_finite(): continue
+		if is_instance_valid(rendered_beds[i].node): rendered_beds[i].node.free()
+		rendered_beds.erase(i)
 	for i in beds.size():
 		var p := bed_position(i)
 		if not p.is_finite(): continue
+		var bed: Dictionary = beds[i]
+		var yaw := 0.0 if experimental_garden == null else float(experimental_garden.bed_yaw(i))
+		var signature := [bed.species, bed.stage, bed.flowering, p, yaw]
+		var cached: Dictionary = rendered_beds.get(i,{})
+		if not cached.is_empty() and is_instance_valid(cached.node):
+			if cached.signature == signature: continue
+			cached.node.free()
 		var bed_group: Node3D
 		if experimental_garden == null:
 			build_garden_plot(p, garden_beds)
@@ -874,7 +887,7 @@ func update_plots(beds: Array) -> void:
 		else:
 			bed_group = experimental_garden.make_bed(i)
 			garden_beds.add_child(bed_group)
-		var bed: Dictionary = beds[i]
+		rendered_beds[i] = {"node":bed_group,"signature":signature}
 		if bed.species >= 0:
 			var plant := build_crop(int(bed.species), int(bed.stage), bool(bed.flowering))
 			plant.reparent(bed_group, false)

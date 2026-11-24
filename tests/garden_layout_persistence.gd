@@ -54,6 +54,18 @@ func equivalent(a: Variant, b: Variant) -> bool:
 		return true
 	return a == b
 
+func measure_space(garden: Node) -> void:
+	var usable := 0
+	var size := Rect2(Vector2.ZERO, Vector2.ZERO)
+	for point: Vector2 in garden.state.outline: size = size.expand(point)
+	for cell: Vector2i in garden.state.owned:
+		var center: Vector2 = garden.state.Grid.cell_to_world(cell, garden.Spacing)
+		if garden.construction.validate("bed", center, 0, Vector2(0,1.5)).is_empty(): usable += 1
+	var frontiers := {}
+	for proposal: Dictionary in garden.state.frontier_options():
+		frontiers[garden.state.DIRECTIONS[proposal.sector]] = proposal.cells.size()
+	print("GARDEN_SPACE ", {"clearing_m":size.size, "legal_centers":usable, "sample_area_m2":usable*garden.state.cell_area(), "frontiers":frontiers})
+
 func run() -> void:
 	if not OS.get_user_data_dir().replace("\\", "/").contains("/.godot/vd/") or OS.get_environment("MYSTICAL_VALIDATION_RUN").is_empty():
 		printerr("FAIL: this fixture requires the validation runner's disposable save root")
@@ -62,6 +74,7 @@ func run() -> void:
 	var game := await world()
 	if game == null: quit(1); return
 	var garden = game.stage.experimental_garden
+	measure_space(garden)
 	check(garden.bed_ids.size() == 3 and garden.station_ids.has("altar") and garden.construction.records.size() == 4,
 		"all starting structures have exactly one placement record")
 	check(not garden.state.landmarks.has("altar") and not garden.state.landmarks.has("bed_0"),
@@ -122,6 +135,7 @@ func run() -> void:
 	garden.development_dialog.hide()
 	await process_frame
 	var saved: Dictionary = garden._capture_development()
+	var saved_inventory: Dictionary = game.progress.structures.duplicate(true)
 	check(Saved.refusal(saved, 3).is_empty() and game.progress.save_garden() == OK, "complete Garden projection serializes")
 	var positions: Array = game.stage.bed_positions().duplicate()
 	var altar_position: Vector3 = game.stage.altar_position()
@@ -136,7 +150,7 @@ func run() -> void:
 		"fresh world reload preserves the layout, crop, reclaimed cells, roots, energy and placements")
 	check(game.stage.bed_positions() == positions and game.stage.altar_position() == altar_position,
 		"reloaded interactions use saved positions")
-	check(garden.construction.next_id == saved.next_id and garden.roots.get_child_count() == saved.roots.size(),
+	check(equivalent(game.progress.structures,saved_inventory) and garden.roots.get_child_count() == saved.roots.size(),
 		"stable structure IDs and root presentation survive restart")
 	check(Water._features(game.stage) == garden.state.layout.water and Water.anchor(game.stage).is_finite(),
 		"terrain water remains reachable after layout reload")
@@ -149,9 +163,9 @@ func run() -> void:
 	check(Saved.refusal({}).is_empty(), "older Garden without layout remains supported")
 	for bad in [false, {"version": 999}]:
 		check(not Saved.refusal(bad).is_empty(), "unsupported saved data fails closed")
-	var malformed: Dictionary = complete.duplicate(true)
-	malformed.buildings[0][2] = Vector2(NAN, 0)
-	check(not Saved.refusal(malformed).is_empty(), "nonfinite placement fails closed")
+	var malformed: Dictionary = saved_inventory.duplicate(true)
+	malformed.instances[1].at = Vector2(NAN, 0)
+	check(not game.Progress.Structures.valid(malformed,game.progress.plots), "nonfinite placement fails closed")
 	var file := ConfigFile.new()
 	check(file.load(loaded.path) == OK, "disposable save is readable")
 	file.set_value("garden_development", "state", {"version": 999})

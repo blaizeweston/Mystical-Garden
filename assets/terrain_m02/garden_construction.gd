@@ -25,6 +25,8 @@ var _grid := {}
 var _revision := -1
 var _marks := {}
 var _fixed_goals: Array = []
+var _terrain_links := {} # Only stationary doors and essential approach points are cached.
+var _door_sites := {}
 var _thickets: Array = []
 
 func _init(barrier: Forest) -> void:
@@ -44,14 +46,14 @@ func validate(kind: String, at: Vector2, yaw: float, pawn: Vector2, moving: int 
 func placement_issue(kind: String, at: Vector2, yaw: float, pawn: Vector2, moving: int = 0) -> Dictionary:
 	if not CATALOG.has(kind) or not at.is_finite() or not is_finite(yaw):
 		return _issue("Choose a Garden structure.")
-	if moving == 0 and not CATALOG[kind].buildable:
+	if knowledge != null and moving == 0 and not CATALOG[kind].buildable:
 		return _issue("The starting Garden Altar can only be moved.")
 	if moving != 0 and (not records.has(moving) or records[moving].kind != kind):
 		return _issue("Select a placed structure to move.")
-	if kind == "study" and moving == 0:
+	if knowledge != null and kind in ["archive","study"] and moving == 0:
 		for entry: Dictionary in records.values():
 			if entry.kind == kind:
-				return _issue("There is already a field study. Relocate it in Move mode.", entry.footprint)
+				return _issue("The %s is already placed. Relocate it in Move mode." % CATALOG[kind].name, entry.footprint)
 	if moving == 0 and knowledge != null:
 		var refusal := knowledge.construction_refusal(kind, records)
 		if not refusal.is_empty():
@@ -73,7 +75,7 @@ func placement_issue(kind: String, at: Vector2, yaw: float, pawn: Vector2, movin
 			if landmark.id == "heart": name = "fully grown Heart's base"
 			return _issue("Keep clear of the %s. Its reserved area is outlined." % name, restriction)
 	for feature: Dictionary in garden.layout.paths + garden.layout.get("path_joins", []):
-		if _overlaps(area, feature, WALK_RADIUS):
+		if _overlaps(area, feature, MARGIN):
 			return _issue("Keep the permanent Wilds approach clear.", feature, WALK_RADIUS)
 	for obstacle: Dictionary in garden.occupied:
 		if _overlaps(area, obstacle):
@@ -131,8 +133,13 @@ func _sync_obstacles() -> void:
 		var entry: Dictionary = records[id]
 		forest.garden.construction_clearance.append(Shape.disk("access_%d" % id, "approach", _door_position(entry), WALK_RADIUS))
 	_marks.clear()
+	var current_doors := {}
 	for id: int in records:
 		_marks[id] = _nearby(records[id].footprint)
+		current_doors[_door_position(records[id])] = true
+	for point: Vector2 in _door_sites:
+		if not current_doors.has(point): _terrain_links.erase(point)
+	_door_sites = current_doors
 
 func walking_footprint(kind: String, at: Vector2, yaw: float) -> Dictionary:
 	if not _walking_outlines.has(kind):
@@ -189,6 +196,7 @@ func _grid_key(at: Vector2) -> Vector2i:
 	return Vector2i((at / STEP).round())
 
 func _build_grid() -> void:
+	_terrain_links.clear()
 	_grid.clear()
 	_thickets.clear()
 	for at in forest.thicket_centres():
@@ -205,8 +213,16 @@ func _build_grid() -> void:
 				_grid[cell] = true
 	_revision = forest.garden.revision
 	_fixed_goals.clear()
+	for water: Dictionary in forest.garden.layout.water:
+		var banks: Array[Vector2] = []
+		var shore := Shape.boundary(water)
+		for index in range(0,shore.size(),3):
+			var at: Vector2 = shore[index] + (shore[index]-water.bounds.get_center()).normalized()*0.65
+			if forest.fixed_walkable(at,WALK_RADIUS): banks.append(at)
+		if not banks.is_empty(): _fixed_goals.append(banks)
 	for feature: Dictionary in forest.garden.landmarks.values():
-		if feature.id == "wilds_entrance" or not feature.get("requires_access",true):
+		var physical_service: bool = feature.id == "native_station_living_archive" or (str(feature.id).begins_with("interaction_") and feature.get("blocks_construction",true))
+		if feature.id == "wilds_entrance" or (not physical_service and not feature.get("requires_access",true)):
 			continue
 		var targets: Array[Vector2] = []
 		for angle in 16:
@@ -215,7 +231,8 @@ func _build_grid() -> void:
 			var at := center + Vector2.from_angle(TAU * angle / 16.0) * distance
 			if forest.fixed_walkable(at, WALK_RADIUS):
 				targets.append(at)
-		_fixed_goals.append(targets)
+		# An authored point outside an older clearing becomes a goal once its approach is reclaimed.
+		if not targets.is_empty() or not physical_service: _fixed_goals.append(targets)
 
 func _nearby(area: Dictionary) -> Dictionary:
 	var result := {}
@@ -238,17 +255,17 @@ func _access(candidate: Dictionary, pawn: Vector2, moving: int) -> bool:
 			shapes.append(records[id].footprint)
 			blocked.merge(_marks[id])
 	var origin: Vector2 = forest.garden.landmarks.wilds_entrance.center
-	var source := _connections(origin, shapes, blocked)
+	var source := _connections(origin, shapes, blocked,true)
 	if source.is_empty():
 		return false
-	var goals: Array = [_connections(pawn, shapes, blocked), _door(candidate, shapes, blocked)]
+	var goals: Array = [_connections(pawn, shapes, blocked), _connections(_door_position(candidate), shapes, blocked)]
 	for id: int in records:
 		if id != moving:
-			goals.append(_door(records[id], shapes, blocked))
+			goals.append(_connections(_door_position(records[id]), shapes, blocked,true))
 	for fixed: Array[Vector2] in _fixed_goals:
 		var targets := {}
 		for point in fixed:
-			targets.merge(_connections(point, shapes, blocked))
+			targets.merge(_connections(point, shapes, blocked,true))
 		goals.append(targets)
 	for goal: Dictionary in goals:
 		if goal.is_empty():
@@ -278,27 +295,34 @@ func _access(candidate: Dictionary, pawn: Vector2, moving: int) -> bool:
 				queue.append(next)
 	return false
 
-func _door(entry: Dictionary, shapes: Array, blocked: Dictionary) -> Dictionary:
-	return _connections(_door_position(entry), shapes, blocked)
-
 func _door_position(entry: Dictionary) -> Vector2:
 	var front := Vector2(0, CATALOG[entry.kind].half.y + 0.70)
 	return entry.at + front.rotated(entry.yaw)
 
-func _connections(at: Vector2, shapes: Array, blocked: Dictionary) -> Dictionary:
+func _fixed_connections(at: Vector2, stationary: bool) -> Array:
+	if stationary and _terrain_links.has(at): return _terrain_links[at]
+	var links := []
+	if forest.fixed_walkable(at, WALK_RADIUS):
+		var center := _grid_key(at)
+		for x in range(-1, 2):
+			for y in range(-1, 2):
+				var id := center + Vector2i(x,y)
+				if not _grid.has(id): continue
+				var mid := at.lerp(Vector2(id)*STEP,0.5)
+				var clearance := WALK_RADIUS + at.distance_to(Vector2(id)*STEP)*0.5
+				if forest.fixed_walkable(mid,clearance): links.append([id,mid,clearance])
+	if stationary: _terrain_links[at] = links
+	return links
+
+func _connections(at: Vector2, shapes: Array, blocked: Dictionary, stationary := false) -> Dictionary:
 	var result := {}
-	if not forest.fixed_walkable(at, WALK_RADIUS) or Shape.in_any(shapes, at, WALK_RADIUS):
-		return result
-	var center := _grid_key(at)
-	for x in range(-1, 2):
-		for y in range(-1, 2):
-			var id := center + Vector2i(x, y)
-			if not _grid.has(id) or blocked.has(id):
-				continue
-			var mid := at.lerp(Vector2(id) * STEP, 0.5)
-			var clearance := WALK_RADIUS + at.distance_to(Vector2(id) * STEP) * 0.5
-			if forest.fixed_walkable(mid, clearance) and not Shape.in_any(shapes, mid, clearance):
-				result[id] = true
+	var nearby := []
+	for obstacle: Dictionary in shapes:
+		if obstacle.bounds.grow(1.5).has_point(at): nearby.append(obstacle)
+	if Shape.in_any(nearby,at,WALK_RADIUS): return result
+	for link: Array in _fixed_connections(at,stationary):
+		if not blocked.has(link[0]) and not Shape.in_any(nearby,link[1],link[2]):
+			result[link[0]] = true
 	return result
 
 func adopt_owned(kind: String, at: Vector2) -> int:

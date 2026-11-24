@@ -86,11 +86,11 @@ func run() -> void:
 
 	panel.tabs.current_tab=1
 	facts=facts_for(Character.blank())
-	panel.chosen="heart_plot_4"
+	panel.chosen="heart_cultivation_grounds"
 	panel.present(facts)
 	check(not panel.heart_start_button.disabled,"host can purchase useful research")
 	panel.heart_start_button.pressed.emit()
-	check(requests.back().data.action=="heart_start_plot_4","research submits only the selected identity")
+	check(requests.back().data.action=="heart_start_cultivation_grounds","research submits only the selected identity")
 	facts.is_host=false
 	facts.may_start_research=false
 	panel.present(facts)
@@ -106,7 +106,7 @@ func run() -> void:
 	check(panel.care.visible and "Discovery 14" in panel.care.stories.text and "Discovery 0\n" not in panel.care.stories.text,"the story child renders only the latest twelve supplied discoveries")
 	entries[14].name="Caller mutation"
 	check("Caller mutation" not in panel.care.stories.text,"story text is not linked to caller-owned state")
-	check(refreshes.any(func(s):return s.tab==2) and refreshes.any(func(s):return s.chosen=="heart_plot_4"),"refresh requests contain only the current display selection")
+	check(refreshes.any(func(s):return s.tab==2) and refreshes.any(func(s):return s.chosen=="heart_cultivation_grounds"),"refresh requests contain only the current display selection")
 
 	# Let the existing deferred, version-checked scrollbar work finish before teardown.
 	for frame in 5: await process_frame

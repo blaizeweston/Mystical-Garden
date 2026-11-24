@@ -16,9 +16,9 @@ func run() -> void:
  var g=game.progress;var view=game.get_node("GardenInteractions/GrowthScenes");view.set_process(false)
  check(g.garden_interactions.growth.events.is_empty(),"new and migrated worlds establish a baseline without replaying history")
  var initial: Dictionary=g.garden_interactions.duplicate(true)
- g.heart.complete(g,"plot_4")
+ g.heart.complete(g,"cultivation_grounds")
  var prepared:=State.prepare(g)
- check(g.garden_interactions==initial and prepared.growth.events.size()==1 and prepared.growth.events[0].kind=="bed" and prepared.growth.events[0].slot==3,"preparing a new bed is pure and identifies the real destination")
+ check(g.garden_interactions==initial and prepared.growth.events.size()==1 and prepared.growth.events[0].kind=="heart","preparing a new bed is pure and identifies the real destination")
  var path: String=g.path;g.path=base+"-missing/fail.cfg"
  check(g.save_garden()!=OK and g.garden_interactions==initial,"failed save cannot publish a growth event")
  g.path=path;check(g.save_garden()==OK,"growth commits")
@@ -40,8 +40,7 @@ func run() -> void:
  check(g.plots.size()==3 and game.stage.garden_beds.get_child_count()==3,"bed research grants permission without silently constructing a bed")
  # This renderer fixture supplies an already-earned saved bed. Real guarded
  # construction and its debit/placement rules remain in experimental_terrain.
- g.plots.append(g.empty_plot())
- game.stage.experimental_garden.adopt_recorded_beds()
+ check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"place inventory bed")
  game.stage.plot_key=""
  game._process(.016)
  if game.stage.garden_beds.get_child_count()<4:
@@ -49,7 +48,9 @@ func run() -> void:
  var bed: Node3D=game.stage.garden_beds.get_child(3)
  check(bed.global_position.is_equal_approx(game.stage.bed_position(3)),"the reveal uses the actually placed bed position")
  var parts: Array=g.parts.duplicate();var stock: Array=g.stock.duplicate();var knowledge: int=g.knowledge
- view.begin(first);view.animate(2.0);game.stage.focus(game.players[1].pos,false,1)
+ # Exercise a saved pre-HG02 bed reveal against the current, movable bed.
+ var historical_bed := first.merged({"kind":"bed","slot":3},true)
+ view.begin(historical_bed);view.animate(2.0);game.stage.focus(game.players[1].pos,false,1)
  var menu_key:=InputEventKey.new();menu_key.physical_keycode=KEY_ESCAPE;menu_key.pressed=true
  game._input(menu_key)
  check(view.is_active() and not game.ui.is_overlay_open(),"actual Game input obeys the cinematic owner while playback is active")
@@ -68,8 +69,8 @@ func run() -> void:
  check(g.parts==parts and g.stock==stock and g.knowledge==knowledge,"watching/skipping creates no material, seed or Knowledge reward")
  var before: Dictionary=g.garden_interactions.duplicate(true);var plots: Array=g.plots.duplicate(true);var profile_path: String=game.local_character.path
  game.local_character.path=base+"-missing/character"
- check(Transactions.run(game,func():g.heart.complete(g,"plot_5");return true)!=true,"multi-file commit failure is surfaced")
- check(g.garden_interactions==before and g.plots==plots and not g.heart.has("plot_5"),"failed transaction rolls queue and research back together")
+ check(Transactions.run(game,func():g.heart.complete(g,"seed_archive");return true)!=true,"multi-file commit failure is surfaced")
+ check(g.garden_interactions==before and g.plots==plots and not g.heart.has("seed_archive"),"failed transaction rolls queue and research back together")
  game.local_character.path=profile_path
  # Research produces the spring scene only once, even when several prerequisites commit together.
  g.heart.complete(g,"clearing_1");g.heart.complete(g,"flowering");g.heart.complete(g,"irrigation");g.save_garden()

@@ -411,7 +411,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if ui.cinematic_active():return
 	if settings_dialog!=null and settings_dialog.visible: return
-	if stage != null and stage.experimental_garden != null and stage.experimental_garden.cancel_placement_input(event):
+	if stage != null and stage.experimental_garden != null and stage.experimental_garden.build_input(event):
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("run_summary") and ui.summary_input(event,network_session.role()!="Connecting" and not returning_to_title

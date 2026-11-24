@@ -21,8 +21,8 @@ func run() -> void:
  p.pos=game.Stage.HEART;g.knowledge=400;g.parts.fill(60)
  var before=g.heart.serialize();game.send_garden_action("expand_plot")
  check(g.heart.serialize()==before and g.plots.size()==3,"retired bed shortcut cannot start or pay for research")
- game.send_garden_action("heart_start_plot_4")
- check(g.heart.has("plot_4") and g.plots.size()==3,"explicit Knowledge-node research still works")
+ game.send_garden_action("heart_start_cultivation_grounds")
+ check(g.heart.has("cultivation_grounds") and g.plots.size()==3,"explicit Knowledge-node research still works")
  check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"Knowledge unlock permits a real placed bed");check(g.plots.size()==4,"bed research completion expands Garden")
  # Simulate an actual older save rather than rebuilding its retired systems in memory.
  g.campaign.cleared.fill(true)
@@ -43,7 +43,7 @@ func run() -> void:
  var knowledge: int=g.knowledge
  var valid_spending: int=g.heart.spent
  check(old.save(g.path)==OK and g.load_garden()==OK,"load historical records")
- check(g.knowledge==knowledge and g.heart.spent==valid_spending and g.heart.has("plot_4"),
+ check(g.knowledge==knowledge and g.heart.spent==valid_spending and g.heart.has("cultivation_grounds"),
   "refund retired research while preserving paid bed research and lifetime Knowledge")
  for action in ["nurture","harvest_offshoot","awaken"]:game.send_garden_action(action)
  check(game.Progress.decode_plots(g.plot_snapshot()).all(func(b):return not b.has("offshoot")),"legacy history reserves no bed")

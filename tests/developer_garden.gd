@@ -82,8 +82,8 @@ func run() -> void:
 	test_material_stock(game, tools, base)
 	game.settings_dialog.cancel()
 
-	game.run_heart_save(progress.heart.purchase.bind(progress,"plot_4"))
-	check(progress.heart.has("plot_4") and progress.plots.size()==3,"research grants permission without free construction")
+	game.run_heart_save(progress.heart.purchase.bind(progress,"cultivation_grounds"))
+	check(progress.heart.has("cultivation_grounds") and progress.plots.size()==3,"research grants permission without free construction")
 	var count: int = progress.garden_interactions.growth.events.size()
 	game.settings_dialog.begin(game.app_settings)
 	for index in tools.tech_picker.item_count:
@@ -102,7 +102,7 @@ func run() -> void:
 	var stable_state: Dictionary = progress.heart.serialize()
 	var stable_path: String = progress.path
 	progress.path = base.path_join("missing").path_join("garden.cfg")
-	check(Developer.test_unlock(game,"plot_6").begins_with("Save cancelled"),"a save error is reported")
+	check(Developer.test_unlock(game,"checkpoint_deposit").begins_with("Save cancelled"),"a save error is reported")
 	check(progress.heart.serialize()==stable_state and progress.plots.size()==3,"failed test unlock rolls prerequisites and plots back")
 	progress.path = stable_path
 	game.app_settings.values.developer_mode = false

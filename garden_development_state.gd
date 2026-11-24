@@ -1,9 +1,11 @@
 extends RefCounted
 ## Versioned save projection, not a second live Garden owner.
 ## Positions/radii are metres, yaw is radians.
-const VERSION := 2
+const VERSION := 3
 const SEED := 117
-const RADIUS := 14
+const RADIUS := 14 # Authored inner habitat.
+const FRONTIER_RADIUS := 26
+const STARTING_MARGIN_M := 0.85
 const SPACING := 1.75
 const Structures = preload("res://garden_structure_catalog.gd")
 
@@ -12,7 +14,7 @@ static func refusal(value: Variant, plot_count: int = -1) -> String:
 		return "Garden development must be a record."
 	if value.is_empty():
 		return "" # An older Garden has not saved construction yet.
-	if value.get("version") not in [1, VERSION]:
+	if value.get("version") not in [1, 2, VERSION]:
 		return "Unsupported Garden layout version."
 	if value.get("seed") != SEED or value.get("radius") != RADIUS or value.get("spacing") != SPACING:
 		return "Garden layout belongs to a different terrain generation."
@@ -39,6 +41,8 @@ static func refusal(value: Variant, plot_count: int = -1) -> String:
 	for root in value.roots:
 		if not _root(root):
 			return "Invalid Garden root geometry."
+	if value.version == VERSION:
+		return "Obsolete construction data in modern terrain." if value.has("buildings") or value.has("next_id") or value.has("queue") else ""
 	var buildings: Variant = value.get("buildings")
 	if not buildings is Array or not value.get("next_id") is int:
 		return "Missing Garden structures."
@@ -66,7 +70,7 @@ static func refusal(value: Variant, plot_count: int = -1) -> String:
 	for index in plots.size():
 		if not plots.has(index):
 			return "Missing crop-slot placement."
-	if value.version == VERSION:
+	if value.version == 2:
 		return "Unexpected historical Heart queue." if value.has("queue") else ""
 	# Only version 1 carried unpaid Knowledge batches.
 	if not value.get("queue") is Array or value.queue.size() > 32:

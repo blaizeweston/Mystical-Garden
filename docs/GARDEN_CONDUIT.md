@@ -4,7 +4,7 @@ G-07 proves a second location and a practical Garden tool through the existing b
 
 **Verdant Refuge** (`clearing_2`) reveals a ruined cultivation terrace northwest of the Heart. The registered location includes existing **Bed 4**; it does not add, move or restrict a planting bed. Recording its root pattern supplies an existing Whispervine refinement clue. Sacrifice, discovery and rewards still happen at the Altar.
 
-Research **Living Water Conduit** at the Heart after Verdant Refuge, Root Irrigation and Garden Bed 4. Its default tuning requires 40 lifetime Knowledge, spends 6 available Knowledge, and takes 12 minutes of Garden research time before existing acceleration/offerings. It uses the same focused project and optional offering system. It adds no upfront material payment or parallel project queue.
+Research **Living Water Conduit** for six available Knowledge after Verdant Refuge, Root Irrigation and Cultivation Grounds. Its policy follows the historical fourth crop slot when the bed is relocated.
 
 At the terrace, the host can redirect the living channels:
 

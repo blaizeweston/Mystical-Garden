@@ -25,7 +25,7 @@ func run() -> void:
 	camera.name="Camera"
 	stage.add_child(camera)
 	root.add_child(stage)
-	stage.heart_unlocked=["plot_4"]
+	stage.heart_unlocked=["cultivation_grounds"]
 	# Authored visual targets use the existing formation metadata contract.
 	# Current generated construction placement is tested separately.
 	var bed := Node3D.new()
@@ -49,7 +49,7 @@ func run() -> void:
 	view.set_process(false)
 	view.force_playback=true
 	ui.bind_cinematic(view)
-	var event := {"sequence":7,"technology":"plot_4","kind":"bed","slot":0,"name":"A new bed",
+	var event := {"sequence":7,"technology":"cultivation_grounds","kind":"bed","slot":0,"name":"A new bed",
 		"from_growth":0,"to_growth":1,"from_phase":0,"to_phase":0}
 	var incoming := facts([event.duplicate(true)])
 	view.present(incoming)

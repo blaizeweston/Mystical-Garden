@@ -1,12 +1,11 @@
 extends RefCounted
-# Stable world-owned technology IDs. knowledge is the lifetime threshold; insight is the spendable Knowledge price.
+# Stable world-owned technology IDs. insight is the spendable Knowledge price.
 const DEFINITIONS := [
 
 	{
 		"id": "heart",
 		"name": "Sheltered Heart",
 		"parents": [],
-		"knowledge": 0,
 		"insight": 0,
 		"position": [
 			370,
@@ -15,94 +14,12 @@ const DEFINITIONS := [
 		"description": "An ancient ally shelters a fragment of its former self. Discoveries and first crafts restore Knowledge."
 	},
 	{
-		"id": "plot_4",
-		"name": "Garden Bed 4",
-		"parents": [
-			"heart"
-		],
-		"knowledge": 4,
-		"insight": 2,
-		"position": [
-			80,
-			900
-		],
-		"description": "Unlock a total of 4 planting beds. Place the additional bed through Build.",
-		"plots": 4
-	},
-	{
-		"id": "plot_5",
-		"name": "Garden Bed 5",
-		"parents": [
-			"plot_4"
-		],
-		"knowledge": 16,
-		"insight": 3,
-		"position": [
-			80,
-			775
-		],
-		"description": "Unlock a total of 5 planting beds. Place the additional bed through Build.",
-		"plots": 5
-	},
-	{
-		"id": "plot_6",
-		"name": "Garden Bed 6",
-		"parents": [
-			"plot_5"
-		],
-		"knowledge": 28,
+		"id": "cultivation_grounds",
+		"name": "Cultivation Grounds",
+		"parents": ["heart"],
 		"insight": 4,
-		"position": [
-			80,
-			650
-		],
-		"description": "Unlock a total of 6 planting beds. Place the additional bed through Build.",
-		"plots": 6
-	},
-	{
-		"id": "plot_7",
-		"name": "Garden Bed 7",
-		"parents": [
-			"plot_6"
-		],
-		"knowledge": 40,
-		"insight": 5,
-		"position": [
-			80,
-			525
-		],
-		"description": "Unlock a total of 7 planting beds. Place the additional bed through Build.",
-		"plots": 7
-	},
-	{
-		"id": "plot_8",
-		"name": "Garden Bed 8",
-		"parents": [
-			"plot_7"
-		],
-		"knowledge": 52,
-		"insight": 6,
-		"position": [
-			80,
-			400
-		],
-		"description": "Unlock a total of 8 planting beds. Place the additional bed through Build.",
-		"plots": 8
-	},
-	{
-		"id": "plot_9",
-		"name": "Garden Bed 9",
-		"parents": [
-			"plot_8"
-		],
-		"knowledge": 64,
-		"insight": 7,
-		"position": [
-			80,
-			275
-		],
-		"description": "Unlock a total of 9 planting beds. Place the additional bed through Build.",
-		"plots": 9
+		"position": [80, 900],
+		"description": "Receive one cultivation bed in Build. Construct additional beds for 12 Growth Energy each."
 	},
 	{
 		"id": "clearing_1",
@@ -110,7 +27,6 @@ const DEFINITIONS := [
 		"parents": [
 			"heart"
 		],
-		"knowledge": 8,
 		"insight": 3,
 		"position": [
 			225,
@@ -125,7 +41,6 @@ const DEFINITIONS := [
 		"parents": [
 			"clearing_1"
 		],
-		"knowledge": 28,
 		"insight": 5,
 		"position": [
 			225,
@@ -140,7 +55,6 @@ const DEFINITIONS := [
 		"parents": [
 			"clearing_2"
 		],
-		"knowledge": 60,
 		"insight": 8,
 		"position": [
 			225,
@@ -155,7 +69,6 @@ const DEFINITIONS := [
 		"parents": [
 			"heart"
 		],
-		"knowledge": 0,
 		"insight": 0,
 		"position": [
 			370,
@@ -170,7 +83,6 @@ const DEFINITIONS := [
 			"flowering",
 			"clearing_1"
 		],
-		"knowledge": 16,
 		"insight": 4,
 		"position": [
 			370,
@@ -184,7 +96,6 @@ const DEFINITIONS := [
 		"parents": [
 			"irrigation"
 		],
-		"knowledge": 38,
 		"insight": 6,
 		"position": [
 			370,
@@ -198,7 +109,6 @@ const DEFINITIONS := [
 		"parents": [
 			"flowering"
 		],
-		"knowledge": 24,
 		"insight": 5,
 		"position": [
 			515,
@@ -212,7 +122,6 @@ const DEFINITIONS := [
 		"parents": [
 			"heart"
 		],
-		"knowledge": 12,
 		"insight": 4,
 		"position": [
 			660,
@@ -227,7 +136,6 @@ const DEFINITIONS := [
 			"monster_studies",
 			"clearing_2"
 		],
-		"knowledge": 40,
 		"insight": 5,
 		"position": [
 			660,
@@ -242,7 +150,6 @@ const DEFINITIONS := [
 			"seed_archive",
 			"monster_studies"
 		],
-		"knowledge": 45,
 		"insight": 8,
 		"position": [
 			515,
@@ -257,7 +164,6 @@ const DEFINITIONS := [
 			"seed_archive",
 			"monster_studies"
 		],
-		"knowledge": 60,
 		"insight": 8,
 		"position": [
 			515,
@@ -271,7 +177,6 @@ const DEFINITIONS := [
 		"parents": [
 			"living_archive"
 		],
-		"knowledge": 0,
 		"insight": 0,
 		"position": [
 			280,
@@ -286,7 +191,6 @@ const DEFINITIONS := [
 		"parents": [
 			"living_archive"
 		],
-		"knowledge": 0,
 		"insight": 0,
 		"position": [
 			430,
@@ -301,7 +205,6 @@ const DEFINITIONS := [
 		"parents": [
 			"living_archive"
 		],
-		"knowledge": 0,
 		"insight": 0,
 		"position": [
 			580,
@@ -310,8 +213,7 @@ const DEFINITIONS := [
 		"description": "Restore this memory by returning from guardian expeditions in this Garden.",
 		"memory": 2
 	},
- {"id":"living_conduit","name":"Living Water Conduit","parents":["clearing_2","irrigation","plot_4"],
- "knowledge":40,"insight":6,"position":[805,650],
+ {"id":"living_conduit","name":"Living Water Conduit","parents":["clearing_2","irrigation","cultivation_grounds"],"insight":6,"position":[805,650],
  "description":"Unlock the terrace conduit. The host chooses the bud type for new plantings in Bed 4. Preserving a deep bud takes longer and improves rare harvest chances."}
 ]
 static var _by_id: Dictionary = {}

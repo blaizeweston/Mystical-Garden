@@ -31,15 +31,15 @@ func run() -> void:
 	var panel = view.knowledge_dialog
 	check(panel.visible and panel.capabilities.text.contains("Research Reaching Roots"),
 		"the real modal displays the growth prerequisite")
-	_choose(panel, "plot_5")
-	check(panel.study.disabled and panel.detail.text.contains("Garden Bed 4"), "the modal displays prerequisite refusal")
-	check(not progress.research("plot_5") and not progress.research("clearing_1"), "cannot bypass parents or knowledge")
+	_choose(panel, "clearing_2")
+	check(panel.study.disabled and panel.detail.text.contains("Reaching Roots"), "the modal displays prerequisite refusal")
+	check(not progress.research("clearing_2") and not progress.research("clearing_1"), "cannot bypass parents or knowledge")
 	panel.grant.pressed.emit()
-	_choose(panel, "plot_4")
+	_choose(panel, "cultivation_grounds")
 	panel.study.pressed.emit()
-	check(progress.unlocked.has("plot_4") and progress.spent == Catalog.get_node("plot_4").insight,
+	check(progress.unlocked.has("cultivation_grounds") and progress.spent == Catalog.get_node("cultivation_grounds").insight,
 		"the modal completes research with its production cost")
-	check(not progress.research("plot_4") and model.records.is_empty() and view.state.owned == owned,
+	check(not progress.research("cultivation_grounds") and model.records.is_empty() and view.state.owned == owned,
 		"unlock and duplicate refusal do not place objects or grow the Garden")
 	_choose(panel, "clearing_1")
 	panel.study.pressed.emit()
@@ -57,14 +57,13 @@ func run() -> void:
 		quit(1)
 		return
 	model.records[id].state = {"crop": "moonleaf", "growth": 0.64}
-	check("bed spaces" in model.validate("bed", Vector2(6.44, 0.45), 0.37, view.pawn)
-		and model.commit("bed", Vector2(6.44, 0.45), 0.37, view.pawn) == 0, "bed allotment enforced")
+	check(progress.construction_refusal("bed",model.records).is_empty(), "repeatable beds remain available")
 	var part: String = view.offerings.items.keys()[0]
 	check(view.offerings.offer(view.offerings.quote({part: 90})), "research fixture funds player-selected growth")
 	check(_grow(view, [4, 6, 1, 0, 2, 5]), "the player chooses the first eligible frontier")
 	for i in 5:
 		progress.grant_test_knowledge()
-	check(progress.research("plot_5") and progress.research("clearing_2") and progress.research("clearing_3"),
+	check(progress.research("clearing_2") and progress.research("clearing_3"),
 		"higher tiers can be researched in prerequisite order")
 	check(progress.research("flowering") and progress.research("seed_archive")
 		and progress.research("monster_studies"), "existing altar prerequisites unlock lab structures")
@@ -87,10 +86,10 @@ func run() -> void:
 	build.preview(Vector2(6.44, 0.45))
 	check(build.confirm() == id and model.records[id].state.crop == "moonleaf",
 		"move retains the original ID and crop")
-	check("heart" in model.validate("archive", Vector2.ZERO, 0.0, view.pawn)
+	check("heart" in model.validate("bed", Vector2.ZERO, 0.0, view.pawn,id).to_lower()
 		and view.state.entrance_clear(), "protects landmarks and the Wilds entrance")
 	progress.set_sandbox(true)
-	check(not view.enter.disabled and progress.unlocked.has("plot_4"), "free-build preview mode is explicit")
+	check(not view.enter.disabled and progress.unlocked.has("cultivation_grounds"), "free-build preview mode is explicit")
 	progress.set_sandbox(false)
 	check(not view.enter.disabled and model.records.has(id), "leaving test mode preserves earned growth and buildings")
 	view.reset_garden()

@@ -234,8 +234,6 @@ static func _test_unlock(game: Node, id: String, details: Dictionary) -> String:
 	if progress.heart.has(id) or not collect_path(progress.heart,id,path) or path.is_empty():
 		return "Choose an available Garden technology."
 	for tech in path:
-		var node := Catalog.get_node(tech)
-		progress.knowledge = maxi(progress.knowledge,int(node.knowledge))
 		if tech == id:
 			# Treat the prerequisite path as the starting Garden for this reveal.
 			var baseline := Growth.snapshot(progress)

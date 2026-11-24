@@ -36,10 +36,10 @@ func host_run() -> void:
  check(game.session_world.host()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  var id: int=game.players.keys().filter(func(peer):return peer!=1)[0];var g=game.progress
- for tech in ["clearing_1","clearing_2","flowering","irrigation","plot_4","living_conduit"]:g.heart.unlock_direct(tech)
- g.heart.complete(g,"plot_4");g.heart.sync_legacy(g);g.save_garden()
+ for tech in ["clearing_1","clearing_2","flowering","irrigation","cultivation_grounds","living_conduit"]:g.heart.complete(g,tech)
+ g.heart.complete(g,"cultivation_grounds");g.heart.sync_legacy(g);g.save_garden()
  # Supply an already-owned fourth bed; physical purchasing is covered by experimental_terrain.
- g.plots.append(g.empty_plot());game.stage.experimental_garden.adopt_recorded_beds();game._process(.016)
+ check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"place inventory bed");game._process(.016)
  game.players[1].pos=Conduit.Layout.Catalog.point(Conduit.POINT).position;game.players[id].pos=game.players[1].pos;mark("ready")
  if not await until(func():return marked("rejected")):check(false,"guest attempts forbidden change");return
  check(Conduit.state(g).revision==0 and Conduit.state(g).mode=="gentle","guest command cannot alter host configuration")

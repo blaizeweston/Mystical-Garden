@@ -146,7 +146,7 @@ func run() -> void:
 	panel.hide()
 	garden.open_development()
 	var build_choices: OptionButton = garden.construction_kind
-	check(build_choices.item_count == garden.Build.CATALOG.size() and garden.build_button.disabled,
+	check(build_choices.item_count == 0 and garden.build_button.disabled,
 		"no new structure can be selected at the start")
 	for index in range(1, build_choices.item_count):
 		check(build_choices.is_item_disabled(index) and build_choices.get_item_tooltip(index).begins_with("Research "),
@@ -157,10 +157,10 @@ func run() -> void:
 	garden.development_dialog.hide()
 	var available_before: int = game.progress.heart.available_insight(game.progress)
 	game.run_heart_save(func():
-		return game.progress.heart.purchase(game.progress, "plot_4"))
-	check(game.progress.heart.has("plot_4") and game.progress.plots.size() == 3,
+		return game.progress.heart.purchase(game.progress, "cultivation_grounds"))
+	check(game.progress.heart.has("cultivation_grounds") and game.progress.plots.size() == 3,
 		"real research unlocks a bed without placing it")
-	check(game.progress.heart.available_insight(game.progress) == available_before - 2,
+	check(game.progress.heart.available_insight(game.progress) == available_before - 4,
 		"existing research spends the Knowledge earned through contributions")
 	game.run_heart_save(func():
 		return game.progress.heart.purchase(game.progress, "clearing_1"))
@@ -181,6 +181,12 @@ func run() -> void:
 		root.push_input(motion, true)
 		check(garden.build_kind == "bed" and garden.ghost != null,
 			"starting placement creates a preview on pointer motion")
+		var bumper := InputEventJoypadButton.new()
+		bumper.button_index = JOY_BUTTON_RIGHT_SHOULDER
+		bumper.pressed = true
+		var before_yaw: float = garden.build_yaw
+		root.push_input(bumper, true)
+		check(is_equal_approx(garden.build_yaw, before_yaw + deg_to_rad(15.0)), "controller bumper rotates the active preview")
 		var cancel: InputEvent
 		if cancel_with_mouse:
 			var click := InputEventMouseButton.new()
@@ -206,16 +212,16 @@ func run() -> void:
 	check(game.ui.is_overlay_open(), "Escape still opens the session menu outside placement")
 	root.push_input(menu_key, true)
 	check(not game.ui.is_overlay_open(), "Escape closes the session menu outside placement")
-	var built: bool = garden.place("bed", place, 0.37)
+	var built: bool = garden.place("bed", place, 0.37,garden.inventory_picker.get_selected_id())
 	check(built and game.progress.plots.size() == 4, "placed bed receives a real production plot")
 	if not built:
 		printerr("FAIL: placement reason ", game.status)
 		call("quit", 1)
 		return
 	garden.open_development()
-	check(garden.build_button.disabled and build_choices.is_item_disabled(1)
-		and build_choices.get_item_tooltip(1) == "All researched bed spaces are used.",
-		"the picker disables another bed once the researched capacity is used")
+	check(garden.build_button.disabled and garden.inventory_picker.item_count==0
+		and build_choices.item_count == 1,
+		"a placed free bed leaves storage and more beds remain constructible")
 	garden.development_dialog.hide()
 	player.pos = game.stage.bed_position(3) + Vector3(0, 0, 1.43)
 	check(game.nearby_plot(player.pos) == 3 and game.cultivation.plant_seed(game.HOST, 3), "real seed plants in the movable bed")
@@ -462,9 +468,9 @@ func run() -> void:
 		"actual monster drop pays its Knowledge immediately and durably")
 	panel.hide()
 	var after_contribution: int = game.progress.heart.available_insight(game.progress)
-	game.run_heart_save(func(): return game.progress.heart.purchase(game.progress, "plot_5"))
-	check(game.progress.heart.has("plot_5") and game.progress.plots.size() == 4
-		and game.progress.heart.available_insight(game.progress) == after_contribution - 3,
+	game.run_heart_save(func(): return game.progress.heart.purchase(game.progress, "flowering"))
+	check(game.progress.heart.has("flowering") and game.progress.plots.size() == 4
+		and game.progress.heart.available_insight(game.progress) == after_contribution,
 		"Contributed Knowledge funds the next existing bed research without automatic placement")
 	garden.open_development()
 	if not garden.plans.is_empty():

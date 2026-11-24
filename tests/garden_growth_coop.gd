@@ -35,11 +35,11 @@ func host_run() -> void:
  check(game.session_world.host()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  var id: int=game.players.keys().filter(func(peer):return peer!=1)[0]
- game.progress.heart.complete(game.progress,"plot_4");game.progress.save_garden();mark("first")
+ game.progress.heart.complete(game.progress,"cultivation_grounds");game.progress.save_garden();mark("first")
  if not await until(func():return marked("skipped") and Service.projection(game,id).pending.is_empty()):check(false,"guest acknowledgement commits");return
  check(Service.projection(game,1).pending.size()==1,"guest skipping cannot dismiss host's scene")
  game.send_garden_action("growth_ack:"+str(Service.projection(game,1).pending[0].sequence))
- game.progress.heart.complete(game.progress,"plot_5");game.progress.save_garden()
+ game.progress.heart.complete(game.progress,"seed_archive");game.progress.save_garden()
  game.send_garden_action("growth_ack:"+str(Service.projection(game,1).pending[0].sequence));mark("second")
  if not await until(func():return marked("rejoined")):check(false,"guest reconnects with pending scene");return
  check(Service.projection(game,1).pending.is_empty(),"host receipts survive guest reconnect")
@@ -52,12 +52,12 @@ func host_run() -> void:
  check(await until(func():return marked("guest-offline") and game.multiplayer.get_peers().is_empty()),"host observes the guest disconnect before its own teardown")
 func guest_run() -> void:
  check(game.session_world.join()==OK,"guest joins")
- if not await until(func():return game.network_session.role()=="Guest" and marked("first") and Service.projection(game,game.local_player_id()).get("pending",[]).size()==1 and game.heart_state().unlocked.has("plot_4")):check(false,"private pending scene arrives");return
+ if not await until(func():return game.network_session.role()=="Guest" and marked("first") and Service.projection(game,game.local_player_id()).get("pending",[]).size()==1 and game.heart_state().unlocked.has("cultivation_grounds")):check(false,"private pending scene arrives");return
  var data:=Service.projection(game,game.local_player_id())
- check(data.pending[0].kind=="bed" and not game.progress.heart.has("plot_4"),"guest sees host event without changing local world research")
- check(data.pending[0].from_growth==0 and data.pending[0].to_growth==1 and game.heart_state().unlocked.has("plot_4"),"guest receives per-unlock Heart growth from host research")
+ check(data.pending[0].kind=="heart" and not game.progress.heart.has("cultivation_grounds"),"guest sees host event without changing local world research")
+ check(data.pending[0].from_growth==0 and data.pending[0].to_growth==1 and game.heart_state().unlocked.has("cultivation_grounds"),"guest receives per-unlock Heart growth from host research")
  game.send_garden_action("growth_ack:"+str(data.pending[0].sequence));mark("skipped")
- if not await until(func():return marked("second") and Service.projection(game,game.local_player_id()).get("pending",[]).any(func(e):return e.technology=="plot_5")):check(false,"second event arrives");return
+ if not await until(func():return marked("second") and Service.projection(game,game.local_player_id()).get("pending",[]).any(func(e):return e.technology=="seed_archive")):check(false,"second event arrives");return
  game.send_garden_action("growth_ack:999999")
  await create_timer(.2).timeout
  check(Service.projection(game,game.local_player_id()).pending.size()==1,"guest cannot forge a future sequence")
@@ -66,9 +66,9 @@ func guest_run() -> void:
  scene.force_playback=true;scene._process(0);scene.force_playback=false
  check(scene.event.is_empty() and not game.ui.cinematic_active() and not game.stage.has_meta("garden_growth_camera"),"disconnect releases the old host's scene without acknowledging it in the local Garden")
  check(game.session_world.join()==OK,"reconnect")
- if not await until(func():return game.network_session.role()=="Guest" and Service.projection(game,game.local_player_id()).get("pending",[]).any(func(e):return e.technology=="plot_5") and game.heart_state().unlocked.has("plot_5")):check(false,"unwatched scene persists through rejoin");return
+ if not await until(func():return game.network_session.role()=="Guest" and Service.projection(game,game.local_player_id()).get("pending",[]).any(func(e):return e.technology=="seed_archive") and game.heart_state().unlocked.has("seed_archive")):check(false,"unwatched scene persists through rejoin");return
  check(Service.projection(game,game.local_player_id()).pending.size()==1,"previously acknowledged scene is not replayed")
- check(game.heart_state().unlocked.has("plot_4") and game.heart_state().unlocked.has("plot_5"),"reconnecting restores accumulated host research")
+ check(game.heart_state().unlocked.has("cultivation_grounds") and game.heart_state().unlocked.has("seed_archive"),"reconnecting restores accumulated host research")
  mark("rejoined")
  check(await until(func():return marked("stations") and game.Stage.HEART_STATIONS.keys().all(func(technology):return game.heart_state().unlocked.has(technology)) and game.stage.heart_stations.living_archive.visible),"host unlock snapshots create all three permanent guest buildings")
  var queued: Array=Service.projection(game,game.local_player_id()).pending

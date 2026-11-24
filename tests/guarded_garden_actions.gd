@@ -246,8 +246,8 @@ func gameplay() -> void:
  world.garden_action(1,"growth_ack:"+str(sequence))
  check(disk()==acknowledged,"duplicate growth receipt cannot stage again")
  record("growth_receipt_commit",receipt_before,{"seen":sequence})
- world.progress.heart.unlocked.append("seed_archive")
- world.progress.heart.unlocked.append("monster_studies")
+ world.progress.heart.complete(world.progress,"seed_archive")
+ world.progress.heart.complete(world.progress,"monster_studies")
  check(preload("res://tests/support/garden_case.gd").place_researched(world,"archive"),"researched reclamation station is physically placed")
  check(preload("res://tests/support/garden_case.gd").place_researched(world,"study"),"researched offering station is physically placed")
  p.pos = world.stage.station_position("seed_archive")
@@ -453,7 +453,7 @@ func caller_effect_fault(phase: String, _path: String, outcome: String, attempts
 
 func caller_effects() -> void:
  var fresh := true
- for action in ["water","observation","purchase","contribution"]:
+ for action in ["water","observation","purchase","contribution","construct","refund"]:
   for outcome in ["ABORTED_RESTORED","UNCERTAIN","COMMITTED_CLEANUP_PENDING"]:
    if not open_world(fresh): return
    fresh=false
@@ -466,7 +466,23 @@ func caller_effects() -> void:
    var invoke := Callable()
    var prior_spent: int = world.progress.heart.spent
    var prior_energy: int = garden.funds.energy
+   var prior_instances := 0
    match action:
+    "construct","refund":
+     player.pos = world.Stage.HEART
+     world.run_heart_save(func():
+      world.progress.knowledge=80
+      world.progress.garden_development.energy=60
+      return "")
+     garden.funds.energy=60
+     world.garden_action(1,"heart_start_cultivation_grounds")
+     if action=="construct":
+      invoke=garden.construct.bind("bed",world.progress.structures.revision)
+     else:
+      check(garden.construct("bed",world.progress.structures.revision),"prepare a refundable receipt")
+      invoke=garden.retire_structure.bind(world.progress.structures.next_id-1,world.progress.structures.revision,true)
+     prior_energy=garden.funds.energy
+     prior_instances=world.progress.structures.instances.size()
     "purchase", "contribution":
      player.pos=world.Stage.HEART
      world.run_heart_save(func():
@@ -474,7 +490,7 @@ func caller_effects() -> void:
       world.progress.parts[0]=20
       return "")
      if action=="purchase":
-      command="heart_start_plot_4"
+      command="heart_start_cultivation_grounds"
      else:
       garden._refresh_parts()
       quote=garden.funds.quote({world.Items.part_id(world.Parts.THORN): 2})
@@ -525,8 +541,13 @@ func caller_effects() -> void:
      and ((notice==Tx.CLEANUP_NOTICE) if committed else notice.contains("uncertain"))),action+" "+outcome+" evidence")
    player=world.players[1]
    match action:
+    "construct","refund":
+     var delta := 1 if action=="construct" else -1
+     check(world.progress.structures.instances.size()==prior_instances+(0 if aborted else delta)
+      and world.progress.garden_development.energy==prior_energy-(0 if aborted else delta*12)
+      and garden.funds.energy==prior_energy-(delta*12 if committed else 0),"ownership, debit and published Energy match "+outcome)
     "purchase":
-     check(world.progress.heart.has("plot_4")==not aborted and world.progress.heart.spent==prior_spent+(0 if aborted else 2) and world.progress.knowledge==40, "research accounting matches "+outcome)
+     check(world.progress.heart.has("cultivation_grounds")==not aborted and world.progress.heart.spent==prior_spent+(0 if aborted else 4) and world.progress.knowledge==40, "research accounting matches "+outcome)
     "contribution":
      check(world.progress.parts[0]==(20 if aborted else 18) and world.progress.knowledge==(40 if aborted else 42)
       and garden.funds.energy==prior_energy+(4 if committed else 0), "material debit, tentative Knowledge and published Energy match "+outcome)

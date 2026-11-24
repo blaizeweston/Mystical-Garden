@@ -200,8 +200,7 @@ func present(facts: Dictionary) -> void:
 	tree_hint.text="Select an upgrade to inspect it. Roots mark your chosen path." if class_tab else "Select a seed to inspect it. ? marks an undiscovered species."
 	if heart_tab:
 		var state: Dictionary=_facts.get("heart",{})
-		var knowledge := int(_facts.knowledge)
-		notice.text="Lifetime Knowledge %d · Available Knowledge %d · %s"%[knowledge,state.get("insight",0),HeartCatalog.phase_name(int(state.get("phase",0)))]
+		notice.text="Lifetime Knowledge %d · Available Knowledge %d · %s"%[int(_facts.knowledge),state.get("insight",0),HeartCatalog.phase_name(int(state.get("phase",0)))]
 		tree_hint.text="Select a technology. The host unlocks it immediately at the Heart."
 	if not str(_facts.notice).is_empty():
 		notice.text += "\n"+str(_facts.notice)
@@ -241,7 +240,6 @@ func seed_nodes(known: Array,counts: Array) -> Array:
 	return result
 func heart_nodes() -> Array:
 	var state: Dictionary=_facts.get("heart",{})
-	var knowledge := int(_facts.knowledge)
 	var memories: Array=_facts.memories
 	var known: Array=state.get("unlocked",["heart"])
 	var result: Array=[]
@@ -264,12 +262,12 @@ func heart_nodes() -> Array:
 			description+="Guardian expeditions: %d/%d. Decode through the Living Archive."%[current,needed]
 			is_ready=false
 		else:
-			description+="Requires %d lifetime Knowledge.\nPrice: %d available Knowledge.\n"%[d.knowledge,d.insight]
+			description+="Price: %d available Knowledge.\n"%d.insight
 			if not parents.is_empty():
 				var names: Array[String]=[]
 				for parent in d.parents: names.append(HeartCatalog.get_node(str(parent)).name)
 				description+="Prerequisites: "+", ".join(names)+".\n"
-			is_ready=is_ready and knowledge>=int(d.knowledge) and int(state.get("insight",0))>=int(d.insight)
+			is_ready=is_ready and int(state.get("insight",0))>=int(d.insight)
 		description+="\nRestored." if owned else "\nAvailable." if is_ready else "\nUnavailable."
 		var icon: Texture2D=null
 		if id=="heart":

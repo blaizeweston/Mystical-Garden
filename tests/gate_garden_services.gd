@@ -18,7 +18,7 @@ func run():
  p.pos=game.Stage.HEART;game.act(1,false);check(UIFixture.control(game,"progression_menu").visible,"E opens detailed Heart menu")
  UIFixture.control(game,"progression_view").tabs.current_tab=3;UIFixture.control(game,"progression_view").refresh();check(UIFixture.control(game,"progression_view").care.visible,"Garden care tab is reachable")
  check(not UIFixture.control(game,"guide").text.contains("N ") and not UIFixture.control(game,"detail_label").text.contains("Select donation"),"legacy Heart hotkey clutter removed")
- game.progress.heart.unlock_direct("seed_archive");game.progress.heart.unlock_direct("monster_studies")
+ game.progress.heart.complete(game.progress,"seed_archive");game.progress.heart.complete(game.progress,"monster_studies")
  game.progress.heart.unlock_direct("living_archive")
  check(preload("res://tests/support/terrain_case.gd").place_structure(game,"archive") and preload("res://tests/support/terrain_case.gd").place_structure(game,"study"),"researched stations use actual placed structures")
  var view=game.get_node("GardenInteractions")

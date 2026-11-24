@@ -37,12 +37,12 @@ func host_run() -> void:
  var before=g.heart.serialize();var parts=g.parts.duplicate()
  check(await until(func():return marked("retired")),"guest checks retired actions")
  check(g.heart.serialize()==before and g.parts==parts and g.plots.size()==3,"remote legacy requests cannot spend Knowledge, reserve beds or grant parts")
- game.garden_action(1,"heart_start_plot_4");check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"Knowledge unlock permits a real placed bed")
+ game.garden_action(1,"heart_start_cultivation_grounds");check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"Knowledge unlock permits a real placed bed")
  check(g.plots.size()==4,"host still researches shared bed through tree")
  mark("research")
  check(await until(func():return marked("verified")),"guest verifies expanded bed and tree behavior")
  var guest: int=game.players.keys().filter(func(peer):return peer!=1)[0]
- g.heart.unlock_direct("monster_studies");check(preload("res://tests/support/terrain_case.gd").place_structure(game,"study"),"build a real Offering Altar")
+ g.heart.complete(g,"monster_studies");check(preload("res://tests/support/terrain_case.gd").place_structure(game,"study"),"build a real Offering Altar")
  var trophy: int=game.Parts.HOOK
  game.seed_reserve(game.players[guest]).parts[trophy]=1
  var knowledge: int=g.knowledge

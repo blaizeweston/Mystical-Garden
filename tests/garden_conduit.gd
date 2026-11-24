@@ -17,12 +17,12 @@ func run() -> void:
  check(Conduit.errors().is_empty() and Conduit.Layout.Catalog.errors().is_empty() and Care.Catalog.errors().is_empty(),"all content and refinement references validate")
  check(not game.garden_commands.projection(1).available.has(point.id) and choose(game,"deep").has("error"),"locked terrace/tool rejects commands")
  g.knowledge=300;p.pos=game.Stage.HEART
- for tech in ["clearing_1","clearing_2","flowering","irrigation","plot_4"]:
-  if tech=="plot_4":check(not g.heart.requirements(g,"living_conduit").is_empty(),"tool requires its usable bed as well as clearing and irrigation")
+ for tech in ["clearing_1","clearing_2","flowering","irrigation","cultivation_grounds"]:
+  if tech=="cultivation_grounds":check(not g.heart.requirements(g,"living_conduit").is_empty(),"tool requires its usable bed as well as clearing and irrigation")
   game.garden_action(1,"heart_start_"+tech)
   check(g.heart.has(tech),"normal research completes "+tech)
  # Supply an already-owned fourth bed; physical purchasing is covered by experimental_terrain.
- g.plots.append(g.empty_plot());game.stage.experimental_garden.adopt_recorded_beds();game._process(.016)
+ check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"place inventory bed");game._process(.016)
  var plots: Array=g.plots.duplicate(true);var parts: Array=g.parts.duplicate();var stock: Array=g.stock.duplicate();game._process(.016)
  check(game.garden_commands.projection(1).available.has(point.id) and g.plots==plots and g.parts==parts and g.stock==stock,"later clearing reveals terrace without crop relocation or rewards")
  check(Conduit.Layout.zone_beds(Conduit.ZONE,g.plots.size())==[3],"terrace registers existing universal bed four")
@@ -63,7 +63,7 @@ func run() -> void:
   if node.id!="living_conduit" and preload("res://heart_catalog.gd").enabled(node.id):old.heart.complete(old,node.id)
  old.stock[0]=13;old.parts[1]=17;old.garden_interactions.future_garden={"keep":true};old.save_garden()
  var advanced=game.Progress.new();advanced.path=old.path;advanced.load_garden()
- check(advanced.plots.size()==9 and advanced.stock[0]==13 and advanced.parts[1]==17 and advanced.garden_interactions.future_garden.keep and not advanced.heart.has("living_conduit"),"fully upgraded historical Garden keeps beds, supplies and unknown data without a free new technology")
+ check(advanced.plots.size()==3 and advanced.structures.instances.size()==7 and advanced.stock[0]==13 and advanced.parts[1]==17 and advanced.garden_interactions.future_garden.keep and not advanced.heart.has("living_conduit"),"research grants stored structures and preserves starting crops, supplies and unknown data without a free new technology")
  game.queue_free();await process_frame
  if not failed:print("PASS: terrace layout/clue, real research, host-only next-cycle configuration, rollback, policy invariants and save compatibility")
  quit(1 if failed else 0)

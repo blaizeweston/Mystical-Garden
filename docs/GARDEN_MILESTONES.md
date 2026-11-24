@@ -9,6 +9,7 @@ Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_
 | Field | Value |
 |---|---|
 | Recent work | The Garden pass through `5fdd294` is integrated into main. Character customization is committed at `e017e88`; `art/weapon-animation-pass` builds on it with raised Focus, nine imported upper-body clips and alternating sword/knife strikes. Follow-up corrections restore neutral omitted animation tracks, relaxed carry, a level side-on spear thrust, lateral bow draw, downward scythe blade and forward utility sweeps. Full-cycle visual review and focused verification cover both bodies and local co-op; subjective motion remains in the playtest queue. Garden/Wilds sliding, saved placement, water and Heart-base protections remain intact. Main, Playtest 9, protected tags and real saves are preserved; evidence is recorded in ARCHITECTURE.md. |
+| HG02 construction | Build manages Inventory, Construct and Placed. The next Garden check is a manual walk through compact beds, station approaches and reclaimed frontiers. [Editing paths and migration](ARCHITECTURE.md#garden-construction-hg02). |
 | HG01 research foundation | On the WF02 development line, explicit Heart purchases unlock immediately and material contributions pay both currencies. The full Knowledge catalog redesign remains a separate milestone. See [Heart research and offerings](ARCHITECTURE.md#heart-research-and-offerings-hg01). |
 | Botanical development branch | WF02 builds on WF01 with five exploration founders and depth-correct Ancient seeds. Next botanical step is manual playtesting of natural placement, readability and founder availability. See [botanical progression](SEED_PROGRESSION.md). |
 | Next combat objective | **CB-08 · Live playtest and release.** Compare pacing and sustain in solo and co-op, apply any tuning, then promote the verified balance. [Combat balance catalogue](COMBAT_BALANCE_MILESTONES.md#live-playtest). |
@@ -18,11 +19,11 @@ Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_
 
 ### Knowledge tree review and expansion playback
 
-The tree has 22 definitions, including the starting Heart. Research updates the Heart. The expansion cutscene now belongs to the frontier purchase in Build. See [Garden expansion scenes](GARDEN_GROWTH_SCENES.md).
+The tree includes the starting Heart and one bed-construction unlock. Research updates the Heart. The expansion cutscene now belongs to the frontier purchase in Build. See [Garden expansion scenes](GARDEN_GROWTH_SCENES.md).
 
 | Nodes | Current gameplay payoff |
 |---|---|
-| Sheltered Heart, Garden Beds 4–9 | The Heart is the starting node. Each bed node unlocks one additional placement. Six purchases repeat the same decision. |
+| Sheltered Heart, Cultivation Grounds | The starting Heart is the prerequisite. Spending four Knowledge grants a stored bed and enables repeatable bed construction. |
 | Reaching Roots, Verdant Refuge, Living Sanctuary | Unlock repeatable frontier purchases, then discount their growth-energy cost by 10% and 20% from the first tier. Verdant Refuge also unlocks the cultivation terrace. |
 | Flowering, Root Irrigation, Symbiotic Nursery | Harvest mature plants for seeds, fill a vessel at terrain water, grow crops faster and earn additional familiarity. |
 | Reclamation Altar, Offering Altar | Build the corresponding station to reclaim discovered seeds or exchange trophies for Knowledge. Modern graft purchases have no Offering Altar chance bonus. |

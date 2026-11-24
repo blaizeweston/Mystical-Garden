@@ -16,7 +16,7 @@ static func zone_beds(id: String,count: int) -> Array[int]:
   if index>=0 and index<count:result.append(index)
  return result
 static func destinations(stage: Node3D) -> Array:
- var result: Array=[stage.gate_position(),stage.altar_position()]+stage.bed_positions().slice(0,stage.active_plots)
+ var result: Array=[stage.gate_position(),stage.altar_position()].filter(func(at):return at.is_finite())+stage.bed_positions().filter(func(at):return at.is_finite())
  for id in stage.HEART_STATIONS:
   if stage.heart_unlocked.has(id) and stage.station_position(id).is_finite():result.append(stage.station_position(id))
  for point in Catalog.POINTS:
