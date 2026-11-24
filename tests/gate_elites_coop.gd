@@ -47,7 +47,7 @@ func host_run():
   game.tactics.strike_at=Time.get_ticks_msec()+12000
   check(await until(func():return marked("seen-"+str(kind))),"guest sees species "+str(kind))
   if kind==9:
-   preload("res://leader_behavior.gd").resolve(game, Time.get_ticks_msec());game.tactics.ready_at=Time.get_ticks_msec()+60000
+   preload("res://elite_enemy.gd").resolve(game, Time.get_ticks_msec());game.tactics.ready_at=Time.get_ticks_msec()+60000
    check(await until(func():return marked("brood")),"guest sees brood wave")
   if kind==11:
    game.encounter.set_hp(-1, 0)

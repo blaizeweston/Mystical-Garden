@@ -110,6 +110,8 @@ func run():
  game.players[1]=p
  check(actor.pace>.7 and excursion>.5,"packet gaps do not stop guest walking at high frame rates")
  preload("res://tests/support/guest_replication_case.gd").health_checks(check)
- game.queue_free();await process_frame
+ # An outgoing guest projection has no host-only combat fields after transport teardown.
+ game.players[1]=packet
+ game.queue_free();game._process(.016);await process_frame
  if not failed:print("PASS: predicted collision, loss recovery, reconciliation, bounded replay, remote interpolation, high-FPS guest locomotion, sequenced snapshots, reliable health reconciliation and deduplicated damage feedback")
  quit(1 if failed else 0)

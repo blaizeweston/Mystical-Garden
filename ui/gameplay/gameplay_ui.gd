@@ -26,7 +26,6 @@ var _cinematic: Node
 @onready var _unready_button: Button = %UnreadyButton
 @onready var _connection_panel: PanelContainer = %ConnectionPanel
 @onready var _connection_label: Label = %ConnectionLabel
-@onready var _recollection_menu: PanelContainer = %RecollectionMenu
 @onready var _deposit_menu: PanelContainer = %DepositMenu
 @onready var _deposit_pick: OptionButton = %DepositPick
 @onready var _deposit_button: Button = %DepositButton
@@ -98,17 +97,13 @@ func _ready() -> void:
 		_appearance_options[index].pressed.connect(func(): requested.emit("appearance",{"index":index}))
 	_deposit_button.pressed.connect(_request_deposit)
 	%KeepExploring.pressed.connect(close_panels)
-	%PrepareInGarden.pressed.connect(close_panels)
-	%FaceHeart.pressed.connect(func():
-		close_panels()
-		requested.emit("face_heart",{}))
 	_checkpoint_skip.pressed.connect(func():
 		if _checkpoint_offer_revision > 0: choose_checkpoint("skip"))
 	_checkpoint_reroll.pressed.connect(func(): choose_checkpoint("reroll"))
 	_overlay.inventory_drop_requested.connect(func(data: Dictionary): requested.emit("inventory_drop",data))
 	_overlay.bind_inventory_panel(_pack_menu)
 	_panels.merge({"session":_session_menu,"pack":_pack_menu,"guide":_field_guide,
-		"bestiary":_bestiary_menu,"appearance":_appearance_menu,"recollection":_recollection_menu,
+		"bestiary":_bestiary_menu,"appearance":_appearance_menu,
 		"deposit":_deposit_menu,"checkpoint":_checkpoint_menu})
 	configure_arena_menu(false)
 	close_panels()
@@ -229,7 +224,7 @@ func expedition_result(connection: String, run: int, report: Dictionary) -> void
 func visible_expedition_result() -> Dictionary:
 	return _visible_report.duplicate(true) if panel_is_open("expedition_results") else {}
 
-func present_travel(state: Dictionary, heart_route: bool) -> void:
+func present_travel(state: Dictionary) -> void:
 	_travel_panel.visible=not state.is_empty() and not _overlay.visible
 	if state.is_empty(): return
 	var count := 0
@@ -237,7 +232,6 @@ func present_travel(state: Dictionary, heart_route: bool) -> void:
 		count += int(member.ready)
 	var title: String={"depart":"Enter "+str(state.get("goal","the Wilds")),"advance":"Next stage","extract":"Extract to Garden"}.get(str(state.kind),"Party travel")
 	_travel_label.text="%s - %d/%d ready"%[title,count,state.members.size()]
-	_ready_button.text="Ready at Heart" if state.kind=="depart" and heart_route else "Ready at Gate"
 	_ready_button.disabled=bool(state.ready);_unready_button.disabled=not bool(state.ready)
 
 func present_feedback(message: String, pending: bool) -> void:

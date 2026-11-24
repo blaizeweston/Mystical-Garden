@@ -93,9 +93,9 @@ func run() -> void:
 	check(control(ui,"CheckpointCards").get_child_count()==0 and not control(ui,"CheckpointReroll").visible
 		and control(ui,"CheckpointSkip").text=="Continue at the Gate","exhausted growth preserves the continue flow")
 	ui.close_panels()
-	ui.present_travel({"kind":"depart","goal":"the Heart","members":[{"name":"Ally","ready":true}],"ready":true},true)
+	ui.present_travel({"kind":"depart","goal":"the Wilds","members":[{"name":"Ally","ready":true}],"ready":true})
 	check(control(ui,"TravelPanel").visible and control(ui,"ReadyButton").disabled
-		and control(ui,"ReadyButton").text=="Ready at Heart" and control(ui,"TravelLabel").text=="Enter the Heart - 1/1 ready",
+		and control(ui,"ReadyButton").text=="Ready at Gate" and control(ui,"TravelLabel").text=="Enter the Wilds - 1/1 ready",
 		"ready controls show the travel goal and count without a second list of players")
 	control(ui,"UnreadyButton").pressed.emit()
 	check(requests.back()=={"command":"ready","data":{"unready":true}},"travel display emits an intention, not a membership mutation")

@@ -31,7 +31,7 @@ static func signature(game: Node,p: Dictionary,kind: String) -> String:
  return str([game.participation.route(),game.participation.floor(),game.participation.seed(),p.frame,p.get("weapon_kind",0),p.prepared,p.prepared_secondary,p.prepared_catalyst,p.cargo_plan,p.character.get("upgrades",[]),path])
 
 static func point(game: Node,kind: String) -> Vector3:
- return game.Stage.HEART if kind=="depart" and game.participation.route()==game.Campaign.HEART else game.stage.gate_position() if kind=="depart" else game.battlefield.advance
+ return game.stage.gate_position() if kind=="depart" else game.battlefield.advance
 
 static func validate(game: Node) -> void:
  if game.participation.travel_kind().is_empty(): return
@@ -40,7 +40,7 @@ static func validate(game: Node) -> void:
  for id in game.participation.travel_members():
   if not game.participation.has_vote(id): continue
   var p: Dictionary=game.players[id]
-  if game.participation.vote_signature(id)!=signature(game,p,game.participation.travel_kind()) or p.pos.distance_to(point(game,game.participation.travel_kind()))>preload("res://gate_interaction.gd").travel_range(game,game.participation.travel_kind())+preload("res://gate_interaction.gd").READY_MARGIN:
+  if game.participation.vote_signature(id)!=signature(game,p,game.participation.travel_kind()) or p.pos.distance_to(point(game,game.participation.travel_kind()))>preload("res://gate_interaction.gd").RANGE+preload("res://gate_interaction.gd").READY_MARGIN:
    game.participation.retract_vote(id);game.tell(id,"Readiness cleared. Return to the gate and confirm your current loadout.")
 
 static func begin(game: Node,kind: String) -> void:
@@ -60,9 +60,9 @@ static func request(game: Node,id: int,kind: String) -> void:
    game.tell(id,refusal)
    return
  else:
-  if not game.Life.alive(p) or not game.encounter_cleared() or game.participation.route()==game.Campaign.HEART: return
+  if not game.Life.alive(p) or not game.encounter_cleared(): return
   if kind=="extract" and not game.extraction_checkpoint_open(): game.tell(id,"Extraction opens at every sixth cleared gate.");return
- if p.pos.distance_to(point(game,kind))>preload("res://gate_interaction.gd").travel_range(game,kind): game.tell(id,"Confirm readiness at the Heart." if kind=="depart" and game.participation.route()==game.Campaign.HEART else "Confirm readiness at the party's gate.");return
+ if p.pos.distance_to(point(game,kind))>preload("res://gate_interaction.gd").RANGE: game.tell(id,"Confirm readiness at the party's gate.");return
  begin(game,kind)
  # Each player claims their own upgrade before casting a separate travel vote.
  if kind=="advance" and game.activate_checkpoint(id):
@@ -125,7 +125,7 @@ static func request(game: Node,id: int,kind: String) -> void:
   elif game.network_session.transport()!=null: game.close_run_flow_panel.rpc_id(peer_id)
 
 static func departure_cost(game: Node,ids: Array) -> Dictionary:
- var available: bool=game.progress.finale_available() if game.participation.route()==game.Campaign.HEART else game.progress.campaign.available(game.participation.route())
+ var available: bool=game.progress.campaign.available(game.participation.route())
  if not available: return {"error":"This route is still sealed."}
  var shared: Array=game.Parts.empty_counts();var reserved: Array=game.Seeds.counts()
  for id in ids:
@@ -150,5 +150,5 @@ static func snapshot(game: Node,id: int) -> Dictionary:
  for peer in game.participation.travel_members():
   if game.players.has(peer): voters.append({"id":peer,"name":game.players[peer].character.get("name","Wanderer"),"ready":game.participation.has_vote(peer)})
  var goal: String=game.Campaign.NAMES[game.participation.route()]
- if game.participation.travel_kind()=="depart" and game.participation.route()!=game.Campaign.HEART and game.Campaign.SHORTCUT_COST[game.participation.route()]>0: goal+=" (%d shared parts)"%game.Campaign.SHORTCUT_COST[game.participation.route()]
+ if game.participation.travel_kind()=="depart" and game.Campaign.SHORTCUT_COST[game.participation.route()]>0: goal+=" (%d shared parts)"%game.Campaign.SHORTCUT_COST[game.participation.route()]
  return {"goal":goal,"kind":game.participation.travel_kind(),"epoch":game.participation.travel_epoch(),"ready":game.participation.has_vote(id),"members":voters}

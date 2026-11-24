@@ -28,7 +28,7 @@ func run() -> void:
   var current: MeshInstance3D=heart.sculpt_models[heart.stage]
   var start_scale:=current.scale.y
   check(game.stage.heart_tree==heart and heart.sculpt_only and heart.models.is_empty(),"only the imported Heart owns Garden growth")
-  check(game.stage.find_children("HeartForm","Node3D",true,false).is_empty() and game.stage.heart_core==null,"old organic Heart is absent, not hidden beneath the sculpt")
+  check(game.stage.find_children("HeartForm","Node3D",true,false).is_empty(),"old organic Heart is absent, not hidden beneath the sculpt")
   view.animate(.75)
   check(is_equal_approx(float(heart.get_meta("rendered_growth")),completed+.5),"camera shot animates actual intermediate growth")
   var middle_scale:=current.scale.y
@@ -40,11 +40,7 @@ func run() -> void:
   view.finish(true);game._process(.016)
   check(int(game.stage.heart_tree.get_meta("heart_visual_count"))==completed and Scenes.projection(game,1).pending.is_empty(),"completion retains growth without replay or reward")
  check(completed==ids.size() and game.stage.experimental_garden.heart._growth_scale().y>1.0,"all available Knowledge contributes to the imported Heart")
- check(not game.Campaign.LEGACY_ENDING_ENABLED and g.heart.phase(g)<5 and not g.heart.recollection_seen,"visual completion leaves deferred ending disabled")
  check(game.rng.state==rng_state,"tree construction and scenes consume no gameplay RNG")
- Growth.motion(game.stage,false,Vector3(0,0,-6))
- check(game.stage.get_meta("heart_foliage_motion")==false,"motion preference remains available without constructing old foliage")
- check(game.stage.get_meta("heart_foliage_viewer")==Vector3(0,1,-6),"viewer projection remains available to compatible foliage")
  var model: Node3D=game.stage.heart_tree;Growth.sync(game.stage,{"unlocked":g.heart.unlocked});check(game.stage.heart_tree==model,"steady frames do not rebuild tree geometry")
  # Legacy queued events without new fields still play one old growth step.
  var old_events: Array=[]

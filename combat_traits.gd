@@ -20,13 +20,6 @@ static func player_id(game: Node,p: Dictionary) -> int:
  return 0
 static func valid_target(game: Node,target: int,token: int=-1) -> bool:
  return game.encounter.alive(target,token)
-static func other_target(game: Node,target: int,point: Vector3) -> int:
- var result:=-2;var distance:=3.0
- for candidate in range(-1,game.encounter.scout_count()):
-  if candidate==target or not valid_target(game,candidate): continue
-  var at: Vector3=game.enemy_position(candidate);var length:=point.distance_to(at)
-  if length<distance and game.battlefield.clear_line(point,at): result=candidate;distance=length
- return result
 static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,_graft_contact: Dictionary={}) -> Dictionary:
  var hit:=stats.duplicate(true)
  var damage:=Preview.authored_amount(float(hit.damage))

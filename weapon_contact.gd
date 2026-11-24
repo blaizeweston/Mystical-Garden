@@ -158,4 +158,4 @@ static func melee(game: Node,shot: Dictionary,now: int) -> void:
    preload("res://combat_action_events.gd").contact(game,shot.stats,target,now,false,point,direction)
   if shot.stats.pattern=="chain" or (shot.stats.pattern=="splash" and Motion.profile(str(shot.form)).delivery!="radial"):
    remaining=secondary(game,player,shot.stats,point,hits,remaining);break
- if not hits.is_empty() and game.encounter_cleared() and game.pending_finale_at==0:game.finish_combat(int(shot.player),shot.origin)
+ if not hits.is_empty() and game.encounter_cleared():game.finish_combat(int(shot.player),shot.origin)

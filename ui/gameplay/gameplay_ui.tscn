@@ -462,41 +462,6 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Keep exploring"
 
-[node name="RecollectionMenu" type="PanelContainer" parent="Surface/Overlay"]
-unique_name_in_owner = true
-layout_mode = 2
-mouse_filter = 2
-script = ExtResource("4")
-content_padding = Vector2(22, 18)
-visible = false
-
-[node name="Story" type="VBoxContainer" parent="Surface/Overlay/RecollectionMenu"]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="Surface/Overlay/RecollectionMenu/Story"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.9176470588235294, 0.8470588235294118, 0.6392156862745098, 1)
-theme_override_font_sizes/font_size = 24
-text = "The Heart Remembers"
-
-[node name="Memory" type="Label" parent="Surface/Overlay/RecollectionMenu/Story"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8313725490196079, 0.8431372549019608, 0.7098039215686275, 1)
-theme_override_font_sizes/font_size = 16
-text = "Every root has found its lost memory. The civilization, the corruption, the sacrifice: the Heart remembers it all.\n\nIt remembers what it protected. It remembers what people asked of it. And now it fears the Garden will repeat that ending.\n\nIts final remembrance is awake. Prepare your weapon, then face the Heart."
-custom_minimum_size = Vector2(520, 0)
-autowrap_mode = 3
-
-[node name="PrepareInGarden" type="Button" parent="Surface/Overlay/RecollectionMenu/Story"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Prepare in the Garden"
-
-[node name="FaceHeart" type="Button" parent="Surface/Overlay/RecollectionMenu/Story"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Face the Heart"
-
 [node name="CheckpointMenu" type="PanelContainer" parent="Surface/Overlay"]
 unique_name_in_owner = true
 layout_mode = 2

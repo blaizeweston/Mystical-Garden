@@ -6,13 +6,13 @@ var failed:=false
 func check(ok: bool, message: String) -> void:
 	if not ok:failed=true;printerr("FAIL world guidance: ",message)
 func facts() -> Dictionary:
-	return {"wild":false,"position":Vector3.ZERO,"fallen":false,"floor":3,"depth":1,"route":0,"rooms":5,
+	return {"wild":false,"position":Vector3.ZERO,"fallen":false,"floor":3,"depth":1,"route":0,
 		"role":"Solo","party_size":1,"host_port":24576,"cleared":true,"visible_drop":false,
 		"leader":{"boss_kind":-1,"winding_up":false,"landing":Vector3(20,0,20),"attack_mode":"","position":Vector3(20,0,20),"radius":1.0},
 		"scouts":PackedFloat32Array(),"campaign":PackedInt32Array(),"warnings":[],"gate_distance":20.0,"upgrade_open":false,
 		"extraction_open":false,"offer_floor":3,"wallet":8,"cache_near":false,"graft_near":false,"improvements":{},
 		"garden":{"bed":{},"flowering_unlocked":false,"near_altar":false,"near_gate":false,"near_heart":false,"development":false,
-			"ending":"","deepest_clear":6,"best_extraction":3},"courier":false,"garden_prompt":"","rescue":{},"pickup":false}
+			"deepest_clear":6,"best_extraction":3},"courier":false,"garden_prompt":"","rescue":{},"pickup":false}
 func _initialize():call_deferred("run")
 func run() -> void:
 	var f:=facts()
@@ -23,8 +23,6 @@ func run() -> void:
 	check(Guidance.project(f).prompt=="E  Harvest crafting parts  |  F  Harvest seeds instead","mature bed precedes nearby stations and retains seed alternative")
 	f.garden.bed={"species":0,"stage":1,"flowering":true}
 	check(Guidance.project(f).prompt==Seeds.NAMES[0]+" · Sprout · Seed crop","seed-crop stage wording comes from the canonical plant name")
-	f.garden.bed={"species":-1,"offshoot":0}
-	check(Guidance.project(f).prompt=="Living offshoot · care at the Heart","offshoot guidance is distinct from an empty bed")
 	f.garden.bed={"species":-1}
 	check(Guidance.project(f).prompt=="E  Choose a seed to plant","empty bed guidance")
 	f.garden.bed={};f.garden.near_altar=false;f.garden.near_gate=false;f.garden.near_heart=true;f.garden.development=true

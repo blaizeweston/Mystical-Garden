@@ -18,7 +18,7 @@ func run():
  var g=game.progress
  var h=g.heart
  var p: Dictionary=game.players[1]
- check((["heart","plot_4","plot_5","plot_6","plot_7","plot_8","plot_9","perfect_recollection"]+Catalog.required_core()).all(func(id):return not Catalog.get_node(id).is_empty()),"historical stable technology IDs remain available")
+ check((["heart","plot_4","plot_5","plot_6","plot_7","plot_8","plot_9"]+Catalog.required_core()).all(func(id):return not Catalog.get_node(id).is_empty()),"historical stable technology IDs remain available")
  var seen: Array=[]
  var new_state: Dictionary=h.serialize()
  check(Catalog.get_node("rift_hook").is_empty() and not Catalog.enabled("rift_hook") and h.start(g,"rift_hook")=="Unknown memory.","retired research cannot be selected")
@@ -86,13 +86,9 @@ func run():
  h.mirror(g)
  g.veilcap_discovered=true
  g.campaign.memories.assign(g.Campaign.MEMORY_REQUIREMENTS)
- g.campaign.offshoots.fill(g.Campaign.MATURE)
  h.sync_memories(g)
- check(not g.heart_restored(),"full Knowledge and memories cannot bypass Perfect Recollection")
- check(not h.requirements(g,"perfect_recollection").is_empty(),"final ending research is deferred")
- h.start(g,"perfect_recollection");h.advance(g,24)
- check(not h.has("perfect_recollection") and not g.finale_available(),"complete Knowledge cannot activate the deferred ending")
- h.unlock_direct("perfect_recollection") # Earned legacy state is retained, but cannot launch anything.
+ check(["memory_grove","memory_mire","memory_hollow"].all(func(id):return h.has(id)),
+  "the three living guardian memories unlock at their earned thresholds")
  g.save_garden()
  var reload=Progress.new();reload.path=g.path
  check(reload.load_garden()==OK and reload.heart.serialize()==h.serialize(),"Heart state round-trips across saves")
@@ -102,13 +98,13 @@ func run():
  legacy_file.set_value("garden","rift_hook_discovered",true) # Actual pre-tree restoration requirement.
  var legacy_path: String=g.path+".legacy";legacy_file.save(legacy_path)
  var migrated=Progress.new();migrated.path=legacy_path;migrated.load_garden()
- check(migrated.heart.has("perfect_recollection") and migrated.plots.size()==9,"earned legacy ending and plots migrate")
+ check(Catalog.required_core().all(func(id):return migrated.heart.has(id)) and migrated.plots.size()==9,"pre-tree Garden retains its earned technologies and plots")
  migrated.save_garden()
  check(FileAccess.file_exists(legacy_path+".pre-heart-v1.bak"),"legacy Heart recovery backup")
  legacy_file.erase_section_key("garden","rift_hook_discovered")
  migrated.path=legacy_path+".unfinished"
- check(legacy_file.save(migrated.path)==OK and migrated.load_garden()==OK and not migrated.heart.has("perfect_recollection"),
-  "retiring the research cannot retroactively award an unfinished legacy ending")
+ check(legacy_file.save(migrated.path)==OK and migrated.load_garden()==OK and not migrated.heart.has("living_archive"),
+  "incomplete pre-tree progression does not unlock unearned Archive research")
  # Reclamation consumes matching parts and returns a known species to its owner's reserve.
  ExpeditionCase.set_membership(game, p, false);check(preload("res://tests/support/terrain_case.gd").place_structure(game,"archive") and preload("res://tests/support/terrain_case.gd").place_structure(game,"study"),"current Heart stations are constructed");p.pos=game.stage.station_position("seed_archive")
  g.discoveries[0]=true;p.reclaim_choice=0
@@ -147,20 +143,16 @@ func run():
  game.bank_checkpoint_item(1,p,"bank_part_%d"%trophy)
  check(p.carried_parts[trophy]==0 and game.seed_reserve(p).parts[trophy]==1,"courier banks a selected monster material")
  ExpeditionCase.set_membership(game, p, false);ExpeditionCase.set_world(game, {"depth": 0});ExpeditionCase.set_world(game, {"destination": game.Campaign.GROVE})
- for phase in 6:
+ for phase in 5:
   game.stage.update_heart_progress({"phase":phase,"unlocked":h.unlocked})
-  check(game.stage.experimental_garden.heart.sculpt_models[mini(phase,4)].is_visible_in_tree() and game.stage.heart_core==null,"phase %d uses the imported Heart without an organic overlay"%phase)
+  check(game.stage.experimental_garden.heart.sculpt_models[mini(phase,4)].is_visible_in_tree(),"phase %d uses the imported Heart without an organic overlay"%phase)
  check(["seed_archive","monster_studies","living_archive"].all(func(id):return game.stage.station_position(id).is_finite()),"three restored services use current Garden stations")
  p.pos=game.Stage.HEART;ExpeditionCase.set_membership(game, p, false)
  UIFixture.control(game,"progression_view").tabs.current_tab=1
  UIFixture.control(game,"progression_view").refresh()
  check(UIFixture.control(game,"progression_view").tree.nodes.size()==Catalog.DEFINITIONS.filter(func(n):return Catalog.enabled(n.id)).size(),"reusable tree displays active Heart catalog")
- game.consider_recollection()
- check(not UIFixture.control(game,"recollection_menu").visible,"deferred recollection does not interrupt the Garden")
- game.ui.close_panels();game.consider_recollection()
- check(not UIFixture.control(game,"recollection_menu").visible,"narrative does not repeatedly interrupt Garden")
  game.free()
- if not failed: print("PASS: Heart catalog, costs, research, infusion, rollback, save persistence, six 3D forms, stations and deferred recollection")
+ if not failed: print("PASS: Heart catalog, costs, research, infusion, rollback, save persistence, current imported Heart stages and stations")
  quit(1 if failed else 0)
 
 func check_rift_retirement(source: String) -> void:

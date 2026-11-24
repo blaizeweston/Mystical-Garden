@@ -50,8 +50,6 @@ func check_live_capacity(game: Node) -> void:
 	var player: Dictionary = game.players[1]
 	check(PlayerVitals.current_hp(player) == 100.0 and game.Life.maximum(game, player) == 100
 		and not player.has("hp") and not player.has("max_hp"), "shipped player capacity has one authoritative owner")
-	check(Vitals.enemy_capacity(61, 2.386, SCALE) == 1460, "convert Orchard after its original co-op ceiling")
-	check(Vitals.enemy_capacity(3, 1.90, SCALE) == 60, "ordinary scout keeps the shipped co-op ceiling")
 
 
 func check_amounts() -> void:

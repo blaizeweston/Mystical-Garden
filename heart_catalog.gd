@@ -370,29 +370,6 @@ const DEFINITIONS := [
 		"description": "Restore this memory by returning from guardian expeditions in this Garden.",
 		"memory": 2
 	},
-	{
-		"id": "perfect_recollection",
-		"name": "Perfect Recollection",
-		"parents": [
-			"memory_grove",
-			"memory_mire",
-			"memory_hollow",
-			"nursery",
-			"checkpoint_deposit",
-			"spore_bench",
-			"clearing_3"
-		],
-		"knowledge": 120,
-		"insight": 12,
-		"materials": 20,
-		"research": 24,
-		"position": [
-			430,
-			80
-		],
-		"description": "The Heart perfectly recollects the lost civilization and its own corruption. Completing this final research triggers its awakening and the concluding encounter.",
-		"fact": "offshoots"
-	},
  {"id":"living_conduit","name":"Living Water Conduit","parents":["clearing_2","irrigation","plot_4"],
  "knowledge":40,"insight":6,"materials":0,"research":6,"position":[805,650],
  "description":"Unlock the terrace conduit. The host chooses the bud type for new plantings in Bed 4. Preserving a deep bud takes longer and improves rare harvest chances."}
@@ -407,7 +384,7 @@ static func get_node(id: String) -> Dictionary:
 static func required_core() -> Array:
 	return ["flowering","irrigation","nursery","seed_archive","monster_studies","infusion","spore_bench","checkpoint_deposit","living_archive","clearing_1","clearing_2","clearing_3"]
 static func phase_name(phase: int) -> String:
-	return ["Sheltered Fragment","First Awakening","Rooted Heart","Living Nexus","Remembering Heart","Perfect Recollection"][clampi(phase,0,5)]
+	return ["Sheltered Fragment","First Awakening","Rooted Heart","Living Nexus","Remembering Heart"][clampi(phase,0,4)]
 
 static func enabled(id: String) -> bool:
-	return _by_id.has(id) and (id!="perfect_recollection" or preload("res://campaign.gd").LEGACY_ENDING_ENABLED)
+	return _by_id.has(id)

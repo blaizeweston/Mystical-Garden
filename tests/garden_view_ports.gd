@@ -100,11 +100,11 @@ func run():
 	frames["return"]={"context":"guest:2:b","wild":false,"motion":false,"diagnostic_source":"host_snapshot","pending":[],"data":{"version":1,"catalog":Returns.signature,"entries":[Returns.DEFINITIONS[0].duplicate(true)]}}
 	var discoveries=view.get_node("ReturnLife");discoveries._process(.2)
 	check(discoveries.traces.lantern_homecoming.visible and discoveries.heart.visible,"committed discoveries produce only their existing visual traces")
-	frames.ambience={"wild":false,"motion":true,"water_position":Vector3(6.6,0,-.15),"position":Vector3(6.6,0,-.15),"heart_observer":Vector3.ZERO,"development":false,"data":{"available":["spring_water"],"returns":{}}}
+	frames.ambience={"wild":false,"motion":true,"water_position":Vector3(6.6,0,-.15),"position":Vector3(6.6,0,-.15),"development":false,"data":{"available":["spring_water"],"returns":{}}}
 	var ambience=view.get_node("Ambience");ambience._process(.2)
 	check(ambience.colonies.sheltered_spring.visible and ambience.colonies.sheltered_spring.multimesh.instance_count==8,"ambience uses the bounded authored local colony")
 	frames.ambience.motion=false;ambience._process(.2)
-	check(not ambience.colonies.sheltered_spring.visible and not stage.get_meta("heart_foliage_motion"),"ambient-motion settings hide local life without affecting gameplay")
+	check(not ambience.colonies.sheltered_spring.visible,"ambient-motion settings hide local life without affecting gameplay")
 	view.free();stage.free();ui.free()
 	if not failed:print("PASS: standalone Garden views, detached frames, observation and crop identities, station/conduit intentions, context cleanup and cosmetic return/ambience")
 	quit(1 if failed else 0)

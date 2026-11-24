@@ -85,6 +85,8 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 	for i in CAMPAIGN_WORDS:
 		campaign.append(bytes.decode_s32(offset))
 		offset += 4
+	if campaign[0] < 0 or campaign[0] >= preload("res://campaign.gd").BIOME_COUNT:
+		return {}
 	var people := {}
 	for i in people_count:
 		var id := bytes.decode_u32(offset)

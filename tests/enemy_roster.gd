@@ -123,7 +123,7 @@ func run():
 	preload("res://leader_behavior.gd").tick(game, .016,Time.get_ticks_msec())
 	check(game.tactics.attack_mode=="vault" and game.tactics.winding_up,"mobility growth telegraphs a vault across cover")
 	var landing: Vector3=game.tactics.landing
-	preload("res://leader_behavior.gd").resolve(game, Time.get_ticks_msec()+1100)
+	preload("res://elite_enemy.gd").resolve(game, Time.get_ticks_msec()+1100)
 	check(game.tactics.position==landing and not game.battlefield.occupied(landing,.34),"vault lands safely beyond cover")
 	# Exercise each role through the actual director update, not only its resolver.
 	game.enemy_mutations=0

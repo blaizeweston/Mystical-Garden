@@ -12,7 +12,6 @@ const Terrain = preload("res://assets/terrain_m02/wilds_preview_generation.gd")
 const Surface = preload("res://assets/terrain_m02/wilds_play_surface.gd")
 const Navigation = preload("res://assets/terrain_m02/wilds_combat_navigation.gd")
 const Catalog = preload("res://assets/terrain_m02/terrain_catalog.tres")
-const Campaign = preload("res://campaign.gd")
 const SPACING := 1.75
 const RADIUS := 14
 const REPATH_MS := 70
@@ -52,7 +51,7 @@ func _init() -> void:
 func configure(site: int, encounter: int, map_seed: int = 0, boss: int = -1, phase: int = 0) -> void:
 	ground=null;navigation_graph=null;generated={}
 	_seed_cache_present=false;_clear_seeds=0
-	var normal_floor := map_seed!=0 and boss<0 and site!=Campaign.HEART
+	var normal_floor := map_seed!=0 and boss<0
 	var rolls := ("wilds_seed_rewards/%d"%map_seed).sha256_buffer()
 	if normal_floor:
 		_clear_seeds=int(float(rolls.decode_u32(4))/4294967296.0<CLEAR_SEED_CHANCE)
@@ -69,7 +68,7 @@ func configure(site: int, encounter: int, map_seed: int = 0, boss: int = -1, pha
 			var random := RandomNumberGenerator.new();random.seed=rolls.decode_u32(8)
 			_seed_cache_present=_place_seed_cache(generated.layout,random)
 	else:
-		generated=Authored.build(boss,phase,map_seed,site*6+clampi(encounter,1,6),map_seed==0 and boss<0 and site!=Campaign.HEART)
+		generated=Authored.build(boss,phase,map_seed,site*6+clampi(encounter,1,6),map_seed==0 and boss<0)
 		var initialized := _configure_floor(site,encounter,map_seed)
 		assert(initialized,"The authored encounter floor must configure")
 	boss_kind=boss;boss_phase=phase

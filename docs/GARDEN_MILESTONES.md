@@ -16,7 +16,7 @@ Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_
 
 ### Knowledge tree review and expansion playback
 
-The tree has 24 definitions, including the starting Heart and the hidden Perfect Recollection finale. Research updates the Heart. The expansion cutscene now belongs to the frontier purchase in Build. See [Garden expansion scenes](GARDEN_GROWTH_SCENES.md).
+The tree has 23 definitions, including the starting Heart. Research updates the Heart. The expansion cutscene now belongs to the frontier purchase in Build. See [Garden expansion scenes](GARDEN_GROWTH_SCENES.md).
 
 | Nodes | Current gameplay payoff |
 |---|---|
@@ -26,9 +26,9 @@ The tree has 24 definitions, including the starting Heart and the hidden Perfect
 | Reclamation Altar, Offering Altar, Research Infusion | Build a station to reclaim discovered seeds, exchange trophies for Knowledge, or double the research time credited by a plant offering. Modern graft purchases have no Offering Altar chance bonus. |
 | Trophy Preservation, Returning Mycelium | Increase expedition monster-part cargo from six to eight, or send one eligible item home per player at a cleared third gate. |
 | Living Water Conduit | The host selects the bud policy for future crops in Bed 4. The benefit follows the bed identity when moved. |
-| Living Archive, three Remembrances, Perfect Recollection | The Archive tracks guardian memories. The three thresholds are 12, 16 and 20. They record progress and the Archive contributes to the Heart’s late visual phase. The concluding encounter is disabled. |
+| Living Archive and three Remembrances | The Archive tracks guardian memories. The three thresholds are 12, 16 and 20. They record progress and the Archive contributes to the Heart’s late visual phase. |
 
-Rift Resonance is retired. Existing Gardens retain lifetime Knowledge and recover any Knowledge spent on the retired node, up to its six-point price. Old discovery and research flags no longer start research or play a cue.
+Current saves omit the former finale and offshoots. On loading an older Garden, the Heart releases up to six Knowledge for paid Rift Resonance and up to twelve for paid Perfect Recollection, while preserving spending on supported research. Existing guardian memories and earned research remain available.
 
 Living Archive and the three Remembrances are under design review. They still record guardian progress. One possible replacement would use the Archive to open a final expedition route, with the fight before extraction while the party still has its cards and grafts. That route has not been approved or implemented.
 

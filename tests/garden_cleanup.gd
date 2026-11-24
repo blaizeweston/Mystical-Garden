@@ -24,31 +24,42 @@ func run() -> void:
  game.send_garden_action("heart_confirm:"+JSON.stringify({"id":"plot_4","plan":{}}))
  check(g.heart.active=="plot_4" and g.plots.size()==3,"explicit Knowledge-node research still works")
  g.heart.add_work(g,g.heart.duration("plot_4"));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"Knowledge unlock permits a real placed bed");check(g.plots.size()==4,"bed research completion expands Garden")
- var fresh=game.Campaign.new();fresh.record_clear(0)
- check(fresh.offshoots==[game.Campaign.DORMANT,game.Campaign.DORMANT,game.Campaign.DORMANT],"new guardian clears do not create old offshoot choices")
- # A pre-cleanup save retains its history but does not reserve beds or alter the living Garden.
- g.campaign.cleared.fill(true);g.campaign.offshoots.assign([game.Campaign.PENDING,game.Campaign.GROWING,game.Campaign.MATURE]);g.campaign.offshoot_beds.assign([-1,0,1]);g.campaign.offshoot_progress.assign([0,1,3]);g.campaign.ending=game.Campaign.CORRUPTION
- var old=g.campaign.offshoots.duplicate();var beds=g.campaign.offshoot_beds.duplicate();var growth=g.campaign.offshoot_progress.duplicate();var barbs: int=g.heartwood_barbs
+ # Simulate an actual older save rather than rebuilding its retired systems in memory.
+ g.campaign.cleared.fill(true)
+ check(g.save_garden()==OK,"create a populated disposable Garden")
+ var old:=ConfigFile.new()
+ check(old.load(g.path)==OK,"load fixture data")
+ old.set_value("campaign","offshoot_0",2)
+ old.set_value("campaign","offshoot_bed_0",0)
+ old.set_value("campaign","offshoot_progress_0",3)
+ old.set_value("campaign","ending",2)
+ var research: Dictionary=old.get_value("heart","state")
+ research.paid.append("perfect_recollection")
+ research.active="perfect_recollection"
+ research.work.perfect_recollection=120.0
+ research.spent+=12
+ old.set_value("heart","state",research)
+ var knowledge: int=g.knowledge
+ var valid_spending: int=g.heart.spent
+ check(old.save(g.path)==OK and g.load_garden()==OK,"load historical records")
+ check(g.knowledge==knowledge and g.heart.spent==valid_spending and g.heart.has("plot_4") and g.heart.active.is_empty(),
+  "refund retired research while preserving paid bed research and lifetime Knowledge")
  for action in ["nurture","harvest_offshoot","awaken"]:game.send_garden_action(action)
- g.campaign.advance_growth();game.complete_finale(1)
- check(g.campaign.offshoots==old and g.campaign.offshoot_beds==beds and g.campaign.offshoot_progress==growth and g.heartwood_barbs==barbs and g.campaign.ending==game.Campaign.CORRUPTION,"retired actions and growth cannot mutate legacy history or grant rewards")
- check(g.offshoot_in_bed(0)==-1 and game.Progress.decode_plots(g.plot_snapshot()).all(func(b):return b.offshoot==-1),"old offshoot beds are released in authority and snapshots")
+ check(game.Progress.decode_plots(g.plot_snapshot()).all(func(b):return not b.has("offshoot")),"legacy history reserves no bed")
  p.pos=game.Stage.PLOTS[0];game.show_planting_picker(1,0)
  check(UIFixture.control(game,"planting_menu").visible,"a previously reserved bed accepts normal planting")
  game.ui.close_panels();g.stock[0]=1;game.garden_action(1,"plant_at_0_0")
  check(g.plots[0].species==0,"normal seeds can occupy former offshoot beds")
- g.heart.unlock_direct("perfect_recollection");game.consider_recollection()
- check(not g.finale_available() and not UIFixture.control(game,"recollection_menu").visible and not ExpeditionCase.is_wild(p),"legacy restoration cannot trigger the deferred finale")
- check(not g.heart.requirements(g,"perfect_recollection").is_empty(),"deferred research cannot be purchased")
- var packet=game.campaign_snapshot();check(packet[2]==0 and packet[3]==0 and packet[4]==0 and packet[5]==game.Campaign.UNFINISHED and packet[17]==0,"public Garden state hides deferred ending choices")
- g.save_garden();var restored=game.Progress.new();restored.path=g.path;restored.load_garden()
- check(restored.campaign.offshoots==old and restored.campaign.offshoot_beds==beds and restored.campaign.offshoot_progress==growth and restored.campaign.ending==game.Campaign.CORRUPTION,"legacy metadata survives saving and reloading")
- check(restored.plots[0].species==0 and restored.offshoot_in_bed(0)==-1,"new planting persists independently of legacy records")
- var paused=game.Progress.new();paused.path=g.path+".paused"
- paused.heart.paid.append("perfect_recollection");paused.heart.active="perfect_recollection";paused.heart.work.perfect_recollection=120.0;paused.heart.spent=12;paused.save_garden()
- var loaded=game.Progress.new();loaded.path=paused.path;loaded.load_garden()
- check(loaded.heart.active.is_empty() and loaded.heart.paid.has("perfect_recollection") and loaded.heart.work.perfect_recollection==120.0 and loaded.heart.spent==12,"deferred in-progress research is paused without deleting paid work")
- check(g.heart.phase(g)==4,"old final restoration no longer presents an awakened ending phase")
+ var packet=game.campaign_snapshot()
+ check(packet[2]==0 and packet[3]==0 and packet[4]==0 and packet[5]==0 and packet[17]==0,"reserved wire fields remain zero")
+ var written:=ConfigFile.new()
+ check(g.save_garden()==OK and written.load(g.path)==OK,"modern save succeeds after planting")
+ check(not written.has_section_key("campaign","ending") and not written.has_section_key("campaign","offshoot_bed_0")
+  and not written.has_section_key("campaign","offshoot_progress_0") and not written.has_section_key("campaign","offshoot_0")
+  and not written.get_value("heart","state").paid.has("perfect_recollection"),"rewritten saves omit retired fields and payments")
+ var restored=game.Progress.new();restored.path=g.path
+ check(restored.load_garden()==OK and restored.plots[0].species==0 and restored.heart.spent==valid_spending and restored.campaign.cleared.all(func(x):return x),
+  "reload preserves the planted bed and guardian progress without repeating the refund")
  p.pos=game.Stage.HEART;game.open_heart_tree();await frames()
  check(bottom(panel),"Heart opens at the actual bottom after visible layout")
  check(not panel.nodes.any(func(n):return n.id=="heart_perfect_recollection") and panel.nodes.size()==preload("res://heart_catalog.gd").DEFINITIONS.filter(func(n):return preload("res://heart_catalog.gd").enabled(n.id)).size(),"active tree hides deferred final node without renumbering technologies")

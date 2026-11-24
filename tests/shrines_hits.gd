@@ -44,8 +44,9 @@ func run():
 	ExpeditionCase.set_world(game, {"encounter_number": 5})
 	check(not game.graft_altar_open(),"ordinary floors do not claim to contain a shrine")
 	ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
-	ExpeditionCase.set_world(game, {"destination": 3})
-	check(not game.graft_altar_open(),"story finale does not spawn a normal shrine")
+	var previous_route: int=game.participation.route()
+	game.participation.select_route(3)
+	check(game.participation.route()==previous_route and game.graft_altar_open(),"unknown route cannot replace an earned shrine floor")
 	ExpeditionCase.set_world(game, {"destination": 0})
 	ExpeditionCase.set_world(game, {"depth": 1})
 	game.enemy_mutations=0

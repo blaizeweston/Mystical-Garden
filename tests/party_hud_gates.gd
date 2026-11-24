@@ -46,8 +46,6 @@ func run():
  check(game.at_weapon_gate(p),"gate crafting accepts visually adjacent player")
  game._act(1,false);check(UIFixture.control(game,"loadout_menu").visible,"actual interaction opens the gate workbench at extended range")
  p.pos=game.stage.gate_position()+Vector3(Gates.RANGE+.1,0,0);check(not game.at_weapon_gate(p),"distant crafting remains rejected")
- check(Gates.travel_range(game,"depart")==Gates.RANGE,"party departure uses same range")
- ExpeditionCase.set_world(game, {"destination": game.Campaign.HEART});check(Gates.travel_range(game,"depart")==1.7,"Heart interaction range remains appropriate");ExpeditionCase.set_world(game, {"destination": 0})
  game.ui.close_panels();ExpeditionCase.set_membership(game, p, true);game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();ExpeditionCase.set_world(game, {"encounter_number": 1});ExpeditionCase.set_world(game, {"depth": 1})
  p.pos=game.battlefield.advance+Vector3(Gates.RANGE+.1,0,0);game.expedition_transitions.commit_checkpoint(1,true);check(game.participation.floor()==1,"distant onward gate rejected")
  p.pos=game.battlefield.advance+Vector3(2.65,0,0);game.expedition_transitions.commit_checkpoint(1,true);check(game.participation.floor()==2,"actual cleared onward gate accepts extended range")

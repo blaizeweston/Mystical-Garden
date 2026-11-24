@@ -3,6 +3,7 @@ extends RefCounted
 ## Player records hold only a readonly link. Received guest and frozen
 ## settlement records retain the existing detached wild projection.
 
+const Campaign = preload("res://campaign.gd")
 const STATE := "expedition_participation"
 
 class Member extends RefCounted:
@@ -150,8 +151,10 @@ func epoch() -> int:
 func run_id() -> int:
 	return _run_id
 
-func select_route(destination: int) -> void:
+func select_route(destination: int) -> bool:
+	if destination < 0 or destination >= Campaign.BIOME_COUNT: return false
 	_destination = destination
+	return true
 
 func reset_run() -> bool:
 	if active():
@@ -168,17 +171,17 @@ func reset_run() -> bool:
 		member.run_id = 0
 	return true
 
-func advance(expected_epoch: int, biome_length: int, last_route: int) -> bool:
+func advance(expected_epoch: int, biome_length: int) -> bool:
 	if expected_epoch != _epoch or _advanced_epoch == expected_epoch or not active() \
-			or biome_length <= 0 or last_route <= 0 or _destination == last_route:
+			or biome_length <= 0:
 		return false
 	_advanced_epoch = expected_epoch
 	_floor += 1
 	if _depth == biome_length:
 		_depth = 1
-		if _destination == last_route - 1:
+		if _destination == Campaign.HOLLOW:
 			_cycle += 1
-		_destination = (_destination + 1) % last_route
+		_destination = (_destination + 1) % Campaign.BIOME_COUNT
 	else:
 		_depth += 1
 	return true
@@ -208,7 +211,7 @@ func project_participants(facts: Dictionary) -> Dictionary:
 
 ## Only the receiving world invokes this for protocol-41 guest projections.
 func project_world(value: Dictionary) -> void:
-	_destination = int(value.get("destination", _destination))
+	if not select_route(int(value.get("destination", _destination))): return
 	_depth = int(value.get("depth", _depth))
 	_floor = int(value.get("encounter_number", _floor))
 	_cycle = int(value.get("difficulty_cycle", _cycle))

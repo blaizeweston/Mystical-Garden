@@ -14,17 +14,10 @@ static func party_size(game: Node) -> int:
   if Session.ready_for(p,false) and (Participation.is_wild(p) or not game.participation.active()) and not PlayerLifecycle.fallen(p): count+=1
  return maxi(1,count)
 static func scout_count(game: Node) -> int:
- if game.participation.route()==game.Campaign.HEART: return mini(game.EncounterConfig.MAX_SCOUTS,4+2*(party_size(game)-1))
  var c:=config()
  var additional:=Balance.extra_scouts()*(party_size(game)-1)
  var limit=mini(game.EncounterConfig.MAX_SCOUTS,game.EncounterConfig.SOLO_SCOUT_LIMIT+additional)
  return mini(limit,int(c.base_scouts)+(game.participation.floor()-1)/int(c.floors_per_extra_scout)+game.participation.route()+mini(game.participation.cycle(),3)+additional)
-static func health(game: Node,base: int,leader: bool) -> int:
- var c:=config();var increase: int=(game.participation.floor()-1)/int(c.floors_per_leader_hp if leader else c.floors_per_scout_hp)
- var value: int=base+increase+game.participation.cycle()
- var extra_health:=float(c.coop_hp_multiplier-1.0)+minf(float(c.coop_hp_depth_cap),(game.participation.floor()-1)*float(c.coop_hp_per_floor))
- var multiplier:=1.0+extra_health*(maxi(1,game.encounter_party_size)-1)
- return game.Life.Vitals.enemy_capacity(value,multiplier,game.Life.Preview.scale())
 static func speed(game: Node,base: float) -> float:
  return minf(float(config().speed_cap),base*(float(config().speed_multiplier)+minf(.5,(game.participation.floor()-1)*float(config().speed_per_floor))))
 static func windup(game: Node,base: int) -> int:

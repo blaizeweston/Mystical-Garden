@@ -45,7 +45,7 @@ func refresh() -> void:
  if station=="living_archive":
   var lines: Array[String]=["Guardian memories recorded in this Garden"]
   var campaign: PackedInt32Array=_facts.get("campaign",PackedInt32Array())
-  for site in Campaign.HEART:
+  for site in Campaign.BIOME_COUNT:
    var count: int=campaign[14+site]
    lines.append("%s · %d / %d"%[Campaign.NAMES[site],count,Campaign.MEMORY_REQUIREMENTS[site]])
   info.text="\n".join(lines)

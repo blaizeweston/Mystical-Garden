@@ -113,9 +113,9 @@ static func validate() -> Array[String]:
  if boss_count!=4: errors.append("Expected four expedition bosses")
  errors.append_array(preload("res://enemy_balance.gd").errors(Enemies.all()))
  var combat=preload("res://game_balance.gd").values.get("combat",{})
- for field in ["base_scouts","coop_extra_scouts","floors_per_extra_scout","leader_base_hp","floors_per_leader_hp","scout_base_hp","floors_per_scout_hp","coop_hp_multiplier","coop_hp_per_floor","coop_hp_depth_cap","aggro_radius","group_alert_radius","spawn_entry_clearance","speed_multiplier","speed_per_floor","speed_cap","minimum_windup_ms","trophy_chance","trophy_depth_step","trophy_depth_cap","trophy_guardian_bonus","trophy_adapted_bonus","trophy_cap","hit_grace_ms","kill_essence_sparks","leader_essence_sparks","essence_sparks_per_point","kill_class_xp","leader_class_xp"]:
+ for field in ["base_scouts","floors_per_extra_scout","aggro_radius","group_alert_radius","spawn_entry_clearance","speed_multiplier","speed_per_floor","speed_cap","minimum_windup_ms","trophy_chance","trophy_depth_step","trophy_depth_cap","trophy_guardian_bonus","trophy_adapted_bonus","trophy_cap","hit_grace_ms","kill_essence_sparks","leader_essence_sparks","essence_sparks_per_point","kill_class_xp","leader_class_xp"]:
   if not (combat.get(field) is int or combat.get(field) is float): errors.append("Missing/nonnumeric combat balance field "+field)
- for field in ["floors_per_extra_scout","floors_per_leader_hp","floors_per_scout_hp","speed_cap","leader_base_hp","scout_base_hp","essence_sparks_per_point"]:
+ for field in ["floors_per_extra_scout","speed_cap","essence_sparks_per_point"]:
   if float(combat.get(field,0))<=0: errors.append("Combat balance field must be positive: "+field)
  if int(combat.get("base_scouts",0))<1 or int(combat.get("base_scouts",0))>preload("res://encounter_config.gd").MAX_SCOUTS: errors.append("Combat spawn budget exceeds protocol capacity")
  if float(combat.get("trophy_chance",0))<0 or float(combat.get("trophy_cap",2))>1 or float(combat.get("trophy_cap",0))<float(combat.get("trophy_chance",1)): errors.append("Invalid trophy probability bounds")

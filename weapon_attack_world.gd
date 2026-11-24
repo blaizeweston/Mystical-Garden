@@ -181,7 +181,7 @@ func secondary(peer: int, stats: Dictionary, point: Vector3, hits: Array, budget
 	return hits
 
 func finish_encounter(peer: int, point: Vector3) -> void:
-	if _world.encounter_cleared() and _world.pending_finale_at == 0: _world.finish_combat(peer, point)
+	if _world.encounter_cleared(): _world.finish_combat(peer, point)
 
 
 func release_mirrors(peer: int, stats: Dictionary, form: String, now: int, duration: int) -> void:

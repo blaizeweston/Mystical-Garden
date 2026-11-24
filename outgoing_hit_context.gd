@@ -103,7 +103,7 @@ func target_facts(target: int, stats: Dictionary, origin: Vector3, now: int) -> 
 	var facts := {"point":target_position(target), "facing":_actor.get("facing", Vector3.FORWARD),
 		"winding":bool(stats.get("was_winding", _world.tactics.winding_up if leader else float(body.windup) > 0)),
 		"boss":leader and _world.tactics.boss_kind >= 0,
-		"guardian":leader and (_world.participation.depth() == _world.ROUTE_ROOMS or _world.participation.route() == _world.Campaign.HEART),
+		"guardian":leader and _world.participation.depth() == _world.ROUTE_ROOMS,
 		"bark_guard":bark_guard, "guards":guards,
 		"bark":bool(mutations & _world.Enemies.BARK), "exposed":leader and _world.Bosses.exposed(_world, now)}
 	facts.make_read_only()
@@ -236,9 +236,3 @@ func drain_eligible(target: int) -> bool:
 
 func release_bloom(skill: Dictionary, now: int) -> void:
 	load("res://affinity_cards.gd").bloom_echo(_world, _actor, _bloom, skill, now)
-
-
-func heart_message(before: int) -> void:
-	var campaign = _world.Campaign
-	if _world.participation.route() == campaign.HEART and before > campaign.FINAL_HP / 2.0 and enemy_hp(-1) > 0 and enemy_hp(-1) <= campaign.FINAL_HP / 2.0:
-		for peer in _world.players: _world.tell(peer, "The Heart remembers: I sheltered them, too. I will not let it happen again.")

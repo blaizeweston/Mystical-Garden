@@ -3,7 +3,6 @@ extends Node3D
 const WeaponMotion=preload("res://weapon_motion.gd")
 const GardenScenery=preload("res://garden_scenery.gd")
 const Frames = preload("res://weapon_frames.gd")
-const Campaign = preload("res://campaign.gd")
 const Battlefield = preload("res://battlefield.gd")
 const EncounterConfig=preload("res://encounter_config.gd")
 const PACK_STRIDE := EncounterConfig.PACK_STRIDE
@@ -67,22 +66,16 @@ var graft_altar: Node3D
 var briar_vines: MeshInstance3D
 var longlimb_legs: Node3D
 var heart_phase := 0
-var heart_tech_key := ""
 var heart_stations := {}
 var heart_unlocked: Array=[]
 var heart_size := 0.9
-var heart_core: MeshInstance3D
 var heart_tree: Node3D
-var heart_seed: MeshInstance3D
 var garden_edge: Node3D
 var garden_tier := -1
 var active_plots := 3
-var occupied_offshoots: Array=[]
 var garden_extent := 11.5
 var garden_beds: Node3D
 var plot_key := ""
-var returning_corruption: Node3D
-var offshoot_models: Array[Node3D] = []
 var scenery: Array[Node3D] = []
 var crown: Node3D
 var foe_surface: StandardMaterial3D
@@ -143,20 +136,6 @@ func _ready() -> void:
 	add_child(garden_edge)
 	deeper_gate = build_wild_gateway(DEEPER_GATE, "GO DEEPER", Color("#ef9690"))
 	wild_portal=build_gate_swirl(deeper_gate,WILD_OFFSET+DEEPER_GATE)
-	var heart := HEART
-	# The generated Garden installs the imported Heart. Do not construct a second
-	# organic seed/tree underneath it; heart_visuals.build remains boss-only art.
-	returning_corruption = Node3D.new()
-	add_child(returning_corruption)
-	for i in 6:
-		var angle := TAU * float(i) / 6.0
-		var radial := Vector3(cos(angle), 0, sin(angle))
-		var root := box(heart + radial * 1.25 + Vector3.UP * 0.7,
-			Vector3(0.26, 1.6, 0.34), Color("#713451"))
-		root.rotation_degrees.z = 31.0
-		root.rotation.y = angle
-		root.reparent(returning_corruption)
-	returning_corruption.hide()
 	build_tactical_cover()
 	graft_altar = preload("res://assets/altar.glb").instantiate() as Node3D
 	add_child(graft_altar)
@@ -245,7 +224,7 @@ func focus(origin: Vector3, wild: bool, delta: float = 1.0) -> void:
 
 
 func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
-		winding_up: bool, strike_radius: float, drop: Vector3, has_drop: bool, _planted: Array, depth: int, route_rooms: int, show_graft_altar: bool, briar_bound: bool, longlimb: bool, campaign: PackedInt32Array, pack: PackedFloat32Array, delta: float, view_id: int=-1) -> void:
+		winding_up: bool, strike_radius: float, drop: Vector3, has_drop: bool, _planted: Array, depth: int, show_graft_altar: bool, briar_bound: bool, longlimb: bool, campaign: PackedInt32Array, pack: PackedFloat32Array, delta: float, view_id: int=-1) -> void:
 	var now := preload("res://combat_clock.gd").now()
 	for id in avatars.keys():
 		if not players.has(id):
@@ -284,14 +263,13 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 		var center: Vector3 = WILD_OFFSET + Vector3(player_position.x,
 			0, player_position.z) if wild else avatars[camera_id].position
 		focus(center, wild, delta)
-	deeper_gate.visible = campaign[0] != Campaign.HEART
 	graft_altar.visible = show_graft_altar
 	if garden_portal: garden_portal.visible=true
 	if wild_portal:
 		var cleared: bool=hp<=0
 		for index in range(0,pack.size(),PACK_STRIDE):
 			if pack[index+2]>0: cleared=false
-		wild_portal.visible=cleared and campaign[0]!=Campaign.HEART
+		wild_portal.visible=cleared
 	var site := campaign[0]
 	var boss: int=campaign[EncounterConfig.BOSS_KIND] if campaign.size()>EncounterConfig.BOSS_PHASE else -1
 	var phase: int=campaign[EncounterConfig.BOSS_PHASE] if campaign.size()>EncounterConfig.BOSS_PHASE else 0
@@ -301,7 +279,7 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 		terrain_key = map_key
 		redraw_terrain(site, depth, campaign[8],boss,phase)
 		set_meta("rendered_lair",rendered_lair)
-	seed_cache.visible = visual_field.has_seed_cache() and site != Campaign.HEART
+	seed_cache.visible = visual_field.has_seed_cache()
 	var claimed: bool = players.get(local_id, {}).get("cache_claimed", false)
 	for kernel in cache_kernels:
 		kernel.visible = not claimed
@@ -315,8 +293,7 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 		$WorldEnvironment.environment.ambient_light_color=climate.ambient
 		$WorldEnvironment.environment.ambient_light_energy=climate.ambient_energy
 	ensure_enemy(foe, foe_model, campaign[18] if campaign.size() > 18 else 0)
-	ensure_finale_form(foe_model,site==Campaign.HEART)
-	preload("res://elite_enemy.gd").decorate(self,foe_model,boss<0 and site!=Campaign.HEART)
+	preload("res://elite_enemy.gd").decorate(self,foe_model,boss<0)
 	foe_surface = foe_model.tint
 	if hp > 0 and hp < last_foe_hp:
 		foe_hit_until = now + 115
@@ -325,23 +302,15 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 	last_foe_hp = hp
 	foe_model.hit_until = foe_hit_until
 	foe_surface.albedo_color = Color.WHITE if now < foe_hit_until else Color(Enemies.get_kind(foe_model.kind).core)
-	var guardian := site == Campaign.HEART or depth == route_rooms
+	var guardian := depth == EncounterConfig.BIOME_LENGTH
 	var expedition_boss: bool=boss>=0
 	crown.visible = guardian and hp>0
 	foe.scale = Vector3.ONE * (float(Enemies.get_kind(foe_model.kind).get("model_scale",1.0)) if expedition_boss else 1.9 if guardian else (1.0 if depth == 1 else 1.22))
-	if is_instance_valid(heart_tree):
-		heart_tree.visible = campaign[5] == Campaign.UNFINISHED
-	returning_corruption.visible = campaign[5] == Campaign.CORRUPTION
-	for i in offshoot_models.size():
-		var state := campaign[2 + i]
-		var sapling := offshoot_models[i]
-		sapling.visible = Campaign.LEGACY_ENDING_ENABLED and (state == Campaign.GROWING or state == Campaign.MATURE) and not occupied_offshoots.has(i)
-		sapling.scale.y = 1.0 if state == Campaign.MATURE else 0.44
 	longlimb_legs.visible = longlimb
 	foe.visible = hp > 0
 	var attack_poses: Dictionary=get_meta("enemy_attack_poses",{})
 	animate_enemy(foe, foe_model, WILD_OFFSET + enemy, winding_up, delta,attack_poses.get(-1,{}))
-	attack_ring.visible = winding_up and hp > 0 and (boss>=22 or site==Campaign.HEART)
+	attack_ring.visible = winding_up and hp > 0 and boss>=22
 	var warning_position := Vector3(campaign[EncounterConfig.LANDING_X] / 100.0, 0, campaign[EncounterConfig.LANDING_Z] / 100.0) if campaign.size() > EncounterConfig.ATTACK_MODE and campaign[EncounterConfig.ATTACK_MODE] != 0 else enemy
 	attack_ring.position = WILD_OFFSET + warning_position + Vector3.UP * 0.06
 	attack_ring.scale = Vector3(strike_radius, 0.25, strike_radius)
@@ -851,36 +820,15 @@ func build_garden_plot(world_position: Vector3, parent: Node3D = self) -> void:
 	bark.albedo_color = Color("#66502e")
 	rim.material_override = bark
 
-func build_heart_growth() -> Node3D:
-	return preload("res://heart_visuals.gd").build(self,heart_phase)
-
 func update_heart_progress(state: Dictionary) -> void:
-	if experimental_garden != null:
-		var unlocked_technologies: Array=state.get("unlocked",[])
-		if heart_unlocked!=unlocked_technologies:garden_tier=-1
-		heart_unlocked = unlocked_technologies.duplicate()
-		heart_phase = clampi(int(get_meta("garden_growth_phase", state.get("phase", 0))), 0, 5)
-		experimental_garden.show_heart_stage(heart_phase)
-		preload("res://heart_growth_visuals.gd").sync(self,state)
-		return
-	var phase:=clampi(int(get_meta("garden_growth_phase",state.get("phase",0))),0,5)
-	var unlocked: Array=state.get("unlocked",[])
-	if phase!=heart_phase and is_instance_valid(heart_tree):
-		var shown: bool=heart_tree.visible
-		heart_tree.free()
-		heart_phase=phase
-		heart_tree=build_heart_growth()
-		heart_tree.visible=shown
-	var key:=str(unlocked)
-	if heart_tech_key!=key:
-		heart_tech_key=key
-		heart_unlocked=unlocked.duplicate()
-		garden_tier=-1
-		for id in HEART_STATIONS:
-			if not heart_stations.has(id):
-				heart_stations[id]=preload("res://heart_visuals.gd").station(self,id,HEART_STATIONS[id])
-			heart_stations[id].visible=unlocked.has(id)
-	preload("res://heart_growth_visuals.gd").sync(self,state)
+	if experimental_garden == null: return
+	var unlocked: Array = state.get("unlocked", [])
+	if heart_unlocked != unlocked:
+		garden_tier = -1
+		heart_unlocked = unlocked.duplicate()
+	heart_phase = clampi(int(get_meta("garden_growth_phase", state.get("phase", 0))), 0, 4)
+	experimental_garden.show_heart_stage(heart_phase)
+	preload("res://heart_growth_visuals.gd").sync(self, state)
 
 
 static func garden_camera_target(player: Vector3, radius: float) -> Vector3:
@@ -893,7 +841,6 @@ func update_plots(beds: Array) -> void:
 		return
 	plot_key = str(beds)
 	active_plots = beds.size()
-	occupied_offshoots.clear()
 	for child in garden_beds.get_children():
 		child.free()
 	for i in beds.size():
@@ -907,8 +854,6 @@ func update_plots(beds: Array) -> void:
 			bed_group = experimental_garden.make_bed(i)
 			garden_beds.add_child(bed_group)
 		var bed: Dictionary = beds[i]
-		if Campaign.LEGACY_ENDING_ENABLED and int(bed.get("offshoot",-1))>=0:
-			occupied_offshoots.append(int(bed.offshoot));var sapling=PINE.instantiate();natural_materials(sapling);garden_beds.add_child(sapling);sapling.position=p;sapling.scale=Vector3.ONE*(.45 if int(bed.stage)==3 else .27)
 		if bed.species >= 0:
 			var plant := build_crop(int(bed.species), int(bed.stage), bool(bed.flowering))
 			plant.reparent(bed_group, false)
@@ -922,7 +867,6 @@ func update_plots(beds: Array) -> void:
 		label.outline_size = 7
 		label.text = "BED %d Â· EMPTY" % (i + 1) if bed.species < 0 else "%s Â· %s" % [
 			Seeds.NAMES[int(bed.species)].to_upper(), ["SEED", "SPROUT", "YOUNG", "READY"][bed.stage]]
-		if Campaign.LEGACY_ENDING_ENABLED and int(bed.get("offshoot",-1))>=0: label.text="LIVING OFFSHOOT Â· "+("MATURE" if int(bed.stage)==3 else "GROWING")
 		label.modulate = Color("#d4d5ad") if bed.stage < 3 else Color("#f3dc92")
 
 
@@ -1160,28 +1104,6 @@ func emit_skill_effect(at: Vector3,radius: float,color: Color) -> void:
 
 
 
-
-
-func apply_biome_material(material: ShaderMaterial,site: int,depth: int) -> void:
-	var palettes: Array[Vector3]=[Vector3(1.,1.,.90),Vector3(.72,.86,.87),Vector3(.78,.71,.88),Vector3(.82,.68,.75)]
-	material.set_shader_parameter("biome_tint",palettes[clampi(site,0,palettes.size()-1)])
-	material.set_shader_parameter("corruption",clampf((depth-1)/8.,0,1))
-
-func ensure_finale_form(actor: Dictionary,finale: bool) -> void:
-	var model: Node3D=actor.model
-	if not model.has_meta("finale_form") and finale:
-		var originals: Array=model.find_children("*","MeshInstance3D",true,false)
-		var saved_core:=heart_core
-		var growth:=preload("res://heart_visuals.gd").build(self,5)
-		heart_core=saved_core
-		growth.reparent(model,false);growth.position=Vector3.ZERO;growth.scale=Vector3.ONE*.75
-		for child in growth.find_children("*","Label3D",true,false): child.hide()
-		model.set_meta("finale_form",growth);model.set_meta("original_meshes",originals)
-	if model.has_meta("finale_form"):
-		var growth: Node3D=model.get_meta("finale_form");growth.visible=finale
-		growth.scale.y=.75+sin(Time.get_ticks_msec()*.002)*.025
-		for original in model.get_meta("original_meshes"):
-			if is_instance_valid(original): original.visible=not finale
 
 
 ## Read-only rendering query. Reliable release facts survive a skipped pose frame;

@@ -26,7 +26,6 @@ var material_key: String=""
 var heart_buttons: HBoxContainer
 var heart_start_button: Button
 var heart_infuse_button: Button
-var heart_finale_button: Button
 var tree_hint: Label
 var class_pick: OptionButton
 var learn_button: Button
@@ -107,10 +106,6 @@ func _ready() -> void:
 	heart_buttons.add_child(heart_infuse_button)
 	heart_infuse_button.pressed.connect(func():
 		_garden_request("heart_infusion:"+JSON.stringify({"project":_facts.get("heart",{}).get("active",""),"plan":offering_plan().parts}));refresh())
-	heart_finale_button=Button.new()
-	heart_finale_button.text="Face the Heart"
-	heart_buttons.add_child(heart_finale_button)
-	heart_finale_button.pressed.connect(func(): _garden_request("awaken");requested.emit("close",{}))
 	material_row=HBoxContainer.new();add_child(material_row);var label:=Label.new();label.text="Research ingredients:";material_row.add_child(label)
 	material_pick=OptionButton.new();material_pick.size_flags_horizontal=Control.SIZE_EXPAND_FILL;material_row.add_child(material_pick)
 	material_pick.item_selected.connect(func(index):
@@ -206,8 +201,6 @@ func present(facts: Dictionary) -> void:
 		heart_start_button.text="Resume research" if state.get("paid",[]).has(id) and not state.unlocked.has(id) else "Begin research · %d Knowledge"%int(definition.get("insight",0))
 		if owns and not definition.is_empty(): heart_start_button.disabled=not str(_facts.research_refusal).is_empty()
 		heart_infuse_button.disabled=not can_offer or str(state.get("active","")).is_empty() or int(offering_plan().missing)>0
-		heart_finale_button.visible=bool(_facts.finale_available)
-		heart_finale_button.disabled=not owns
 		material_pick.disabled=not can_offer
 		var shared: Array=_facts.shared_parts
 		var material_signature: String=str(shared)+str(state.get("material_choice",""))
@@ -313,7 +306,6 @@ func heart_nodes() -> Array:
 				for parent in d.parents: names.append(HeartCatalog.get_node(str(parent)).name)
 				description+="Prerequisites: "+", ".join(names)+".\n"
 			is_ready=is_ready and knowledge>=int(d.knowledge) and (state.get("paid",[]).has(id) or (int(state.get("insight",0))>=int(d.insight)))
-			if d.get("fact","")=="offshoots": description+="Resolve the three offshoot choices before the final recollection.\n"
 			if state.get("paid",[]).has(id) and not owned:
 				description+="This project is funded. Resume it without paying again.\n"
 		description+="\nRestored." if owned else "\nResearch in progress." if state.get("active","")==id else "\nNot yet restored."
@@ -321,7 +313,7 @@ func heart_nodes() -> Array:
 		if id=="heart":
 			var path: String="res://assets/ui/heart/phase_%d.png"%int(state.get("phase",0))
 			if ResourceLoader.exists(path): icon=load(path)
-		result.append({"id":"heart_"+id,"label":d.name,"parents":parents,"position":Vector2(float(d.position[0]),float(d.position[1])),"unlocked":owned,"detail":description,"summary":d.name+"\n"+d.description,"color":"#c6c789" if id=="perfect_recollection" else "#93b78a","available":is_ready,"progress":ratio if not owned else 0.0,"icon":icon})
+		result.append({"id":"heart_"+id,"label":d.name,"parents":parents,"position":Vector2(float(d.position[0]),float(d.position[1])),"unlocked":owned,"detail":description,"summary":d.name+"\n"+d.description,"color":"#93b78a","available":is_ready,"progress":ratio if not owned else 0.0,"icon":icon})
 	return result
 
 func class_nodes() -> Array:

@@ -29,11 +29,6 @@ static func floor_recovery(biome_boundary: bool, hp_per_point: int = LIVE_HP_PER
 	return points(2 if biome_boundary else 1, hp_per_point)
 
 
-static func enemy_capacity(base_points: int, party_multiplier: float, hp_per_point: int = LIVE_HP_PER_POINT) -> int:
-	# Preserve the shipped ceiling before converting. Scaling first changes co-op hit counts.
-	return points(maxi(1, ceili(base_points * party_multiplier)), hp_per_point)
-
-
 static func armored_damage(amount: int, hp_per_point: int = LIVE_HP_PER_POINT) -> int:
 	return maxi(hp_per_point, amount - hp_per_point)
 

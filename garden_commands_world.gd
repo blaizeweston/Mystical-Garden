@@ -255,7 +255,7 @@ func handle(id: int, action: String) -> bool:
   if fields.size()!=4 or not fields[2].is_valid_int() or not fields[3].is_valid_int(): return true
   var slot:=int(fields[2]);var species:=int(fields[3])
   if Participation.is_wild(player) or slot<0 or slot>=world.progress.plots.size() or species<0 or species>=Seeds.NAMES.size() or player.pos.distance_to(world.stage.bed_position(slot))>1.65: return true
-  if world.progress.plots[slot].species>=0 or world.progress.offshoot_in_bed(slot)>=0 or world.seed_reserve(player).stock[species]<=0:
+  if world.progress.plots[slot].species>=0 or world.seed_reserve(player).stock[species]<=0:
    world.tell(id,"That bed or seed is no longer available.");world.show_planting_picker(id,slot);return true
   player.seed_choice=species
   if world.cultivation.plant_seed(id,slot):

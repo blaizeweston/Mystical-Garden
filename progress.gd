@@ -403,17 +403,6 @@ func advance_research(points: int) -> String:
 	return heart.advance(self,points)
 
 
-func heart_restored() -> bool:
-	return heart.has("perfect_recollection") and flowering_unlocked and veilcap_discovered and (
-		knowledge >= Campaign.FULL_KNOWLEDGE and campaign.memories_complete())
-
-
-func finale_available() -> bool:
-	if not Campaign.LEGACY_ENDING_ENABLED: return false
-	return campaign.ending == Campaign.UNFINISHED and heart_restored() and (
-		not campaign.offshoots.has(Campaign.PENDING))
-
-
 func pay_shortcut(cost: int, reserved: Array = []) -> Error:
 	var total := 0
 	for i in parts.size():
@@ -649,21 +638,17 @@ func expand_plot() -> Error:
 	return OK if heart.paid.has(id) or plots.size()==int(id.trim_prefix("plot_")) else ERR_CANT_CREATE
 
 
-func offshoot_in_bed(slot: int) -> int:
-	if not Campaign.LEGACY_ENDING_ENABLED: return -1
-	return campaign.offshoot_beds.find(slot)
 func plot_snapshot() -> PackedByteArray:
 	var packed := PackedByteArray()
-	for i in plots.size():
-		var bed: Dictionary=plots[i];var offshoot:=offshoot_in_bed(i)
+	for bed: Dictionary in plots:
 		packed.append(int(bed.species)+1)
-		packed.append(3 if offshoot>=0 and campaign.offshoots[offshoot]==Campaign.MATURE else int(bed.stage))
-		packed.append(int(bed.flowering)|((offshoot+1)<<2))
+		packed.append(int(bed.stage))
+		packed.append(int(bed.flowering))
 	return packed
 
 
 static func decode_plots(packed: PackedByteArray) -> Array:
 	var beds: Array = []
 	for i in range(0, packed.size() - 2, 3):
-		beds.append({"species": int(packed[i]) - 1, "stage": int(packed[i + 1]), "flowering": (packed[i+2]&1)!=0,"offshoot":((packed[i+2]>>2)&3)-1 if Campaign.LEGACY_ENDING_ENABLED else -1})
+		beds.append({"species": int(packed[i]) - 1, "stage": int(packed[i + 1]), "flowering": (packed[i+2]&1)!=0})
 	return beds

@@ -81,6 +81,10 @@ func run() -> void:
 		var named:=Codec.decode(named_frame)
 		check(named_frame.size()==frame.size() and not named.is_empty() and named.people[1].attack_anim.clip==clip,
 			"Reviewed weapon clip round-trips without changing snapshot size")
+	var retired_route := frame.duplicate()
+	retired_route.encode_s32(Codec.HEADER, 3)
+	check(Codec.decode(retired_route).is_empty(), "retired route fails before any actor projection")
+	check(campaign[2] == 0 and campaign[3] == 0 and campaign[4] == 0 and campaign[5] == 0 and campaign[17] == 0, "retired protocol-41 fields stay reserved")
 	var viewer := Codec.for_viewer(frame, 317, true, true)
 	check(frame.size() == Codec.MAX_FRAME and frame.size() <= Codec.PAYLOAD_BUDGET, "full four-player and twenty-scout frame fits the budget")
 	var decoded := Codec.decode(viewer)

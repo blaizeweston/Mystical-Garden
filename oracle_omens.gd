@@ -8,7 +8,6 @@ const GUIDED_DEADLINE := "oracle_guided_deadline"
 const ATTACK_STARTED := "oracle_attack_started"
 const FOREBODING_MS := "oracle_foreboding_ms"
 const GUIDED_MS := "oracle_guided_ms"
-const BRIAR_ATTACK := "oracle_briar_attack"
 
 
 static func token(game: Node, body: Dictionary) -> int:
@@ -107,12 +106,6 @@ static func begin_attack(game: Node, actor: Dictionary, attack: Dictionary, now:
 		attack[FOREBODING_MS] = consume(body,curse)
 
 
-static func begin_briar(game: Node, now: int) -> void:
-	var attack := {}
-	begin_attack(game,game.tactics.memory,attack,now)
-	game.tactics.memory[BRIAR_ATTACK] = attack
-
-
 static func release_attack(body: Dictionary, attack: Dictionary, ready: int) -> int:
 	var guided := int(attack.get(GUIDED_MS,0))
 	var extended := ready + int(attack.get(FOREBODING_MS,0)) + guided
@@ -125,7 +118,7 @@ static func current_attack(game: Node, target: int, body: Dictionary) -> Diction
 	if target >= 0:
 		return body.get("attack",{})
 	var elite: Dictionary = game.encounter.leader_tactics()
-	return body.get("lair_plan",body.get("phase_plan",elite.get("attack",body.get(BRIAR_ATTACK,{}))))
+	return body.get("lair_plan",body.get("phase_plan",elite.get("attack",{})))
 
 
 static func guide_contact(game: Node, recipient: Dictionary, target: int, now: int) -> void:

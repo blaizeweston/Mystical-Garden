@@ -119,8 +119,6 @@ var participation := preload("res://expedition_participation.gd").new()
 var network_session := preload("res://network_session.gd").new()
 var motions := {}
 var enemy_kind := 0
-var pending_finale_at:=0
-var pending_finale_peer:=1
 var enemy_death_serial:=0
 var enemy_death_events: Array=[]
 const WeaponMotion=preload("res://weapon_motion.gd")
@@ -156,7 +154,6 @@ var drop_pos := Vector3.ZERO
 var has_drop := false
 var rng := RandomNumberGenerator.new()
 var deepest_milestone := 0
-var recollection_checked:=false
 var checkpoint_pending:=false
 var checkpoint_ready: Dictionary={}
 const Altar=preload("res://altar_service.gd")
@@ -371,11 +368,6 @@ func _handle_ui_request(command: String, data: Dictionary) -> void:
 			if party_travel_state().get("ready",false): send_travel_ready(true)
 			else: send_garden_action("depart")
 		"inventory_drop": send_inventory_action("drop",str(data.source),"",str(data.item),int(data.quantity))
-		"face_heart":
-			var player: Dictionary = players.get(HOST,{})
-			if not player.is_empty():
-				player.pos=Stage.HEART
-				awaken_heart(HOST,player)
 
 
 
@@ -480,7 +472,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	var local_player: Dictionary=players.get(HOST if multiplayer.is_server() else multiplayer.get_unique_id(),{})
 	if not Participation.is_wild(local_player):
-		for old_action in ["research","experiment","catalyst","graft","donate","select_donation","awaken","destination","nurture","harvest_offshoot","trait","frame","expand_plot"]:
+		for old_action in ["research","experiment","catalyst","graft","donate","select_donation","destination","trait","frame","expand_plot"]:
 			if event.is_action_pressed(old_action): return
 		if event.is_action_pressed("craft") and nearby_plot(local_player.get("pos",Vector3.INF))<0: return
 	if event.is_action_pressed("interact"):
@@ -507,14 +499,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		send_garden_action("donate")
 	elif event.is_action_pressed("select_donation"):
 		send_garden_action("select_donation")
-	elif event.is_action_pressed("awaken"):
-		send_garden_action("awaken")
 	elif event.is_action_pressed("destination"):
 		send_garden_action("destination")
-	elif event.is_action_pressed("nurture"):
-		send_garden_action("nurture")
-	elif event.is_action_pressed("harvest_offshoot"):
-		send_garden_action("harvest_offshoot")
 	elif event.is_action_pressed("trait"):
 		send_garden_action("trait")
 	elif event.is_action_pressed("frame"):
@@ -664,14 +650,9 @@ func _garden_action(id: int, action: String) -> void:
 			tell(id,"Select a planting-bed node in Heart / Knowledge to begin its research.")
 		"extract":
 			expedition_transitions.checkpoint(id,false)
-		"awaken":
-			if at_heart(player):
-				awaken_heart(id, player)
 		"destination":
 			if id == HOST and not Participation.is_wild(player) and not participation.active() and stage.gate_position().distance_to(player.pos) <= preload("res://gate_interaction.gd").RANGE:
 				cycle_destination()
-		"nurture", "harvest_offshoot":
-			return # Retired commands cannot consume materials or reserve a bed.
 		"donate":
 			if Participation.is_wild(player):
 				if id==HOST: open_deposit_menu()
@@ -728,30 +709,9 @@ func _garden_action(id: int, action: String) -> void:
 			if slot>=0:cultivation.harvest_seeds(id,slot)
 
 
-func awaken_heart(id: int, player: Dictionary) -> void:
-	if not Campaign.LEGACY_ENDING_ENABLED: return
-	if not participation.active() and participation.route()==Campaign.HEART and participation.travel_kind()=="depart":
-		expedition_transitions.enter(id);return
-	if participation.active():
-		if participation.route() == Campaign.HEART:
-			expedition_transitions.enter(id)
-		return
-	if id != HOST:
-		tell(id, "The host can begin the finale when the Heart is ready.")
-		return
-	if not progress.finale_available():
-		tell(id, "The Heart's restoration is incomplete. Check Inventory for progress.")
-		return
-	var previous := participation.route()
-	participation.select_route(Campaign.HEART)
-	expedition_transitions.enter(id)
-	if not Participation.is_wild(player) and participation.travel_kind()!="depart":
-		participation.select_route(previous)
-
-
 func cycle_destination() -> void:
-	for offset in range(1, Campaign.HEART + 1):
-		var site := (participation.route() + offset) % Campaign.HEART
+	for offset in range(1, Campaign.BIOME_COUNT + 1):
+		var site := (participation.route() + offset) % Campaign.BIOME_COUNT
 		if progress.campaign.available(site):
 			participation.select_route(site)
 			break
@@ -760,17 +720,10 @@ func cycle_destination() -> void:
 			Campaign.NAMES[participation.route()], Campaign.SHORTCUT_COST[participation.route()]])
 
 
-func route_rooms() -> int:
-	return 1 if participation.route() == Campaign.HEART else ROUTE_ROOMS
-
-
 func enemy_name() -> String:
 	if tactics.boss_kind>=0: return Enemies.get_kind(tactics.boss_kind).name
-	if participation.route() != Campaign.HEART:
-		return ("Longlimb " if tactics.longlimb else "Elite ")+Enemies.get_kind(enemy_kind).name+" · "+preload("res://elite_enemy.gd").empowered(enemy_kind)
-	if tactics.longlimb:
-		return "Longlimb " + Enemies.get_kind(enemy_kind).name
-	return "Awakened Heart" if participation.route() == Campaign.HEART else Enemies.get_kind(enemy_kind).name
+	return ("Longlimb " if tactics.longlimb else "Elite ")+Enemies.get_kind(enemy_kind).name+" · "+preload("res://elite_enemy.gd").empowered(enemy_kind)
+
 
 
 func campaign_snapshot() -> PackedInt32Array:
@@ -778,13 +731,13 @@ func campaign_snapshot() -> PackedInt32Array:
 	for i in progress.campaign.cleared.size():
 		if progress.campaign.cleared[i]:
 			flags |= 1 << i
-	var result := PackedInt32Array([participation.route(), flags, Campaign.DORMANT if not Campaign.LEGACY_ENDING_ENABLED else progress.campaign.offshoots[0],
-		Campaign.DORMANT if not Campaign.LEGACY_ENDING_ENABLED else progress.campaign.offshoots[1], Campaign.DORMANT if not Campaign.LEGACY_ENDING_ENABLED else progress.campaign.offshoots[2], Campaign.UNFINISHED if not Campaign.LEGACY_ENDING_ENABLED else progress.campaign.ending,
+	# Protocol 41 reserves campaign words 2–5 and 17. Active biomes use none of them.
+	var result := PackedInt32Array([participation.route(), flags, 0, 0, 0, 0,
 		roundi(tactics.active_radius * 100.0), 0, participation.seed(), participation.floor(),
 		participation.cycle(), maxi(0, ceili((pressure_at - CombatClock.now()) / 1000.0)),
 		progress.campaign.best_clear, progress.campaign.best_extraction,
 		progress.campaign.memories[0], progress.campaign.memories[1], progress.campaign.memories[2],
-		int(progress.finale_available()), Enemies.encode(enemy_kind, enemy_mutations, enemy_growth)])
+		0, Enemies.encode(enemy_kind, enemy_mutations, enemy_growth)])
 	result.append_array(encounter.scout_codes())
 	result.append(roundi(tactics.landing.x * 100.0))
 	result.append(roundi(tactics.landing.z * 100.0))
@@ -1338,7 +1291,7 @@ func skill_line_targets(origin: Vector3,facing: Vector3,distance: float,width: f
 	return result
 
 func graft_altar_open() -> bool:
-	return participation.route() != Campaign.HEART and participation.floor() % GRAFT_ROOM == 0
+	return participation.floor() % GRAFT_ROOM == 0
 
 
 func at_graft_altar(player: Dictionary) -> bool:
@@ -1426,11 +1379,11 @@ func available_parts(player: Dictionary, part: int) -> int:
 
 
 func upgrade_checkpoint_open() -> bool:
-	return participation.route() != Campaign.HEART and participation.floor() % CHECKPOINT_INTERVAL == 0 and encounter_cleared()
+	return participation.floor() % CHECKPOINT_INTERVAL == 0 and encounter_cleared()
 
 
 func extraction_checkpoint_open() -> bool:
-	return participation.route() != Campaign.HEART and participation.floor() % EXTRACTION_INTERVAL == 0 and encounter_cleared()
+	return participation.floor() % EXTRACTION_INTERVAL == 0 and encounter_cleared()
 
 
 
@@ -1469,10 +1422,6 @@ func use_heart_research(id: int) -> void:
 		else: show_heart_tree(id)
 	else:
 		tell(id,run_heart_save(progress.heart.infuse.bind(progress)))
-
-func infuse_study(id: int) -> void:
-	if id==HOST: tell(id,run_heart_save(progress.heart.infuse.bind(progress)))
-
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_action(strike: bool) -> void:
@@ -1561,7 +1510,7 @@ func _physics_process(delta: float) -> void:
 		attract_loot(delta)
 		Bosses.tick_hazards(self,now)
 		if persistence_session.is_blocked(): return
-		if participation.active() and encounter_cleared() and pending_finale_at==0 and not encounter_rewarded and now>=reward_retry_at: finish_combat(HOST,tactics.position)
+		if participation.active() and encounter_cleared() and not encounter_rewarded and now>=reward_retry_at: finish_combat(HOST,tactics.position)
 		if now>=next_kill_reward_flush:
 			next_kill_reward_flush=now+150
 			flush_kill_rewards()
@@ -1572,9 +1521,6 @@ func _physics_process(delta: float) -> void:
 		preload("res://core_combat.gd").tick(self,now)
 		if persistence_session.is_blocked(): return
 		update_pressure(now)
-		if pending_finale_at>0 and now>=pending_finale_at:
-			pending_finale_at=0
-			complete_finale(pending_finale_peer)
 		if persistence_session.can_publish_state():
 			send_expedition_state(delta)
 	elif network_session.role() == "Guest":
@@ -1662,11 +1608,7 @@ func nearest_wild_player(origin: Vector3) -> int:
 
 func make_scout(kind: int, world_position: Vector3, route: int, mutations: int = 0, growth: int = 0, juvenile: bool = false) -> Dictionary:
 	var definition := Enemies.get_kind(kind)
-	var hp: int
-	if participation.route()!=Campaign.HEART:
-		hp=Director.Balance.scout_hp(definition,participation.floor(),participation.cycle(),growth,encounter_party_size,juvenile)
-	else:
-		hp=Life.Preview.hp(1) if juvenile else Director.health(self,int(Director.config().scout_base_hp)+int(definition.hp)+growth,false)
+	var hp := Director.Balance.scout_hp(definition,participation.floor(),participation.cycle(),growth,encounter_party_size,juvenile)
 	return {"spawn_token":encounter.reserve_token(),"pos": world_position, "kind": kind, "mutations": mutations | (Enemies.JUVENILE if juvenile else 0),
 		"growth": growth, "hp": hp,
 		"windup": 0, "ready": 0, "rooted_until": 0, "recovery": 0, "engaged": juvenile,
@@ -1674,10 +1616,6 @@ func make_scout(kind: int, world_position: Vector3, route: int, mutations: int =
 		"stagger_until": 0, "mode": "", "repeat": 0, "summons": 0, "haste_until": 0,
 		"max_hp": hp,
 		"variant": "" if juvenile else preload("res://enemy_variants.gd").choose(self,kind,route)}
-
-
-func scout_radius(scout: Dictionary) -> float:
-	return Enemies.radius(int(scout.get("kind", 0)), int(scout.get("mutations", 0)))
 
 
 func can_vault(from: Vector3, to: Vector3) -> bool:
@@ -1744,7 +1682,7 @@ func _act(id: int, strike: bool) -> void:
 	elif Participation.is_wild(p) and p.loot_pending and pos.distance_to(drop_pos) <= 1.45:
 		collect_drop(p)
 		tell(id,"Seeds collected.")
-	elif Participation.is_wild(p) and battlefield.has_seed_cache() and participation.route() != Campaign.HEART and (
+	elif Participation.is_wild(p) and battlefield.has_seed_cache() and (
 			not p.cache_claimed and pos.distance_to(battlefield.cache) <= 1.55):
 		var reserve := seed_reserve(p)
 		var kind := progress.roll_seed(reserve, p.carried_seeds, [], participation.route(), rng.randf(), participation.floor())
@@ -1752,14 +1690,11 @@ func _act(id: int, strike: bool) -> void:
 		p.cache_claimed = true
 		tell(id, "Seed found. Extract to keep it.")
 	elif not Participation.is_wild(p) and pos.distance_to(stage.gate_position()) <= preload("res://gate_interaction.gd").RANGE:
-		if participation.route() == Campaign.HEART:
-			tell(id, "Join the finale from the Heart in the Garden.")
-		else:
-			show_gate_preparation(id)
+		show_gate_preparation(id)
 	elif Participation.is_wild(p) and at_graft_altar(p) and preload("res://gate_interaction.gd").shrine_preferred(battlefield,pos):
 		show_graft_menu(id)
 	elif Participation.is_wild(p):
-		if participation.route() != Campaign.HEART and pos.distance_to(battlefield.advance) <= preload("res://gate_interaction.gd").RANGE:
+		if pos.distance_to(battlefield.advance) <= preload("res://gate_interaction.gd").RANGE:
 			expedition_transitions.checkpoint(id,true)
 		else:
 			tell(id, "Move closer to the seed or a checkpoint.")
@@ -1772,7 +1707,6 @@ func _act(id: int, strike: bool) -> void:
 	else:
 		var kind := nearby_plot(pos)
 		if kind >= 0:
-			if progress.offshoot_in_bed(kind)>=0: tell(id,"This bed nurtures a living offshoot. Its care is managed at the Heart.");return
 			if progress.plots[kind].species >= 0:
 				if int(progress.plots[kind].stage)<3:cultivation.focus(id,kind)
 				else:cultivation.harvest(id, kind)
@@ -1792,7 +1726,7 @@ func nearby_plot(pos: Vector3) -> int:
 
 func finish_combat(id: int,loot_position: Vector3) -> void:
 	if persistence_session.is_guarded():
-		if not persistence_session.can_write() or not participation.active() or encounter_rewarded or not encounter_cleared() or participation.route()==Campaign.HEART: return
+		if not persistence_session.can_write() or not participation.active() or encounter_rewarded or not encounter_cleared(): return
 		run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
 			settle_expedition_rewards(effects, true)
 			_finish_combat(id,loot_position,effects))
@@ -1803,19 +1737,13 @@ func finish_combat(id: int,loot_position: Vector3) -> void:
 	if not encounter_rewarded: reward_retry_at=CombatClock.now()+1000
 
 func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
-	if pending_finale_at>0 or encounter_rewarded: return
+	if encounter_rewarded: return
 	encounter_rewarded=true
 	expedition_statistics.clear_encounter(participation.run_id(),participation.floor())
 	record_settlement_metric(effects,"encounter_clear",{"floor":participation.floor(),"biome":participation.route(),"kills":encounter_kills.size(),"cycle":participation.cycle()})
 	burst_clears+=int(burst_hits_this_room>=2)
 	choke_clears+=int(choke_kills_this_room>=3)
 	if effects == null: award_combat_progress()
-	if participation.route()==Campaign.HEART:
-		pending_finale_peer=id
-		pending_finale_at=CombatClock.now()+1500
-		tactics.winding_up=false
-		tell(id,"The Heart collapses as its last roots fall silent…")
-		return
 	var ranged_evidence:=Life.Vitals.counts_as_ranged(ranged_damage_this_room,damage_this_room,Life.Preview.scale())
 	if ranged_evidence: ranged_clears+=1
 	var previous_memory: Dictionary=progress.wilds_memory.score.duplicate()
@@ -1825,7 +1753,7 @@ func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
 	Learning.observe(progress.wilds_memory,learned,participation.floor())
 	record_settlement_metric(effects,"wilds_learning",{"floor":participation.floor(),"encounters":progress.wilds_memory.encounters,"scores":progress.wilds_memory.score.duplicate(),"skill_evidence":skill_evidence,"party":encounter_party_size,"elapsed_ms":CombatClock.now()-encounter_started_at})
 	deepest_milestone=maxi(deepest_milestone,participation.floor())
-	if participation.depth()==ROUTE_ROOMS and participation.route()<Campaign.HEART: run_guardians|=1 << participation.route();guardian_counts[participation.route()]+=1
+	if participation.depth()==ROUTE_ROOMS: run_guardians|=1 << participation.route();guardian_counts[participation.route()]+=1
 	tactics.winding_up=false
 	drop_pos=loot_position
 	var seeds_available := battlefield.clear_seed_count(participation.depth()) > 0
@@ -1842,30 +1770,6 @@ func wild_entry(id: int) -> Vector3:
 	var slot: int=Session.slot_for(players.get(id,{}),0)
 	var offset: Vector3=[Vector3(-.65,0,-.45),Vector3(.65,0,-.45),Vector3(-.65,0,.65),Vector3(.65,0,.65)][clampi(slot,0,Network.MAX_PLAYERS-1)]
 	return battlefield.slide(battlefield.entry,battlefield.entry+offset)
-
-
-func complete_finale(id: int) -> void:
-	if persistence_session.is_guarded(): return
-	if not Campaign.LEGACY_ENDING_ENABLED: return
-	if not players.has(id): id=HOST
-	progress.campaign.finish()
-	var message := ending_message(progress.campaign.ending)
-	for peer_id in players:
-		if Participation.is_wild(players[peer_id]):
-			expedition_transitions.return_member(preload("res://network_session.gd").peer_for(players[peer_id]))
-		if peer_id != id:
-			tell(peer_id, message)
-	participation.select_route(Campaign.GROVE)
-	expedition_transitions.reset()
-	save_progress(id, message)
-
-
-func ending_message(ending: int) -> String:
-	if ending == Campaign.SEED:
-		return "ENDING: A Seed Remains. The Heart can be cultivated anew."
-	if ending == Campaign.CORRUPTION:
-		return "ENDING: The Returning Wilds. Without the Heart, corruption returns."
-	return ""
 
 
 func seed_reserve(player: Dictionary) -> Dictionary:
@@ -1921,26 +1825,18 @@ func activate_checkpoint(id: int) -> bool:
 	return true
 
 func milestone_message(message: String, extracted: bool) -> String:
-	if deepest_milestone > 0 and participation.route() != Campaign.HEART:
+	if deepest_milestone > 0:
 		progress.remember_expedition(ranged_clears, burst_clears, choke_clears)
-		progress.campaign.advance_growth()
 		progress.campaign.record_expedition(deepest_milestone, extracted)
 	return message + progress.apply_milestone(deepest_milestone)
 
 
-# Checkpoint rewards count whole groups of three cleared encounters.
-# Heart-route health scaling counts whole groups of three floors.
-@warning_ignore_start("integer_division")
 func encounter_health() -> int:
 	if not multiplayer.is_server(): return int(players.get(multiplayer.get_unique_id(),{}).get("enemy_max_hp",Life.Preview.hp(ENEMY_HEALTH)))
-	if participation.route()!=Campaign.HEART:
-		if tactics.boss_kind>=0: return Director.Balance.boss_hp(Enemies.get_kind(tactics.boss_kind),participation.floor(),participation.cycle(),encounter_party_size)
-		return Director.Balance.elite_hp(Enemies.get_kind(enemy_kind),participation.floor(),participation.depth(),participation.cycle(),encounter_party_size)
-	if tactics.boss_kind>=0: return Director.health(self,30+int(Enemies.get_kind(tactics.boss_kind).hp)+participation.floor()/3,true)
-	return Director.health(self,Campaign.FINAL_HP,true)
+	if tactics.boss_kind>=0: return Director.Balance.boss_hp(Enemies.get_kind(tactics.boss_kind),participation.floor(),participation.cycle(),encounter_party_size)
+	return Director.Balance.elite_hp(Enemies.get_kind(enemy_kind),participation.floor(),participation.depth(),participation.cycle(),encounter_party_size)
 
 
-@warning_ignore_restore("integer_division")
 func start_encounter() -> void:
 	wild_item_drops.clear()
 	reset_encounter(map_rng.randi_range(1, 2147483647))
@@ -1972,7 +1868,6 @@ func reset_encounter(seed_value: int = -1) -> void:
 	battlefield.configure(participation.route(), participation.depth(), participation.seed(),tactics.boss_kind,tactics.boss_phase)
 	pressure_at = 0
 	tactics.haste_until=0
-	pending_finale_at=0
 	enemy_death_events.clear()
 	encounter.clear_scouts()
 	tactics.position = Director.spawn(self,battlefield.leader,-1)
@@ -1981,7 +1876,7 @@ func reset_encounter(seed_value: int = -1) -> void:
 		if tactics.position == Vector3.INF:
 			# A generated leader room is already certified for enemy clearance.
 			tactics.position = battlefield.leader
-	enemy_kind = tactics.boss_kind if tactics.boss_kind>=0 else 9 if participation.route() == Campaign.HEART else preload("res://elite_enemy.gd").select(self)
+	enemy_kind = tactics.boss_kind if tactics.boss_kind>=0 else preload("res://elite_enemy.gd").select(self)
 	encounter.begin_floor(encounter_health())
 	tactics.reset_approach()
 	enemy_growth = Enemies.tier(participation.floor(), participation.cycle())
@@ -1992,7 +1887,7 @@ func reset_encounter(seed_value: int = -1) -> void:
 	var roster: Array[int]=composition.roster(self,count)
 	for i in count:
 		var origin: Vector3 = battlefield.spawn_points[i%battlefield.spawn_points.size()]
-		var spawn: Vector3=composition.companion_spawn(self,i) if i==1 and tactics.boss_kind<0 and participation.route()!=Campaign.HEART else Vector3.INF
+		var spawn: Vector3=composition.companion_spawn(self,i) if i==1 and tactics.boss_kind<0 else Vector3.INF
 		if spawn.is_finite() and not _experimental_spawn_reachable(spawn): spawn = Vector3.INF
 		if not spawn.is_finite():spawn=Director.spawn(self,origin,i)
 		if not spawn.is_finite():continue
@@ -2039,9 +1934,6 @@ func _experimental_spawn_reachable(candidate: Vector3) -> bool:
 	return battlefield.can_spawn(candidate)
 
 
-func identify_seed(id: int) -> void:
-	if players.has(id):tell(id,Altar.identify(self,players[id]))
-
 func selected_seed(player: Dictionary) -> int:
 	var stock: Array = seed_reserve(player).stock
 	var selected := clampi(int(player.get("seed_choice", 0)), 0, Seeds.NAMES.size() - 1)
@@ -2053,11 +1945,6 @@ func selected_seed(player: Dictionary) -> int:
 			return i
 	return selected
 
-
-func deferred_save_available(id: int) -> bool:
-	if not persistence_session.is_guarded(): return true
-	if persistence_session.can_write(): tell(id, "This action is unavailable in the guarded session.")
-	return false
 
 ## Only a matching committed journal may release this live world's holds.
 func recover_departure_cleanup() -> bool:
@@ -2148,6 +2035,8 @@ func apply_world_snapshot(frame: PackedByteArray, recovery: bool) -> void:
 
 
 func _process(_delta: float) -> void:
+	# Transport can already be offline while the outgoing guest scene awaits deletion.
+	if is_queued_for_deletion(): return
 	if not persistence_session.pending_notice().is_empty() or (network_session.role() == "Guest" and has_meta(&"guarded_host_cleanup_notice")):
 		refresh_feedback()
 	if not persistence_session.can_publish_state():
@@ -2192,16 +2081,16 @@ func _process(_delta: float) -> void:
 		warnings=warnings.filter(func(hint): return hint.role not in ["core_thorns","core_anchor","core_field","core_lured","glasscap_feint"])
 	world_view.prepare(warnings)
 	var rendered_pack := scout_snapshot(cooldown_now) if multiplayer.is_server() else guest_replication.scouts()
-	stage.draw_state(rendered_players, local_id, tactics.position, enemy_health(), tactics.winding_up, LeaderBehavior.strike_radius(self), drop_pos, visible_drop, data[3], participation.depth(), route_rooms(), graft_altar_open(), briar_bound, tactics.longlimb, campaign_state,
+	stage.draw_state(rendered_players, local_id, tactics.position, enemy_health(), tactics.winding_up, LeaderBehavior.strike_radius(self), drop_pos, visible_drop, data[3], participation.depth(), graft_altar_open(), briar_bound, tactics.longlimb, campaign_state,
 		rendered_pack, _delta,view_id)
 	var travel := party_travel_state()
-	ui.present_travel(travel,participation.route()==Campaign.HEART)
+	ui.present_travel(travel)
 	world_view.present_effects({"site":participation.route(),"floor":participation.floor(),"seed":participation.seed(),
 		"wild":wild,"local_id":local_id,"observer":observer,"advance":visual_field.advance,
 		"deaths":death_events_snapshot() if multiplayer.is_server() and wild else p.get("death_events",[]) if wild else [],
 		"events":combat_events_snapshot() if multiplayer.is_server() else guest_combat_events(p),"warnings":warnings,
 		"thief_routes":preload("res://thief_escape.gd").map_routes(self,p) if wild else [],"drop":drop_pos,"visible_drop":visible_drop,
-		"cache_available":not p.get("cache_claimed",false) and participation.route()!=Campaign.HEART,"overlay_open":ui.is_overlay_open(),
+		"cache_available":not p.get("cache_claimed",false),"overlay_open":ui.is_overlay_open(),
 		"graft_open":graft_altar_open(),"ground_items":inventory_floor_snapshot(p) if multiplayer.is_server() else p.get("ground_items",[])})
 	var carried: int = p.carried_seeds.size() if multiplayer.is_server() and wild else guest_replication.carried_count()
 	var health := PlayerVitals.current_hp(p)
@@ -2214,7 +2103,7 @@ func _process(_delta: float) -> void:
 			"flowering_unlocked":bool(garden[2]),"near_altar":stage.altar_position().distance_to(p.get("pos",Vector3.ZERO))<=1.65,
 			"near_gate":stage.gate_position().distance_to(p.get("pos",Vector3.ZERO))<=preload("res://gate_interaction.gd").RANGE,
 			"near_heart":at_heart(p),"development":stage.experimental_garden!=null,
-			"ending":ending_message(campaign_state[5]),"deepest_clear":campaign_state[12],"best_extraction":campaign_state[13]}
+			"deepest_clear":campaign_state[12],"best_extraction":campaign_state[13]}
 	var garden_prompt: String=get_node("GardenInteractions").context_prompt()
 	var rescue_id:=Life.nearest(self,p)
 	var rescue := {}
@@ -2226,7 +2115,7 @@ func _process(_delta: float) -> void:
 	var near_graft: bool=wild and graft_altar_open() and visual_field.graft.distance_to(p.pos)<=1.65 and preload("res://gate_interaction.gd").shrine_preferred(visual_field,p.pos)
 	var improvements: Dictionary=(preload("res://expedition_grafts.gd").owner_details(p,participation.floor()) if multiplayer.is_server() else p.get("graft_improvements",{})) if near_graft else {}
 	var context: Dictionary=WorldGuidance.project({"wild":wild,"position":p.get("pos",Vector3.ZERO),"fallen":PlayerLifecycle.fallen(p),
-		"floor":participation.floor(),"depth":participation.depth(),"route":participation.route(),"rooms":route_rooms(),
+		"floor":participation.floor(),"depth":participation.depth(),"route":participation.route(),
 		"role":network_session.role(),"party_size":players.size(),"host_port":network_session.port() if network_session.role()=="Host" else 0,
 		"cleared":encounter_cleared(),"visible_drop":visible_drop,
 		"leader":{"boss_kind":tactics.boss_kind,"winding_up":tactics.winding_up,"landing":tactics.landing,"attack_mode":tactics.attack_mode,"position":tactics.position,"radius":LeaderBehavior.strike_radius(self)},
@@ -2234,13 +2123,12 @@ func _process(_delta: float) -> void:
 		"gate_distance":visual_field.advance.distance_to(p.get("pos",Vector3.ZERO)),"upgrade_open":wild and upgrade_checkpoint_open(),"extraction_open":wild and extraction_checkpoint_open(),
 		"offer_floor":(AffinityCards.completed_floor(p) if multiplayer.is_server() else int(p.get("last_offer",0))) if wild else 0,
 		"wallet":(run_wallet(p) if multiplayer.is_server() else int(p.get("wallet",0))) if wild else 0,
-		"cache_near":wild and visual_field.has_seed_cache() and not p.get("cache_claimed",false) and visual_field.cache.distance_to(p.pos)<=1.55 and participation.route()!=Campaign.HEART,
+		"cache_near":wild and visual_field.has_seed_cache() and not p.get("cache_claimed",false) and visual_field.cache.distance_to(p.pos)<=1.55,
 		"graft_near":near_graft,"improvements":{"used":improvements.get("used",false),"remaining":improvements.remaining} if improvements.has("remaining") else {"used":improvements.get("used",false)},
 		"garden":garden_facts,"courier":wild and can_checkpoint_bank(p),"garden_prompt":garden_prompt,"rescue":rescue,"pickup":not ground_id.is_empty()})
 	var prompt: String=context.prompt
 	var details: String=context.details
 	var session_text: String=context.session_text
-	if multiplayer.is_server() and not participation.active(): consider_recollection()
 	refresh_feedback()
 
 	var shared := garden_snapshot() if multiplayer.is_server() else guest_replication.garden_progress()
@@ -2631,15 +2519,6 @@ func reclamation_species(player: Dictionary) -> int:
 func reclamation_cost(kind: int) -> int:
 	return 2+int(Seeds.DEFINITIONS[kind].tier)
 
-func cycle_reclamation(player: Dictionary) -> void:
-	var start:=int(player.get("reclaim_choice",0))
-	var known: Array=progress.discoveries if multiplayer.is_server() else heart_state().get("discoveries",[])
-	for step in range(1,Seeds.NAMES.size()+1):
-		var kind: int=(start+step)%Seeds.NAMES.size()
-		if kind<known.size() and known[kind]:
-			player.reclaim_choice=kind
-			return
-
 func reclaim_seed(id: int,player: Dictionary,requested := -1) -> void:
 	if not at_garden_station(player,"seed_archive"): return
 	if persistence_session.is_guarded():
@@ -2767,24 +2646,6 @@ func _bank_checkpoint_item(id: int,player: Dictionary,fields: PackedStringArray,
 	player.last_deposit=participation.floor()
 	action_feedback(effects,id,"Item sent to Garden storage.")
 
-
-
-func consider_recollection() -> void:
-	if not Campaign.LEGACY_ENDING_ENABLED: return
-	if not progress.heart.has("perfect_recollection") or progress.heart.recollection_seen or progress.campaign.ending!=Campaign.UNFINISHED or players.is_empty(): return
-	if ui.is_overlay_open(): return
-	if persistence_session.is_guarded():
-		var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func(): progress.heart.recollection_seen=true)
-		if not Transactions.committed(result.persistence): return
-	else:
-		var before: bool=progress.heart.recollection_seen
-		progress.heart.recollection_seen=true
-		if progress.save_garden()!=OK:
-			progress.heart.recollection_seen=before
-			return
-	ui.toggle_panel("recollection")
-	for id in players:
-		if id!=HOST: tell(id,"The Heart perfectly remembers. Its final awakening awaits your party.")
 
 
 func at_weapon_gate(player: Dictionary) -> bool:
@@ -2984,7 +2845,7 @@ func progression_ui_data(selection: Dictionary) -> Dictionary:
 		"known_seeds":garden[13] if garden.size()>13 else Seeds.counts(false),
 		"seed_stock":seed_reserve(player).stock if host else guest_replication.inventory()[6] if guest_replication.inventory().size()>6 else Seeds.counts(),
 		"heart":heart,"shared_parts":garden[5],"knowledge":int(garden[6]),
-		"memories":[campaign[14],campaign[15],campaign[16]],"finale_available":bool(campaign[17]),
+		"memories":[campaign[14],campaign[15],campaign[16]],
 		"at_altar":not Participation.is_wild(player) and player.get("pos",Vector3.ZERO).distance_to(stage.altar_position())<=1.65,
 		"may_learn":preload("res://class_tree_access.gd").can_learn_here(self,player),"may_respec":at_home and between_runs,
 		"is_host":host,"may_start_research":may_start,"may_offer":at_home and not Participation.is_wild(player),
@@ -3022,10 +2883,9 @@ func run_summary_ui_data(peer_id: int = -1) -> Dictionary:
 		"copies":AffinityCards.project_owned(player,stats,DODGE_COOLDOWN_MS) if host else player.get("affinity_run_cards",[]),
 		"grafts":preload("res://expedition_grafts.gd").owner_details(player,participation.floor()) if host else player.get("graft_improvements",{}),
 		"spirit_prepared":{"echoes":player.get("spirit_card_echoes",[]).size(),"shadows":player.get("spirit_card_shadows",[]).size(),"compatibility":load("res://spirit_replicas.gd").info()} if host else player.get("spirit_prepared",{}),"kill_heal_limit":Life.Sustain.KILL_BUDGET_HP}
-	if participation.route()!=Campaign.HEART:
-		var boundary := participation.depth()==ROUTE_ROOMS
-		var cycle := participation.cycle()+int(boundary and participation.route()==Campaign.HOLLOW)
-		facts.recovery_band = Life.Preview.heal_band(Life.Sustain.recovery_center_hp(boundary,cycle))
+	var boundary := participation.depth()==ROUTE_ROOMS
+	var cycle := participation.cycle()+int(boundary and participation.route()==Campaign.HOLLOW)
+	facts.recovery_band = Life.Preview.heal_band(Life.Sustain.recovery_center_hp(boundary,cycle))
 	return facts.duplicate(true)
 
 func send_inventory_action(operation: String,source: String,target: String,item: String,quantity: int) -> void:
@@ -3203,7 +3063,7 @@ func record_enemy_death(target: int,world_position: Vector3,origin: Vector3,expe
 	encounter.confirm_death(target)
 	var boss := target == -1 and tactics.boss_kind >= 0
 	# LeaderBehavior dispatches this role even before its lazy elite body exists.
-	var elite := target == -1 and not boss and participation.route() != Campaign.HEART
+	var elite := target == -1 and not boss
 	expedition_statistics.defeat(participation.run_id(),finisher,elite,boss)
 	if not summoned:
 		encounter_kills.append(kind)
@@ -3213,7 +3073,7 @@ func record_enemy_death(target: int,world_position: Vector3,origin: Vector3,expe
 	var growth: int=enemy_growth if target==-1 else int(encounter.scout(target).get("growth",0))
 	var direction: Vector3=(world_position-origin).normalized()
 	enemy_death_serial+=1
-	var scale_value: float=1.0 if tactics.boss_kind>=0 and target==-1 else (1.9 if participation.route()==Campaign.HEART or participation.depth()==ROUTE_ROOMS else 1.0 if participation.depth()==1 else 1.22) if target==-1 else 1.0
+	var scale_value: float=1.0 if tactics.boss_kind>=0 and target==-1 else (1.9 if participation.depth()==ROUTE_ROOMS else 1.0 if participation.depth()==1 else 1.22) if target==-1 else 1.0
 	enemy_death_events.append({"id":enemy_death_serial,"position":[world_position.x,world_position.y,world_position.z],"direction":[direction.x,0,direction.z],"code":Enemies.encode(kind,mask,growth),"scale":scale_value,"born":CombatClock.now()})
 	while enemy_death_events.size()>24: enemy_death_events.pop_front()
 
@@ -3296,7 +3156,7 @@ func combat_events_snapshot() -> Array:
 func attack_hints_snapshot() -> Array:
 	var result: Array=Bosses.hints(self)
 	result.append_array(preload("res://glasscap_feint.gd").hints(self,CombatClock.now()))
-	if tactics.boss_kind<0 and participation.route()!=Campaign.HEART and not encounter.leader_tactics().is_empty():result.append_array(preload("res://elite_enemy.gd").hints(self))
+	if tactics.boss_kind<0 and not encounter.leader_tactics().is_empty():result.append_array(preload("res://elite_enemy.gd").hints(self))
 	if enemy_health()>0 and tactics.winding_up and not Bosses.owns_warnings(tactics.boss_kind) and (tactics.boss_kind>=0 or encounter.leader_tactics().is_empty()):
 		var target:=tactics.landing if tactics.attack_mode=="vault" or tactics.boss_kind>=0 else tactics.position
 		result.append({"id":-1,"role":("charge" if tactics.attack_mode in ["root_sweep","orchard_march","drowned_surge","matriarch_lunge","memory_lance","remembered_rend"] else "volley") if tactics.boss_kind>=0 else "vault" if tactics.attack_mode=="vault" else "swipe","from":[tactics.position.x,0,tactics.position.z],"to":[target.x,0,target.z],"radius":Bosses.warning_radius(self) if tactics.boss_kind>=0 else LeaderBehavior.strike_radius(self),"width":Bosses.warning_width(self) if tactics.boss_kind>=0 else .85,"remaining":maxf(0,(tactics.strike_at-CombatClock.now())/1000.0)})
@@ -3318,7 +3178,7 @@ func attack_hints_snapshot() -> Array:
 
 func show_planting_picker(id: int,slot: int) -> void:
 	var p: Dictionary=players[id]
-	if Participation.is_wild(p) or slot<0 or slot>=progress.plots.size() or p.pos.distance_to(stage.bed_position(slot))>1.65 or progress.plots[slot].species>=0 or progress.offshoot_in_bed(slot)>=0: return
+	if Participation.is_wild(p) or slot<0 or slot>=progress.plots.size() or p.pos.distance_to(stage.bed_position(slot))>1.65 or progress.plots[slot].species>=0: return
 	var stock: Array=seed_reserve(p).stock.duplicate()
 	if id==HOST: open_planting_picker(slot,stock)
 	else: open_planting_picker.rpc_id(id,slot,stock)

@@ -23,7 +23,7 @@ static func project(facts: Dictionary) -> Dictionary:
 	if facts.wild:
 		result.session_text="%s  ·  %d player(s)"%[facts.role,facts.party_size]
 	else:
-		result.session_text=facts.garden.ending if not facts.garden.ending.is_empty() else "%s  |  %d player(s)"%[facts.role,facts.party_size]
+		result.session_text="%s  |  %d player(s)"%[facts.role,facts.party_size]
 		result.session_text+="\nDeepest clear %d  ·  Best extraction %d"%[facts.garden.deepest_clear,facts.garden.best_extraction]
 	if facts.role=="Host": result.session_text+="\nHosting on UDP %d"%facts.host_port
 	return result
@@ -33,8 +33,8 @@ static func _wild(facts: Dictionary, result: Dictionary) -> void:
 		var warning := attack_warning(facts.position,facts.leader,facts.scouts,facts.campaign,facts.warnings)
 		result.prompt="Dodge out of the marked attack!" if warning.danger else "Stand at a hatch site to block it." if warning.hatching else ""
 	elif facts.visible_drop: result.prompt="E  Collect seeds"
-	elif facts.depth<facts.rooms: result.prompt="E  Continue"
-	else: result.prompt="Continue to %s"%Campaign.NAMES[(facts.route+1)%Campaign.HEART]
+	elif facts.depth<Encounter.BIOME_LENGTH: result.prompt="E  Continue"
+	else: result.prompt="Continue to %s"%Campaign.NAMES[(facts.route+1)%Campaign.BIOME_COUNT]
 	if facts.upgrade_open and facts.offer_floor!=facts.floor:
 		result.prompt="E  Choose an upgrade" if facts.gate_distance<=Gate.RANGE else "Upgrades await at the gate"
 	if facts.extraction_open and facts.gate_distance<=Gate.RANGE:
@@ -55,7 +55,7 @@ static func _garden(garden: Dictionary, result: Dictionary) -> void:
 			if bed.flowering and bed.stage<3: result.prompt+=" · Seed crop"
 			if garden.flowering_unlocked and not bed.flowering:
 				result.prompt+="  |  F  Harvest seeds instead" if int(bed.stage)==3 else "  |  Seeds can be harvested when mature"
-		else: result.prompt="Living offshoot · care at the Heart" if int(bed.get("offshoot",-1))>=0 else "E  Choose a seed to plant"
+		else: result.prompt="E  Choose a seed to plant"
 	elif garden.near_altar:
 		result.prompt="E  Altar";result.details="Identify seeds · Combine seeds or plant parts"
 	elif garden.near_gate: result.prompt="E  Wilds Gate"

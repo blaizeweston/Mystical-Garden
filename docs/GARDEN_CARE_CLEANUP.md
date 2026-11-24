@@ -1,6 +1,6 @@
 # Garden care and deferred ending
 
-Updated 9 November 2026.
+Historical checkpoint, 9 November 2026. The items below describe that revision. The modern game subsequently removed the offshoot, ending, and Perfect Recollection implementations. Loading an old Garden preserves supported bed and guardian progression and releases Knowledge previously spent on the retired node. [Current Garden milestones](GARDEN_MILESTONES.md)
 
 - Garden care retains seed reclamation and monster research. Shared-part transfers are handled only by the inventory options; the duplicate dropdown/button and empty Tending page were removed. Their pages use explicit containers instead of depending on child indices.
 - Planting beds are unlocked by selecting their nodes in Heart / Knowledge and completing research. The former one-button/keyboard/network expansion shortcut cannot start or pay for a project.
@@ -10,4 +10,4 @@ Updated 9 November 2026.
 - Heart / Knowledge opens at the base after its visible layout settles, with the Heart root centered. This applies to opening from the Heart, reopening the panel and returning from another tab. Normal research refreshes preserve manual scrolling.
 - Multiplayer protocol 14 prevents mismatched clients from restoring the retired controls. Authority, public Garden snapshots and guest menus use the same rules.
 
-Legacy ending combat fixtures are archived under `docs/archives/legacy_endings`. Current `garden_cleanup` and `garden_cleanup_coop` suites cover retired-command rejection, Knowledge-only bed research, legacy save preservation, planting in formerly reserved beds, guest state, and bottom anchoring. Rendered menu checks use the actual game UI.
+The archived ending implementation and fixtures can be retrieved from Git commit `5460db321b5c08530dd8cf0af648332f9a00b68b`. At this checkpoint the `garden_cleanup` and `garden_cleanup_coop` suites cover retired-command rejection, Knowledge-only bed research, legacy save preservation, planting in formerly reserved beds, guest state, and bottom anchoring. Rendered menu checks use the actual game UI.

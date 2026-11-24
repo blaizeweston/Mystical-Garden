@@ -32,7 +32,9 @@ func run() -> void:
  check(not UIFixture.control(game,"guide").text.contains("T  Extract"),"third gate does not advertise extraction")
  game.expedition_transitions.checkpoint(1,false);check(ExpeditionCase.is_wild(p),"third gate cannot bank carried loot")
  ExpeditionCase.set_world(game, {"encounter_number": 6});game._process(.016);check(UIFixture.control(game,"guide").text.contains("T  Extract"),"sixth gate advertises extraction")
- ExpeditionCase.set_world(game, {"destination": 3});check(not game.upgrade_checkpoint_open() and not game.extraction_checkpoint_open(),"Heart finale excluded")
+ var previous_route: int=game.participation.route()
+ game.participation.select_route(3)
+ check(game.participation.route()==previous_route and game.extraction_checkpoint_open(),"unknown route cannot replace the current checkpoint")
  ExpeditionCase.set_world(game, {"destination": 0});game.encounter.set_hp(-1, 100);ExpeditionCase.set_membership(game, p, false);p.pos=game.stage.gate_position();p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0
  game.progress.parts.fill(0);game.seed_reserve(p).parts.fill(0);game.progress.discoveries.fill(true);game.progress.parts[0]=1
  var view=UIFixture.control(game,"loadout_view");view.refresh()

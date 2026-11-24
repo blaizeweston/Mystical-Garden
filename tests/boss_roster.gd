@@ -31,14 +31,13 @@ func run() -> void:
  check(normal.size()==20,"all twenty ordinary enemies remain available")
  var selected=0;var used: Array=[]
  for floor_number in range(1,3000):
-  var kind=game.Bosses.choose(floor_number,0,100+floor_number,used)
+  var kind=game.Bosses.choose(floor_number,100+floor_number,used)
   if floor_number<10: check(kind==-1,"opening expedition protected")
   if kind>=0: check(not used.has(kind),"boss cannot repeat");used.append(kind);selected+=1
  check(selected==4,"all four distinct bosses can occur in a sufficiently long run")
- check(game.Bosses.choose(500,3,1,[])==-1,"Heart finale does not roll expedition threats")
  var rolls=0
  for seed_value in 10000:
-  if game.Bosses.choose(20,0,seed_value,[])>=0: rolls+=1
+  if game.Bosses.choose(20,seed_value,[])>=0: rolls+=1
  check(rolls>170 and rolls<340,"rare 2.5 percent per eligible floor")
  for kind in range(20,24):
   ExpeditionCase.set_membership(game, p, false)
@@ -68,7 +67,7 @@ func run() -> void:
    check(game.encounter.scout_tactics().any(func(s):return s.get("summoned",false)),"Matriarch actually breeds finite nonrewarding minions")
    for phase in 3:
     game.battlefield.configure(0,2,9871,kind,phase);check(game.battlefield.connected(),"reshaped nest remains connected")
-  game.stage.draw_state(game.actor_presentation.people(1,Time.get_ticks_msec()),1,game.tactics.position,game.enemy_health(),false,3,Vector3.ZERO,false,[],2,6,true,false,false,packet,game.scout_snapshot(1000),.016)
+  game.stage.draw_state(game.actor_presentation.people(1,Time.get_ticks_msec()),1,game.tactics.position,game.enemy_health(),false,3,Vector3.ZERO,false,[],2,true,false,false,packet,game.scout_snapshot(1000),.016)
   check(game.stage.visual_field.boss_kind==kind,"rendered stage preserves boss lair")
   game.enemy_kind=kind;game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,3.2);p.pos=Vector3.ZERO;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p.weapon=0;p.secondary=0;p.catalyst=0;p.frame=0;p.weapon_kind=0
   game.tactics.position=Vector3(0,0,float(game.Enemies.get_kind(kind).hurt_radius)+float(game.weapon_stats(p).reach)-.2)

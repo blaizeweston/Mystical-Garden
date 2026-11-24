@@ -21,7 +21,7 @@ static func radius(game: Node,target: int) -> float:
  var body:=float(definition.get("hitbox",{}).get("radius",definition.get("hurt_radius",.48)))
  var size:=1.0
  if target==-1:
-  size=float(definition.get("model_scale",1.0)) if game.tactics.boss_kind>=0 else 1.9 if game.participation.route()==game.Campaign.HEART or game.participation.depth()==game.ROUTE_ROOMS else 1.0 if game.participation.depth()==1 else 1.22
+  size=float(definition.get("model_scale",1.0)) if game.tactics.boss_kind>=0 else 1.9 if game.participation.depth()==game.ROUTE_ROOMS else 1.0 if game.participation.depth()==1 else 1.22
  return body*size*(.65 if mask & Enemies.JUVENILE else 1.0)*(1.0+growth*.07)
 static func contact(game: Node,target: int,origin: Vector3,ranged: bool=false) -> Vector3:
  var center: Vector3=game.enemy_position(target)

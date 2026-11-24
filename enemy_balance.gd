@@ -1,5 +1,5 @@
 extends RefCounted
-## Authoritative encounter HP and attack scaling. Heart keeps its authored campaign values.
+## Authoritative encounter HP and attack scaling.
 const Preview = preload("res://combat_balance_preview.gd")
 const Config = preload("res://encounter_config.gd")
 const Catalog = preload("res://enemy_catalog.gd")
@@ -49,8 +49,6 @@ static func authored_hit(hp: int) -> float:
 
 
 static func scout_hit(game: Node, definition: Dictionary, scout: Dictionary) -> float:
-	if game.participation.route()==game.Campaign.HEART:
-		return int(definition.damage)+game.participation.cycle()/2
 	var floor_offset := maxi(0,int(game.participation.floor())-1)
 	var profile: Dictionary = tuning.juvenile if int(scout.get("mutations",0)) & Catalog.JUVENILE else tuning.regular
 	var base := float(profile.get("hit_hp",definition.preview_hit_hp))
@@ -72,8 +70,6 @@ static func boss_hit(game: Node, definition: Dictionary, move: String) -> float:
 
 
 static func hazard_hit(game: Node, kind: String, damage: float, boss_move: String) -> float:
-	if game.participation.route()==game.Campaign.HEART:
-		return damage
 	if not boss_move.is_empty():
 		var ratio: float = tuning.boss.main_hazard_ratio if boss_move in PRIMARY_HAZARD_MOVES else tuning.boss.followup_hazard_ratio
 		return authored_hit(maxi(1,roundi(Preview.effect_hp(damage)*ratio)))

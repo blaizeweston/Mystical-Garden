@@ -33,10 +33,10 @@ func host_run() -> void:
   check(false,"guest registers");return
  var g=game.progress
  for p in game.players.values():p.pos=game.Stage.HEART
- g.knowledge=100;g.parts.fill(20);g.campaign.cleared.fill(true);g.campaign.offshoots.fill(game.Campaign.MATURE);g.campaign.offshoot_beds.assign([0,1,2]);g.campaign.ending=game.Campaign.CORRUPTION
- var before=g.heart.serialize();var parts=g.parts.duplicate();var offshoots=g.campaign.offshoots.duplicate()
+ g.knowledge=100;g.parts.fill(20);g.campaign.cleared.fill(true)
+ var before=g.heart.serialize();var parts=g.parts.duplicate()
  check(await until(func():return marked("retired")),"guest checks retired actions")
- check(g.heart.serialize()==before and g.parts==parts and g.plots.size()==3 and g.campaign.offshoots==offshoots,"remote legacy requests cannot spend Knowledge, reserve beds or grant parts")
+ check(g.heart.serialize()==before and g.parts==parts and g.plots.size()==3,"remote legacy requests cannot spend Knowledge, reserve beds or grant parts")
  game.garden_action(1,"heart_confirm:"+JSON.stringify({"id":"plot_4","plan":{}}));g.heart.add_work(g,g.heart.duration("plot_4"));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"Knowledge unlock permits a real placed bed")
  check(g.plots.size()==4,"host still researches shared bed through tree")
  mark("research")
@@ -60,8 +60,8 @@ func guest_run() -> void:
  check(await until(func():return game.guest_replication.garden_progress().size()>13 and game.guest_replication.garden_progress()[6]==100 and game.players[id].pos.distance_to(game.Stage.HEART)<1),"Garden state arrives")
  game.send_action(false)
  check(await until(func():return panel.tabs.current_tab==1 and bottom()),"remote E opens the tree at its base")
- check(not panel.nodes.any(func(n):return n.id=="heart_perfect_recollection") and not panel.heart_finale_button.visible,"guest sees no deferred ending route")
- check(game.guest_replication.campaign()[5]==game.Campaign.UNFINISHED and game.guest_replication.campaign()[17]==0 and game.Progress.decode_plots(game.guest_replication.garden_progress()[12]).all(func(b):return b.offshoot==-1),"guest receives no blocking legacy offshoot or ending state")
+ check(not panel.nodes.any(func(n):return n.id=="heart_perfect_recollection"),"guest sees no deferred ending route")
+ check(game.guest_replication.campaign()[5]==0 and game.guest_replication.campaign()[17]==0 and game.Progress.decode_plots(game.guest_replication.garden_progress()[12]).all(func(b):return not b.has("offshoot")),"guest receives no blocking legacy offshoot or ending state")
  for action in ["expand_plot","nurture","harvest_offshoot","awaken"]:game.send_garden_action(action)
  await create_timer(.4).timeout;mark("retired")
  panel.tree_scroll.scroll_vertical=0

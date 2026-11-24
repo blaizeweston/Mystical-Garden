@@ -19,13 +19,12 @@ const OFFER_SECONDS:=60.0
 const OFFER_PARTS:=2
 var spent: int=0
 var offered: Array=[]
-var recollection_seen:=false
 
 func has(id: String) -> bool:
 	return unlocked.has(id)
 
 func serialize() -> Dictionary:
-	return {"version":2,"work":work.duplicate(),"material_choice":material_choice,"unlocked":unlocked.duplicate(),"paid":paid.duplicate(),"progress":progress.duplicate(),"natural":natural.duplicate(),"infused":infused.duplicate(),"active":active,"spent":spent,"offered":offered.duplicate(),"recollection_seen":recollection_seen}
+	return {"version":2,"work":work.duplicate(),"material_choice":material_choice,"unlocked":unlocked.duplicate(),"paid":paid.duplicate(),"progress":progress.duplicate(),"natural":natural.duplicate(),"infused":infused.duplicate(),"active":active,"spent":spent,"offered":offered.duplicate()}
 
 func restore(data: Dictionary) -> void:
 	work=data.get("work",{}).duplicate()
@@ -38,12 +37,11 @@ func restore(data: Dictionary) -> void:
 	active=str(data.active)
 	spent=int(data.spent)
 	offered=data.offered.duplicate()
-	recollection_seen=bool(data.recollection_seen)
 
 func load_state(file: ConfigFile,owner: RefCounted) -> bool:
 	var data=file.get_value("heart","state",{})
 	owner.needs_research_backup=data is Dictionary and data.get("version",0)==1
-	unlocked=["heart"];paid=[];progress={};natural={};infused={};active="";work={};spent=0;offered=[];recollection_seen=false
+	unlocked=["heart"];paid=[];progress={};natural={};infused={};active="";work={};spent=0;offered=[]
 	var legacy: bool=not (data is Dictionary and data.get("version",0) in [1,2])
 	if not legacy:
 		for field in ["unlocked","paid"]:
@@ -66,26 +64,25 @@ func load_state(file: ConfigFile,owner: RefCounted) -> bool:
 		active=str(data.get("active",""))
 		if not paid.has(active) or has(active) or not Catalog.enabled(active): active=""
 		spent=maxi(0,int(data.get("spent",0))) if data.get("spent",0) is int else 0
-		# Pre-tree conversions could mark Rift Hook funded without charging for it.
-		# Preserve other purchases and refund at most the historical six-point price.
-		if data.get("paid") is Array and data.paid.has("rift_hook"):
-			var other_costs:=0
-			for id in paid: other_costs+=int(Catalog.get_node(id).insight)
-			spent-=clampi(spent-other_costs,0,6)
+		# Remove only obsolete spending above the cost of supported purchases.
+		if data.get("paid") is Array:
+			var retired_cost := 6 * int(data.paid.has("rift_hook")) + 12 * int(data.paid.has("perfect_recollection"))
+			var retained_cost := 0
+			for id in paid: retained_cost += int(Catalog.get_node(id).insight)
+			spent -= clampi(spent - retained_cost, 0, retired_cost)
 		var gifts=data.get("offered",[])
 		if gifts is Array:
 			for part in gifts:
 				if part is int and owner.Parts.is_monster(part) and not offered.has(part): offered.append(part)
-		recollection_seen=data.get("recollection_seen",false)==true
 	if legacy:
 		for count in range(4,owner.plots.size()+1): unlock_direct("plot_%d"%count)
-		# Preserve an already-earned legacy finale and completed endings.
+		# Pre-tree completion may establish earned, still-supported research and guardian memories.
 		var old_discovery: bool=file.get_value("garden","rift_hook_discovered",false)==true
 		var restored: bool=owner.flowering_unlocked and old_discovery and owner.veilcap_discovered and owner.knowledge>=owner.Campaign.FULL_KNOWLEDGE and owner.campaign.memories_complete()
-		if restored or owner.campaign.ending!=owner.Campaign.UNFINISHED:
+		var old_ending: Variant = file.get_value("campaign", "ending", 0)
+		if restored or (old_ending is int and old_ending in [1, 2]):
 			for id in Catalog.required_core(): unlock_direct(id)
-			for id in ["memory_grove","memory_mire","memory_hollow","perfect_recollection"]: unlock_direct(id)
-			recollection_seen=owner.campaign.ending!=owner.Campaign.UNFINISHED
+			for id in ["memory_grove","memory_mire","memory_hollow"]: unlock_direct(id)
 	sync_legacy(owner)
 	return legacy
 
@@ -129,13 +126,11 @@ func total_materials(owner: RefCounted) -> int:
 func requirements(owner: RefCounted,id: String) -> String:
 	var node:=Catalog.get_node(id)
 	if node.is_empty(): return "Unknown memory."
-	if not Catalog.enabled(id): return "The final ending is deferred. Other Garden research remains available."
 	if has(id): return "Already restored."
 	if node.has("memory"): return "Restore this memory through repeated guardian expeditions."
 	for parent in node.parents:
 		if not has(parent): return "Requires "+str(Catalog.get_node(parent).name)+"."
 	if owner.knowledge<int(node.knowledge): return "Requires %d lifetime Knowledge."%int(node.knowledge)
-	if node.get("fact","")=="offshoots" and (owner.campaign.offshoots.has(owner.Campaign.PENDING) or owner.campaign.offshoots.has(owner.Campaign.DORMANT)): return "Resolve pending offshoot choices in Heart → Garden care."
 	if not paid.has(id):
 		if available_insight(owner)<int(node.insight): return "Need %d available Knowledge."%int(node.insight)
 	return ""
@@ -262,7 +257,6 @@ func growth_multiplier() -> float:
 # Recollection milestones use whole completed memories.
 @warning_ignore_start("integer_division")
 func phase(owner: RefCounted) -> int:
-	if has("perfect_recollection"): return 5 if owner.Campaign.LEGACY_ENDING_ENABLED else 4
 	var memories:=0
 	var total:=0
 	for count in owner.campaign.memories: memories+=int(count)

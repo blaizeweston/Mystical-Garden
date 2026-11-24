@@ -79,17 +79,7 @@ func run():
  game.expedition_transitions.enter(1);game.expedition_transitions.enter(2)
  check(ExpeditionCase.is_wild(host) and ExpeditionCase.is_wild(guest) and game.progress.parts[0]==0 and game.progress.parts[1]==0,"shortcut pays once while preserving the complete party reservation")
  game.expedition_transitions.abandon(1);game.expedition_transitions.abandon(2)
- # Restored legacy worlds must not start the deferred finale for either party member.
  setup_guest();guest=game.players[2]
- game.progress.flowering_unlocked=true;game.progress.veilcap_discovered=true;game.progress.knowledge=game.Campaign.FULL_KNOWLEDGE
- game.progress.campaign.memories.assign(game.Campaign.MEMORY_REQUIREMENTS);game.progress.campaign.offshoots.fill(game.Campaign.MATURE)
- for technology in game.HeartCatalog.required_core(): game.progress.heart.unlock_direct(technology)
- for technology in ["memory_grove","memory_mire","memory_hollow","perfect_recollection"]: game.progress.heart.unlock_direct(technology)
- for p in game.players.values(): p.pos=game.Stage.HEART
- game.awaken_heart(1,host)
- check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(guest) and game.participation.route()!=game.Campaign.HEART and game.participation.travel_kind().is_empty(),"host cannot queue the deferred finale")
- game.awaken_heart(2,guest)
- check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(guest) and game.participation.travel_kind().is_empty(),"guest cannot confirm a retired finale request")
 
  # Transaction intents capture connections rather than a mutable actor dictionary.
  var stale_binding: int = game.network_session.binding(2)

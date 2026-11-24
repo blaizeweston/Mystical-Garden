@@ -20,8 +20,8 @@ static func roster(game: Node, count: int) -> Array[int]:
  if count<=0:return roles
  var floor_number: int=game.participation.floor()
  var site: int=game.participation.route()
- if game.tactics.boss_kind>=0 or site==game.Campaign.HEART:
-  for i in count:roles.append(Catalog.choose(site if site<game.Campaign.HEART else game.Campaign.HOLLOW,floor_number,i,game.participation.seed()))
+ if game.tactics.boss_kind>=0:
+  for i in count:roles.append(Catalog.choose(site,floor_number,i,game.participation.seed()))
   return roles
  var pool:=eligible(site,floor_number)
  var primary: Dictionary=Catalog.get_kind(game.enemy_kind)

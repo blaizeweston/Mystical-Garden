@@ -7,8 +7,8 @@ const Lair=preload("res://boss_lair_fights.gd")
 const Phases=preload("res://boss_phase_fights.gd")
 const Orchard=preload("res://orchard_moves.gd")
 const Hits=preload("res://enemy_attack_hits.gd")
-static func choose(floor_number: int,site: int,seed_value: int,used: Array) -> int:
- if site>=3 or floor_number<FIRST_FLOOR: return -1
+static func choose(floor_number: int,seed_value: int,used: Array) -> int:
+ if floor_number<FIRST_FLOOR: return -1
  var preview=preload("res://combat_balance_preview.gd")
  if preview.playtest and floor_number==preview.ORCHARD_FLOOR and not used.has(Lair.Routes.ORCHARD):
   return Lair.Routes.ORCHARD
@@ -21,10 +21,10 @@ static func choose(floor_number: int,site: int,seed_value: int,used: Array) -> i
 static func prepare(game: Node) -> void:
  var key=str(game.participation.floor())
  if not game.boss_floors.has(key):
-  var kind=choose(game.participation.floor(),game.participation.route(),game.participation.seed(),game.used_bosses)
+  var kind=choose(game.participation.floor(),game.participation.seed(),game.used_bosses)
   game.boss_floors[key]=kind
   if kind>=0: game.used_bosses.append(kind)
- game.tactics.begin_boss(int(game.boss_floors[key]) if game.participation.route()<3 else -1)
+ game.tactics.begin_boss(int(game.boss_floors[key]))
  game.enemy_hazards.clear()
 static func phase(game: Node) -> int:
  return game.Life.Vitals.boss_phase(game.encounter.hp(-1),game.encounter_health())

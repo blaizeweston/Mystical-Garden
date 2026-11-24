@@ -59,7 +59,7 @@ func _admit(id: int, binding: int, reserved_override: Array = [], effects = null
 		game.action_feedback(effects,id,refusal)
 		return false
 	var starting: bool = not game.participation.active()
-	var available: bool = game.progress.finale_available() if game.participation.route() == game.Campaign.HEART else game.progress.campaign.available(game.participation.route())
+	var available: bool = game.progress.campaign.available(game.participation.route())
 	if starting and not available:
 		game.action_feedback(effects,id, "This path is still sealed.")
 		return false
@@ -76,7 +76,7 @@ func _admit(id: int, binding: int, reserved_override: Array = [], effects = null
 		return false
 	var reserved: Array = plan.reserved
 	if starting:
-		var cost: int = 0 if game.participation.route() == game.Campaign.HEART else game.Campaign.SHORTCUT_COST[game.participation.route()]
+		var cost: int = game.Campaign.SHORTCUT_COST[game.participation.route()]
 		if cost > 0:
 			if id != game.HOST:
 				game.action_feedback(effects,id, "The host must open this paid route first.")
@@ -262,11 +262,9 @@ func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding :
 		else:
 			for peer_id in game.players: effects.append(game.close_flow_for.bind(peer_id))
 	if descend:
-		if game.participation.route() == game.Campaign.HEART:
-			return false
 		if effects != null: game.settle_expedition_rewards(effects)
 		var crossed_biome: bool = game.participation.depth() == game.ROUTE_ROOMS
-		if not game.participation.advance(game.participation.epoch(),game.ROUTE_ROOMS,game.Campaign.HEART): return false
+		if not game.participation.advance(game.participation.epoch(),game.ROUTE_ROOMS): return false
 		game.expedition_statistics.reached(game.participation.run_id(),game.participation.floor())
 		game.start_encounter()
 		var recovery_hp: int =game.Life.Sustain.recovery_hp(crossed_biome,game.participation.cycle())
@@ -298,11 +296,10 @@ func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding :
 				banked_parts += count
 	var milestone: int = game.deepest_milestone
 	var message: String = game.milestone_message("Extracted with %d seed(s) and %d weapon part(s)." % [banked, banked_parts], true)
-	if game.participation.route() != game.Campaign.HEART:
-		game.progress.campaign.record_guardian_memories(game.run_guardians,game.guardian_counts)
-	for site in game.Campaign.HEART:
-		if (game.run_guardians & (1 << site)) != 0 and game.progress.campaign.record_clear(site):
-			message += " %s awaits at the Heart." % game.Campaign.OFFSHOOTS[site]
+	game.progress.campaign.record_guardian_memories(game.run_guardians,game.guardian_counts)
+	for site in game.Campaign.BIOME_COUNT:
+		if (game.run_guardians & (1 << site)) != 0:
+			game.progress.campaign.record_clear(site)
 	for peer_id in game.players:
 		var player: Dictionary = game.players[peer_id]
 		if Participation.is_wild(player):

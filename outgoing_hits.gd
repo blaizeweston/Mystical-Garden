@@ -108,7 +108,6 @@ static func skill_world(world: Node, source_peer: int, targets: Array[int], skil
 static func skill_targets(source: Context, targets: Array[int], skill: Dictionary,
 		stats: Dictionary, now: int) -> int:
 	if not source.is_current(): return 0
-	var before_primary := source.enemy_hp(-1)
 	var drain_contacts := 0
 	var native_hits: Dictionary = skill.get("native_hit_adjustments", {})
 	var has_bloom := source.begin_bloom(skill, now)
@@ -144,5 +143,4 @@ static func skill_targets(source: Context, targets: Array[int], skill: Dictionar
 		echo_hit = echo_hit or (inside_bloom and after < before)
 		if source.drain_eligible(target): drain_contacts += int(after < before)
 	if echo_hit: source.release_bloom(skill, now)
-	source.heart_message(before_primary)
 	return drain_contacts

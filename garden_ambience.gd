@@ -40,7 +40,6 @@ func _process(delta: float) -> void:
  elapsed=0
  refresh_requested.emit()
  var motion: bool=_facts.get("motion",true)
- preload("res://heart_growth_visuals.gd").motion(_stage,motion,_facts.get("heart_observer",Vector3(10000,0,0)))
  var projection: Dictionary=_facts.get("data",{});var available: Array=projection.get("available",[])
  var zones: Array=Catalog.ZONES.duplicate()
  if preload("res://garden_return_service.gd").known(projection.get("returns",{}),"lantern_homecoming"):

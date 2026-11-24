@@ -30,7 +30,7 @@ func eligible(id: int,slot: int) -> bool:
 	if world==null:return false
 	if not world.multiplayer.is_server() or not world.players.has(id) or slot<0 or slot>=world.progress.plots.size():return false
 	var p: Dictionary=world.players[id]
-	return Session.ready_for(p,false) and not Participation.is_wild(p) and not PlayerLifecycle.fallen(p) and world.participation.travel_kind().is_empty() and p.pos.distance_to(world.stage.bed_position(slot))<=1.65 and world.progress.offshoot_in_bed(slot)<0
+	return Session.ready_for(p,false) and not Participation.is_wild(p) and not PlayerLifecycle.fallen(p) and world.participation.travel_kind().is_empty() and p.pos.distance_to(world.stage.bed_position(slot))<=1.65
 func focus(id: int,slot: int) -> bool:
 	var world:=_current_world()
 	if world==null:return false

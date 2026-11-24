@@ -126,7 +126,7 @@ func run() -> void:
 	game.wild_item_drops.assign([trophy(elite.pos)])
 	preload("res://leader_behavior.gd").tick(game, .016,escape_at+1000)
 	check(game.tactics.winding_up,"gate elite tries its normal trophy grab")
-	preload("res://leader_behavior.gd").resolve(game, game.tactics.strike_at)
+	preload("res://elite_enemy.gd").resolve(game, game.tactics.strike_at)
 	check(elite.has("escape") and Escape.snapshot(game)[0].id==-1,"elite uses the same marked tunnel")
 	now = game.tactics.strike_at
 	for step in 500:

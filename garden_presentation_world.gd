@@ -93,7 +93,7 @@ func _ambience_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary:
 	var data = world.garden_commands.observation_projection(peer)
 	data.returns=world.garden_commands.return_projection(peer)
 	return {"data":data.duplicate(true),
-		"water_position":preload("res://garden_water.gd").anchor(world.stage),"position":actor.get("pos",Vector3.INF),"heart_observer":actor.get("pos",Vector3(10000,0,0)),
+		"water_position":preload("res://garden_water.gd").anchor(world.stage),"position":actor.get("pos",Vector3.INF),
 		"wild":Participation.is_wild(actor),"development":world.stage.experimental_garden!=null,
 		"motion":world.app_settings.values.get("ambient_motion",true)}
 

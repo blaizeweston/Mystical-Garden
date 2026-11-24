@@ -15,7 +15,6 @@ var stagger_until := 0
 var rooted_until := 0
 var haste_until := 0
 var longlimb := false
-var attack_pattern := 0
 var active_radius := 0.0
 var recovery_bonus := 0
 var boss_kind := -1
@@ -52,7 +51,6 @@ func reset_approach() -> void:
 
 func reset_attack(reach_mutation: bool) -> void:
 	longlimb = reach_mutation
-	attack_pattern = 0
 	active_radius = 0.0
 	winding_up = false
 	ready_at = 0
