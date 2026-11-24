@@ -69,7 +69,7 @@ static func prune(game: Node, status: Dictionary, at: int) -> void:
 static func deal_tick(game: Node, target: int, status: Dictionary, now: int) -> void:
 	var owner := Sources.dominant(status.contributors,"stacks")
 	var hp := Sources.whole_tick(status,count(status)*Sources.units(TICK_HP_PER_STACK))
-	if hp>0 and not owner.is_empty(): Actors.damage(game,int(owner.actor),target,hp,now,COLOR,status.contributors.values().all(func(row):return row.get("secondary_only",false)))
+	if hp>0 and not owner.is_empty(): Actors.damage(game,int(owner.actor),target,hp,now,COLOR,status.contributors.values().all(func(row):return row.get("secondary_only",false)),{"stat_affinity":"Burning","stat_weights":Sources.damage_weights(game,status.contributors.values(),"stacks")})
 
 static func advance(game: Node, target: int, elapsed: int, now: int) -> Dictionary:
 	var actor := Actors.body(game,target)
@@ -223,7 +223,7 @@ static func flashover(game: Node, source: Dictionary, target: int, status: Dicti
 	var point: Vector3=game.enemy_position(target)
 	game.emit_combat_event("ability","flashover",point,point,.5,COLOR,float(tuning.radius_m),int(source.actor),{"label":"Flashover"})
 	for victim in game.skill_area_targets(point,float(tuning.radius_m),point):
-		if Sources.current(game,source) and not game.persistence_session.is_blocked():load("res://outgoing_hits.gd").affinity_world(game,int(source.actor),victim,hp,now,COLOR,true)
+		if Sources.current(game,source) and not game.persistence_session.is_blocked():load("res://outgoing_hits.gd").affinity_world(game,int(source.actor),victim,hp,now,COLOR,true,{"stat_affinity":"Flashover"})
 	preload("res://diagnostic_journal.gd").event("combat","flashover",{"actor":source.actor,"target":target,"spent":spend-remaining,"hp":hp})
 
 

@@ -135,7 +135,7 @@ static func class_cast(game: Node,peer: int,skill: Dictionary,origin: Vector3,ce
 			if offset.length()>maxf(.01,radius) or not game.battlefield.clear_line(destination,ally.pos):continue
 			if mode in ["guard","counter_guard"] and recipient!=peer:continue
 			if mode=="front_guard" and offset.length_squared()>.001 and offset.normalized().dot(player.facing)<.15:continue
-			if healing>0:game.Life.Sustain.restore(game,ally,healing,"wraithcast/"+str(peer))
+			if healing>0:game.Life.Sustain.restore(game,ally,healing,"wraithcast/"+str(peer),-1,peer)
 			if protection and ward_ms>0:ally[Protection.STATE]=ally[Protection.STATE].grant(now+ward_ms,maxi(1,int(skill.get("charges",1))),now,game.participation.epoch())
 		game.emit_combat_event("ability","wraithcast",at,destination,.5,Spirit.COLOR,radius,peer,{"label":"Wraithcast · "+str(skill.name)})
 	Journal_event("wraithcast_class",peer,shadows.size())

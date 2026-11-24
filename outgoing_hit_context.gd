@@ -15,6 +15,7 @@ static var _variants: Script
 
 var _world: Node
 var _actor: Dictionary
+var _identity: String
 var _peer: int
 var _life: int
 var _epoch: int
@@ -26,6 +27,7 @@ var _bloom := {}
 func _init(world: Node, peer: int, accepted_affinity := false) -> void:
 	_world = world
 	_peer = peer
+	_identity = world.expedition_stat_identity(peer)
 	_actor = world.players.get(peer, {})
 	_departed_affinity = accepted_affinity and _actor.is_empty()
 	_life = Lifecycle.generation(_actor)
@@ -179,6 +181,8 @@ func install_hit(target: int, token: int, point: Vector3, applied: int, recovery
 
 func finish_contact(target: int, token: int, origin: Vector3, point: Vector3, contact_point: Vector3,
 		stats: Dictionary, graft: Dictionary, now: int, before: int, applied: int) -> void:
+	var attribution: Dictionary = stats.get("stat_weights",{_identity:1})
+	_world.expedition_statistics.damage(_world.participation.run_id(),applied,attribution,stats.get("stat_affinity",""))
 	if stats.get("rite_suppressed", false) and applied < before:
 		var body: Dictionary = _roster.scout(target) if target >= 0 else _roster.leader_tactics()
 		load("res://wilds_skill_tactics.gd").interrupted(_world, body, "suppression")
@@ -189,7 +193,7 @@ func finish_contact(target: int, token: int, origin: Vector3, point: Vector3, co
 		_world.emit_combat_event("impact", "hit", origin, point, .85, stats.get("affinity_color", _world.weapon_effect_color(_actor)), float(applied), target, {"form":form})
 	if _roster.death_pending(target, token):
 		load("res://thorn_affinity.gd").on_death(_world, target, now, stats.get("card_secondary",false))
-		_world.record_enemy_death(target, point, origin, token)
+		_world.record_enemy_death(target, point, origin, token, _identity)
 		Life.Sustain.heal_on_kill(_world, _actor, target, Life.Preview.authored_amount(float(stats.get("heal_on_kill", 0))))
 	_world.Traits.after_hit(_world, _actor, target, stats, now, before > 0 and applied >= before)
 	if not graft.is_empty() and applied > 0:

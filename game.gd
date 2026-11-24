@@ -9,6 +9,7 @@ const CombatClock = preload("res://combat_clock.gd")
 const Participation = preload("res://expedition_participation.gd")
 const Session = preload("res://network_session.gd")
 var session_world := preload("res://session_world.gd").new(self)
+var expedition_statistics := preload("res://expedition_statistics.gd").new()
 var expedition_transitions := preload("res://expedition_transitions.gd").new(self)
 const ActionIdentity = preload("res://network_action_identity.gd")
 
@@ -904,6 +905,37 @@ func flush_kill_rewards() -> bool:
 		_publish_kill_reward_notices(monster_rewards.take_legacy_notices())
 	return true
 
+## Only an admitted character can supply personal credit.
+func expedition_stat_identity(peer: int) -> String:
+	if not players.has(peer) or not participation.contains(peer): return ""
+	return _kill_reward_identity(peer, players[peer])
+
+## Entry markers and frozen summaries share one ordered, reliable channel.
+func publish_expedition_results() -> void:
+	var entries := expedition_statistics.take_entries()
+	var finished := expedition_statistics.publishable()
+	if entries.is_empty() and finished.is_empty(): return
+	for peer in players:
+		var identity := _kill_reward_identity(peer,players[peer])
+		if entries.has(identity): send_expedition_result(peer,identity,entries[identity],{})
+		if identity in finished:
+			var report := expedition_statistics.result_for(identity)
+			send_expedition_result(peer,identity,report.run,report)
+
+func send_expedition_result(peer: int, identity: String, run: int, report: Dictionary) -> void:
+	var connection := network_session.connection_key(peer)
+	if not report.is_empty():
+		Journal.event("expedition","result_published",{"actor":peer,"run":run,"outcome":report.outcome,"participants":report.players.size()})
+	if peer == HOST:
+		if is_instance_valid(ui): ui.expedition_result(connection,run,report)
+	elif network_session.transport() != null and multiplayer.get_peers().has(peer) and network_session.identity(peer) == identity:
+		receive_expedition_result.rpc_id(peer,connection,identity,run,report)
+
+@rpc("authority","call_remote","reliable")
+func receive_expedition_result(connection: String, identity: String, run: int, report: Dictionary) -> void:
+	if network_session.permits_details(connection) and identity == network_session.accepted_identity():
+		ui.expedition_result(connection,run,report)
+
 func _kill_reward_identity(id: int, player: Dictionary) -> String:
 	return local_character.identity if id == HOST else Session.inventory_owner(player)
 
@@ -922,6 +954,8 @@ func _queue_monster_reward(spawn_token: String, kind: int, mask: int, world_posi
 	var key := monster_rewards.admit_kill(participation.epoch(), spawn_token, death, candidates, roll_kill_trophy.bind(kind, mask, leader), rng.randf)
 	if key.is_empty():
 		return false
+	for award in monster_rewards.experience_awards(key):
+		expedition_statistics.count(participation.run_id(),award.identity,"xp",award.xp)
 	if _defers_kill_profiles():
 		var receipt := monster_rewards.take_run_awards(key)
 		if not receipt.is_empty():
@@ -1052,6 +1086,7 @@ func settle_expedition_rewards(effects: Array[Callable], bank_kills := false) ->
 		_recover_pouch(leaving)
 		if Participation.is_wild(leaving):
 			garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(leaving.get("garden_run_actor","")),str(leaving.get("garden_run_id","")),bool(leaving.get("wild",false))),"disconnected")
+		expedition_statistics.settled_disconnect(entry.identity)
 		monster_rewards.finish_expedition(entry.identity, participation.run_id())
 
 func close_flow_for(id: int) -> void:
@@ -1317,6 +1352,7 @@ func _purchase_expedition_graft(id: int, player: Dictionary, action: String) -> 
 		carry[purchase.part] = int(carry[purchase.part]) - int(purchase.cost)
 		player.carried_parts = carry
 		player[grafts.STATE] = purchase.ledger
+		expedition_statistics.count(participation.run_id(),expedition_stat_identity(id),"grafts")
 		if purchase.has("health"):
 			var health: PlayerVitals.Health = player[PlayerVitals.STATE]
 			player[PlayerVitals.STATE] = health.with_native_max_hp(int(purchase.health) - health.temporary_hp())
@@ -1749,6 +1785,7 @@ func finish_combat(id: int,loot_position: Vector3) -> void:
 func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
 	if pending_finale_at>0 or encounter_rewarded: return
 	encounter_rewarded=true
+	expedition_statistics.clear_encounter(participation.run_id(),participation.floor())
 	record_settlement_metric(effects,"encounter_clear",{"floor":participation.floor(),"biome":participation.route(),"kills":encounter_kills.size(),"cycle":participation.cycle()})
 	burst_clears+=int(burst_hits_this_room>=2)
 	choke_clears+=int(choke_kills_this_room>=3)
@@ -2321,6 +2358,8 @@ func _finish_title_return(message: String) -> void:
 	set_physics_process(false)
 	get_tree().root.add_child(menu)
 	get_tree().current_scene = menu
+	var report: Dictionary = ui.visible_expedition_result() if is_instance_valid(ui) else {}
+	if not report.is_empty(): preload("res://ui/gameplay/expedition_summary.gd").show_at_title(menu,report)
 	queue_free()
 
 
@@ -2808,6 +2847,7 @@ func _affinity_checkpoint_command(id: int, player: Dictionary, action: String) -
 			Journal.event("combat", "affinity_card_reroll", {"actor": id, "floor": participation.floor(),
 				"revision": revision, "cost": plan.cost, "rerolls": plan.rerolls})
 		if plan.has("copy"):
+			expedition_statistics.count(participation.run_id(),expedition_stat_identity(id),"cards")
 			var copy: Dictionary = plan.copy
 			if copy.id == "run_health":
 				player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(Life.native_maximum(self,player))
@@ -3117,7 +3157,7 @@ func update_garden_altar(data: Dictionary) -> void:
 	ui.update_altar(data)
 
 
-func record_enemy_death(target: int,world_position: Vector3,origin: Vector3,expected_token: int = -1) -> void:
+func record_enemy_death(target: int,world_position: Vector3,origin: Vector3,expected_token: int = -1, finisher: String = "") -> void:
 	if not encounter.death_pending(target, expected_token):
 		return
 	var spawn_token := "leader" if target == -1 else str(encounter.token(target))
@@ -3127,6 +3167,10 @@ func record_enemy_death(target: int,world_position: Vector3,origin: Vector3,expe
 	if not _queue_monster_reward(spawn_token, kind, mask, world_position, target == -1, summoned):
 		return
 	encounter.confirm_death(target)
+	var boss := target == -1 and tactics.boss_kind >= 0
+	# LeaderBehavior dispatches this role even before its lazy elite body exists.
+	var elite := target == -1 and not boss and participation.route() != Campaign.HEART
+	expedition_statistics.defeat(participation.run_id(),finisher,elite,boss)
 	if not summoned:
 		encounter_kills.append(kind)
 		encounter_kill_records.append({"kind":kind,"mask":mask})

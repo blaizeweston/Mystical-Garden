@@ -41,11 +41,11 @@ static func motion_scale(actor: Dictionary, now: int, boss := false) -> float:
 	return 1.0 - maxf(frost,float(actor.get("affinity_thorn_slow",0.0)))
 
 
-static func damage(game: Node, actor: int, target: int, hp: int, now: int, color := COLOR, card_secondary := false) -> void:
+static func damage(game: Node, actor: int, target: int, hp: int, now: int, color := COLOR, card_secondary := false, attribution := {}) -> void:
 	# Use the same native damage, death, drops and encounter settlement path.
 	# An affinity hit contributes no legacy on-hit traits or attack delay.
 	# A previously granted effect keeps its author even after disconnect.
-	OutgoingHits.affinity_world(game, actor, target, hp, now, color, card_secondary)
+	OutgoingHits.affinity_world(game, actor, target, hp, now, color, card_secondary, attribution)
 	if game.encounter_cleared():
 		game.finish_combat(actor if game.players.has(actor) else game.HOST, game.enemy_position(target))
 
@@ -133,8 +133,9 @@ static func resolve_stacks(game: Node, source: Dictionary, maximum_units: int, s
 		game.emit_combat_event("ability","frost_rupture",point,point,.55,COLOR,1.2,int(source.actor),{"label":"Brittle rupture"})
 		var record: Callable=game.get_meta(&"frost_rupture_witness",Callable())
 		if record.is_valid(): record.call(spent.duplicate(true),hp)
-		if secondary: OutgoingHits.affinity_world(game,int(source.actor),target,hp,now,COLOR,true)
-		else: damage(game,int(source.actor),target,hp,now)
+		var attribution := {"stat_affinity":"Brittle rupture","stat_weights":Sources.damage_weights(game,spent,"numerator")}
+		if secondary: OutgoingHits.affinity_world(game,int(source.actor),target,hp,now,COLOR,true,attribution)
+		else: damage(game,int(source.actor),target,hp,now,COLOR,false,attribution)
 		if Sources.current(game,source): rupture_effects(game,target,point,spent,hp,now,secondary)
 		if not valid_target(game,target): break
 	return bursts.size()
@@ -163,7 +164,7 @@ static func rupture_effects(game: Node, target: int, point: Vector3, spent: Arra
 		game.emit_combat_event("ability","shatterwave",point,point,.5,COLOR,radius,int(wave.actor),{"label":"Shatterwave"})
 		for victim in game.skill_area_targets(point,radius,point):
 			if not Sources.current(game,wave) or game.persistence_session.is_blocked(): break
-			OutgoingHits.affinity_world(game,int(wave.actor),victim,roundi(hp*float(wave.strength)/100.0),now,COLOR,true)
+			OutgoingHits.affinity_world(game,int(wave.actor),victim,roundi(hp*float(wave.strength)/100.0),now,COLOR,true,{"stat_affinity":"Shatterwave"})
 	if propagated: return # Root and wave are finite; only another propagation is recursive.
 	var avalanche:=effect_owner(spent,"avalanche_unlock")
 	if not avalanche.is_empty() and Sources.current(game,avalanche):

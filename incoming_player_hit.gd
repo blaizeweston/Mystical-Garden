@@ -45,13 +45,13 @@ static func _resolve(contact: Contact, observation: Dictionary, recipient: Recip
 		return Recipient.result(Outcome.REJECTED)
 	if observation.within_hit_grace:
 		return Recipient.result(Outcome.GRACE)
-	if observation.guarded:
-		recipient.consume_guard(contact)
-		return Recipient.result(Outcome.BLOCKED)
-
 	var points := float(observation.default_damage) if contact.authored_damage < 0.0 \
 		else Preview.authored_amount(contact.authored_damage)
 	var hp := Preview.effect_hp(points)
+	recipient.contact_hp = hp
+	if observation.guarded:
+		recipient.consume_guard(contact)
+		return Recipient.result(Outcome.BLOCKED)
 	var bark: Dictionary = {}
 	hp = recipient.modify_affinity_damage(contact,hp)
 	bark = recipient.plan_bark(hp)
@@ -68,6 +68,7 @@ static func apply_health_loss(world: Node, peer_id: int, target_life: int, amoun
 ## The adapter is scoped to one recipient. Only value observations and outcomes
 ## cross the resolver boundary. World-dependent effects remain with their owners.
 class Recipient extends RefCounted:
+	var contact_hp := -1 # An admitted incoming attack, excluding raw HP expenditures.
 	var _world: Node
 	var _peer: int
 	var _life: int
@@ -101,6 +102,7 @@ class Recipient extends RefCounted:
 	func consume_guard(contact: Contact) -> void:
 		var consumed: Protection.Block = _actor[Protection.STATE].consume_block(contact.now, _world.participation.epoch(), _peer)
 		_actor[Protection.STATE] = consumed.next_state
+		_record_defense(Vitals.current_hp(_actor),0)
 		var block_event := preload("res://ward_responses.gd").block(_world, consumed, _peer, _actor.pos, contact.now)
 		var stats: Dictionary = _world.weapon_stats(_actor)
 		if float(stats.get("counter_damage",0)) > 0 or _actor[Protection.STATE].counter_guard_active(contact.now):
@@ -171,12 +173,20 @@ class Recipient extends RefCounted:
 			return saved.value
 		return result(Outcome.UNCOMMITTED)
 
+	func _record_defense(before: float, after_defense: int) -> void:
+		if contact_hp < 0: return
+		var avoided := minf(before,contact_hp) - minf(before,maxi(0,after_defense))
+		_world.expedition_statistics.count(_world.participation.run_id(),_world.expedition_stat_identity(_peer),"prevented",avoided)
+
 	func _install_loss(amount: int, effects = null) -> Dictionary:
 		if not _is_current() or (Participation.is_wild(_actor) and not Life.alive(_actor)):
 			return result(Outcome.REJECTED)
+		var before := Vitals.current_hp(_actor)
 		var loss := Vitals.apply_damage(_actor, amount, false)
 		if loss.is_empty():
 			return result(Outcome.REJECTED)
+		_record_defense(before,amount)
+		if contact_hp >= 0: _world.expedition_statistics.count(_world.participation.run_id(),_world.expedition_stat_identity(_peer),"taken",before-Vitals.current_hp(_actor))
 		if not loss.recorded:
 			return result(Outcome.NO_HP_LOSS)
 		var applied: int = loss.applied_hp

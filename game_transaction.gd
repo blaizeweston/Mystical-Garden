@@ -59,6 +59,8 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
  var players: Dictionary=game.players.duplicate(true)
  var rng_state: int = game.rng.state
  var rewards: MonsterRewards = game.get("monster_rewards")
+ var statistics: RefCounted = game.get("expedition_statistics")
+ var statistics_snapshot: Dictionary = statistics.savepoint() if statistics != null else {}
  var reward_savepoint: Dictionary = rewards.savepoint() if rewards != null else {}
  var encounter: EncounterRoster = game.get("encounter")
  var encounter_savepoint := encounter.savepoint() if encounter != null else {}
@@ -86,6 +88,7 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
   preload("res://game_metrics.gd").record("save_rollback",{"error":error})
   restore(game.progress,world);game.progress.heart.restore(heart);restore(game.progress.campaign,campaign)
   restore(game,state)
+  if statistics != null: statistics.restore_savepoint(statistics_snapshot)
   if encounter != null:
    encounter.restore_savepoint(encounter_savepoint)
   if tactics != null:
@@ -115,6 +118,7 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
    if int(source.id)<=int(state.get("combat_event_serial",0)):continue
    var event: Dictionary=source.duplicate();event.erase("born");event.age=maxf(0,(preload("res://combat_clock.gd").now()-int(source.born))/1000.0)
    game.receive_combat_event.rpc(event,str([game.participation.route(),game.participation.floor(),game.participation.seed()]))
+ if statistics != null: game.publish_expedition_results()
  var publishes: Array=game.transaction_publishes.duplicate();game.transaction_publishes.clear()
  for id in publishes:
   if id!=game.HOST and game.players.has(id) and game.network_session.transport()!=null: game.receive_character.rpc_id(id,game.players[id].character)
@@ -212,6 +216,7 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
  var operations = load("res://persistence_operations.gd")
  var anchor: String = serializers[0].path
  var action_and_save := func():
+  if game.get("expedition_statistics") != null: captured.statistics = game.expedition_statistics.savepoint()
   captured.world = snapshot(game.progress)
   captured.heart = game.progress.heart.serialize()
   captured.campaign = snapshot(game.progress.campaign)
@@ -282,6 +287,7 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
    boundary = _refusal(execution.get("error", ERR_BUG), execution.get("reason", "transaction_refused"),
     "pending_recovery" if execution.get("reason") == "unresolved_transaction" else execution.get("state", "invalid"))
    boundary.release_error = release_error
+  if captured.has("statistics"): game.expedition_statistics.hold_uncertain()
   if captured.has("monster_rewards"):
    # Gameplay ran, but its save verdict is missing. Hold tentative rewards.
    rewards.finish_settlement(MonsterRewards.Result.UNCERTAIN)
@@ -297,6 +303,7 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
    if execution.action_ran:
     _restore_guarded(game, captured)
   Batch.Outcome.UNCERTAIN:
+   if captured.has("statistics"): game.expedition_statistics.hold_uncertain()
    if rewards != null:
     rewards.finish_settlement(MonsterRewards.Result.UNCERTAIN)
    game.transaction_publishes.clear()
@@ -305,8 +312,9 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
     var cleanup: bool = finalized.outcome == Batch.Outcome.COMMITTED_CLEANUP_PENDING or finalized.write_blocked or boundary.release_error != OK
     rewards.finish_settlement(MonsterRewards.Result.CLEANUP_PENDING if cleanup else MonsterRewards.Result.COMMITTED)
  game.persistence_session.record_finalization(boundary)
- if committed(boundary) and publish.is_valid():
-  publish.call(execution.value)
+ if committed(boundary):
+  if publish.is_valid(): publish.call(execution.value)
+  if captured.has("statistics"): game.publish_expedition_results()
  return boundary
 
 static func _serializers(game: Node, scope: Scope) -> Array:
@@ -325,6 +333,7 @@ static func _restore_guarded(game: Node, captured: Dictionary) -> void:
  game.progress.heart.restore(captured.heart)
  restore(game.progress.campaign, captured.campaign)
  restore(game, captured.game)
+ if captured.has("statistics"): game.expedition_statistics.restore_savepoint(captured.statistics)
  if captured.has("encounter"):
   game.encounter.restore_savepoint(captured.encounter)
  if captured.has("tactics"):

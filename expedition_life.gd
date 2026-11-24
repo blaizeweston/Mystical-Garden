@@ -26,6 +26,7 @@ static func down(game: Node,id: int,p: Dictionary,effects = null) -> void:
  var health: PlayerVitals.Health = p[PlayerVitals.STATE]
  p[PlayerVitals.STATE] = health.with_hp(0.0)
  var lifecycle: PlayerLifecycle.Life = p[PlayerLifecycle.STATE]
+ if not PlayerLifecycle.fallen(p): game.expedition_statistics.count(game.participation.run_id(),game.expedition_stat_identity(id),"falls")
  p[PlayerLifecycle.STATE] = lifecycle.fall()
  p.velocity=Vector3.ZERO
  p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active()
@@ -66,6 +67,7 @@ static func revive(game: Node,helper_id: int,target_id: int,effects = null) -> b
  var health: PlayerVitals.Health = target[PlayerVitals.STATE]
  var revived := health.with_native_max_hp(native_maximum(game,target)).refilled()
  target[PlayerVitals.STATE] = revived
+ game.expedition_statistics.count(game.participation.run_id(),game.expedition_stat_identity(helper_id),"revives")
  target[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
  target[Protection.STATE] = target[Protection.STATE].clear_guard()
  target.erase("frost_response");target.erase("affinity_ember_response")

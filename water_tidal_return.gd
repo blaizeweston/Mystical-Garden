@@ -150,7 +150,7 @@ static func resolve_segment(game: Node, wave: Dictionary, previous: Vector3, poi
    var player: Dictionary=game.players[peer]
    if wave.healed.has(peer) or not contact(game,wave,player.pos,previous,point,radius,true):continue
    wave.healed[peer]=true
-   game.Life.Sustain.restore(game,player,int(wave.heal),"tidal_return/"+str(wave.source.actor))
+   game.Life.Sustain.restore(game,player,int(wave.heal),"tidal_return/"+str(wave.source.actor),-1,wave.source.actor)
    load("res://water_combat.gd").cleanse(player)
    if int(wave.ward_ms)>0:player[Protection.STATE]=player[Protection.STATE].grant(now+int(wave.ward_ms),1,Time.get_ticks_msec(),game.participation.epoch())
   return
@@ -165,4 +165,4 @@ static func resolve_segment(game: Node, wave: Dictionary, previous: Vector3, poi
   var hp:=int(wave.damage)
   if target==int(wave.target) and token==int(wave.target_token):hp=roundi(hp*(1+float(wave.focus_percent)/100.0))
   if hp<=0:continue
-  Outgoing.hit_world(game,int(wave.source.actor),target,wave.origin,{"damage":0.0,"affinity_hp":hp,"trait_secondary":true,"core_hit":true,"card_secondary":true,"knockback":float(wave.push)-Outgoing.NATIVE_PUSH_METRES},now)
+  Outgoing.hit_world(game,int(wave.source.actor),target,wave.origin,{"stat_affinity":"Surge","damage":0.0,"affinity_hp":hp,"trait_secondary":true,"core_hit":true,"card_secondary":true,"knockback":float(wave.push)-Outgoing.NATIVE_PUSH_METRES},now)

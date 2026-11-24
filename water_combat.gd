@@ -188,7 +188,7 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 				var id: int = details.player
 				if game.players.has(id) and game.Life.alive(game.players[id]):
 					cleanse(game.players[id])
-					game.Life.Sustain.restore(game,game.players[id],int(event.potency().get("direct_heal_hp",0)),"dewfall/"+str(event.actor))
+					game.Life.Sustain.restore(game,game.players[id],int(event.potency().get("direct_heal_hp",0)),"dewfall/"+str(event.actor),-1,event.actor)
 					var ward_ms := int(event.potency().get(SHELTER_WARD_PARAMETER,0))
 					if ward_ms > 0:
 						game.players[id][Protection.STATE] = game.players[id][Protection.STATE].grant(now+ward_ms,1,Time.get_ticks_msec(),game.participation.epoch())

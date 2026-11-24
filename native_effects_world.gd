@@ -72,7 +72,7 @@ func pulse(event: Dictionary,now: int) -> void:
   var heal_hp:=Preview.roll_heal(Preview.authored_amount(float(event.power)),Preview.HEAL_TICK_SPREAD_HP)
   for ally in world.players.values():
    if not world.Life.alive(ally) or ally.pos.distance_to(event.position)>float(event.radius) or not world.battlefield.clear_line(event.position,ally.pos): continue
-   world.Life.Sustain.restore(world,ally,heal_hp,event.kind);ally[Conditions.STATE] = ally[Conditions.STATE].cleanse_slow()
+   world.Life.Sustain.restore(world,ally,heal_hp,event.kind,-1,event.owner);ally[Conditions.STATE] = ally[Conditions.STATE].cleanse_slow()
    if event.ward: ally[Protection.STATE] = ally[Protection.STATE].grant(now+800,1,Time.get_ticks_msec(),world.participation.epoch())
  elif event.kind in ["growth","cinder"]:
   var targets: Array[int]=world.skill_area_targets(event.position,float(event.radius),event.position)

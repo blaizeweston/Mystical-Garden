@@ -193,6 +193,42 @@ func show_checkpoint_offer(offer: Dictionary, wallet: int, floor_number: int, wa
 	if not _checkpoint_menu.visible:
 		toggle_panel("checkpoint")
 
+var _results_panel: PanelContainer
+var _results_content: VBoxContainer
+var _results_binding := ""
+var _results_run := 0
+var _visible_report := {}
+var _results_opened := false
+
+func expedition_result(connection: String, run: int, report: Dictionary) -> void:
+	if run <= 0 or (not report.is_empty() and report.get("run",0) != run): return
+	if connection != _results_binding:
+		_results_opened = false
+		_visible_report.clear()
+		_results_binding = connection
+		_results_run = 0
+	if run < _results_run: return
+	if run > _results_run:
+		_results_opened = false
+		_visible_report.clear()
+		if panel_is_open("expedition_results"): close_panels()
+	_results_run = run
+	if report.is_empty() or _results_opened: return
+	_visible_report = report.duplicate(true)
+	_results_opened = true
+	if _results_panel == null:
+		_results_panel = create_overlay_panel(Color("#16232a"),Vector2(20,16))
+		_panels["expedition_results"] = _results_panel
+		_results_content = preload("res://ui/gameplay/expedition_summary.gd").new()
+		_results_panel.add_child(_results_content)
+		_results_content.connect("dismissed",close_panels)
+	_results_content.call("present",report)
+	ensure_panel("expedition_results")
+	_results_content.call("focus_navigation")
+
+func visible_expedition_result() -> Dictionary:
+	return _visible_report.duplicate(true) if panel_is_open("expedition_results") else {}
+
 func present_travel(state: Dictionary, heart_route: bool) -> void:
 	_travel_panel.visible=not state.is_empty() and not _overlay.visible
 	if state.is_empty(): return

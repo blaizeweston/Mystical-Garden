@@ -79,7 +79,7 @@ static func after_q(game: Node, actor: int, player: Dictionary, skill: Dictionar
 		var duration := Balance.WARD_MS + (Progression.WARD_EXTENSION_MS if grave_hit and nodes.has("lingering_veil") else 0)
 		nearby[0][Protection.STATE] = nearby[0][Protection.STATE].grant(now+duration,2 if grave_hit and learned_ward else 1,Time.get_ticks_msec(),game.participation.epoch())
 	if damaged and nodes.has("grave_offering"):
-		heal_lowest(game,center,1,Progression.OFFERING_HP,"grave_offering")
+		heal_lowest(game,center,1,Progression.OFFERING_HP,"grave_offering",actor)
 
 
 static func enemy_hp(game: Node, target: int) -> int:
@@ -132,7 +132,7 @@ static func finish_siphon(game: Node, player: Dictionary, skill: Dictionary, tar
 		var timers: Cooldowns.Timers = player[Cooldowns.STATE]
 		player[Cooldowns.STATE] = timers.refund(Cooldowns.Q, now, Progression.TEMPO_MS)
 	if skill.reaper_nodes.has("last_rites"):
-		heal_lowest(game,impact,Progression.RITES_RECIPIENTS,Progression.RITES_HP,"last_rites")
+		heal_lowest(game,impact,Progression.RITES_RECIPIENTS,Progression.RITES_HP,"last_rites",HitSession.peer_for(player))
 
 
 static func support_peers(game: Node, center: Vector3) -> Array:
@@ -141,7 +141,7 @@ static func support_peers(game: Node, center: Vector3) -> Array:
 		return game.Life.alive(ally) and center.distance_to(ally.pos) <= Progression.SUPPORT_RADIUS and game.battlefield.clear_line(center,ally.pos))
 
 
-static func heal_lowest(game: Node, center: Vector3, count: int, hp: int, source: String) -> void:
+static func heal_lowest(game: Node, center: Vector3, count: int, hp: int, source: String, provider: int) -> void:
 	var peers := support_peers(game,center)
 	peers.sort_custom(func(a,b):
 		var first: Dictionary = game.players[a]
@@ -150,7 +150,7 @@ static func heal_lowest(game: Node, center: Vector3, count: int, hp: int, source
 		var right := PlayerVitals.current_hp(second)*float(PlayerVitals.maximum_hp(first))
 		return a < b if left == right else left < right)
 	for id in peers.slice(0,count):
-		game.Life.Sustain.restore(game,game.players[id],hp,source)
+		game.Life.Sustain.restore(game,game.players[id],hp,source,-1,provider)
 
 
 static func feast(game: Node, player: Dictionary, primary: int, center: Vector3, now: int) -> void:

@@ -129,6 +129,9 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 	reply.session_binding = game.network_session.connection_key(id)
 	reply.session_character = identity
 	game.connection_accepted.rpc_id(id,reply)
+	game.expedition_statistics.bind_session(game.network_session.session_identity())
+	var report: Dictionary = game.expedition_statistics.result_for(identity)
+	if not report.is_empty(): game.send_expedition_result(id,identity,report.run,report)
 
 
 func join(address: String="",port: int=0) -> Error:
@@ -243,6 +246,8 @@ func remove(id: int) -> void:
 			game.players.erase(id)
 			game.motions.erase(id)
 			return
+		if leaving_wild:
+			game.expedition_statistics.freeze_departure(game.participation.run_id(),Session.inventory_owner(leaving),Time.get_ticks_msec())
 		if Session.ready_for(leaving,false):
 			game._capture_pending_departure(id, leaving)
 		var may_settle = game.persistence_session.can_write()
@@ -262,6 +267,8 @@ func remove(id: int) -> void:
 		if game.players.has(id) and Session.ready_for(game.players[id]):
 			if not Session.inventory_owner(game.players[id]).is_empty(): game.progress.character_records[Session.inventory_owner(game.players[id])]={"profile":game.players[id].character.duplicate(true),"manifest":game.progress.ContentIDs.manifest()}
 			game.recover_pouch(game.players[id])
+			if game.participation.contains(id):
+				game.expedition_statistics.freeze_departure(game.participation.run_id(),Session.inventory_owner(game.players[id]),Time.get_ticks_msec())
 			game.garden_commands.member_left(id)
 		if game.players.has(id): game.players[id].erase(ExpeditionWallet.STATE)
 		game.network_session.release_peer(id)

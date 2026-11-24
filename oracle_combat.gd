@@ -153,7 +153,7 @@ static func finish_chime(game: Node, id: int, player: Dictionary, skill: Diction
 static func ward_blocked(game: Node, player: Dictionary, id: int, event: RefCounted, direct_attack: bool) -> void:
 	if event.has_meta(MERCIFUL) and Omens.direct_context(game,direct_attack) \
 			and event.take_response("oracle_merciful_chime/%d"%id):
-		var restored: float = game.Life.Sustain.restore(game,player,int(event.get_meta(MERCIFUL)),"merciful_chime")
+		var restored: float = game.Life.Sustain.restore(game,player,int(event.get_meta(MERCIFUL)),"merciful_chime",-1,event.actor)
 		Journal.event("combat","oracle_chime_block",{"source":event.actor,"cast":event.identity,"recipient":id,"restored_hp":restored})
 
 

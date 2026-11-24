@@ -159,7 +159,7 @@ static func recover_hit(game: Node, recipient: Dictionary, now: int) -> void:
 	var mercy := strongest(game,recipient,Progression.MERCY,now)
 	var response := mercy if int(mercy.get("magnitude",0)) > int(breath.get("magnitude",0)) else breath
 	if not response.is_empty():
-		game.Life.Sustain.restore(game,recipient,consume(recipient,response),str(response.effect))
+		game.Life.Sustain.restore(game,recipient,consume(recipient,response),str(response.effect),-1,response.source)
 
 
 static func prevent_slow(game: Node, recipient: Dictionary, now: int) -> bool:

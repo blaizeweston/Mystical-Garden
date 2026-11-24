@@ -116,7 +116,7 @@ static func command(game: Node, peer: int, player: Dictionary, action: String) -
  player[STATE]=state # Claim before damage/death callbacks; rollback snapshots this dictionary.
  var point: Vector3=game.enemy_position(target)
  game.emit_combat_event("ability",id,player.pos,point,.5,thorn.COLOR,0.3,peer,{"label":definition.title})
- load("res://outgoing_hits.gd").affinity_world(game,peer,target,hp,now,thorn.COLOR,true)
+ load("res://outgoing_hits.gd").affinity_world(game,peer,target,hp,now,thorn.COLOR,true,{"stat_affinity":"Bloodletting"})
  preload("res://diagnostic_journal.gd").event("combat","card_active_cast",{"actor":peer,"card":id,"target":target,"hp":hp,"sequence":sequence})
  if game.encounter_cleared():game.finish_combat(peer,point)
 

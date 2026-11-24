@@ -130,7 +130,16 @@ static func tick(game: Node, elapsed: int) -> void:
 		while next <= elapsed:
 			var regen := strongest(sources,next).y
 			if regen > 0:
+				var before := PlayerVitals.current_hp(player)
 				player[PlayerVitals.STATE] = player[PlayerVitals.STATE].healed(regen)
+				var restored := PlayerVitals.current_hp(player) - before
+				if restored > 0:
+					var providers := {}
+					for grant: Dictionary in sources.values():
+						if grant.start <= next and next < grant.until and grant.regen_per_second == regen:
+							var identity: String = game.expedition_stat_identity(grant.actor) if Sources.current(game,grant) else ""
+							providers[identity] = true
+					game.expedition_statistics.heal(game.participation.run_id(),providers.keys()[0] if providers.size() == 1 else "",restored)
 			next += TICK_MS
 		player[NEXT] = next
 		for key in sources.keys():

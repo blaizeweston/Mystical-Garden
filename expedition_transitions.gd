@@ -95,6 +95,8 @@ func _admit(id: int, binding: int, reserved_override: Array = [], effects = null
 		game.SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, game.progress.path)
 		game.action_feedback(effects,id,"Could not establish this expedition's reward boundary. Nothing was consumed.")
 		return false
+	game.expedition_statistics.bind_session(game.network_session.session_identity())
+	game.expedition_statistics.admit(game.participation.run_id(),profile_owner,str(p.character.name),game.Frames.DEFINITIONS[int(p.frame)].name,game.participation.floor(),Time.get_ticks_msec())
 	game.garden_commands.join_returns(id)
 	p[game.PlayerLifecycle.STATE] = game.PlayerLifecycle.start_life()
 	p.lost_health=0
@@ -160,12 +162,15 @@ func return_member(id: int) -> void:
 	var p := _actor(id)
 	if not p.is_empty(): _return_member(p)
 
-func _return_member(p: Dictionary) -> void:
+func _return_member(p: Dictionary, outcome := "Voluntary return") -> void:
 	var game = _world.get_ref()
 	var peer := Participation.peer_for(p)
 	if peer == 0 or not game.players.has(peer) or not is_same(game.players[peer],p): return
 	if not game.SaveBatch.guarded_active(): game.flush_kill_rewards()
-	game.monster_rewards.finish_expedition(game._kill_reward_identity(peer, p), game.participation.run_id())
+	var identity: String = game._kill_reward_identity(peer,p)
+	game.expedition_statistics.reached(game.participation.run_id(),game.participation.floor())
+	game.expedition_statistics.finish(game.participation.run_id(),identity,outcome,Time.get_ticks_msec())
+	game.monster_rewards.finish_expedition(identity, game.participation.run_id())
 	p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active()
 	p.cast_until=0
 	preload("res://oracle_combat.gd").clear(p)
@@ -262,6 +267,7 @@ func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding :
 		if effects != null: game.settle_expedition_rewards(effects)
 		var crossed_biome: bool = game.participation.depth() == game.ROUTE_ROOMS
 		if not game.participation.advance(game.participation.epoch(),game.ROUTE_ROOMS,game.Campaign.HEART): return false
+		game.expedition_statistics.reached(game.participation.run_id(),game.participation.floor())
 		game.start_encounter()
 		var recovery_hp: int =game.Life.Sustain.recovery_hp(crossed_biome,game.participation.cycle())
 		for peer_id in game.players:
@@ -301,7 +307,7 @@ func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding :
 		var player: Dictionary = game.players[peer_id]
 		if Participation.is_wild(player):
 			game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"fallen" if game.PlayerLifecycle.fallen(player) else "extracted")
-			_return_member(player)
+			_return_member(player,"Returned fallen" if game.PlayerLifecycle.fallen(player) else "Extraction")
 			if peer_id != id:
 				game.action_feedback(effects,peer_id, message)
 	game.participation.select_route(game.Campaign.GROVE)
@@ -368,7 +374,7 @@ func finish_failed() -> bool:
 	return returned!=false
 
 
-func commit_failed(effects = null) -> void:
+func commit_failed(effects = null, outcome := "Party wipe") -> void:
 	var game = _world.get_ref()
 	if effects != null: game.settle_expedition_rewards(effects, true)
 	for player in game.players.values():
@@ -376,7 +382,7 @@ func commit_failed(effects = null) -> void:
 		else: game._recover_pouch(player)
 		if Participation.is_wild(player):
 			game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"wipe")
-			_return_member(player)
+			_return_member(player,outcome)
 	var milestone: int = game.deepest_milestone
 	var message: String = game.milestone_message("Expedition ended. Only safe-pouch contents are kept.", false)
 	game.participation.select_route(game.Campaign.GROVE)
@@ -425,7 +431,7 @@ func abandon(id: int, exit_nonce := "") -> void:
 			if not _forfeit_progress(id,player,effects): return false
 			game.settle_expedition_rewards(effects, true)
 			game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"abandoned")
-			_return_member(player)
+			_return_member(player,"Abandonment")
 			game.checkpoint_ready.erase(id)
 			if not exit_nonce.is_empty(): effects.append(game.network_session.mark_departure_saved.bind(id,game.network_session.binding(id),exit_nonce))
 			game.save_action_profile(id,effects)
@@ -442,7 +448,7 @@ func abandon(id: int, exit_nonce := "") -> void:
 		if not game.network_session.matches(id,binding): return false
 		if not _forfeit_progress(id,player): return false
 		game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"abandoned")
-		_return_member(player)
+		_return_member(player,"Abandonment")
 		game.checkpoint_ready.erase(id)
 		game.save_action_profile(id,null)
 		game.tell(id,"Expedition abandoned. This run's rewards were forfeited, including banked Class XP and safe-pouch contents.")
@@ -515,7 +521,7 @@ func commit_voluntary(effects = null) -> bool:
 	if Participation.is_wild(player):
 		if not _forfeit_progress(game.HOST,player,effects): return false
 		game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"abandoned")
-		_return_member(player)
+		_return_member(player,"Abandonment")
 		game.save_action_profile(game.HOST,effects)
-	commit_failed(effects)
+	commit_failed(effects,"Host ended expedition")
 	return true

@@ -24,6 +24,15 @@ static func target_current(game: Node, target: int, status: Dictionary) -> bool:
 	return int(status.get("epoch",-1))==game.participation.epoch() \
 		and game.encounter.alive(target,int(status.get("token",-1)))
 
+## Detach the same proportions the shared effect used before it consumes its
+## stacks. Empty identity retains team credit for an unavailable character.
+static func damage_weights(game: Node, rows: Array, field: String) -> Dictionary:
+	var weights := {}
+	for row: Dictionary in rows:
+		var identity: String = game.expedition_stat_identity(row.actor) if current(game,row) else ""
+		weights[identity] = float(weights.get(identity,0.0)) + float(row[field])
+	return weights
+
 static func units(hp: float) -> int:
 	return roundi(maxf(0.0,hp)*UNITS_PER_HP)
 

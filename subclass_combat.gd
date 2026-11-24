@@ -228,7 +228,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		heal_hp = Balance.Preview.roll_heal(healing)
 	for ally in nearby:
 		if heal_hp > 0:
-			game.Life.Sustain.restore(game,ally,heal_hp,skill.id)
+			game.Life.Sustain.restore(game,ally,heal_hp,skill.id,-1,id)
 		if skill.get("cleanse",false) or (not ranger and not oracle and skill.second == 2):
 			ally[Conditions.STATE] = ally[Conditions.STATE].cleanse_slow()
 		if skill.get("ward",false):

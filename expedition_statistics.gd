@@ -95,8 +95,15 @@ func heal(run: int, provider: String, amount: float) -> void:
 	if _active(run,provider): count(run,provider,"healing",amount)
 	else: _party.unattributed_healing += amount
 
+func _party_outcome() -> String:
+	var outcomes := _rows.values().map(func(row): return row.outcome)
+	if ACTIVE in outcomes: return "In progress at departure"
+	for outcome in ["Host ended expedition","Extraction","Party wipe","Abandonment"]:
+		if outcome in outcomes: return outcome
+	return "No active participants"
+
 func _snapshot(identity: String, now: int) -> Dictionary:
-	return {"session":_session,"run":_run,"personal_index":_rows.keys().find(identity),"outcome":_rows[identity].outcome,"elapsed_ms":maxi(0,now-_start_ms),
+	return {"party_outcome":_party_outcome(),"session":_session,"run":_run,"personal_index":_rows.keys().find(identity),"outcome":_rows[identity].outcome,"elapsed_ms":maxi(0,now-_start_ms),
 		"floor":_deepest,"clears":_clears,"party":_party.duplicate(true),"players":_rows.values().duplicate(true)}
 
 func finish(run: int, identity: String, outcome: String, now: int) -> void:

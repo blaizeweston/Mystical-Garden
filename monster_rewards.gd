@@ -69,6 +69,11 @@ func admit_kill(epoch: int, spawn_token: String, death: Dictionary, candidates: 
 	}
 	return key
 
+## Gross Class XP earned, before any later forfeiture. Called once, only for a
+## newly admitted death. Excluded summons have no awards.
+func experience_awards(key: String) -> Array:
+	return _receipts.get(key,{}).get("rewards",[]).map(func(row): return {"identity":row.identity,"xp":row.xp})
+
 ## Claims expedition-only awards before a permanent checkpoint settlement.
 func take_run_awards(key: String) -> Dictionary:
 	var receipt: Dictionary = _receipts.get(key, {})

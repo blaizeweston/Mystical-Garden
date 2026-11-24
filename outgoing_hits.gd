@@ -28,11 +28,11 @@ static func hit_world(world: Node, source_peer: int, target: int, origin: Vector
 ## Previously accepted affinity HP may finish after its source has departed.
 ## It has no native contacts, charges, weapon roll, or recipient-side procs.
 static func affinity_world(world: Node, source_peer: int, target: int, hp: int,
-		now: int, color: Color, card_secondary := false) -> Dictionary:
+		now: int, color: Color, card_secondary := false, attribution := {}) -> Dictionary:
 	var source := Context.new(world, source_peer, true)
 	var point := source.target_position(target)
 	return hit(source, target, point, {"damage":0.0, "affinity_hp":hp, "affinity_color":color,
-		"knockback":-NATIVE_PUSH_METRES, "trait_secondary":true, "core_hit":true, "card_secondary":card_secondary}, now)
+		"knockback":-NATIVE_PUSH_METRES, "trait_secondary":true, "core_hit":true, "card_secondary":card_secondary}.merged(attribution), now)
 
 
 static func hit(source: Context, target: int, origin: Vector3, stats: Dictionary,

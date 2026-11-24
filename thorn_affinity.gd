@@ -199,7 +199,7 @@ static func on_death(game: Node, target: int, now: int, secondary := false) -> v
 	game.emit_combat_event("ability","hemorrhagic_rupture",point,point,.5,COLOR,float(tuning.radius_m),int(owner.actor),{"label":"Hemorrhagic Rupture"})
 	for victim in game.skill_area_targets(point,float(tuning.radius_m),point):
 		if victim!=target and int(status.epoch)==game.participation.epoch() and not game.persistence_session.is_blocked():
-			preload("res://outgoing_hits.gd").affinity_world(game,int(owner.actor),victim,hp,now,COLOR,true)
+			preload("res://outgoing_hits.gd").affinity_world(game,int(owner.actor),victim,hp,now,COLOR,true,{"stat_affinity":"Hemorrhagic rupture"})
 	Journal.event("combat","hemorrhagic_rupture",{"actor":owner.actor,"target":target,"hp":hp,"contributors":eligible.keys()})
 
 
@@ -215,7 +215,7 @@ static func advance(game: Node, target: int, actor: Dictionary, elapsed: int, no
 		if status.contributors.is_empty(): break
 		var owner := Sources.dominant(status.contributors,"amount")
 		var hp := Sources.whole_tick(status,potency_units(status))
-		if hp>0: Actors.damage(game,int(owner.actor),target,hp,now,COLOR)
+		if hp>0: Actors.damage(game,int(owner.actor),target,hp,now,COLOR,false,{"stat_affinity":"Bleed","stat_weights":Sources.damage_weights(game,status.contributors.values(),"amount")})
 		if game.persistence_session.is_blocked() or not Sources.target_current(game,target,status): return
 	prune(game,status,elapsed)
 	if status.contributors.is_empty(): actor.erase(BLEED)

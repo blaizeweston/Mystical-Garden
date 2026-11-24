@@ -32,6 +32,7 @@ const RPCS := {
 	"submit_motion": {"sender":"any_peer", "delivery":"unreliable_ordered", "channel":0, "args":[TYPE_VECTOR2], "optional":0},
 	"submit_movement": {"sender":"any_peer", "delivery":"unreliable_ordered", "channel":3, "args":[TYPE_ARRAY,TYPE_STRING], "optional":0},
 	"submit_combat": {"sender":"any_peer", "delivery":"unreliable_ordered", "channel":1, "args":[TYPE_VECTOR2,TYPE_BOOL], "optional":0},
+	"receive_expedition_result": {"sender":"authority", "delivery":"reliable", "channel":0, "args":[TYPE_STRING,TYPE_STRING,TYPE_INT,TYPE_DICTIONARY], "optional":0},
 	"receive_character": {"sender":"authority", "delivery":"reliable", "channel":0, "args":[TYPE_DICTIONARY], "optional":0},
 	"receive_message": {"sender":"authority", "delivery":"reliable", "channel":0, "args":[TYPE_STRING], "optional":0},
 	"receive_state": {"sender":"authority", "delivery":"unreliable_ordered", "channel":4, "args":[TYPE_PACKED_BYTE_ARRAY], "optional":0},
