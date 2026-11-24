@@ -16,7 +16,6 @@ const SPACING := 1.75
 const RADIUS := 14
 const REPATH_MS := 70
 const CACHE_CHANCE := 0.20
-const CLEAR_SEED_CHANCE := 0.40
 
 var configured_key := Vector3i(-1,-1,-1)
 var boss_kind := -1
@@ -38,7 +37,6 @@ var retry_at := 0
 var query_peak_usec := 0
 var query_failures := 0
 var _seed_cache_present := false
-var _clear_seeds := 0
 
 func _init() -> void:
 	# Unconfigured combat fixtures and the Arena's open-map option share this
@@ -50,11 +48,10 @@ func _init() -> void:
 
 func configure(site: int, encounter: int, map_seed: int = 0, boss: int = -1, phase: int = 0) -> void:
 	ground=null;navigation_graph=null;generated={}
-	_seed_cache_present=false;_clear_seeds=0
+	_seed_cache_present=false
 	var normal_floor := map_seed!=0 and boss<0
 	var rolls := ("wilds_seed_rewards/%d"%map_seed).sha256_buffer()
 	if normal_floor:
-		_clear_seeds=int(float(rolls.decode_u32(4))/4294967296.0<CLEAR_SEED_CHANCE)
 		var floor_number := site*6+clampi(encounter,1,6)
 		generated=Terrain.build(map_seed,floor_number,RADIUS,SPACING,Catalog,Terrain.Biomes.WINDOWS,true,true,true,true,true)
 		if generated.is_empty() or not _configure_floor(site,encounter,map_seed):
@@ -78,8 +75,89 @@ func configure(site: int, encounter: int, map_seed: int = 0, boss: int = -1, pha
 func has_seed_cache() -> bool:
 	return _seed_cache_present
 
-func clear_seed_count(_depth: int) -> int:
-	return _clear_seeds
+func generate_flora(global_floor: int, starter_species: int = -1, exclusions: Array = []) -> Dictionary:
+	const Flora = preload("res://wild_flora_generation.gd")
+	if global_floor < 1 or configured_key.z == 0 or configured_key.x < 0 or boss_kind >= 0:
+		return {}
+	var random := Flora.floor_random(configured_key, global_floor)
+	var species := starter_species
+	if species == -1:
+		if random.randf() >= Flora.SPAWN_CHANCE:
+			return {}
+		species = Flora.roll_species(global_floor, configured_key.x, random)
+	elif global_floor > 2 or species not in [0, 1]:
+		return {}
+	if species < 0:
+		return {}
+	var reserved := exclusions.duplicate()
+	reserved.append_array(spawn_points)
+	reserved.append(leader)
+	var place := _flora_position(random, reserved)
+	if not place.is_finite() and starter_species >= 0:
+		place = _starter_flora_position(reserved)
+	return {"species": species, "position": place} if place.is_finite() else {}
+
+# Try room margins (including side branches) and trail shoulders. Each site must
+# have a walkable connection to an already-certified anchor on the arrival graph.
+func _flora_position(random: RandomNumberGenerator, reserved: Array) -> Vector3:
+	var layout: Dictionary = generated.layout
+	var candidates := PackedVector4Array() # anchor x/z followed by proposed x/z
+	for room: String in navigation_graph.room_points:
+		if not navigation_graph.room_reachable("arrival", room):
+			continue
+		var anchor: Vector2 = layout.trail_network.nodes[room]
+		for direction in 8:
+			var point := anchor + Vector2.from_angle(TAU * direction / 8.0) * 2.65
+			candidates.append(Vector4(anchor.x, anchor.y, point.x, point.y))
+	for edge: Dictionary in layout.trail_network.edges:
+		if edge.get("bridge", false) or not navigation_graph.certified.has(edge.id) \
+				or not navigation_graph.room_reachable("arrival", edge.from):
+			continue
+		var spine: PackedVector2Array = navigation_graph.edge_points[edge.id]
+		for i in range(1, spine.size()):
+			var anchor := spine[i - 1].lerp(spine[i], 0.5)
+			var shoulder := spine[i - 1].direction_to(spine[i]).orthogonal() * 1.35
+			for side: Vector2 in [anchor + shoulder, anchor - shoulder]:
+				candidates.append(Vector4(anchor.x, anchor.y, side.x, side.y))
+	var first := random.randi_range(0, maxi(0, candidates.size() - 1))
+	for offset in candidates.size():
+		var site := candidates[(first + offset) % candidates.size()]
+		var point := Vector2(site.z, site.w)
+		if _flora_site_clear(Vector2(site.x, site.y), point, reserved):
+			return world(point)
+	return Vector3.INF
+
+# Small side clearings can have every usual planting spot reserved. Only an
+# introductory specimen searches the surrounding ground along certified trails.
+func _starter_flora_position(reserved: Array) -> Vector3:
+	for edge: Dictionary in generated.layout.trail_network.edges:
+		if not navigation_graph.certified.has(edge.id) or not navigation_graph.room_reachable("arrival", edge.from):
+			continue
+		for anchor: Vector2 in navigation_graph.edge_points[edge.id]:
+			for radius in [0.0, 0.85, 1.7, 2.55, 3.4, 4.25, 5.1]:
+				var directions := 1 if radius == 0.0 else 16
+				for angle in directions:
+					var point := anchor + Vector2.from_angle(TAU * angle / directions) * float(radius)
+					if _flora_site_clear(anchor, point, reserved):
+						return world(point)
+	return Vector3.INF
+
+func _flora_site_clear(anchor: Vector2, point: Vector2, reserved: Array) -> bool:
+	var place := world(point)
+	if place.distance_squared_to(entry) < 25.0 or place.distance_squared_to(extraction) < 25.0 \
+			or place.distance_squared_to(advance) < 25.0:
+		return false
+	# Keep interaction disks disjoint (flora 1.55 m, shrine up to 1.65 m).
+	if place.distance_to(graft) < 3.25 or (has_seed_cache() and place.distance_to(cache) < 3.25):
+		return false
+	if reserved.any(func(blocked: Vector3) -> bool: return place.distance_squared_to(blocked) < 4.0):
+		return false
+	if CoverShape.in_any(ground.water, point, Navigation.RADIUS) or CoverShape.in_any(generated.layout.rocks, point, 0.6):
+		return false
+	if generated.layout.plants.any(func(plant: Dictionary) -> bool:
+			return point.distance_to(plant.center) < 0.55 + float(plant.get("clearance", 0.0))):
+		return false
+	return navigation_graph.traversable(anchor, point)
 
 func _configure_floor(site: int, encounter: int, map_seed: int) -> bool:
 	var layout: Dictionary = generated.layout

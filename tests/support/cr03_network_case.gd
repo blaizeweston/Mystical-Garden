@@ -1282,6 +1282,14 @@ func verify_current_snapshot_guest(game: Node, id: int) -> void:
 		mark("snapshot-thorn-expired-"+str(id))
 
 
+# Exercise the reserved protocol-41 vector without creating production loot state.
+class ProbeSource extends "res://world_replication_source.gd":
+	var marker := 0
+	func world_state(now: int) -> Dictionary:
+		var state := super.world_state(now)
+		state.drop = Vector3(marker,0,0)
+		return state
+
 const PROBE_FIRST := 101
 const PROBE_COUNT := 8
 const PROBE_DURATION := .22
@@ -1295,7 +1303,9 @@ func record_snapshot(rows: Array, row: Dictionary) -> void:
 func sample_host_snapshots(game: Node, ids: Array) -> void:
 	var rows: Array = []
 	game.set_meta(&"snapshot_witness",func(row):record_snapshot(rows,row))
-	var previous: Vector3=game.drop_pos
+	var previous = game.replication_source
+	var probe := ProbeSource.new(game)
+	game.replication_source = probe
 	game.encounter.set_hp(-1, 10000 if shared_status_case else 487)
 	game.tactics.stagger_until=Time.get_ticks_msec()+9000
 	if native_graft_case:
@@ -1341,11 +1351,11 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 			"a real Cinder field is active at full scout occupancy"): return
 	for index in PROBE_COUNT:
 		var marker := PROBE_FIRST+index
-		game.drop_pos=Vector3(marker,0,0)
+		probe.marker = marker
 		mark("snapshot-probe-"+str(marker))
 		await tree.create_timer(PROBE_DURATION).timeout
 	await tree.create_timer(.4).timeout
-	game.drop_pos=previous
+	game.replication_source = previous
 	game.remove_meta(&"snapshot_witness")
 	check(await until(func():return ids.all(func(id):return read("snapshot-seen-"+str(id))=="ok"),4000),"all guests processed current authoritative state")
 	if final_family_mix or native_graft_case:
@@ -1388,7 +1398,11 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 			var view: Dictionary=game.players.get(id,{})
 			saw_charge=saw_charge or str(UIFixture.control(game,"player_hud").state.get("affinity_feedback","")).contains("Storm Charge")
 			saw_well=saw_well or view.get("attack_hints",[]).any(func(hint):return hint.get("skill")=="gravity_well")
-		var marker:=int(game.drop_pos.x)
+		var marker := 0
+		for i in range(rows.size()-1,-1,-1):
+			if rows[i].phase in ["apply","repair_apply"]:
+				marker = int(rows[i].marker)
+				break
 		if starts.has(marker) and not observed.has(marker) and game.players.size()==4 and game.enemy_health()>400:
 			observed[marker]={"local_us":now,"first_marker_read_us":starts[marker],
 				"wait_us":now-int(starts[marker]),"sequence":game.guest_replication.sequence(),

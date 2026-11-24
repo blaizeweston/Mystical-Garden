@@ -56,7 +56,9 @@ var terrain_key := Vector3i(-1, -1, -1)
 var support_hit_until: Array[int] = []
 var last_foe_hp := 0
 var foe_hit_until := 0
-var seed_drop: Node3D
+var _wild_specimen: Node3D
+var _wild_specimen_id := ""
+var _wild_specimen_picked := false
 var attack_ring: MeshInstance3D
 var garden_portal: Node3D
 var wild_portal: Node3D
@@ -167,8 +169,6 @@ func _ready() -> void:
 	longlimb_legs = Node3D.new()
 	foe.add_child(longlimb_legs)
 	longlimb_legs.hide()
-	seed_drop = build_seed_model()
-	seed_drop.scale = Vector3.ONE * 1.35
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.90
 	ring.outer_radius = 1.0
@@ -224,7 +224,7 @@ func focus(origin: Vector3, wild: bool, delta: float = 1.0) -> void:
 
 
 func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
-		winding_up: bool, strike_radius: float, drop: Vector3, has_drop: bool, _planted: Array, depth: int, show_graft_altar: bool, briar_bound: bool, longlimb: bool, campaign: PackedInt32Array, pack: PackedFloat32Array, delta: float, view_id: int=-1) -> void:
+		winding_up: bool, strike_radius: float, _planted: Array, depth: int, show_graft_altar: bool, briar_bound: bool, longlimb: bool, campaign: PackedInt32Array, pack: PackedFloat32Array, delta: float, view_id: int=-1) -> void:
 	var now := preload("res://combat_clock.gd").now()
 	for id in avatars.keys():
 		if not players.has(id):
@@ -349,10 +349,32 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 			support_rings[i].position = impact
 			support_rings[i].scale = Vector3(radius, 0.25, radius)
 			support_binds[i].position = p + Vector3.UP * 0.13
-	seed_drop.visible = has_drop
-	seed_drop.position = WILD_OFFSET + drop + Vector3.UP * (0.38 + sin(now * 0.002) * 0.06)
-	seed_drop.rotation.y = now * 0.0004
-	pass # Plot presentation is driven by individual bed snapshots.
+
+
+## Draw the same mature silhouette as a Garden crop. Each viewer sees shorter,
+## picked growth after their own harvest. Flora uses no marker or physics body.
+func show_wild_flora(view: Dictionary, observer: Vector3, wild: bool) -> void:
+	var identity := str(view.get("identity", "")) if wild else ""
+	var picked := bool(view.get("claimed", false))
+	if _wild_specimen != null and (identity != _wild_specimen_id or picked != _wild_specimen_picked):
+		_wild_specimen.free()
+		_wild_specimen = null
+	if identity.is_empty():
+		return
+	var at: Vector3 = view.position
+	var nearby := at.distance_squared_to(observer) <= preload("res://exploration.gd").SIGHT ** 2
+	if nearby and _wild_specimen == null:
+		var species := int(view.species)
+		if species < 0 or species >= Seeds.DEFINITIONS.size():
+			return
+		_wild_specimen = build_crop(species, 2 if picked else 3, false)
+		_wild_specimen.name = "WildSpecimen"
+		_wild_specimen.position = WILD_OFFSET + at
+		_wild_specimen.scale = Vector3.ONE * (0.72 if picked else 1.25)
+		_wild_specimen_id = identity
+		_wild_specimen_picked = picked
+	if _wild_specimen != null:
+		_wild_specimen.visible = nearby
 
 
 func build_actor(parent: Node3D, scene: PackedScene, leg_prefix: String, count: int) -> Dictionary:
@@ -762,7 +784,6 @@ func apply_exploration_sight(world_position: Vector3, wild: bool, radius: float,
 		support_models[i].visible = support_models[i].visible and nearby
 		support_rings[i].visible = support_rings[i].visible and support_rings[i].position.distance_to(observer) <= radius
 		support_binds[i].visible = support_binds[i].visible and nearby
-	seed_drop.visible = seed_drop.visible and seed_drop.position.distance_to(observer) <= radius
 	seed_cache.visible = seed_cache.visible and seed_cache.position.distance_to(observer) <= radius
 
 static func garden_growth(knowledge: int, technologies: int) -> int:

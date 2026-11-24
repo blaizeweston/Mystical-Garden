@@ -311,7 +311,7 @@ func run() -> void:
 	var starting_tree = game.Classes.connected_tree(int(player.frame))
 	game.handle_loadout_action(game.HOST, player, "learn_%d_%d" % [player.frame, starting_tree.REQUEST_OFFSET])
 	check(starting_tree.focus(player.character) == "vanguard", "the fresh Warden explicitly selects its free starting focus before departure")
-	game.map_rng.seed = 16 # First floor rolls a clear seed; the second has an off-route cache.
+	game.map_rng.seed = 16 # The second floor has an off-route cache.
 	game.PartyTravel.request(game, game.HOST, "depart")
 	for ignored in 3:
 		await process_frame
@@ -406,6 +406,7 @@ func run() -> void:
 			and game.wallet_for(player) == expected_wallet and game.run_wallet(player) == before_clear_balance
 			and game.wild_item_drops == expected_drops,
 			"verified settlement abort restores the tally without rerolling or revoking live loot")
+	var carried_before: int = player.carried_seeds.size()
 	var rewarded: bool = game.flush_kill_rewards()
 	game.finish_combat(game.HOST, game.tactics.position)
 	check(game.encounter_rewarded, "the guarded combat settlement authorizes Gate progression")
@@ -422,12 +423,7 @@ func run() -> void:
 	for ignored in 3:
 		await process_frame
 	check(rewarded and game.encounter_cleared() and game.stage.wild_portal.visible, "real kills settle and activate the Gate")
-	var carried_before: int = player.carried_seeds.size()
-	check(player.loot_pending, "the first floor rolled one clear seed")
-	game.collect_drop(player)
-	game.collect_drop(player)
-	check(not player.loot_pending and player.carried_seeds.size() == carried_before + 1,
-		"a floor clear reward grants only one seed and cannot be collected twice")
+	check(player.carried_seeds.size() == carried_before, "ordinary clear and duplicate settlement never award a seed")
 	check(not game.wild_item_drops.is_empty() and Items.get_item(game.wild_item_drops[0].stack.item).category == "monster_part",
 		"real enemy-specific part drops use the production item catalog")
 	await _capture("cleared-gate")
@@ -562,14 +558,14 @@ func run() -> void:
 	var lair := Field.new()
 	lair.configure(0, 6, 241, 20, 0)
 	check(lair.generated.layout.layout_kind == "boss_lair" and lair.boss_kind == 20 and lair.connected(), "boss preserves its authored lair on the modern terrain pipeline")
-	check(not lair.has_seed_cache() and lair.clear_seed_count(6) == 0, "boss ambient seed rewards stay separate from authored rewards")
+	check(not lair.has_seed_cache() and lair.generate_flora(6).is_empty(), "boss ambient seed rewards stay separate from authored rewards")
 	var repeat := Field.new()
 	repeat.configure(game.Campaign.GROVE, 2, 91301383)
 	check(repeat.has_seed_cache() and repeat.cache.is_equal_approx(next_field.cache)
-		and repeat.clear_seed_count(2) == next_field.clear_seed_count(2), "the same floor seed reproduces placement and drops")
+		and repeat.generate_flora(2) == next_field.generate_flora(2), "the same floor seed reproduces cache and flora placement")
 	var miss := Field.new()
 	miss.configure(game.Campaign.GROVE, 1, 1095491782)
-	check(not miss.has_seed_cache() and miss.clear_seed_count(1) == 0, "a floor can roll neither seed source")
+	check(not miss.has_seed_cache(), "this floor has no ordinary mystery seed cache")
 	print("M17_ROUTE peak_usec=", query_peak, " failures=", route_failures, " cases=", samples)
 	game.return_to_main_menu()
 	await process_frame

@@ -20,6 +20,7 @@ const CAPABILITIES := {
 	"guest_profile_projection": 1,
 	"expedition_travel_consent": 1,
 	"expedition_abandonment_forfeiture": 1,
+	"wild_flora_harvest": 1,
 }
 
 ## Authored sender, transport/channel, ordered argument types and optional count.
@@ -29,6 +30,7 @@ const RPCS := {
 	"register_character": {"sender":"any_peer", "delivery":"reliable", "channel":0, "args":[TYPE_STRING,TYPE_DICTIONARY,TYPE_DICTIONARY,TYPE_INT], "optional":2},
 	"request_garden_action": {"sender":"any_peer", "delivery":"reliable", "channel":0, "args":[TYPE_STRING], "optional":0},
 	"request_action": {"sender":"any_peer", "delivery":"reliable", "channel":0, "args":[TYPE_BOOL], "optional":0},
+	"request_wild_flora": {"sender":"any_peer", "delivery":"reliable", "channel":0, "args":[TYPE_STRING,TYPE_STRING], "optional":0},
 	"request_dodge": {"sender":"any_peer", "delivery":"reliable", "channel":0, "args":[TYPE_VECTOR2], "optional":0},
 	"submit_motion": {"sender":"any_peer", "delivery":"unreliable_ordered", "channel":0, "args":[TYPE_VECTOR2], "optional":0},
 	"submit_movement": {"sender":"any_peer", "delivery":"unreliable_ordered", "channel":3, "args":[TYPE_ARRAY,TYPE_STRING], "optional":0},

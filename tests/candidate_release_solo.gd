@@ -98,9 +98,9 @@ func run() -> void:
  world.encounter.set_hp(-1, 0)
  world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
  world.encounter.clear_scouts()
- var expected_seed_reward: bool = world.battlefield.clear_seed_count(world.participation.depth()) > 0
+ var seeds_before_clear: Array = actor.carried_seeds.duplicate()
  world.finish_combat(1,world.tactics.position)
- check(world.encounter_rewarded and actor.loot_pending==expected_seed_reward and world.progress.wilds_memory.encounters==1,"guarded combat settlement")
+ check(world.encounter_rewarded and actor.carried_seeds==seeds_before_clear and world.progress.wilds_memory.encounters==1,"guarded combat settlement gives no ordinary clear seed")
  clear_floor(world,actor,3)
  world.expedition_transitions.checkpoint(1,true)
  var offer: Dictionary=world.checkpoint_card_data(actor)[0]

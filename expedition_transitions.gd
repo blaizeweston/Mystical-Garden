@@ -196,8 +196,6 @@ func _return_member(p: Dictionary, outcome := "Voluntary return") -> void:
 	p.safe_items=[]
 	p.carried_items={}
 	p.pouch = false
-	p.loot_pending = false
-	game.refresh_drop()
 	p.secondary = game.Parts.EMPTY
 	p.catalyst=0
 	p.erase(preload("res://expedition_grafts.gd").STATE)
@@ -324,6 +322,7 @@ func reset() -> void:
 	for player in game.players.values():
 		if Participation.is_waiting(player): held_peers.append(Participation.peer_for(player))
 	if not game.participation.reset_run(): return
+	game.wild_flora.clear()
 	game.mouse_controls.clear(game)
 	game.tactics.begin_boss(-1);game.boss_floors.clear();game.used_bosses.clear();game.enemy_hazards.clear()
 	game.PartyTravel.clear(game)

@@ -259,7 +259,6 @@ func remove(id: int) -> void:
 	game.participation.detach(id)
 	game.players.erase(id)
 	game.motions.erase(id)
-	game.refresh_drop()
 	if may_settle:
 		PartyTravel.cancel(game,"A player disconnected. Confirm readiness again to continue.")
 		var needs_wipe: bool = (game.participation.active() or leaving_wild) and Life.living_ids(game).is_empty()

@@ -30,7 +30,7 @@ func present_effects(frame: Dictionary) -> void:
 	for ring in _stage.support_rings: ring.visible=false
 	_map.thief_routes=frame.thief_routes
 	_map.update_floor(_stage.visual_field,floor_key,frame.observer,_stage.camera,frame.wild,
-		frame.drop,frame.visible_drop,frame.cache_available,frame.overlay_open,frame.graft_open,frame.ground_items)
+		frame.cache_available,frame.overlay_open,frame.graft_open,frame.ground_items)
 	_stage.apply_exploration_sight(frame.observer,frame.wild,Exploration.SIGHT,
 		_map.seen(frame.advance) if is_instance_valid(_stage.experimental_exit) else true)
 	Glass.sync(_stage,frame.observer,Exploration.SIGHT)

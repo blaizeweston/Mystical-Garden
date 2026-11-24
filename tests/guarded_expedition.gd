@@ -229,7 +229,7 @@ func exercise() -> void:
  var frozen: int=world.rng.state
  world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
  check(world.monster_rewards.pending_count()==1 and world.rng.state==frozen,"duplicate receipt does not reroll")
- var expected_seed_reward: bool = world.battlefield.clear_seed_count(world.participation.depth()) > 0
+ var seeds_before_clear: Array = actor.carried_seeds.duplicate()
  var immediate_wallet = world.wallet_for(actor)
  var immediate_drops: Array = world.wild_item_drops.duplicate(true)
  check(immediate_wallet.earned_sparks() > initial_wallet.earned_sparks() and world.flush_kill_rewards()
@@ -244,7 +244,7 @@ func exercise() -> void:
  var serial: int=world.combat_event_serial
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.finish_combat(1,world.tactics.position)
- check(not world.encounter_rewarded and not actor.loot_pending and actor.character.monsters[world.enemy_kind]==0 and world.monster_rewards.pending_count()==1
+ check(not world.encounter_rewarded and actor.carried_seeds==seeds_before_clear and actor.character.monsters[world.enemy_kind]==0 and world.monster_rewards.pending_count()==1
   and world.wild_item_drops==immediate_drops and world.combat_event_serial==serial and world.rng.state==frozen and disk()==before
   and world.wallet_for(actor)==immediate_wallet,"encounter abort keeps the frozen receipt and withholds rewards, drop and cue")
  record("encounter_abort",before)
@@ -252,8 +252,8 @@ func exercise() -> void:
  world.finish_combat(1,world.tactics.position)
  var earned_wallet = world.wallet_for(actor)
  var earned_balance: int = world.run_wallet(actor)
- var settled_facts: Dictionary = {"rewarded":world.encounter_rewarded,"loot":actor.loot_pending,"earned":earned_wallet.earned_sparks(),"balance":earned_balance,"monsters":actor.character.monsters[world.enemy_kind],"drops":world.wild_item_drops,"expected_item":frozen_item,"encounters":world.progress.wilds_memory.encounters,"garden_saved":disk()[G]!=before[G],"character_saved":disk()[C]!=before[C]}
- check(world.encounter_rewarded and actor.loot_pending==expected_seed_reward and earned_wallet.earned_sparks()>0
+ var settled_facts: Dictionary = {"rewarded":world.encounter_rewarded,"seeds":actor.carried_seeds,"earned":earned_wallet.earned_sparks(),"balance":earned_balance,"monsters":actor.character.monsters[world.enemy_kind],"drops":world.wild_item_drops,"expected_item":frozen_item,"encounters":world.progress.wilds_memory.encounters,"garden_saved":disk()[G]!=before[G],"character_saved":disk()[C]!=before[C]}
+ check(world.encounter_rewarded and actor.carried_seeds==seeds_before_clear and earned_wallet.earned_sparks()>0
   and earned_balance>=2 and actor.character.monsters[world.enemy_kind]==1
   and world.wild_item_drops.size()==1 and world.wild_item_drops[0].stack.item==frozen_item
   and world.progress.wilds_memory.encounters==1 and disk()[G]!=before[G] and disk()[C]!=before[C],

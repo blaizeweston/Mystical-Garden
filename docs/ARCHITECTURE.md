@@ -1473,6 +1473,46 @@ The focused tool tests live under `tools/tests/`. They cover retirement without 
 
 `GameplayUI.configure_arena_menu` owns Arena controls. Game routes `arena_open`; ArenaWorld routes `arena_setup`. Arena code does not access removed Game controls or helper factories. The enemy-step override remains `tick_enemies(delta, now)`, with persistence refusal checked through the current session owner. [Neural Arena](NEURAL_ARENA.md) records its current editing paths, native build dependency and focused verification. Normal gameplay and protocol-41 NodePaths/layout remain unchanged at this integration boundary. The following terrain cutover makes this the default integrated game; no historical terrain engine remains selectable.
 
+## Natural Wilds flora (WF01)
+
+A living expedition participant can harvest one unidentified seed from a nearby specimen, even during combat. The host fixes the species and position when the floor opens. Every participant can harvest that same species once. A successful harvest changes only that character’s carried inventory and claim. The Garden altar identifies the stored species and awards the shared first discovery through the existing progression system.
+
+| Editing task | Source and rule |
+|---|---|
+| Botanical identity | `seed_catalog.gd` defines the 24 stable species, rarities, preferred biomes, minimum ordinary encounters and mature forms. Garden crops and Wilds specimens share these definitions. |
+| Spawn and selection | `wild_flora_generation.gd` owns the provisional 40% floor roll and six global-encounter rarity bands. Eligible rarities receive their relative weights. Species below their own minimum encounter are excluded. Within a rarity, the preferred biome gives a species 1.5× weight. The floor seed, route, local depth and global encounter seed an independent random stream. |
+| First two encounters | `WildFlora.starter` asks `InventoryModel.garden_or_party_has_seed` about Garden discoveries, available stock, unidentified reserves and present characters’ carried/pouched seeds. Floor 1 prioritizes missing Thorn Bloom, floor 2 missing Lantern Moss. Either can supply the other missing starter. In any starting biome a missing starter bypasses the chance and biome rolls. A Garden with both covered uses ordinary odds. Co-op gets one shared specimen. Individual pickup history still belongs to the separate cache. |
+| Floor placement | `Game.start_encounter` supplies actual enemy formation positions to `Battlefield.generate_flora`. It searches room margins and trail shoulders connected to the entrance through existing certified navigation, including side branches. A missing starter can also use dry ground within reach of a certified trail when the ordinary candidate positions are all occupied. It excludes water, cover, obstructing foliage, entrances, gates, stations, cache and spawn positions. Ordinary, elite and guardian procedural floors are eligible. Authored boss arenas and practice maps supply no specimens. |
+| Collection and recovery | `wild_flora.gd` holds one floor record and its stable-character claims. `Game.harvest_wild_flora` checks host authority, session binding, live participation and write readiness. The owner checks specimen identity, 1.55 m reach and a clear segment before calling `InventoryModel.admit_wild_seed`. A failed admission leaves the claim open. The transaction savepoint restores inventory and claims together on verified rollback. |
+| Network and display | The targeted harvest RPC uses the existing character/life/world action stamp. One detached personal specimen travels in reliable owner details. Protocol 41 retains its compact layout and the handshake requires the WF01 harvest capability. `Stage.show_wild_flora` uses the Garden’s mature crop geometry, switches to a smaller young model for the collector and respects local sight distance. `ui/gameplay/world_guidance.gd` supplies the nearby interaction prompt. |
+| Other seed sources | The ordinary encounter-clear seed bundle has been retired. The separate 20% ordinary cache opportunity keeps its own eligibility, random roll and introductory protections. Boss Ancient Mystery Seeds keep their existing reward and identification rules. |
+| Playtest coverage | `tests/wild_flora_generation.gd` covers depth/biome selection, map determinism and reachable placement. `tests/wild_flora_harvest.gd` exercises actual guarded inventory admission, extraction, altar identification, rollback, pouch, wipe, abandonment and Returning Mycelium. `tests/wild_flora_coop.gd` and `tests/wild_flora_party.gd` verify targeted interactions and independent recipient claims over loopback. |
+
+Extraction banks carried seeds. A wipe recovers the safe pouch. Voluntary abandonment forfeits carried and pouched items. A previously committed Returning Mycelium delivery stays in the Garden. Specimens and their claims are floor-local. Disconnect and readmission follow the existing expedition rules.
+
+### WF01 generation sample
+
+The deterministic headless sample used 90 ordinary maps per depth band, evenly divided across Grove, Mire and Hollow. It exercised actual terrain and spawn anchors with the introductory override disabled. Of 540 maps, 228 passed the 40% roll and 227 placed a reachable specimen (42.04% of maps). One successful roll lacked a suitable ordinary site. The independent starter check placed the missing species on 192 of 192 introductory maps. Twenty-one paired game encounters also checked the final enemy positions as exclusions.
+
+| Global encounter | Specimens / 90 | Common | Uncommon | Rare | Epic | Mythic |
+|---|---:|---:|---:|---:|---:|---:|
+| 1–5 | 38 | 38 | 0 | 0 | 0 | 0 |
+| 6–15 | 37 | 26 | 11 | 0 | 0 | 0 |
+| 16–30 | 38 | 15 | 18 | 5 | 0 | 0 |
+| 31–50 | 38 | 9 | 11 | 13 | 5 | 0 |
+| 51–59 | 42 | 5 | 10 | 14 | 11 | 2 |
+| 60+ (sampled to 90) | 34 | 5 | 11 | 8 | 6 | 4 |
+
+| Rarity | Specimens by species |
+|---|---|
+| Common | Thorn Bloom 44, Lantern Moss 35, Ember Fern 19 |
+| Uncommon | Veilcap 15, Cinder Vine 15, Dewcap 11, Ironroot 20 |
+| Rare | Bloodbriar 5, Ghost Fern 3, Storm Reed 6, Moon Lotus 2, Frostbell 3, Whispervine 7, Mirror Mint 5, Gravemoss 5, Tide Lily 4 |
+| Epic | Star Orchid 7, Void Willow 4, Sun Spire 2, Hush Orchid 6, Dream Poppy 3 |
+| Mythic | Eclipse Root 3, Worldseed 2, Crownroot 1 |
+
+To repeat the 540-map sample, run the registered `wild_flora_generation` fixture with `MYSTICAL_FLORA_SAMPLE_SIZE=30`. For visual playtesting, launch the branch with `tools/launch_experimental_terrain.ps1 -GodotExe <path-to-Godot>`. This source launcher creates a fresh disposable profile each time.
+
 ## Single modern Garden and Wilds terrain
 
 The generated Garden is the default on ordinary title/world entry, alongside the modern Wilds, all four boss lairs and the Heart route. The previous opt-in Garden was already in Git ancestry; its startup flag and the special-floor fallback kept those changes from being the normal experience. The `--experimental-terrain` name is retained only for the verified isolated-save launcher/fixture contract. It no longer selects a generator. `Experiment.network_identity()` reports the same terrain contract for both source launch routes.

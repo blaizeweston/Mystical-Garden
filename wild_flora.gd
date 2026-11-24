@@ -29,15 +29,15 @@ func view(character: String) -> Dictionary:
 	result.claimed = _collected.has(character)
 	return result
 
-static func within_reach(specimen: Dictionary, position: Vector3) -> bool:
+static func within_reach(specimen: Dictionary, position: Vector3, clear_line: Callable) -> bool:
 	return not specimen.is_empty() and not specimen.claimed and position.is_finite() \
-		and position.distance_to(specimen.position) <= HARVEST_REACH
+		and position.distance_to(specimen.position) <= HARVEST_REACH and clear_line.call(position, specimen.position)
 
 func collect(identity: String, character: String, position: Vector3, clear_line: Callable, admit: Callable) -> bool:
 	var specimen := view(character)
-	if identity != _floor_key or not within_reach(specimen, position):
+	if identity != _floor_key or not within_reach(specimen, position, clear_line):
 		return false
-	if not clear_line.call(position, specimen.position) or not admit.call(specimen.species):
+	if not admit.call(specimen.species):
 		return false
 	_collected[character] = true
 	return true

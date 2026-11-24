@@ -36,8 +36,8 @@ class MapView extends Node:
 	var thief_routes:Array=[]
 	var received:Array=[]
 	var looked_at:=Vector3.INF
-	func update_floor(field:RefCounted,key:String,observer:Vector3,camera:Camera3D,wild:bool,drop:Vector3,visible_drop:bool,cache_available:bool,overlay_open:bool,graft_open:bool,items:Array):
-		received=[field,key,observer,camera,wild,drop,visible_drop,cache_available,overlay_open,graft_open,items.duplicate(true)];calls.append("map")
+	func update_floor(field:RefCounted,key:String,observer:Vector3,camera:Camera3D,wild:bool,cache_available:bool,overlay_open:bool,graft_open:bool,items:Array):
+		received=[field,key,observer,camera,wild,cache_available,overlay_open,graft_open,items.duplicate(true)];calls.append("map")
 	func seen(at:Vector3)->bool:looked_at=at;return false
 class SoundView extends Node:
 	var calls:Array=[]
@@ -56,14 +56,14 @@ func run():
 	check(stage.has_meta("enemy_attack_poses") and stage.has_meta("glasscap_positions"),"warning preparation targets scene metadata without Game")
 	var frame:Dictionary={"site":1,"floor":4,"seed":99,"wild":true,"local_id":2,"observer":Vector3(2,0,3),"advance":Vector3(9,0,8),
 		"deaths":[{"id":1}],"events":[{"id":7,"kind":"audio"}],"warnings":[],"thief_routes":[{"id":3,"pos":Vector3.ONE}],
-		"drop":Vector3.ONE,"visible_drop":true,"cache_available":true,"overlay_open":false,"graft_open":true,"ground_items":[{"id":"drop-1"}]}
+		"cache_available":true,"overlay_open":false,"graft_open":true,"ground_items":[{"id":"drop-1"}]}
 	var before:=frame.duplicate(true)
 	view.present_effects(frame)
 	check(calls==["deaths","audio","combat","map","sight"],"death, audio, combat, map and sight retain their order")
 	check(deaths.received[1]=="1:4:99:true" and audio.received[1]==deaths.received[1] and combat.received[2]==deaths.received[1],"all transient renderers share the existing floor/participation key")
 	check(map.received[1]=="1:4:99" and map.looked_at==frame.advance and not stage.sight[3],"map reset and gate visibility use the correct captured floor identity and point")
 	check(not stage.attack_ring.visible and not stage.support_rings[0].visible and map.thief_routes.size()==1,"legacy rings stay hidden and chase routes reach the map")
-	check(audio.received[4]==2 and audio.received[5]>0 and combat.received[0]==frame.events and map.received[10]==frame.ground_items,"audio recipient/time and event/item projections reach their existing consumers")
+	check(audio.received[4]==2 and audio.received[5]>0 and combat.received[0]==frame.events and map.received[8]==frame.ground_items,"audio recipient/time and event/item projections reach their existing consumers")
 	check(frame==before,"presentation never mutates input facts")
 	frame.wild=false;frame.deaths=[];calls.clear();view.present_effects(frame)
 	check(combat.received[0].is_empty() and audio.received[0]==frame.events and deaths.received[1]=="1:4:99:false","Garden audio remains available while combat geometry is suppressed")

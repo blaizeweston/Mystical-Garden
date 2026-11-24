@@ -16,13 +16,11 @@ var field: RefCounted
 var floor_key := ""
 var cells: Array[Vector2i] = []
 var player := Vector3.ZERO
-var loot := Vector3.ZERO
 var cache := Vector3.ZERO
 var item_drops: Array=[]
 var thief_routes: Array=[]
 var thief_tunnels: Dictionary={}
 const ThiefView = preload("res://thief_escape_view.gd")
-var has_loot := false
 var has_cache := false
 var has_shrine := false
 var expanded := false
@@ -94,7 +92,7 @@ func seen(position: Vector3) -> bool:
 	return Rect2i(Vector2i.ZERO, GRID).has_point(cell) and explored.get_pixelv(cell).r > 0.5
 
 func update_floor(new_field: RefCounted, key: String, position: Vector3, camera: Camera3D,
-		wild: bool, drop: Vector3, pending: bool, cache_pending: bool, menus_open: bool, shrine_available: bool = false, drops: Array=[]) -> void:
+		wild: bool, cache_pending: bool, menus_open: bool, shrine_available: bool = false, drops: Array=[]) -> void:
 	item_drops=drops
 	fog.visible = wild
 	chart.visible = wild and not menus_open
@@ -104,9 +102,7 @@ func update_floor(new_field: RefCounted, key: String, position: Vector3, camera:
 		return
 	field = new_field
 	player = position
-	loot = drop
 	cache = field.cache
-	has_loot = pending
 	has_cache = cache_pending and field.has_seed_cache()
 	has_shrine = shrine_available
 	if key != floor_key:
@@ -174,8 +170,6 @@ func draw_chart(canvas: Control) -> void:
 	if has_shrine and seen(field.graft):
 		var shrine := chart_point(field.graft,canvas)
 		canvas.draw_colored_polygon(PackedVector2Array([shrine+Vector2(0,-5),shrine+Vector2(5,4),shrine+Vector2(-5,4)]),Color("#bdc9f0"))
-	if has_loot and seen(loot):
-		diamond(canvas, chart_point(loot, canvas))
 	if has_cache and seen(cache):
 		diamond(canvas, chart_point(cache, canvas))
 	for item in item_drops:

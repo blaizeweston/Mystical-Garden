@@ -32,7 +32,6 @@ static func _wild(facts: Dictionary, result: Dictionary) -> void:
 	if not facts.cleared:
 		var warning := attack_warning(facts.position,facts.leader,facts.scouts,facts.campaign,facts.warnings)
 		result.prompt="Dodge out of the marked attack!" if warning.danger else "Stand at a hatch site to block it." if warning.hatching else ""
-	elif facts.visible_drop: result.prompt="E  Collect seeds"
 	elif facts.depth<Encounter.BIOME_LENGTH: result.prompt="E  Continue"
 	else: result.prompt="Continue to %s"%Campaign.NAMES[(facts.route+1)%Campaign.BIOME_COUNT]
 	if facts.upgrade_open and facts.offer_floor!=facts.floor:
@@ -41,6 +40,8 @@ static func _wild(facts: Dictionary, result: Dictionary) -> void:
 		result.prompt="E  Continue    ·    T  Extract to the Garden"
 		result.details="Extract or continue."
 		if facts.offer_floor!=facts.floor: result.details+="\nE  Choose an upgrade   ·   %d Essence"%facts.wallet
+	if facts.flora_near and (facts.cleared or result.prompt.is_empty()):
+		result.prompt="E  Harvest wild specimen"
 	if facts.cache_near: result.prompt="E  Search the abandoned clearing"
 	if facts.graft_near:
 		result.prompt="E  Grafting Altar"

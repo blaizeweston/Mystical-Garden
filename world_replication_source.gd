@@ -61,7 +61,7 @@ func world_state(now: int) -> Dictionary:
 	var tactics = _world.tactics
 	return {"people":players(-1,false),"campaign":_world.campaign_snapshot(),
 		"scouts":_world.encounter.scout_pack(now),"enemy":tactics.position,
-		"hp":_world.enemy_health(),"maximum":_world.encounter_health(),"drop":_world.drop_pos,
+		"hp":_world.enemy_health(),"maximum":_world.encounter_health(),"drop":Vector3.ZERO,
 		"depth":_world.participation.depth(),
 		"flags":int(tactics.winding_up)|(8 if now<tactics.rooted_until else 0)|(16 if tactics.longlimb else 0)}
 
@@ -83,7 +83,7 @@ func diagnostics() -> Dictionary:
 func recipient(peer: int) -> Dictionary:
 	if not _world.players.has(peer): return {}
 	var actor: Dictionary = _world.players[peer]
-	return {"carried":actor.carried_seeds.size(),"dropped":actor.loot_pending,"pouch":actor.pouch}
+	return {"carried":actor.carried_seeds.size(),"dropped":false,"pouch":actor.pouch}
 
 func owner_binding(peer: int) -> Dictionary:
 	return {"connection":_world.network_session.connection_key(peer),
@@ -117,6 +117,9 @@ func owner_details(peer: int, common: Dictionary) -> Dictionary:
 		"graft_choice":0,"cache_claimed":actor.cache_claimed,
 		"graft_improvements":preload("res://expedition_grafts.gd").owner_details(actor,_world.participation.floor())}
 	result.merge(common)
+	# One recipient-specific specimen at most. Reliable details also recover
+	# this projection after travel or reconnect; the 20 Hz frame stays unchanged.
+	result.wild_flora = _world.wild_flora_view(peer) if wild else {}
 	if wild:
 		result.affinity_feedback = preload("res://combat_status.gd").affinity_feedback(_world,actor)
 		result.thief_routes = preload("res://thief_escape.gd").snapshot(_world)

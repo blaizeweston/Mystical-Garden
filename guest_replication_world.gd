@@ -43,7 +43,6 @@ func apply_world(state: Dictionary) -> void:
 		_world.players[peer][Participation.STATE] = links[peer]
 		_world.players[peer].erase("wild")
 	var flags := int(state.flags)
-	_world.drop_pos = state.drop;_world.has_drop = (flags&2)!=0
 	var campaign: PackedInt32Array = state.campaign
 	_world.participation.project_world({"depth":state.depth,"destination":campaign[0],
 		"map_seed":campaign[8],"encounter_number":campaign[9],"difficulty_cycle":campaign[10]})

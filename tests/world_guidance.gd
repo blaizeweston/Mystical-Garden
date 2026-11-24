@@ -7,7 +7,7 @@ func check(ok: bool, message: String) -> void:
 	if not ok:failed=true;printerr("FAIL world guidance: ",message)
 func facts() -> Dictionary:
 	return {"wild":false,"position":Vector3.ZERO,"fallen":false,"floor":3,"depth":1,"route":0,
-		"role":"Solo","party_size":1,"host_port":24576,"cleared":true,"visible_drop":false,
+		"role":"Solo","party_size":1,"host_port":24576,"cleared":true,"flora_near":false,
 		"leader":{"boss_kind":-1,"winding_up":false,"landing":Vector3(20,0,20),"attack_mode":"","position":Vector3(20,0,20),"radius":1.0},
 		"scouts":PackedFloat32Array(),"campaign":PackedInt32Array(),"warnings":[],"gate_distance":20.0,"upgrade_open":false,
 		"extraction_open":false,"offer_floor":3,"wallet":8,"cache_near":false,"graft_near":false,"improvements":{},
@@ -29,8 +29,15 @@ func run() -> void:
 	check(Guidance.project(f).prompt=="E  Heart   ·   B  Garden development","Heart construction hint remains conditional")
 	f.wild=true
 	check(Guidance.project(f).prompt=="E  Continue","cleared Wilds continuation")
-	f.visible_drop=true
-	check(Guidance.project(f).prompt=="E  Collect seeds","uncollected seeds precede continuation")
+	f.flora_near=true
+	check(Guidance.project(f).prompt=="E  Harvest wild specimen","a nearby unpicked specimen takes priority over floor continuation")
+	f.cleared=false
+	check(Guidance.project(f).prompt=="E  Harvest wild specimen","flora can be harvested before the encounter clears")
+	f.leader.winding_up=true;f.leader.position=Vector3.ZERO
+	check(Guidance.project(f).prompt=="Dodge out of the marked attack!","nearby flora does not mask a danger warning")
+	f.leader.winding_up=false;f.flora_near=false
+	check(Guidance.project(f).prompt=="","no beacon or prompt for a distant or locally picked specimen")
+	f.cleared=true
 	f.upgrade_open=true;f.offer_floor=2
 	check(Guidance.project(f).prompt=="Upgrades await at the gate","unclaimed offer at a distant gate")
 	f.gate_distance=2.0

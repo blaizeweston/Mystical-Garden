@@ -86,7 +86,6 @@ func run():
 	game.encounter.set_hp(-1, 0)
 	game.encounter_rewarded=true
 	game.wild_item_drops.clear()
-	p.loot_pending=false
 	game.battlefield.graft=game.battlefield.advance.move_toward(game.battlefield.leader,1.0)
 	p.pos=game.battlefield.graft
 	game._process(.016)

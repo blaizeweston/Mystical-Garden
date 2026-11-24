@@ -64,12 +64,6 @@
       }
     },
 
-    "collect_drop": {
-      "experimental_seed_rewards_1": {
-        "match": "\tif not player.get(\"loot_pending\", false):\n\t\treturn\n\tvar count := battlefield.clear_seed_count(participation.depth())\n",
-        "baseline": "\tvar count := 1 if participation.depth() == 1 else 2\n"
-      }
-    },
     "_garden_action": {
       "ar08_lifecycle_1": {
         "match": "\tif PlayerLifecycle.fallen(player) and Participation.is_wild(player) and action!=\"abandon_run\" and not action.begins_with(\"abandon_run:\"): return\n",
@@ -464,14 +458,6 @@
 
     },
     "_finish_combat": {
-      "experimental_seed_rewards_1": {
-        "match": "\tvar seeds_available := battlefield.clear_seed_count(participation.depth()) > 0\n\tfor player in players.values(): player.loot_pending=seeds_available and Life.alive(player)\n",
-        "baseline": "\tfor player in players.values(): player.loot_pending=Life.alive(player)\n"
-      },
-      "experimental_seed_rewards_2": {
-        "match": "\tvar clear_message := \"Encounter cleared. Press E near the glowing loot.\" if has_drop else \"Encounter cleared.\"\n\taction_feedback(effects,id,clear_message+Learning.notice(previous_memory,progress.wilds_memory.score))\n",
-        "baseline": "\taction_feedback(effects,id,\"Encounter cleared. Press E near the glowing loot.\"+Learning.notice(previous_memory,progress.wilds_memory.score))\n"
-      },
       "preview_ranged_threshold": {
         "match": "Life.Vitals.counts_as_ranged(ranged_damage_this_room,damage_this_room,Life.Preview.scale())",
         "baseline": "Life.Vitals.counts_as_ranged(ranged_damage_this_room,damage_this_room)"
@@ -2495,8 +2481,8 @@
         "baseline": "\tif not wild:\n\t\tfloor_key = \"\"\n\t\treturn"
       },
       "thief_chart_state": {
-        "match": "var item_drops: Array=[]\nvar thief_routes: Array=[]\nvar thief_tunnels: Dictionary={}\nconst ThiefView = preload(\"res://thief_escape_view.gd\")\nvar has_loot",
-        "baseline": "var item_drops: Array=[]\nvar has_loot"
+        "match": "var item_drops: Array=[]\nvar thief_routes: Array=[]\nvar thief_tunnels: Dictionary={}\nconst ThiefView = preload(\"res://thief_escape_view.gd\")\n",
+        "baseline": "var item_drops: Array=[]\n"
       },
       "terrain_extent": {
         "match": "const Field=preload(\"res://battlefield.gd\")\nconst MINIMUM := Vector2(Field.REGION.position)\nconst GRID := Field.REGION.size*2\n",
