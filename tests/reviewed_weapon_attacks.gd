@@ -37,7 +37,8 @@ func inspect(stage: Node3D, actor: Dictionary, body: int, form: String, class_id
 	for step in [1,2]:
 		var clip: String=Motion.basic_variant(form,step).clip
 		check(Snapshot.CLIPS.has(clip),"compact snapshot supports "+clip)
-		pose(actor,form,clip,0,false,step,1)
+		pose(actor,form,clip,0,true,step)
+		pose(actor,form,clip,0,false,step,.50)
 		var ready := weapon.global_transform.orthonormalized()
 		for frame in 51:
 			var phase := frame/50.0
@@ -79,7 +80,7 @@ func inspect(stage: Node3D, actor: Dictionary, body: int, form: String, class_id
 		pose(actor,form,clip,1,true,step)
 		pose(actor,form,clip,0,false,step,.005)
 		check(actor.field_rig.player.current_animation==clip.replace("Attack_","Recover_"),"individual recovery")
-		pose(actor,form,clip,0,false,step,1)
+		pose(actor,form,clip,0,false,step,.50)
 		check(actor.field_rig.player.current_animation=="Ready_"+form+"_review","attack returns to ready")
 		check(ready.basis.get_rotation_quaternion().angle_to(weapon.global_transform.orthonormalized().basis.get_rotation_quaternion())<.01,"ready orientation recovered")
 		if form=="bow":check(weapon.get_node("NockedArrow").visible,"ready arrow is nocked")

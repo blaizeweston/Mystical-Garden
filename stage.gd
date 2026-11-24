@@ -16,7 +16,6 @@ const PINE = preload("res://assets/root_tree.glb")
 const SNAG = preload("res://assets/root_snag.glb")
 const RUIN = preload("res://assets/wild_ruin.glb")
 const Classes = preload("res://class_catalog.gd")
-const Parts = preload("res://weapon_parts.gd")
 const Seeds = preload("res://seed_catalog.gd")
 const FLAGSTONES = preload("res://assets/wild_path.glb")
 const WILD_BOUNDS := Vector2(25.0, 23.0)
@@ -494,12 +493,7 @@ func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, world_po
 			var other:=preload("res://weapon_visuals.gd").build(self,class_id,weapon_id);other.reparent(actor.model,false);actor.secondary_weapon=other
 		actor.visual_weapon=effect_visual
 		actor.weapon_key=visual_key
-	var visual: Node3D=actor.visual_weapon
 	preload("res://weapon_visuals.gd").animate(actor,str(player.weapon_form),attack_phase,active,yaw,float(motion.reach),motion)
-	var core:=int(player.core_part)
-	if core>0 and core<Parts.DEFINITIONS.size() and Parts.is_plant(core):
-		var core_seed: MeshInstance3D=visual.get_node("CoreSeed")
-		(core_seed.material_override as StandardMaterial3D).albedo_color=Color(Seeds.DEFINITIONS[Parts.plant_source(core)].color)
 
 
 func attack_material(tint: Color) -> StandardMaterial3D:

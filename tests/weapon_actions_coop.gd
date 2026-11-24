@@ -153,8 +153,8 @@ func guest_run():
   if focus==null:return false
   var rig: Skeleton3D=player.field_rig.skeleton
   var pelvis:=rig.to_global(rig.get_bone_global_pose(player.field_rig.pelvis).origin)
-  var seed: Node3D=player.visual_weapon.get_node("CoreSeed")
-  return seed.global_position.y>pelvis.y+.15)
+  var held: Node3D=player.visual_weapon
+  return focus.is_visible_in_tree() and held.to_global(held.get_meta("handle")).y>pelvis.y+.15)
  check(focus_lifted,"guest receives a focus carried above the pelvis")
  await inspect_focus_casts(id)
  mark("focus-checked")

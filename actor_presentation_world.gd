@@ -54,7 +54,7 @@ func _avatar(world: Node, actor: Dictionary, now: int) -> Dictionary:
 		"appearance":Array(actor.get("character",{}).get("appearance",actor.get("appearance",[0,0,0,0,0]))).duplicate(),
 		"party_slot":Session.slot_for(actor,0),"wild":wild,"fallen":fallen,"yaw":yaw,"swing":swing,
 		"attack_anim":animation,"frame":int(actor.get("frame",0)),"weapon_kind":int(actor.get("weapon_kind",0)),
-		"weapon_form":WeaponMotion.form(actor),"core_part":int(actor.get("core_part",actor.get("weapon",0) if wild else actor.get("prepared",0))),
+		"weapon_form":WeaponMotion.form(actor),
 		"skill_fx":effect.duplicate(true),"cache_claimed":bool(actor.get("cache_claimed",false))}
 	if actor.has("aim_direction"):result.aim_direction=actor.aim_direction
 	return result

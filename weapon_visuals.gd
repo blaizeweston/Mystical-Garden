@@ -14,12 +14,10 @@ static func build(stage: Node3D,class_id: int,weapon_id: int) -> Node3D:
  var form: String=Classes.DEFINITIONS[class_id].weapons[weapon_id].visual
  var wood:=Color("#684c2d")
  var steel:=Color("#d7dfc8")
- var seed_position:=Vector3(0,.13,.08)
  var handle:=Vector3.ZERO
  if Models.MODELS.has(form):
   Models.attach(root,form)
   handle=Models.MODELS[form].grip
-  seed_position=Models.MODELS[form].core
  match form:
   "blade":
    var blade:=ROOTBLADE.instantiate()
@@ -32,7 +30,6 @@ static func build(stage: Node3D,class_id: int,weapon_id: int) -> Node3D:
    root.add_child(model)
    marker(root,"WeaponTip",definition.tip)
    root.set_meta("support_grip",Vector3(0,definition.support,0))
-   seed_position=definition.seed
   "staff","wand":
    marker(root,"WeaponTip",Models.SPELL_TIPS[form])
   "bow","crossbow":
@@ -65,10 +62,6 @@ static func build(stage: Node3D,class_id: int,weapon_id: int) -> Node3D:
     root.add_child(piece)
     segments.append(piece)
    root.set_meta("vine_segments",segments)
- # A material-colored seed set into every weapon makes Core changes visible.
- var gem: MeshInstance3D=stage.sphere(seed_position,.055,Color("#a3bf7c"))
- gem.name="CoreSeed"
- gem.reparent(root,false)
  root.set_meta("handle",handle)
  root.scale=Vector3.ONE*model_scale(form)
  return root
@@ -101,6 +94,27 @@ static func segment(node: Node3D,a: Vector3,b: Vector3,rest_length: float=0.0,th
  node.position=(a+b)*.5
  node.basis=Basis(Quaternion(Vector3.UP,direction.normalized())).scaled_local(Vector3(thickness,direction.length()/maxf(.001,rest_length),thickness))
 static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw: float,reach: float,action: Dictionary={}) -> void:
+ var field: Dictionary=actor.field_rig
+ var carry: Dictionary=field.carry
+ if field.at_ease and carry.has("primary_mount") and field.carry_form==form:
+  actor.visual_weapon.global_transform=wrist_frame(field,form=="bow")*Transform3D(carry.primary_mount)
+  if actor.has("secondary_weapon") and carry.has("secondary_mount"):
+   actor.secondary_weapon.global_transform=wrist_frame(field,true)*Transform3D(carry.secondary_mount)
+  if form in ["bow","crossbow"]:actor.visual_weapon.get_node("NockedArrow").hide()
+  return
+ draw_equipped(actor,form,phase,active,yaw,reach,action)
+ if carry.has("grip_rotations") and not carry.has("primary_mount") and field.carry_form==form:
+  # Store the reviewed grip in wrist space, including each knife's own grip.
+  carry.primary_mount=wrist_frame(field,form=="bow").affine_inverse()*actor.visual_weapon.global_transform
+  if actor.has("secondary_weapon"):
+   carry.secondary_mount=wrist_frame(field,true).affine_inverse()*actor.secondary_weapon.global_transform
+
+static func wrist_frame(field: Dictionary, left: bool) -> Transform3D:
+ var skeleton: Skeleton3D=field.skeleton
+ var socket: Dictionary=field.left if left else field.right
+ return (skeleton.global_transform*skeleton.get_bone_global_pose(socket.bone)).orthonormalized()
+
+static func draw_equipped(actor: Dictionary,form: String,phase: float,active: bool,yaw: float,reach: float,action: Dictionary) -> void:
  var profile: Dictionary=preload("res://weapon_motion.gd").profile(form)
  var contact:=float(profile.release)
  var primary: Node3D=actor.visual_weapon
@@ -234,8 +248,6 @@ static func pose_censer(weapon: Node3D, swing: Quaternion) -> void:
  var rest:=rig.get_bone_global_rest(joint).basis
  var parent:=rig.get_bone_global_rest(rig.get_bone_parent(joint)).basis
  rig.set_bone_pose_rotation(joint,(parent.inverse()*Basis(swing)*rest).get_rotation_quaternion())
- var hinge:=Reviewed.point(Reviewed.grips.censer.hinge,0)
- weapon.get_node("CoreSeed").position=hinge+swing*(Vector3(Models.MODELS.censer.core)-hinge)
 
 ## Each link inherits the reviewed rotation in grip space. Reach upgrades lengthen the released vine.
 static func draw_reviewed_lash(weapon: Node3D,state: Dictionary,reach: float,phase: float,active: bool) -> void:

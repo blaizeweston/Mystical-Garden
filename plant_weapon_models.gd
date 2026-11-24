@@ -1,16 +1,16 @@
 extends RefCounted
 
 const MODELS := {
-	"crossbow": {"scene":preload("res://assets/weapons/bark_arbalest.glb"), "name":"BarkArbalestModel", "grip":Vector3(0,.2,0), "core":Vector3(-.051,.231,.04)},
-	"knives": {"scene":preload("res://assets/weapons/graft_knives.glb"), "name":"GraftKnifeModel", "grip":Vector3.ZERO, "core":Vector3(.005,.126,.034)},
-	"staff": {"scene":preload("res://assets/weapons/spore_staff.glb"), "name":"SporeStaffModel", "grip":Vector3.ZERO, "core":Vector3(.026,.64,.052)},
-	"wand": {"scene":preload("res://assets/weapons/thorn_wand.glb"), "name":"ThornWandModel", "grip":Vector3.ZERO, "core":Vector3(.036,.573,.021)},
-	"ring": {"scene":preload("res://assets/weapons/thorn_ring.glb"), "name":"ThornRingModel", "grip":Vector3.ZERO, "core":Vector3(.20,.12,.035)},
-	"orb": {"scene":preload("res://assets/weapons/seed_focus.glb"), "name":"SeedFocusModel", "grip":Vector3(0,.3,0), "core":Vector3(0,.326,.165)},
-	"bell": {"scene":preload("res://assets/weapons/bloom_bell.glb"), "name":"BloomBellModel", "grip":Vector3(0,.57,0), "core":Vector3(0,.21,.11)},
-	"censer": {"scene":preload("res://assets/weapons/spore_censer.glb"), "name":"SporeCenserModel", "grip":Vector3(0,.77,0), "core":Vector3(0,.20,.144)},
-	"fan": {"scene":preload("res://assets/weapons/petal_fan.glb"), "name":"PetalFanModel", "grip":Vector3.ZERO, "core":Vector3(0,.18,.046)},
-	"whip": {"scene":preload("res://assets/weapons/root_lash.glb"), "name":"RootLashModel", "grip":Vector3.ZERO, "core":Vector3(.033,.079,.035)},
+	"crossbow": {"scene":preload("res://assets/weapons/bark_arbalest.glb"), "name":"BarkArbalestModel", "grip":Vector3(0,.2,0)},
+	"knives": {"scene":preload("res://assets/weapons/graft_knives.glb"), "name":"GraftKnifeModel", "grip":Vector3.ZERO},
+	"staff": {"scene":preload("res://assets/weapons/spore_staff.glb"), "name":"SporeStaffModel", "grip":Vector3.ZERO},
+	"wand": {"scene":preload("res://assets/weapons/thorn_wand.glb"), "name":"ThornWandModel", "grip":Vector3.ZERO},
+	"ring": {"scene":preload("res://assets/weapons/thorn_ring.glb"), "name":"ThornRingModel", "grip":Vector3.ZERO},
+	"orb": {"scene":preload("res://assets/weapons/seed_focus.glb"), "name":"SeedFocusModel", "grip":Vector3(0,.3,0)},
+	"bell": {"scene":preload("res://assets/weapons/bloom_bell.glb"), "name":"BloomBellModel", "grip":Vector3(0,.57,0)},
+	"censer": {"scene":preload("res://assets/weapons/spore_censer.glb"), "name":"SporeCenserModel", "grip":Vector3(0,.77,0)},
+	"fan": {"scene":preload("res://assets/weapons/petal_fan.glb"), "name":"PetalFanModel", "grip":Vector3.ZERO},
+	"whip": {"scene":preload("res://assets/weapons/root_lash.glb"), "name":"RootLashModel", "grip":Vector3.ZERO},
 }
 const LASH_SEGMENT := preload("res://assets/weapons/root_lash_segment.glb")
 const ARBALEST_SUPPORT := Vector3(.045,-.04,.267)

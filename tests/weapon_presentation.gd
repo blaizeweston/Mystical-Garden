@@ -7,7 +7,6 @@ const Field = preload("res://field_traveller.gd")
 const Motion = preload("res://weapon_motion.gd")
 const Poses = preload("res://weapon_pose_catalog.gd")
 const Native = preload("res://traveller_weapon_animation.gd")
-const Models = preload("res://plant_weapon_models.gd")
 const Weapons = preload("res://weapon_visuals.gd")
 const Locomotion = preload("res://traveller_locomotion.gd")
 var failed := false
@@ -35,12 +34,14 @@ func run() -> void:
 			for weapon_id in 3:
 				var form: String=Classes.DEFINITIONS[class_id].weapons[weapon_id].visual
 				actor.visual_weapon=Weapons.build(stage,class_id,weapon_id)
+				check(not actor.visual_weapon.has_node("CoreSeed"),"weapon has no decorative Core marker: "+form)
 				if form=="fan":
 					check(actor.visual_weapon.scale.is_equal_approx(Vector3.ONE*.54),"Fan has its reviewed size on equip")
 				actor.visual_weapon.reparent(actor.model,false)
 				if form=="knives":
 					actor.secondary_weapon=Weapons.build(stage,class_id,weapon_id)
 					actor.secondary_weapon.reparent(actor.model,false)
+					check(not actor.secondary_weapon.has_node("CoreSeed"),"off-hand knife has no decorative Core marker")
 				for moving in [false,true]:
 					actor.pace=.65 if moving else 0.0
 					actor.speed=3.5 if moving else 0.0
@@ -51,6 +52,7 @@ func run() -> void:
 				inspect_attack(actor,form)
 				inspect_continuity(actor,form)
 				inspect_body_clearance(actor,form)
+				inspect_relaxed_locomotion(actor,form)
 				if form=="fan":
 					var cast := {"equipped":true,"ability":true,"clip":"Cast"}
 					Avatar.animate(actor,true,.4,form,cast,.016)
@@ -69,11 +71,57 @@ func run() -> void:
 		print("PASS: 30 weapon/body pairs, moving carries, elevated focus, bow string, cutting planes, alternating upper-body clips, utility sweeps and fixed release markers")
 	quit(1 if failed else 0)
 
-func pose(actor: Dictionary, form: String, phase: float, active: bool, combo := 0) -> void:
+func pose(actor: Dictionary, form: String, phase: float, active: bool, combo := 0, delta := 1.0) -> void:
 	var action := {"equipped":true,"aim_yaw":0.0,"contact":Motion.profile(form).release,"combo":combo}
 	actor.model.rotation.y=0.0
-	Avatar.animate(actor,active,phase,form,action,1.0)
+	Avatar.animate(actor,active,phase,form,action,delta)
 	Weapons.animate(actor,form,phase,active,0.0,3.0,action)
+
+func inspect_relaxed_locomotion(actor: Dictionary, form: String) -> void:
+	var field: Dictionary=actor.field_rig
+	var weapon: Node3D=actor.visual_weapon
+	var combat_phase:=float(Motion.profile(form).release)
+	pose(actor,form,combat_phase,true)
+	var action:={"equipped":true,"aim_yaw":0.0}
+	var frame_time:=1.0/30.0
+	for frame in 5:
+		Avatar.animate(actor,false,0,form,action,frame_time)
+		Weapons.animate(actor,form,0,false,0,3.0,action)
+	check(not field.at_ease,"short pauses keep the follow-up ready: "+form)
+	pose(actor,form,combat_phase,true)
+	for frame in 30:
+		Avatar.animate(actor,false,0,form,action,frame_time)
+		Weapons.animate(actor,form,0,false,0,3.0,action)
+	check(field.at_ease and field.player.current_animation=="Idle","standing lowers the weapon after the last attack: "+form)
+	var left: bool=form=="bow"
+	var mount:=Weapons.wrist_frame(field,left).affine_inverse()*weapon.global_transform
+	var offhand_mount:=Transform3D.IDENTITY
+	if form=="knives":offhand_mount=Weapons.wrist_frame(field,true).affine_inverse()*actor.secondary_weapon.global_transform
+	var rig: Skeleton3D=field.skeleton
+	var shoulder:=rig.find_bone("upperarm_l" if left else "upperarm_r")
+	for speed: float in [2.0,6.0]:
+		actor.pace=1.0
+		actor.speed=speed
+		var max_swing:=0.0
+		var max_turn:=0.0
+		var start:=weapon.global_transform
+		var shoulder_start:=rig.get_bone_pose_rotation(shoulder)
+		var shoulder_swing:=0.0
+		for step in 12:
+			actor.gait_phase=step/12.0
+			Avatar.animate(actor,false,0,form,action,.09)
+			Weapons.animate(actor,form,0,false,0,3.0,action)
+			var wrist:=Weapons.wrist_frame(field,left)
+			shoulder_swing=maxf(shoulder_swing,shoulder_start.angle_to(rig.get_bone_pose_rotation(shoulder)))
+			if form=="knives":check((Weapons.wrist_frame(field,true)*offhand_mount).is_equal_approx(actor.secondary_weapon.global_transform),"left knife follows its own hand")
+			check((wrist*mount).is_equal_approx(weapon.global_transform),"carried weapon follows the gripping hand: "+form)
+			max_swing=maxf(max_swing,start.origin.distance_to(weapon.global_position))
+			max_turn=maxf(max_turn,start.basis.orthonormalized().get_rotation_quaternion().angle_to(weapon.global_basis.orthonormalized().get_rotation_quaternion()))
+		check(max_swing>.09 and max_turn>.12 and shoulder_swing>.20,"carrying shoulder and weapon swing with walking and running: "+form)
+	pose(actor,form,combat_phase,true)
+	check(not field.at_ease and field.carry.is_empty(),"next attack immediately regains its authored grip: "+form)
+	actor.speed=0.0
+	actor.pace=0.0
 
 func inspect_library(actor: Dictionary) -> void:
 	var player: AnimationPlayer=actor.field_rig.player
@@ -99,7 +147,7 @@ func inspect_carry(actor: Dictionary, form: String) -> void:
 	if form=="orb":
 		var rig: Skeleton3D=actor.field_rig.skeleton
 		var pelvis := rig.to_global(rig.get_bone_global_pose(actor.field_rig.pelvis).origin)
-		check(weapon.get_node("CoreSeed").global_position.y>pelvis.y+.15,"focus is above the pelvis while standing and moving")
+		check(weapon.to_global(weapon.get_meta("handle")).y>pelvis.y+.15,"focus is above the pelvis while standing and moving")
 	if form in ["blade","knives"]:
 		check(weapon.global_basis.y.normalized().z>.30,"carry leans forward: "+form)
 	if form in ["blade","knives","hammer"]:
@@ -108,7 +156,7 @@ func inspect_carry(actor: Dictionary, form: String) -> void:
 	if form=="bow":
 		check(weapon.get_node("NockedArrow").visible and right.distance_to(left)>.15,"resting bow has an arrow seated between the hands")
 	if form=="ring":
-		check(weapon.get_node("CoreSeed").global_position.y<right.y,"ring hangs below the relaxed hand rather than in the face")
+		check(weapon.to_global(Vector3(0,.282,0)).y<right.y,"ring hangs below the relaxed hand rather than in the face")
 	if form=="scythe":
 		var tip := weapon.to_global(Vector3(.765,.90,0))
 		var blade_root := weapon.to_global(Vector3(0,1.20,0))
@@ -141,8 +189,6 @@ func inspect_attack(actor: Dictionary, form: String) -> void:
 		var skin:=rig.get_bone_global_pose(joint)*rig.get_bone_global_rest(joint).affine_inverse()
 		var bowl:=rig.to_global(skin*Vector3(0,.15,0))
 		check(bowl.z>hand.z+.12,"the suspended bowl swings ahead of the gripping hand: "+str(bowl-hand))
-		var seed_point:=rig.to_global(skin*Vector3(Models.MODELS.censer.core))
-		check(seed_point.distance_to(weapon.get_node("CoreSeed").global_position)<.002,"the seed follows the skinned bowl")
 	if form=="bow":
 		pose(actor,form,contact-.001,true)
 		check(actor.visual_weapon.get_node("NockedArrow").to_global(Vector3(0,.2,-.2)).distance_to(Field.hand(actor,false))<.035,"attack draw stays on the nock")
@@ -150,13 +196,12 @@ func inspect_attack(actor: Dictionary, form: String) -> void:
 		check(actor.visual_weapon.global_basis.y.normalized().y>.8 and actor.visual_weapon.global_basis.y.normalized().z>.15,"approved wand points up and forward")
 		check(absf(Field.hand(actor,false).x)<.5,"wand hand stays drawn in beside the torso")
 	var primary: Node3D=actor.visual_weapon
-	pose(actor,form,0.0,false)
+	pose(actor,form,0.0,false,0,.50)
 	var ready := primary.global_basis.get_rotation_quaternion()
 	pose(actor,form,1.0,true)
-	if form in ["hammer","staff","bow","crossbow","ring","knives","whip","scythe","bell","censer","fan"]:
-		for frame in 30:pose(actor,form,0.0,false)
+	pose(actor,form,0.0,false,0,.50)
 	if form not in ["wand","blade"]:
-		check(ready.angle_to(primary.global_basis.get_rotation_quaternion())<.001,"action and its recovery end at the same carry orientation: "+form)
+		check(ready.angle_to(primary.global_basis.get_rotation_quaternion())<.001,"action and its recovery return to the follow-up ready orientation: "+form)
 
 func inspect_continuity(actor: Dictionary, form: String) -> void:
 	var skeleton: Skeleton3D=actor.field_rig.skeleton

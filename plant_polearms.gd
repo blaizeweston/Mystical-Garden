@@ -7,7 +7,7 @@ const WEAPONS := {
 	"spear": {
 		"scene": preload("res://assets/weapons/briar_spear.glb"),
 		"name": "BriarSpearModel", "support": .31,
-		"tip": Vector3(.051,1.67,0), "seed": Vector3(0,.53,.054),
+		"tip": Vector3(.051,1.67,0),
 		"stance": Vector3(-.27,-.23,.12),
 		"pitch": Vector4(PI*.5,PI*.5+.02,PI*.5-.03,PI*.5), "extension": .30,
 		"support_slide": .15,
@@ -15,14 +15,14 @@ const WEAPONS := {
 	"hammer": {
 		"scene": preload("res://assets/weapons/heartwood_maul.glb"),
 		"name": "HeartwoodMaulModel", "support": .26,
-		"tip": Vector3(0,1.11,0), "seed": Vector3(0,.86,.217),
+		"tip": Vector3(0,1.11,0),
 		"stance": Vector3(-.14,-.27,.19),
 		"pitch": Vector4(.33,-.57,1.63,1.96), "extension": .13,
 	},
 	"scythe": {
 		"scene": preload("res://assets/weapons/harvest_scythe.glb"),
 		"name": "HarvestScytheModel", "support": .24,
-		"tip": Vector3(.765,.90,0), "seed": Vector3(.034,1.03,.077),
+		"tip": Vector3(.765,.90,0),
 		"stance": Vector3(-.22,-.25,.26),
 		"pitch": Vector4(.57,.93,1.40,1.70), "extension": .02, "visual_arc_scale": .2,
 	},

@@ -13,6 +13,9 @@ const Reviewed := preload("res://reviewed_weapon_attacks.gd")
 const SeedFocus := preload("res://seed_focus_animation.gd")
 const Rootblade := preload("res://rootblade_animation.gd")
 
+# Seconds the traveller stays ready for a follow-up after an attack or equipment change.
+const READY_HOLD_SECONDS := 0.65
+
 const MODELS := [
 	preload("res://assets/characters/field_traveller_male.glb"),
 	preload("res://assets/characters/field_traveller_female.glb"),
@@ -71,7 +74,7 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 	var field: Dictionary={
 		"scene":visual, "skeleton":skeleton, "player":player, "links":links, "soles":soles,
 		"left":socket(skeleton,"l"), "right":socket(skeleton,"r"), "gait":0.0,
-		"pelvis":skeleton.find_bone("pelvis"),
+		"pelvis":skeleton.find_bone("pelvis"), "carry": {}, "ready_elapsed": 0.0, "carry_form": "",
 		"spear":Spear.calibration(skeleton,player,skeleton.find_bone("pelvis")),
 		"staff":Staff.calibration(skeleton,player,skeleton.find_bone("pelvis")),
 		"maul":Maul.calibration(skeleton,player,skeleton.find_bone("pelvis")),
@@ -126,12 +129,44 @@ static func weapon_orientation(actor: Dictionary, form: String, phase: float, ac
 static func animate(actor: Dictionary, active: bool, phase: float, form: String, motion: Dictionary, delta: float) -> void:
 	var field: Dictionary = actor.field_rig
 	var skeleton: Skeleton3D = field.skeleton
+	var carry: Dictionary = field.carry
+	if active or field.carry_form != form:
+		field.carry_form = form
+		field.ready_elapsed = 0.0
+		carry.clear()
+	else:
+		field.ready_elapsed = minf(READY_HOLD_SECONDS,field.ready_elapsed+maxf(0.0,delta))
+	var lower_weapon: bool = not active and WeaponPoses.DEFINITIONS.has(form) and field.ready_elapsed >= READY_HOLD_SECONDS
+	# Sample the final ready grip once. After that, locomotion owns the arms and
+	# torso. The holding wrist and fingers keep the reviewed grip on the prop.
+	field.at_ease = lower_weapon and carry.has("grip_rotations")
+	pose_equipped(actor,active,phase,"" if field.at_ease else form,motion,delta)
+	if lower_weapon and not field.at_ease:
+		var grip_rotations := {}
+		for side in ["l","r"]:
+			if form!="knives" and side!=("l" if form=="bow" else "r"):
+				continue
+			var wrist := skeleton.find_bone("hand_"+side)
+			grip_rotations[wrist] = skeleton.get_bone_pose_rotation(wrist)
+			var joints := skeleton.get_bone_children(wrist)
+			while not joints.is_empty():
+				var joint := joints[-1]
+				joints.resize(joints.size()-1)
+				grip_rotations[joint] = skeleton.get_bone_pose_rotation(joint)
+				joints.append_array(skeleton.get_bone_children(joint))
+		carry.grip_rotations = grip_rotations
+
+
+static func pose_equipped(actor: Dictionary, active: bool, phase: float, form: String, motion: Dictionary, delta: float) -> void:
+	var field: Dictionary = actor.field_rig
+	var skeleton: Skeleton3D = field.skeleton
 	var driver: Skeleton3D = actor.skeleton
 	var old_pose: Array[Quaternion] = []
 	for index in skeleton.get_bone_count():
 		old_pose.append(skeleton.get_bone_pose_rotation(index))
 	var old_hips := skeleton.get_bone_pose_position(field.pelvis)
 	var locomotion := Locomotion.pose(actor,field,delta)
+	var carry_grip: Dictionary = field.carry.get("grip_rotations",{})
 	var spear_basic := form=="spear" and not bool(motion.get("ability",false))
 	field.spear_active=spear_basic
 	var staff_basic := form=="staff" and not bool(motion.get("ability",false))
@@ -229,6 +264,7 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 			rotation = native_action[index]
 		if (wand_basic or focus_basic or reviewed_basic) and bone_name=="spine_01":
 			rotation=(parent_basis.inverse()*(field.focus_pelvis_basis if focus_basic or reviewed_basic else field.wand.pelvis_basis)*Basis(rotation)).orthonormalized().get_rotation_quaternion()
+		if field.at_ease and carry_grip.has(index):rotation=carry_grip[index]
 		skeleton.set_bone_pose_rotation(index,rotation)
 		global_bases.append(parent_basis*Basis(rotation))
 	skeleton.force_update_all_bone_transforms()

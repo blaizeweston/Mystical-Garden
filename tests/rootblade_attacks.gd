@@ -97,8 +97,10 @@ func inspect_body(body: int) -> void:
 				pose(actor,reference,0.0,false,variant.clip,1.0/60.0)
 				var expected: String="Recover_rootblade_left" if variant.clip=="Attack_rootblade_forehand" else "Recover_rootblade_right"
 				recovery_seen=recovery_seen or str(actor.field_rig.player.current_animation)==expected
+				if frame==20:
+					check(actor.visual_weapon.global_basis.y.normalized().y<-.4,"slash recovers to low ready before the carry delay expires")
 			check(recovery_seen,"each slash uses its own imported return clip after the active swing")
-			check(actor.visual_weapon.global_basis.y.normalized().y<-.4,"weapon returns to low ready rather than raised guard")
+			check(actor.field_rig.at_ease,"the low guard releases after the follow-up window")
 			check(not actor.field_rig.rootblade.has("last_clip"),"completed visual recovery cannot remain pending")
 	print("ROOTBLADE BODY ",body," poses=",count," grip_error_m=",grip_error," lower_body_error=",lower_error," forearm_clearance_m=",clearance," max_joint_step_rad=",step_error," worst=",worst)
 	check(grip_error<.001,"weapon remains in the hand on both bodies")
