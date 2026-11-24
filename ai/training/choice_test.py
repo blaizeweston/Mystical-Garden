@@ -230,17 +230,24 @@ def moment_stats(result: dict) -> dict | None:
     signal_policy = max(0.0, float(p @ (means - policy_mean) ** 2) - luck / count)
     # Winner's curse: choose the best option on half the continuations, judge it on the other half.
     half = count // 2
-    regrets, agree = [], []
+    regrets = []
     for pick, judge in ((slice(0, half), slice(half, count)), (slice(half, count), slice(0, half))):
         if half == 0:
             break
         chosen = int(np.argmax(g[:, pick].mean(1)))
         judged = g[:, judge].mean(1)
         regrets.append(float(judged[chosen] - p @ judged))
+    # Options that earned the same as the best (to the last digit) share being best: often a forced behaviour
+    # changes nothing at all, and argmax alone would credit whichever option is listed first.
+    tied = np.flatnonzero(means >= means.max() - 1e-6)
+    a_luck = float(a.var(1, ddof=1).mean())
+    distinct = len({tuple(np.round(row, 5)) for row in g})
     stats = {
-        "options": len(keys), "continuations": count, "luck_var": luck, "signal_var": signal_uniform, "signal_var_policy": signal_policy,
+        "options": len(keys), "distinct_share": distinct / len(keys), "all_same": float(distinct == 1),
+        "a_luck_var": a_luck, "a_signal_var": max(0.0, float(a_means.var(ddof=1)) - a_luck / count),
+        "a_signal_var_policy": max(0.0, float(p @ (a_means - p @ a_means) ** 2) - a_luck / count), "continuations": count, "luck_var": luck, "signal_var": signal_uniform, "signal_var_policy": signal_policy,
         "gap_best_worst": float(means.max() - means.min()), "regret": float(np.mean(regrets)) if regrets else float("nan"),
-        "policy_top_is_best": float(int(np.argmax(p)) == int(np.argmax(means))), "chance_top_is_best": 1.0 / len(keys),
+        "policy_top_is_best": float(int(np.argmax(p)) in tied), "chance_top_is_best": len(tied) / len(keys),
         "policy_corr": correlation(p, means), "critic_corr": correlation(a_means, means), "squad_corr": correlation(squad_means, means),
         "value": float(result["value"]), "policy_return": policy_mean,
         "wipe_spread": float(wipe.mean(1).max() - wipe.mean(1).min()),
@@ -251,7 +258,7 @@ def moment_stats(result: dict) -> dict | None:
     for index, k in enumerate(keys):
         stats["edges"][int(k)] = {"true": float(means[index] - policy_mean), "critic": float(a_means[index] - a_policy),
                                   "squad": float(squad_means[index] - squad_policy), "probability": float(p[index]),
-                                  "best": float(index == int(np.argmax(means)))}
+                                  "best": float(index in tied) / len(tied)}
     return stats
 
 
@@ -262,6 +269,9 @@ def summarise(results: list[dict], names: list[str]) -> dict:
     signal_policy = sum(s["signal_var_policy"] for s in stats)
     squad_luck = sum(s["squad_luck_var"] for s in stats)
     squad_signal = sum(s["squad_signal_var"] for s in stats)
+    a_luck = sum(s["a_luck_var"] for s in stats)
+    a_signal = sum(s["a_signal_var"] for s in stats)
+    a_signal_policy = sum(s["a_signal_var_policy"] for s in stats)
     summary = {
         "moments": len(results), "used": len(stats),
         "skipped": sum(1 for r in results if r.get("skipped")),
@@ -269,6 +279,10 @@ def summarise(results: list[dict], names: list[str]) -> dict:
         "branches": sum(int(r.get("branches", 0)) for r in results),
         "choice_share": signal / (signal + luck) if signal + luck > 0 else float("nan"),
         "choice_share_policy": signal_policy / (signal_policy + luck) if signal_policy + luck > 0 else float("nan"),
+        "advantage_choice_share": a_signal / (a_signal + a_luck) if a_signal + a_luck > 0 else float("nan"),
+        "advantage_choice_share_policy": a_signal_policy / (a_signal_policy + a_luck) if a_signal_policy + a_luck > 0 else float("nan"),
+        "distinct_share": nan_mean(s["distinct_share"] for s in stats),
+        "all_same": nan_mean(s["all_same"] for s in stats),
         "squad_choice_share": squad_signal / (squad_signal + squad_luck) if squad_signal + squad_luck > 0 else float("nan"),
         "signal_std": math.sqrt(signal / len(stats)) if stats else float("nan"),
         "luck_std": math.sqrt(luck / len(stats)) if stats else float("nan"),
@@ -315,6 +329,10 @@ def report(summary: dict, label: str, args) -> str:
         ["Spread from the choice (std)", f(s["signal_std"]).lstrip("+")],
         ["Spread from luck (std)", f(s["luck_std"]).lstrip("+")],
         ["Best minus worst option, on average", f(s["gap_best_worst"])],
+        ["Trainer's view (critic advantage, as PPO computes it): choice share, options equally weighted", pct(s["advantage_choice_share"])],
+        ["Trainer's view: choice share, options weighted by the policy", pct(s["advantage_choice_share_policy"])],
+        ["Moments where every behaviour earned exactly the same", pct(s["all_same"])],
+        ["Distinct outcomes per legal behaviour", pct(s["distinct_share"])],
         ["Squad reward after the moment: choice share", pct(s["squad_choice_share"])],
         ["Best minus worst option's wipe rate", pct(s["wipe_spread"])],
     ]) + ["", "## Does the policy know which choice pays?", ""]
@@ -333,7 +351,7 @@ def report(summary: dict, label: str, args) -> str:
     ]) + ["", "## Per behaviour", "",
           "Edge: what choosing the behaviour earns compared with the policy's average choice at the same moment (true: from "
           "the replays; critic: the critic's advantage; squad: every mob's reward after the moment). Best: share of its "
-          "moments where it was the best option.", ""]
+          "moments where it was the best option (shared equally among options that tied).", ""]
     rows = []
     for name, b in sorted(s["behaviours"].items(), key=lambda kv: -kv[1]["moments"]):
         rows.append([name, str(b["moments"]), pct(b["probability"]), f"{f(b['true_edge'])} ± {f(b['true_error'])}",
