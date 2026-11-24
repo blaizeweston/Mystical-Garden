@@ -64,7 +64,7 @@ func guest_run():
  Input.action_press("right");var deadline=Time.get_ticks_msec()+2200;var first=Quaternion.IDENTITY;var angle=0.0;var sampled=false;var peak_pace=0.0
  while Time.get_ticks_msec()<deadline:
   if game.stage.avatar_models.has(id):
-   var actor=game.stage.avatar_models[id];var pose=actor.skeleton.get_bone_pose_rotation(actor.skeleton.find_bone("thigh.L"))
+   var actor=game.stage.avatar_models[id];var pose=actor.field_rig.skeleton.get_bone_pose_rotation(actor.field_rig.skeleton.find_bone("thigh_l"))
    if not sampled:first=pose;sampled=true
    angle=maxf(angle,first.angle_to(pose));peak_pace=maxf(peak_pace,float(actor.pace))
   await process_frame

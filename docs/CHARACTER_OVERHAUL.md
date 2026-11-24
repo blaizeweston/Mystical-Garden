@@ -1,5 +1,7 @@
 # Traveller anatomy, skinning and weapon animation overhaul
 
+Historical implementation notes. The current models, animation assets and editing paths are listed in [Character models](CHARACTER_MODELS.md).
+
 The character pass rebuilds both clothed models in Blender 5.2.3 LTS and keeps the existing character identities, class progression, appearance array, 25 deformation-bone names, six morph names and weapon action IDs. It replaces the disconnected, slender garment construction and spread-elbow poses that contributed to the scarecrow appearance. This is a detailed game-mesh iteration within the current fantasy art style, not a photoreal character asset.
 
 ## Research applied

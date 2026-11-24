@@ -39,12 +39,12 @@ func run():
    for w in 3:
     p.frame=c;p.weapon_kind=w;p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active();p.cast_until=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
     var form:=Motion.form(p);var profile:=Motion.profile(form)
-    for clip in profile.get("variants",{}).values():check(actor.animator.has_animation(str(clip)),"crafted delivery clip "+str(clip))
-    check(actor.animator.has_animation(str(profile.clip)) and actor.animator.has_animation(str(profile.ready)),"named Blender clips "+str(sex)+":"+form)
+    for variant in profile.basic_variants:
+     check(actor.field_rig.player.has_animation(variant.clip),"reviewed basic clip on the visible rig: "+str(variant.clip))
     Avatar.animate(actor,true,float(profile.release),form,{"equipped":true},1.0)
-    var hand: int=actor.skeleton.find_bone("hand.R")
-    var left: int=actor.skeleton.find_bone("hand.L")
-    var signature:=str([actor.skeleton.get_bone_global_pose(hand),actor.skeleton.get_bone_global_pose(left)])
+    var hand: int=actor.field_rig.skeleton.find_bone("hand_r")
+    var left: int=actor.field_rig.skeleton.find_bone("hand_l")
+    var signature:=str([actor.field_rig.skeleton.get_bone_global_pose(hand),actor.field_rig.skeleton.get_bone_global_pose(left)])
     if not poses.has(signature):poses.append(signature)
     game.stage.update_avatar(game.stage.avatars[1],actor,game.actor_presentation.avatar(1,Time.get_ticks_msec()),game.Stage.WILD_OFFSET,.016)
     if form=="ring":

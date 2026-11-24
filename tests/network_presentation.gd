@@ -104,7 +104,7 @@ func run():
  for frame in 480:
   if frame%12==0:packet.pos.x+=.18
   game.stage.update_avatar(avatar,actor,game.actor_presentation.avatar(1,Time.get_ticks_msec()),packet.pos,1.0/240.0)
-  var pose=actor.skeleton.get_bone_pose_rotation(actor.skeleton.find_bone("thigh.L"))
+  var pose=actor.field_rig.skeleton.get_bone_pose_rotation(actor.field_rig.skeleton.find_bone("thigh_l"))
   if frame==120:first=pose
   if frame>120:excursion=maxf(excursion,first.angle_to(pose))
  game.players[1]=p

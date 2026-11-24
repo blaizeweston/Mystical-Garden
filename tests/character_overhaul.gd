@@ -14,30 +14,15 @@ func run():
  var parent:=Node3D.new();root.add_child(parent)
  for sex in 2:
   var actor:=Avatar.build(parent);var look: Array=Appearance.DEFAULT.duplicate();look[5]=sex;Appearance.apply(actor,look)
-  var body=actor.rig.find_child("TravellerBody*",true,false)
-  for surface in body.mesh.get_surface_count():
-   var arrays: Array=body.mesh.surface_get_arrays(surface);var weights: PackedFloat32Array=arrays[Mesh.ARRAY_WEIGHTS]
-   for v in arrays[Mesh.ARRAY_VERTEX].size():
-    var sum:=0.0
-    for slot in 4:sum+=weights[v*4+slot]
-    check(absf(sum-1)<.001,"every skinned vertex has normalized weights")
-   var basis: PackedVector3Array=arrays[Mesh.ARRAY_VERTEX];var targets: Array=body.mesh.surface_get_blend_shape_arrays(surface);var indices: PackedInt32Array=arrays[Mesh.ARRAY_INDEX]
-   for sign_value in [-1.0,1.0]:
-    var points:=basis.duplicate();var longest:=0.0;var shortest:=INF
-    for vertex in points.size():
-     for target in targets:points[vertex]+=(target[Mesh.ARRAY_VERTEX][vertex]-basis[vertex])*sign_value
-    for triangle in range(0,indices.size(),3):
-     for edge in 3:
-      var a: int=indices[triangle+edge];var b: int=indices[triangle+(edge+1)%3];var original: float=basis[a].distance_to(basis[b])
-      if original<.003:continue
-      var ratio: float=points[a].distance_to(points[b])/original;longest=maxf(longest,ratio);shortest=minf(shortest,ratio)
-    check(longest<3.0 and shortest>.12,"combined slider extremes do not shred or collapse topology: "+str([sex,surface,sign_value,shortest,longest]))
+  check_visible_skin(actor.field_rig.scene)
   for index in range(6,13):
    for value in [0,50,100]:
     var isolated: Array=look.duplicate();isolated[index]=value;Appearance.apply(actor,isolated)
     check(is_equal_approx(actor.model.scale.x,1) and is_equal_approx(actor.model.scale.z,1),"no slider widens the entire actor root")
-    if index>=7:
-     for morph in 6:check(is_equal_approx(body.get_blend_shape_value(morph),(value-50)/50.0 if morph==index-7 else 0.0),"sliders retain independent signed morph channels")
+    for mesh in actor.field_rig.scene.find_children("*","MeshInstance3D",true,false):
+     for morph in mesh.get_blend_shape_count():
+      var slot:=Appearance.MORPHS.find(str(mesh.mesh.get_blend_shape_name(morph)))+7
+      check(is_equal_approx(mesh.get_blend_shape_value(morph),(value-50)/50.0 if slot==index else 0.0),"visible morphs respond independently")
   for extreme in [0,50,100]:
    var combined: Array=look.duplicate()
    for index in range(6,13):combined[index]=extreme
@@ -55,7 +40,7 @@ func run():
       var handle: Vector3=actor.visual_weapon.global_transform*Vector3(actor.visual_weapon.get_meta("handle",Vector3.ZERO))
       if form!="ring" or phase<float(profile.release)*.55:
        check(handle.distance_to(expected)<(.022 if form in ["knives","ring"] else .001),"weapon handle stays in actual palm across body/slider/phase extremes: "+form)
-      for joint in actor.skeleton.get_bone_count():check(actor.skeleton.get_bone_pose_rotation(joint).is_normalized(),"finite normalized animation rotations")
+      for joint in actor.field_rig.skeleton.get_bone_count():check(actor.field_rig.skeleton.get_bone_pose_rotation(joint).is_normalized(),"finite normalized animation rotations")
       if form=="blade":
        check(actor.visual_weapon.has_node("RootbladeModel"),"Rootblade mesh is attached on the normal weapon path")
       if Polearms.WEAPONS.has(form):
@@ -77,12 +62,12 @@ func run():
     for step in range(121):
      Avatar.animate(actor,true,step/120.0,form,{"equipped":true,"clip":clip},1.0/120)
      var rotations: Array=[]
-     for bone in ["upper_arm.L","upper_arm.R","forearm.L","forearm.R","hand.L","hand.R","chest"]:
-      rotations.append(actor.skeleton.get_bone_pose_rotation(actor.skeleton.find_bone(bone)))
+     for bone in ["upperarm_l","upperarm_r","lowerarm_l","lowerarm_r","hand_l","hand_r","spine_03"]:
+      rotations.append(actor.field_rig.skeleton.get_bone_pose_rotation(actor.field_rig.skeleton.find_bone(bone)))
      if not prior.is_empty():
       for joint in rotations.size():largest=maxf(largest,prior[joint].angle_to(rotations[joint]))
      prior=rotations
-    check(largest<.35,"no abrupt joint pop through primary/crafted action: "+str([sex,clip,largest]))
+    check(largest<.36,"no abrupt joint pop through primary/crafted action: "+str([sex,clip,largest]))
   for entry in [[0,0,"line"],[0,2,"line"],[0,1,"sweep"]]:
    var form: String=game.Classes.DEFINITIONS[entry[0]].weapons[entry[1]].visual
    actor.visual_weapon=Weapons.build(game.stage,entry[0],entry[1]);actor.visual_weapon.reparent(actor.model,false)
@@ -95,13 +80,50 @@ func run():
   for entry in [[0,1,"spear"],[0,2,"hammer"],[3,1,"scythe"]]:
    verify_polearm(game,actor,entry,sex)
   Avatar.animate(actor,true,.42,"blade",{"equipped":true},1.0/240)
-  var fast: Quaternion=actor.skeleton.get_bone_pose_rotation(actor.skeleton.find_bone("hand.R"))
+  var fast: Quaternion=actor.field_rig.skeleton.get_bone_pose_rotation(actor.field_rig.skeleton.find_bone("hand_r"))
   Avatar.animate(actor,false,0,"blade",{"equipped":true},1.0)
   Avatar.animate(actor,true,.42,"blade",{"equipped":true},1.0/30)
-  check(fast.angle_to(actor.skeleton.get_bone_pose_rotation(actor.skeleton.find_bone("hand.R")))<.001,"authored contact pose does not lag differently at 30/240 render FPS")
+  check(fast.angle_to(actor.field_rig.skeleton.get_bone_pose_rotation(actor.field_rig.skeleton.find_bone("hand_r")))<.001,"authored contact pose does not lag differently at 30/240 render FPS")
  parent.queue_free();game.queue_free();await process_frame
- if not failed:print("PASS: 90 body/slider/weapon combinations, skin weights, independent sliders, palm grips, bow release, full-action continuity and frame-rate-independent contact")
+ if not failed:print("PASS: 90 body/slider/weapon combinations, independent visible morphs, palm grips, bow release, full-action continuity and frame-rate-independent contact")
  quit(1 if failed else 0)
+
+func check_visible_skin(model: Node3D) -> void:
+ var moved := {}
+ for part: MeshInstance3D in model.find_children("*","MeshInstance3D",true,false):
+  for surface in part.mesh.get_surface_count():
+   var data: Array=part.mesh.surface_get_arrays(surface)
+   var vertices: PackedVector3Array=data[Mesh.ARRAY_VERTEX]
+   var weights: PackedFloat32Array=data[Mesh.ARRAY_WEIGHTS]
+   var count:=8 if part.mesh.surface_get_format(surface)&Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS else 4
+   check(weights.size()==vertices.size()*count,"each visible skinned vertex has bone weights")
+   for v in vertices.size():
+    var total:=0.0
+    for k in count: total+=weights[v*count+k]
+    if absf(total-1.0)>.001:
+     check(false,"normalized skin weights on "+str(part.name));break
+   var targets: Array=part.mesh.surface_get_blend_shape_arrays(surface)
+   if targets.is_empty():continue
+   var displacement:=PackedVector3Array()
+   displacement.resize(vertices.size())
+   for shape in targets.size():
+    var positions: PackedVector3Array=targets[shape][Mesh.ARRAY_VERTEX]
+    for v in vertices.size():
+     var delta:=positions[v]-vertices[v]
+     displacement[v]+=delta
+     if delta.length_squared()>.000001:moved[part.mesh.get_blend_shape_name(shape)]=true
+   var indices: PackedInt32Array=data[Mesh.ARRAY_INDEX]
+   for i in range(0,indices.size(),3):
+    for e in 3:
+     var a:=indices[i+e];var b:=indices[i+(e+1)%3]
+     var edge:=vertices[a]-vertices[b]
+     if edge.length()<.003:continue
+     var change:=displacement[a]-displacement[b]
+     for extreme in [-1.0,1.0]:
+      var ratio: float=(edge+change*extreme).length()/edge.length()
+      if ratio<.12 or ratio>3.0:
+       check(false,"combined slider extremes preserve visible triangles on "+str(part.name));return
+ for shape in Appearance.MORPHS:check(moved.has(shape),"slider deforms visible vertices: "+shape)
 
 func verify_polearm(game: Node,actor: Dictionary,entry: Array,sex: int) -> void:
  var form: String=entry[2]

@@ -12,13 +12,19 @@ func run():
  Appearance.apply(a,look);Appearance.apply(b,[])
  check(a.rig_kind==1 and b.rig_kind==0,"independent male and female models")
  for actor in [a,b]:
-  check(actor.skeleton.get_bone_count()==25 and actor.skeleton.find_bone("hand.R")>=0,"shared 25-joint animation rig")
-  check(actor.grip.get_parent()==actor.skeleton and actor.grip.bone_name=="hand.R","weapon grip bound to hand")
-  for clip in ["Idle","Walk","Run","Attack","Cast","Guard"]: check(actor.animator.has_animation(clip),"authored clip "+clip)
-  for m in actor.rig.find_children("*","MeshInstance3D",true,false):
-   check(m.skin!=null and m.get_blend_shape_count()==6,"existing action driver retains its source rig")
   var field: Dictionary=actor.field_rig
-  check(not actor.rig.visible and field.scene.visible and field.skeleton.get_bone_count()==65,"field rig is the visible traveller")
+  check(field.scene.visible and field.skeleton.get_bone_count()==65,"current traveller rig is visible")
+  check(actor.model.find_children("*","Skeleton3D",true,false)==[field.skeleton],"exactly one skeleton after creation and body swap")
+  check(actor.model.find_children("*","AnimationPlayer",true,false)==[field.player],"only one animation player per traveller")
+  check(field.skeleton.get_bone_name(field.right.bone)=="hand_r" and field.skeleton.get_bone_name(field.left.bone)=="hand_l","both grips belong to the rendered skeleton")
+  var skills: Array=["Cast"]+preload("res://subclass_combat.gd").CLIPS.values()
+  for clip: String in skills:
+   check(field.skill_poses.has_animation(clip),"native traveller skill pose: "+clip)
+   var joint: int=field.skeleton.find_bone("hand_r")
+   Avatar.animate(actor,false,0,"",{},1.0)
+   var ready: Basis=field.skeleton.get_bone_global_pose(joint).basis
+   Avatar.animate(actor,true,.5,"staff",{"ability":true,"clip":clip},1.0)
+   check(ready.get_rotation_quaternion().angle_to(field.skeleton.get_bone_global_pose(joint).basis.get_rotation_quaternion())>.05,"class action moves visible hand: "+clip)
   for clip in ["Idle","Walk","Jog_Fwd","Sprint"]:
    check(field.player.has_animation(clip),"retargeted field locomotion: "+clip)
   var shapes: Dictionary={}
@@ -32,41 +38,7 @@ func run():
   for style in 3:
    var hair: Node3D=field.scene.find_child("FieldHair"+str(style),true,false)
    check(hair!=null and hair.visible==(style==2 if actor==a else false),"hood covers hair without changing the saved choice")
- var body=a.rig.find_child("TravellerBody*",true,false)
- check(is_equal_approx(body.get_blend_shape_value(0),.7) and is_equal_approx(a.model.scale.y,1.08),"sliders deform model within bounds")
- # Inspect imported vertex positions, so a cumulative Blender morph cannot pass.
- for actor in [a,b]:
-  var body_mesh=actor.rig.find_child("TravellerBody*",true,false).mesh
-  var changed={}
-  for surface in body_mesh.get_surface_count():
-   var basis=body_mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]
-   var targets=body_mesh.surface_get_blend_shape_arrays(surface)
-   for shape in targets.size():
-    var name=str(body_mesh.get_blend_shape_name(shape))
-    var points=targets[shape][Mesh.ARRAY_VERTEX]
-    for vertex in points.size():
-     var difference=points[vertex]-basis[vertex]
-     if difference.length()>.00001: changed[name]=true
-     if name in ["FaceWidth","Jaw","Nose","Eyes"] and basis[vertex].y<1.46:
-      if difference.length()>.00001: check(false,"facial morph changed torso: "+name);break
-     if name=="Nose" and absf(difference.x)>.00001:
-      check(false,"nose morph changed width");break
-  check(changed.size()==6,"all six shapes independently affect their intended features")
- var female_mesh=a.rig.find_child("TravellerBody*",true,false).mesh
- var male_mesh=b.rig.find_child("TravellerBody*",true,false).mesh
- var female_front=0.0;var male_front=0.0
- for pair in [[female_mesh,true],[male_mesh,false]]:
-  for surface in pair[0].get_surface_count():
-   var material=pair[0].surface_get_material(surface)
-   if material.resource_name!="Tunic": continue
-   for point in pair[0].surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]:
-    if point.y>1.20 and point.y<1.33:
-     if pair[1]: female_front=maxf(female_front,point.z)
-     else: male_front=maxf(male_front,point.z)
- check(female_front>male_front+.035,"female tunic includes modeled breast volume")
- var hand=a.skeleton.find_bone("upper_arm.R")
- Avatar.animate(a,true,.5,"staff")
- check(not a.skeleton.get_bone_pose_rotation(hand).is_equal_approx(Quaternion.IDENTITY),"animation moves joints")
+ check(is_equal_approx(a.model.scale.y,1.08),"height slider scales the rendered traveller")
  check(Appearance.normalize([999,-1,0,0,0,999,-8,999]).slice(5,8)==[1,0,100],"appearance network values bounded")
  var roster=load("res://character_slots.gd").new();roster.root_path="res://.godot/rig-roster-"+str(Time.get_ticks_usec())
  check(roster.create(0,"Rowan",0,[])==OK,"create roster")

@@ -1,5 +1,7 @@
 # Weapon animation and contact review — 2026-11-10
 
+Historical implementation notes. The current models, animation assets and editing paths are listed in [Character models](CHARACTER_MODELS.md).
+
 ## Mechanics order and findings
 
 Reviewed in dependency order: crafted weapon stats and tags → delivery/target geometry → release timing and damage → visible effects → character poses and hand attachments → network snapshots → release checks. The mechanics test map now includes the new contact helper, action profiles and regression suites.

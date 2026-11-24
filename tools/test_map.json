@@ -263,7 +263,9 @@
         "character_slots.gd",
         "character_creator.gd",
         "character_appearance.gd",
-        "traveller_avatar.gd"
+        "traveller_avatar.gd",
+        "assets/characters/field_skill_poses_male.res",
+        "assets/characters/field_skill_poses_female.res"
       ]
     },
     "menus": {
@@ -283,7 +285,7 @@
     },
     "presentation": {
       "label": "HUD, world drawing, animation and effects",
-      "files": ["root_ui.gd", "stage.gd", "combat_effects.gd", "enemy_death_effects.gd", "boss_lair_visuals.gd", "weapon_visuals.gd", "game_metrics.gd", "network_movement.gd", "network_movement.gd.uid", "combat_feedback.gd", "combat_feedback.gd.uid", "assets/characters/weapon_actions.json", "status_feedback.gd", "status_feedback.gd.uid"]
+      "files": ["traveller_avatar.gd", "root_ui.gd", "stage.gd", "combat_effects.gd", "enemy_death_effects.gd", "boss_lair_visuals.gd", "weapon_visuals.gd", "game_metrics.gd", "network_movement.gd", "network_movement.gd.uid", "combat_feedback.gd", "combat_feedback.gd.uid", "assets/characters/weapon_actions.json", "status_feedback.gd", "status_feedback.gd.uid"]
     },
     "diagnostics": {
       "label": "Saved diagnostic logs and report export",
@@ -366,7 +368,7 @@
     },
     "avatar_motion_view": {
       "label": "Visible traveller gait, weapon poses and grips",
-      "files": ["avatar_motion_view.gd", "avatar_motion_view.gd.uid", "field_traveller.gd", "field_traveller.gd.uid", "plant_polearms.gd", "plant_polearms.gd.uid", "traveller_locomotion.gd", "traveller_locomotion.gd.uid", "plant_weapon_models.gd", "plant_weapon_models.gd.uid", "weapon_pose_catalog.gd", "weapon_pose_catalog.gd.uid", "traveller_weapon_animation.gd", "traveller_weapon_animation.gd.uid", "tools/build_weapon_combat_library.py", "assets/characters/weapon_combat.glb", "assets/characters/weapon_combat.glb.import", "assets/characters/weapon_combat_sources.json", "spear_animation.gd", "spear_animation.gd.uid", "assets/characters/spear_thrust.glb", "assets/characters/spear_thrust.glb.import", "assets/characters/spear_sweep.glb", "assets/characters/spear_sweep.glb.import", "assets/characters/spear_motion.json", "maul_animation.gd", "maul_animation.gd.uid", "tools/export_reviewed_maul.py", "assets/characters/maul_motion.json", "assets/characters/maul_overhead.glb", "assets/characters/maul_overhead.glb.import", "assets/characters/maul_sweep.glb", "assets/characters/maul_sweep.glb.import", "assets/characters/maul_recover_overhead.glb", "assets/characters/maul_recover_overhead.glb.import", "assets/characters/maul_recover_sweep.glb", "assets/characters/maul_recover_sweep.glb.import", "assets/characters/maul_ready.glb", "assets/characters/maul_ready.glb.import", "assets/characters/maul_sweep_ready.glb", "assets/characters/maul_sweep_ready.glb.import", "rootblade_animation.gd", "rootblade_animation.gd.uid", "assets/characters/rootblade_motion.json", "assets/characters/rootblade_forehand.glb", "assets/characters/rootblade_forehand.glb.import", "assets/characters/rootblade_backhand.glb", "assets/characters/rootblade_backhand.glb.import", "assets/characters/rootblade_recover_left.glb", "assets/characters/rootblade_recover_left.glb.import", "assets/characters/rootblade_recover_right.glb", "assets/characters/rootblade_recover_right.glb.import", "assets/characters/rootblade_ready.glb", "assets/characters/rootblade_ready.glb.import", "staff_animation.gd", "staff_animation.gd.uid", "tools/export_reviewed_staff.py", "assets/characters/staff_motion.json", "assets/characters/staff_forward.glb", "assets/characters/staff_forward.glb.import", "assets/characters/staff_side.glb", "assets/characters/staff_side.glb.import", "assets/characters/staff_recover_forward.glb", "assets/characters/staff_recover_forward.glb.import", "assets/characters/staff_recover_side.glb", "assets/characters/staff_recover_side.glb.import", "assets/characters/staff_ready.glb", "assets/characters/staff_ready.glb.import", "wand_animation.gd", "wand_animation.gd.uid", "tools/export_reviewed_wand.py", "assets/characters/wand_motion.json", "assets/characters/wand_forward.glb", "assets/characters/wand_forward.glb.import", "assets/characters/wand_sweep.glb", "assets/characters/wand_sweep.glb.import", "assets/characters/wand_recover_forward.glb", "assets/characters/wand_recover_forward.glb.import", "assets/characters/wand_recover_sweep.glb", "assets/characters/wand_recover_sweep.glb.import", "assets/characters/wand_ready.glb", "assets/characters/wand_ready.glb.import", "assets/characters/seed_focus_casts.glb", "assets/characters/seed_focus_casts.glb.import", "assets/characters/seed_focus_motion.json", "seed_focus_animation.gd", "seed_focus_animation.gd.uid", "tools/export_reviewed_seed_focus.py", "reviewed_weapon_attacks.gd", "reviewed_weapon_attacks.gd.uid", "assets/characters/ranger_and_knife_attacks.glb", "assets/characters/ranger_and_knife_attacks.glb.import", "assets/characters/ranger_and_knife_grips.json", "tools/export_reviewed_weapon_attacks.py", "tools/export_root_lash.py", "assets/characters/root_lash_attacks.glb", "assets/characters/root_lash_attacks.glb.import", "assets/characters/root_lash_grips.json", "assets/characters/scythe_attacks.glb", "assets/characters/scythe_attacks.glb.import", "assets/characters/scythe_grips.json", "tools/export_scythe.py", "tools/reviewed_rig_export.py", "tools/export_oracle_attacks.py", "assets/characters/bell_attacks.glb", "assets/characters/bell_attacks.glb.import", "assets/characters/bell_grips.json", "assets/characters/censer_attacks.glb", "assets/characters/censer_attacks.glb.import", "assets/characters/censer_grips.json", "assets/characters/fan_attacks.glb", "assets/characters/fan_attacks.glb.import", "assets/characters/fan_grips.json"]
+      "files": ["traveller_avatar.gd", "character_appearance.gd", "assets/characters/field_skill_poses_male.res", "assets/characters/field_skill_poses_female.res", "avatar_motion_view.gd", "avatar_motion_view.gd.uid", "field_traveller.gd", "field_traveller.gd.uid", "plant_polearms.gd", "plant_polearms.gd.uid", "traveller_locomotion.gd", "traveller_locomotion.gd.uid", "plant_weapon_models.gd", "plant_weapon_models.gd.uid", "weapon_pose_catalog.gd", "weapon_pose_catalog.gd.uid", "traveller_weapon_animation.gd", "traveller_weapon_animation.gd.uid", "tools/build_weapon_combat_library.py", "assets/characters/weapon_combat.glb", "assets/characters/weapon_combat.glb.import", "assets/characters/weapon_combat_sources.json", "spear_animation.gd", "spear_animation.gd.uid", "assets/characters/spear_thrust.glb", "assets/characters/spear_thrust.glb.import", "assets/characters/spear_sweep.glb", "assets/characters/spear_sweep.glb.import", "assets/characters/spear_motion.json", "maul_animation.gd", "maul_animation.gd.uid", "tools/export_reviewed_maul.py", "assets/characters/maul_motion.json", "assets/characters/maul_overhead.glb", "assets/characters/maul_overhead.glb.import", "assets/characters/maul_sweep.glb", "assets/characters/maul_sweep.glb.import", "assets/characters/maul_recover_overhead.glb", "assets/characters/maul_recover_overhead.glb.import", "assets/characters/maul_recover_sweep.glb", "assets/characters/maul_recover_sweep.glb.import", "assets/characters/maul_ready.glb", "assets/characters/maul_ready.glb.import", "assets/characters/maul_sweep_ready.glb", "assets/characters/maul_sweep_ready.glb.import", "rootblade_animation.gd", "rootblade_animation.gd.uid", "assets/characters/rootblade_motion.json", "assets/characters/rootblade_forehand.glb", "assets/characters/rootblade_forehand.glb.import", "assets/characters/rootblade_backhand.glb", "assets/characters/rootblade_backhand.glb.import", "assets/characters/rootblade_recover_left.glb", "assets/characters/rootblade_recover_left.glb.import", "assets/characters/rootblade_recover_right.glb", "assets/characters/rootblade_recover_right.glb.import", "assets/characters/rootblade_ready.glb", "assets/characters/rootblade_ready.glb.import", "staff_animation.gd", "staff_animation.gd.uid", "tools/export_reviewed_staff.py", "assets/characters/staff_motion.json", "assets/characters/staff_forward.glb", "assets/characters/staff_forward.glb.import", "assets/characters/staff_side.glb", "assets/characters/staff_side.glb.import", "assets/characters/staff_recover_forward.glb", "assets/characters/staff_recover_forward.glb.import", "assets/characters/staff_recover_side.glb", "assets/characters/staff_recover_side.glb.import", "assets/characters/staff_ready.glb", "assets/characters/staff_ready.glb.import", "wand_animation.gd", "wand_animation.gd.uid", "tools/export_reviewed_wand.py", "assets/characters/wand_motion.json", "assets/characters/wand_forward.glb", "assets/characters/wand_forward.glb.import", "assets/characters/wand_sweep.glb", "assets/characters/wand_sweep.glb.import", "assets/characters/wand_recover_forward.glb", "assets/characters/wand_recover_forward.glb.import", "assets/characters/wand_recover_sweep.glb", "assets/characters/wand_recover_sweep.glb.import", "assets/characters/wand_ready.glb", "assets/characters/wand_ready.glb.import", "assets/characters/seed_focus_casts.glb", "assets/characters/seed_focus_casts.glb.import", "assets/characters/seed_focus_motion.json", "seed_focus_animation.gd", "seed_focus_animation.gd.uid", "tools/export_reviewed_seed_focus.py", "reviewed_weapon_attacks.gd", "reviewed_weapon_attacks.gd.uid", "assets/characters/ranger_and_knife_attacks.glb", "assets/characters/ranger_and_knife_attacks.glb.import", "assets/characters/ranger_and_knife_grips.json", "tools/export_reviewed_weapon_attacks.py", "tools/export_root_lash.py", "assets/characters/root_lash_attacks.glb", "assets/characters/root_lash_attacks.glb.import", "assets/characters/root_lash_grips.json", "assets/characters/scythe_attacks.glb", "assets/characters/scythe_attacks.glb.import", "assets/characters/scythe_grips.json", "tools/export_scythe.py", "tools/reviewed_rig_export.py", "tools/export_oracle_attacks.py", "assets/characters/bell_attacks.glb", "assets/characters/bell_attacks.glb.import", "assets/characters/bell_grips.json", "assets/characters/censer_attacks.glb", "assets/characters/censer_attacks.glb.import", "assets/characters/censer_grips.json", "assets/characters/fan_attacks.glb", "assets/characters/fan_attacks.glb.import", "assets/characters/fan_grips.json"]
     },
     "garden_returns": {
       "label": "Committed expedition banking/identification, homecoming discovery and reactive life",
@@ -506,6 +508,9 @@
     "warden_progression": {
       "label": "Class subclasses, neighboring skill branches, cast presentation and checkpoint interactions",
       "files": [
+        "field_traveller.gd",
+        "assets/characters/field_skill_poses_male.res",
+        "assets/characters/field_skill_poses_female.res",
         "connected_class_tree.gd",
         "connected_class_tree.gd.uid",
         "warden_connected_tree.gd",
@@ -7261,48 +7266,6 @@
         }
       }
     },
-    "traveller_avatar.gd": {
-      "newline": "crlf",
-      "regions": {
-        "weapon_ready_during_action_only": {
-          "systems": [
-            "avatar_motion_view"
-          ]
-        },
-        "field_rig_animation": {
-          "systems": [
-            "avatar_motion_view"
-          ]
-        },
-        "field_rig_build": {
-          "systems": [
-            "avatar_motion_view"
-          ]
-        },
-        "field_rig_swap": {
-          "systems": [
-            "avatar_motion_view"
-          ]
-        },
-        "field_rig_import": {
-          "systems": [
-            "avatar_motion_view"
-          ]
-        },
-        "subclass_clip": {
-          "systems": [
-            "warden_progression"
-          ]
-        },
-        "character_overhaul": {
-          "systems": [
-            "characters",
-            "presentation",
-            "avatar_motion_view"
-          ]
-        }
-      }
-    },
     "weapon_visuals.gd": {
       "newline": "crlf",
       "regions": {
@@ -7391,18 +7354,6 @@
             "avatar_motion_view"
           ]
         },
-        "character_overhaul": {
-          "systems": [
-            "characters",
-            "presentation",
-            "avatar_motion_view"
-          ]
-        }
-      }
-    },
-    "assets/characters/rig_manifest.json": {
-      "newline": "crlf",
-      "regions": {
         "character_overhaul": {
           "systems": [
             "characters",
@@ -9894,16 +9845,6 @@
         }
       }
     },
-    "character_appearance.gd": {
-      "newline": "crlf",
-      "regions": {
-        "field_appearance": {
-          "systems": [
-            "avatar_motion_view"
-          ]
-        }
-      }
-    },
     "assets/characters/weapon_actions.json": {
       "newline": "crlf",
       "regions": {
@@ -10394,23 +10335,5 @@
     }
   },
   "binary_regions": {
-    "assets/characters/traveller_male.glb": {
-      "baseline_sha256": "c38a4c1c12ed6553f009c4b116b1a026241c6f997ec53034c2f91074815c2fe9",
-      "systems": [
-        "characters",
-        "presentation",
-        "avatar_motion_view"
-      ],
-      "contract": "Same 25 bones, six named morphs and action IDs; normalized skins; cosmetic mesh/animation only, no gameplay collision"
-    },
-    "assets/characters/traveller_female.glb": {
-      "baseline_sha256": "fe99262d218dd82d976c9044b47759a00d87a26c66681d7f4b8837c034f68751",
-      "systems": [
-        "characters",
-        "presentation",
-        "avatar_motion_view"
-      ],
-      "contract": "Same 25 bones, six named morphs and action IDs; normalized skins; cosmetic mesh/animation only, no gameplay collision"
-    }
   }
 }

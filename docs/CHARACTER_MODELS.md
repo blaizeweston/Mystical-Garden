@@ -1,17 +1,15 @@
-# Character models and creation
+# Playable character models
 
-The main menu offers three character slots, with expandable roster capacity. Empty slots open Create Character; occupied slots open Customize. Customization retains the character identity, combat experience, plant familiarity, learned choices and loadouts. Active profiles remain locked.
+Each traveller has one visible 65-joint skeleton and one animation player. Both the character creator and the live game build it through `traveller_avatar.gd` and `field_traveller.gd`.
 
-Both clothed traveller models share 25 joints and six Blender-authored clips: Idle, Walk, Run, Attack, Cast and Guard. Runtime combat retains weapon-specific upper-body offsets and contact timing. Weapons attach to the right-hand bone. Cosmetic proportions never alter collision, damage or attack reach.
+| Change | Edit |
+|---|---|
+| Character shape, clothing or accessories | `assets/characters/field_traveller_male.glb` and `field_traveller_female.glb`. `tools/build_field_travellers.py` assembles the Quaternius source models. Preserve bone names, skin weights, mesh names used by the accessory controls, and the six named morph channels. |
+| Appearance | `character_appearance.gd`. Height ranges from 92% to 108%. Build, shoulders, face width, jaw, nose and eye size drive visible mesh blend shapes. The hood covers the selected hairstyle. Shoulder armor, bracers and belts toggle independently. |
+| Idle, walking and running | `traveller_locomotion.gd` samples `field_locomotion.glb`. Distance traveled drives the gait, and the visible soles provide the grounding correction. |
+| Weapon carry, attack and release | `field_traveller.gd` composes the pose. `weapon_pose_catalog.gd` and the per-weapon animation scripts map the reviewed clips, grips and recovery. `assets/characters/weapon_actions.json` defines timing and contact. |
+| Class and Core casts | `assets/characters/field_skill_poses_male.res` and `field_skill_poses_female.res` contain the default cast and twelve class poses. Rotation tracks are in model space, indexed by visible joint name and normalized cast phase. `field_traveller.gd::pose_equipped` layers them over the moving hips and legs. |
 
-Appearance retains the original five categorical entries (cloak, tunic, hair color, hairstyle, skin), followed by model (0 male, 1 female) and seven integer sliders: height, build, shoulders, face width, jaw, nose and eye size. Sliders use 0–100, neutral 50. Height is bounded to 92–108%; the other six use blend shapes. Old five-value saves receive neutral defaults. The same normalized array is saved and transmitted as compact bytes; multiplayer protocol 4 requires matching builds.
+`character_creator.gd` and the Garden character panel use the same appearance definition. Existing characters keep their identity, progression and appearance fields. Protocol 41 packs the cosmetic choices into the existing 64 bits.
 
-Authoritative editable source: assets/source/travellers.blend. Rebuild both GLBs with Blender in background using tools/make_travellers.py. Runtime files are assets/characters/traveller_male.glb and traveller_female.glb. rig_manifest.json documents bone and morph names. Legacy adventurer.glb and the old combat-model builder are retained for recovery; they are no longer used by playable characters and cannot overwrite the new asset paths.
-
-These are a first rigged character pass, ready for further sculpting, clothing detail and animation refinement. Hair and clothing remain preset choices; face and body proportions use sliders. No external modeling API is required.
-
-Checks: tests/character_rig.gd validates rig, skins, morphs, clips, attachment, bounded values, creator restoration, and editing without progression loss. tests/menu_coop.gd covers the full appearance array across a real host/guest connection. Standard release validation and packaged checks also run before replacing the highest numbered executable.
-
-The female tunic includes smoothly blended breast volume. Every morph is built explicitly from Basis with from_mix=False; exported vertex checks require facial sliders to leave torso vertices unchanged and the nose slider to preserve width. This prevents inherited deformations from earlier shape keys.
-
-Locomotion uses active manual AnimationPlayer playback, sampled once per frame. Gait phase advances with traveled distance, while idle breathing uses elapsed time. Joint poses blend at transitions; attack upper-body poses layer over the existing leg cycle. Root bob/tilt has been removed to keep the feet grounded. Both host and guest use the same presentation path. Public movement now carries authoritative velocity, while foot-cycle phase follows interpolated distance to avoid frozen or weak walking between network packets. tests/character_locomotion.gd compares joint poses over time and exercises stage-driven movement.
+Focused checks are `tests/character_rig.gd`, `tests/character_overhaul.gd`, `tests/character_customization.gd`, `tests/character_locomotion.gd`, `tests/weapon_actions.gd` and the two-player presentation fixtures.

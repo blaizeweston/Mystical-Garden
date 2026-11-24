@@ -20,18 +20,16 @@ const MODELS := [
 	preload("res://assets/characters/field_traveller_male.glb"),
 	preload("res://assets/characters/field_traveller_female.glb"),
 ]
-const DRIVER_JOINTS := {
-	"spine_01":"spine", "spine_03":"chest", "neck_01":"neck", "Head":"head",
-	"clavicle_l":"clavicle.L", "upperarm_l":"upper_arm.L", "lowerarm_l":"forearm.L", "hand_l":"hand.L",
-	"clavicle_r":"clavicle.R", "upperarm_r":"upper_arm.R", "lowerarm_r":"forearm.R", "hand_r":"hand.R",
-	"thumb_01_l":"thumb.L", "thumb_01_r":"thumb.R",
-	"index_01_l":"fingers.L", "middle_01_l":"fingers.L", "ring_01_l":"fingers.L", "pinky_01_l":"fingers.L",
-	"index_01_r":"fingers.R", "middle_01_r":"fingers.R", "ring_01_r":"fingers.R", "pinky_01_r":"fingers.R",
-}
+# The class animation tracks contain model-space rotations for joints on the visible
+# skeleton. They overlay locomotion, including when the hips are turning.
+const SKILL_POSES := [
+	preload("res://assets/characters/field_skill_poses_male.res"),
+	preload("res://assets/characters/field_skill_poses_female.res"),
+]
 static var libraries: Dictionary = {}
 
 
-static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
+static func build(model: Node3D, kind: int) -> Dictionary:
 	kind = clampi(kind,0,MODELS.size()-1)
 	var visual := MODELS[kind].instantiate() as Node3D
 	model.add_child(visual)
@@ -55,14 +53,6 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 		WeaponAnimation.add_from(libraries[kind],visual,skeleton,preload("res://assets/characters/censer_attacks.glb"))
 		WeaponAnimation.add_from(libraries[kind],visual,skeleton,preload("res://assets/characters/fan_attacks.glb"))
 	player.add_animation_library("", libraries[kind])
-	var links: Dictionary = {}
-	for name in DRIVER_JOINTS:
-		var target := skeleton.find_bone(name)
-		var source := driver.find_bone(DRIVER_JOINTS[name])
-		links[target] = {
-			"source":source,
-			"alignment":driver.get_bone_global_rest(source).basis.inverse() * skeleton.get_bone_global_rest(target).basis,
-		}
 	var soles: Array = []
 	for side in ["l", "r"]:
 		for joint in ["foot_", "ball_"]:
@@ -72,7 +62,7 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 			point.y = 0.006
 			soles.append({"bone":bone, "point":rest.affine_inverse() * point})
 	var field: Dictionary={
-		"scene":visual, "skeleton":skeleton, "player":player, "links":links, "soles":soles,
+		"scene":visual, "skeleton":skeleton, "player":player, "skill_poses":SKILL_POSES[kind], "soles":soles,
 		"left":socket(skeleton,"l"), "right":socket(skeleton,"r"), "gait":0.0,
 		"pelvis":skeleton.find_bone("pelvis"), "carry": {}, "ready_elapsed": 0.0, "carry_form": "",
 		"spear":Spear.calibration(skeleton,player,skeleton.find_bone("pelvis")),
@@ -160,7 +150,14 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 static func pose_equipped(actor: Dictionary, active: bool, phase: float, form: String, motion: Dictionary, delta: float) -> void:
 	var field: Dictionary = actor.field_rig
 	var skeleton: Skeleton3D = field.skeleton
-	var driver: Skeleton3D = actor.skeleton
+	var skill_rotations := {}
+	if active and motion.get("ability", false):
+		var library: AnimationLibrary = field.skill_poses
+		var name := StringName(motion.get("clip", ""))
+		var skill := library.get_animation(name if library.has_animation(name) else &"Cast")
+		for track in skill.get_track_count():
+			var joint := skeleton.find_bone(skill.track_get_path(track).get_subname(0))
+			skill_rotations[joint] = skill.rotation_track_interpolate(track, clampf(phase, 0.0, 1.0))
 	var old_pose: Array[Quaternion] = []
 	for index in skeleton.get_bone_count():
 		old_pose.append(skeleton.get_bone_pose_rotation(index))
@@ -229,19 +226,18 @@ static func pose_equipped(actor: Dictionary, active: bool, phase: float, form: S
 		if index==int(field.pelvis):
 			var turn := parent_basis.inverse()*Basis(Vector3.UP,float(locomotion.yaw))*parent_basis
 			rotation = turn.get_rotation_quaternion()*rotation
-		var link: Dictionary = field.links.get(index,{})
 		var bone_name := skeleton.get_bone_name(index)
 		var native_bone := not native_action.is_empty() and WeaponAnimation.upper_body(bone_name)
 		# Constrained grips solve these joints below. Imported arm twists would fight
 		# that solution; retain native torso/free-arm motion and locomotion wrists.
 		var grip_joint := not reviewed_basic and not wand_basic and not maul_basic and not spear_basic and not staff_basic and constrained_pose and grip_controls_joint(form,bone_name)
-		var has_action := action_weight>0.0 and not basic_stance and not grip_joint and (native_bone or not link.is_empty())
+		var has_action := action_weight>0.0 and not basic_stance and not grip_joint and (native_bone or skill_rotations.has(index))
 		if has_action:
 			var action_pose: Quaternion
 			if native_bone:
 				action_pose=native_action[index]
 			else:
-				var goal: Basis = driver.get_bone_global_pose(link.source).basis * link.alignment
+				var goal: Basis = Basis(skill_rotations[index])
 				action_pose=(parent_basis.inverse()*goal).orthonormalized().get_rotation_quaternion()
 			rotation = rotation.slerp(action_pose,action_weight)
 		var body_weight := .45 if bone_name=="spine_01" else .55 if bone_name=="spine_03" else -1.0 if bone_name=="neck_01" else 0.0
