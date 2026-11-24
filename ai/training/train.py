@@ -99,6 +99,13 @@ def masked_terms(logits: torch.Tensor, masks: torch.Tensor, actions: torch.Tenso
     return log_prob, entropy
 
 
+def entropy_weights(cfg: dict) -> tuple[float, float]:
+    """The entropy bonuses for the fighting choices (behaviour, targets, manoeuvre) and for the message choices.
+    entropy_weight is the older single setting, used for either when its split setting is absent."""
+    single = float(cfg.get("entropy_weight", 0.0))
+    return float(cfg.get("entropy_weight_fight", single)), float(cfg.get("entropy_weight_messages", single))
+
+
 class Trainer:
     def __init__(self, run_dir: Path, settings: dict, overrides: dict, log=print) -> None:
         self.run_dir = run_dir
@@ -286,6 +293,7 @@ class Trainer:
         stats = {"replay_gap": self._replay_gap(batch, obs, masks, actions, old_log_prob, index, valid, start_memory)}
         totals = {"policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0, "entropy_messages": 0.0, "approx_kl": 0.0, "clip_fraction": 0.0}
         message_heads = [i for i, name in enumerate(HEAD_NAMES) if name.startswith("message")]
+        fight_weight, message_weight = entropy_weights(cfg)
         steps = 0
         # KL is reported from the final pass: by then the policy has moved as far as this update moves it. An
         # average over every step would include the first, which barely move it, and read about half as high.
@@ -312,7 +320,9 @@ class Trainer:
                 clipped = old_value + (value - old_value).clamp(-value_clip, value_clip)
                 value_loss = 0.5 * torch.max((value - returns_t[flat]) ** 2, (clipped - returns_t[flat]) ** 2).mean()
                 entropy_mean = entropy[keep].mean()
-                loss = policy_loss + float(cfg["value_weight"]) * value_loss - float(cfg["entropy_weight"]) * entropy_mean
+                message_mean = sum(heads[i] for i in message_heads)[keep].mean()
+                fight_mean = entropy_mean - message_mean
+                loss = policy_loss + float(cfg["value_weight"]) * value_loss - fight_weight * fight_mean - message_weight * message_mean
                 self.optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(list(self.policy.parameters()) + list(self.critic.parameters()), float(cfg["max_grad_norm"]))
@@ -321,7 +331,7 @@ class Trainer:
                     totals["policy_loss"] += policy_loss.item()
                     totals["value_loss"] += value_loss.item()
                     totals["entropy"] += entropy_mean.item()
-                    totals["entropy_messages"] += sum(heads[i] for i in message_heads)[keep].mean().item()
+                    totals["entropy_messages"] += message_mean.item()
                     kl = ((ratio - 1) - log_ratio).mean().item()
                     totals["approx_kl"] += kl
                     if epoch == epochs - 1:

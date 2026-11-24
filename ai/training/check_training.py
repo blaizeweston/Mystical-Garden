@@ -131,6 +131,9 @@ def test_trainer(schema: MobSchema, folder: Path) -> None:
     check(line["entropy_messages"] > 0.0 and line["entropy_fight"] > 0.0 and
           abs(line["entropy_fight"] + line["entropy_messages"] - line["entropy"]) < 1e-3,
           "each update splits its entropy into fighting and message choices")
+    configured = T.load_settings()["trainer"]
+    check(T.entropy_weights(configured) == (float(configured["entropy_weight_fight"]), float(configured["entropy_weight_messages"])) and
+          T.entropy_weights({"entropy_weight": 0.01}) == (0.01, 0.01), "fighting and message choices have their own entropy bonus")
     for index in range(3):
         trainer.checkpoint()
         trainer.version += 1
