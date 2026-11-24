@@ -126,10 +126,10 @@ static func _spray(tool: SurfaceTool, at: Vector2, id: int) -> void:
 				tool.set_uv(Vector2(t,fmod(id*0.19+arm*0.10,1.0)))
 				tool.add_vertex(p+side*vertex.y)
 
-static func preview(center: Vector2, beds: Dictionary, slots: Array[int]) -> ImmediateMesh:
+static func preview(center: Vector2, beds: Dictionary, slots: Array[int], radius := Irrigation.RADIUS_M) -> ImmediateMesh:
 	var rings := ImmediateMesh.new()
 	rings.surface_begin(Mesh.PRIMITIVE_LINES)
-	_ring(rings,center,Irrigation.RADIUS_M,72)
+	_ring(rings,center,radius,72)
 	for slot in slots: _ring(rings,beds[slot],0.83,24)
 	rings.surface_end()
 	return rings

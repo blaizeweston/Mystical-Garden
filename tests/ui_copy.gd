@@ -18,7 +18,7 @@ func run() -> void:
   for phrase in ["weighted", "committed contact", "bounded echo", "a living technique shaped", "draw a stronger expression", "refine the living form"]:
    check(not str(entry.description).to_lower().contains(phrase), "upgrade copy avoids implementation wording " + id)
  check(classes.effect_text({"windup_damage": 1}).contains("during enemy wind-up"), "wind-up damage identifies the enemy's attack phase")
- check(heart.get_node("flowering").description.contains("mature plant"), "Flowering describes the current harvest choice")
+ check(heart.get_node("pollination_bloom").description.contains("mature"), "Pollination Bloom describes its mature harvest benefit")
  var game = load("res://world.tscn").instantiate()
  var base := "res://.godot/ui-copy-" + Crypto.new().generate_random_bytes(8).hex_encode()
  game.progress.path = base + ".cfg"

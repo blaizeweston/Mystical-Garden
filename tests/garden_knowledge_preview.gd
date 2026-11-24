@@ -65,7 +65,7 @@ func run() -> void:
 		progress.grant_test_knowledge()
 	check(progress.research("clearing_2") and progress.research("clearing_3"),
 		"higher tiers can be researched in prerequisite order")
-	check(progress.research("flowering") and progress.research("seed_archive")
+	check(progress.research("seed_archive")
 		and progress.research("monster_studies"), "existing altar prerequisites unlock lab structures")
 	_choose(panel, "irrigation")
 	check(panel.detail.text.contains("Grants a Water Intake and a Living Sprinkler")

@@ -207,8 +207,8 @@ func timed_research() -> void:
  check(garden.save_garden_guarded().value.outcome.outcome == Batch.Outcome.COMMITTED and not garden.needs_research_backup
   and FileAccess.get_file_as_bytes(target) == original and not FileAccess.file_exists(target + ".tmp"), "matching scratch can safely publish and migration commits")
  var current := ConfigFile.new()
- check(current.load(garden.path) == OK and current.get_value("heart", "state", {}).get("version") == 4, "immediate research marker committed")
- check(garden.load_garden_guarded().value == OK and garden.knowledge == 20 and garden.heart.spent == 0 and garden.heart.has("flowering"), "recovered migration completes Flowering and releases the original five without increasing lifetime Knowledge")
+ check(current.load(garden.path) == OK and current.get_value("heart", "state", {}).get("version") == garden.heart.VERSION, "immediate research marker committed")
+ check(garden.load_garden_guarded().value == OK and garden.knowledge == 20 and garden.heart.spent == 0 and not garden.heart.has("flowering"), "recovered migration retires free Flowering and releases the original five without increasing lifetime Knowledge")
  record("timed_research_backup", {}, {"canonical":Slots._save_digest(garden.path), "backup":Slots._save_digest(target),
   "original":Ops.Batch.Evidence.digest(original), "needs_research_backup":garden.needs_research_backup})
 

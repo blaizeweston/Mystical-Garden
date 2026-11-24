@@ -45,6 +45,25 @@ func run():
  outcome=Service.combine(game,p,duplicate)
  check(outcome.contains("Clue:") and reserve.stock[0]==old_seeds-2 and reserve.parts[1]==old_parts+1,"failed seed offering returns partial material and a clue")
  check(Service.preview(game,p,duplicate).known and Service.preview(game,p,duplicate).item==Items.part_id(1),"failed combinations remember their salvage result")
+ # Conservation still consumes one seed per failed offering. It never refunds the salvaged parent of a distinct pair.
+ g.heart.unlocked.append("seed_conservation")
+ reserve.stock[0]=2
+ var salvage_before: int=reserve.parts[1]
+ Service.combine(game,p,duplicate)
+ check(reserve.stock[0]==1 and reserve.parts[1]==salvage_before+1 and Service.preview(game,p,duplicate).text.contains("Returns one"),"matching parents conserve one seed and yield one ordinary material")
+ var failed_pair:=pair(Items.seed_id(1),Items.seed_id(23))
+ check(Recipes.find("seeds",failed_pair[0].item,failed_pair[1].item).is_empty(),"different parents form a supported failed pair")
+ for slot in [1,23]: reserve.stock[slot]=2
+ var kept: int=Items.get_item(Service.conserved_parent(failed_pair)).legacy_seed
+ var used:=24-kept
+ var species_part: int=Items.Seeds.DEFINITIONS[used].part
+ var before_part: int=reserve.parts[species_part]
+ Service.combine(game,p,[failed_pair[1],failed_pair[0]])
+ check(reserve.stock[kept]==2 and reserve.stock[used]==1 and reserve.parts[species_part]==before_part+1,"opposite parent conserved regardless of offering order")
+ var stocks: Array=reserve.stock.duplicate()
+ var same_parts:=pair(Items.part_id(2),Items.part_id(2))
+ Service.combine(game,p,same_parts)
+ check(reserve.stock==stocks,"failed material offering returns no seeds")
  reserve.stock[0]=1
  var before: int=reserve.stock[0]
  Service.combine(game,p,duplicate)
@@ -74,6 +93,9 @@ func run():
  var novel:=pair(Items.seed_id(0),Items.seed_id(3))
  var captured:=Service.capture(game,p)
  g.path="res://.godot/absent-altar-dir/garden.cfg"
+ var failed_capture:=Service.capture(game,p)
+ Service.combine(game,p,duplicate)
+ check(Service.capture(game,p)==failed_capture,"failed persistence restores both seeds and the conservation salvage")
  outcome=Service.combine(game,p,novel)
  check(outcome.contains("returned") and Service.capture(game,p)==captured,"failed save rolls the complete offering back")
  g.path=saved_path
@@ -83,7 +105,9 @@ func run():
  check(reserve.unknown.size()==unknown_before-1 and reserve.stock[4]==1,"explicit identification is still available from altar")
  check(not Service.preview(game,p,novel).known and not Service.recorded_seed_species(g).has(4),"identifying a species does not reveal its untested seed recipe")
  var known_points: int=g.knowledge
+ var parent_a: int=reserve.stock[0];var parent_b: int=reserve.stock[3]
  Service.combine(game,p,novel)
+ check(reserve.stock[0]==parent_a-1 and reserve.stock[3]==parent_b-1,"successful seed recipe consumes both parents with Conservation")
  check(g.knowledge==known_points+2 and Service.recorded_seed_species(g).has(4),"testing an identified species recipe still earns exactly two Knowledge")
  ExpeditionCase.set_membership(game, p, true)
  captured=Service.capture(game,p);Service.combine(game,p,parts)

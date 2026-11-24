@@ -18,6 +18,7 @@ static func add(inventory: Dictionary, kind: String, payment: Dictionary) -> int
 	var id: int = inventory.next_id
 	inventory.next_id += 1
 	inventory.instances[id] = {"kind":kind,"placed":false,"at":Vector2.ZERO,"yaw":0.0,"slot":-1,"paid":payment.duplicate(true)}
+	if kind == "bud_sanctuary": inventory.instances[id].care_mode = "disabled"
 	inventory.revision += 1
 	return id
 
@@ -82,6 +83,7 @@ static func valid(data: Variant, crops: Array) -> bool:
 		if not entry.paid.is_empty():
 			if not Catalog.DEFINITIONS[entry.kind].get("repeatable",false) or not valid_payment(entry.paid): return false
 		if entry.slot in [0,1,2] and not entry.paid.is_empty(): return false
+		if entry.kind=="bud_sanctuary" and entry.get("care_mode","") not in ["disabled","standard","enhanced"]: return false
 		if entry.kind=="intake": intakes += 1
 		if entry.kind=="altar": altars += 1
 		if entry.kind!="bed" and entry.slot!=-1: return false

@@ -13,7 +13,7 @@ func check(ok:bool,message:String)->void:
 func _initialize():
 	for pair in [[0,.05],[5,.25],[25,.35],[45,.45],[9999,.45]]:
 		check(is_equal_approx(Rules.rare_harvest_chance(int(pair[0])),float(pair[1])),"unchanged native rare chance "+str(pair[0]))
-	check(Rules.familiarity_after(2,false)==3 and Rules.familiarity_after(2,true)==4 and Rules.familiarity_after(9999,true)==9999,"native and nursery familiarity preserve their cap")
+	check(Rules.familiarity_after(2,1)==3 and Rules.familiarity_after(2,2)==4 and Rules.familiarity_after(9999,3)==9999,"native and nursery familiarity preserve their cap")
 	for species in Seeds.DEFINITIONS.size():
 		var care:=Care.new_cycle(species)
 		var bed:=Rules.planted_bed(species,care)

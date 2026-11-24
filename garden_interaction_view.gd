@@ -16,9 +16,6 @@ func present_feature(kind: String, facts: Dictionary) -> void:
   "crop":get_node("Crops").present(facts)
   "station":station_controls.present(facts)
   "return":get_node("ReturnLife").present(facts)
-  "conduit":
-   var display:=facts.duplicate(true);display.inspecting=panel.visible and selected==preload("res://garden_conduit.gd").POINT
-   get_node("Terrace").present(display)
   "ambience":get_node("Ambience").present(facts)
   "cinematic":get_node("GrowthScenes").present(facts)
 func refresh_feature(kind: String, selection: Dictionary={}) -> void:
@@ -72,8 +69,6 @@ func _ready() -> void:
  crops.refresh_requested.connect(func():refresh_feature("crop"));crops.requested.connect(requested.emit);add_child(crops)
  var returns=preload("res://garden_return_view.gd").new();returns.configure(_stage,points,scenes);returns.name="ReturnLife"
  returns.refresh_requested.connect(func():refresh_feature("return"));add_child(returns)
- var terrace=preload("res://garden_terrace_view.gd").new();terrace.configure(_stage,points[preload("res://garden_conduit.gd").POINT],panel);terrace.name="Terrace"
- terrace.refresh_requested.connect(func():refresh_feature("conduit"));terrace.requested.connect(requested.emit);add_child(terrace)
  var ambience=preload("res://garden_ambience.gd").new();ambience.configure(_stage);ambience.name="Ambience"
  ambience.refresh_requested.connect(func():refresh_feature("ambience"));add_child(ambience)
 func build_point(definition: Dictionary) -> Node3D:

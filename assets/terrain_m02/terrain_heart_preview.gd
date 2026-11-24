@@ -15,7 +15,7 @@ const LEAF := Color("#4b5232")
 const CORE := Color("#d23735")
 const RESEARCH_HEIGHT_PER_UNLOCK := 0.018
 const RESEARCH_WIDTH_PER_UNLOCK := 0.008
-const MIN_BUILD_RESERVATION_GROWTH := 22 # Preserve the previously reserved mature footprint across catalog revisions.
+const MATURE_SCULPT_GROWTH := 22 # Preserve the previously reserved mature footprint across catalog revisions.
 const BUILD_BASE_HEIGHT_M := 0.35 # Ground-level trunk/roots; overhead branches do not reserve land.
 const Growth = preload("res://heart_growth_visuals.gd")
 const Research = preload("res://heart_catalog.gd")
@@ -78,6 +78,7 @@ func _growth_scale() -> Vector3:
 	return research_scale(_research_growth)
 
 static func research_scale(completed: float) -> Vector3:
+	completed = clampf(completed,0.0,MATURE_SCULPT_GROWTH)
 	return Vector3(1.0 + completed * RESEARCH_WIDTH_PER_UNLOCK,
 		1.0 + completed * RESEARCH_HEIGHT_PER_UNLOCK, 1.0 + completed * RESEARCH_WIDTH_PER_UNLOCK)
 
@@ -88,8 +89,7 @@ static func maximum_base_outline() -> PackedVector2Array:
 		var source := SCULPT.instantiate() as Node3D
 		var model := source.get_node("HeartStage%d" % STAGES.size()) as MeshInstance3D
 		model.position = Vector3.ZERO
-		var full_growth := Growth.count(Research.DEFINITIONS.map(func(entry): return entry.id))
-		model.scale = research_scale(maxi(MIN_BUILD_RESERVATION_GROWTH, full_growth))
+		model.scale = research_scale(MATURE_SCULPT_GROWTH)
 		var pose := source.transform * model.transform
 		_maximum_base_outline = Geometry2D.convex_hull(Shape.project_height_band(model.mesh.get_faces(), pose, 0.0, BUILD_BASE_HEIGHT_M))
 		if _maximum_base_outline[0] == _maximum_base_outline[-1]:

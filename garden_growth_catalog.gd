@@ -18,5 +18,4 @@ static func describe(id: String,before: Dictionary,after: Dictionary) -> Diction
   if zone.get("water_access",false) and not enabled(zone,before.tech) and enabled(zone,after.tech):result.kind="spring";result.zone=zone.id;result.name="The Garden shares its water"
  for zone in Places.ZONES:
   if zone.has("reveal") and not enabled(zone,before.tech) and enabled(zone,after.tech):result.kind="zone";result.zone=zone.id;result.name=zone.get("name","The Garden opens")
- if id=="living_conduit":result.kind="zone";result.zone="cultivation_terrace"
  return result

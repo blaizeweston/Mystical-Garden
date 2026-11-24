@@ -75,6 +75,7 @@ func close_world() -> void:
 
 func mature(slot: int, species: int) -> void:
  world.progress.plots[slot] = world.progress.empty_plot().merged({"species":species,"stage":3,"age":10000.0},true)
+ preload("res://garden_crop_state.gd").ensure(world.progress.plots[slot])
  world.progress.sync_plot_flags()
 
 func audio_count() -> int:
@@ -185,14 +186,14 @@ func gameplay() -> void:
  world.set_meta(&"guarded_gameplay_test_fault", func(phase, path):
   if phase == "stage": research_stages.append(path)
   return ERR_FILE_CANT_WRITE if phase == "stage" else OK)
- world.garden_action(1, "heart_start_flowering")
+ world.garden_action(1, "heart_start_seed_conservation")
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(disk() == research_before and world.progress.heart.serialize() == heart_before
   and world.progress.parts == parts_before and world.status.begins_with("Save cancelled")
   and research_stages == [garden_path + ".txn_stage"], "research abort restores Knowledge, research and bytes without success")
  record("research_abort",research_before,{"stages":research_stages,"feedback":world.status})
- world.garden_action(1, "heart_start_flowering")
- check(world.progress.flowering_unlocked and world.status.contains("unlocked")
+ world.garden_action(1, "heart_start_seed_conservation")
+ check(world.progress.heart.has("seed_conservation") and world.status.contains("unlocked")
   and disk()[garden_path] != research_before[garden_path] and disk()[C] == research_before[C], "selected free research unlocks in a Garden-only commit")
  record("research_purchase_commit",research_before,{"feedback":world.status})
  var saved_bed: Dictionary = world.progress.plots[0].duplicate(true)
@@ -222,7 +223,7 @@ func gameplay() -> void:
  check(tick_stages==[garden_path+".txn_stage"] and disk()[C]==before_ticks[C],
   "crop checkpoints stage just one Garden")
  var checkpoint := ConfigFile.new()
- check(checkpoint.load(garden_path)==OK and checkpoint.get_value("heart","state").unlocked.has("flowering"),
+ check(checkpoint.load(garden_path)==OK and checkpoint.get_value("heart","state").unlocked.has("seed_conservation"),
   "crop checkpoint retains the committed research")
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.progress.plots[0] = saved_bed
@@ -314,11 +315,11 @@ func gameplay() -> void:
   and world.status.begins_with("Save cancelled"), "abort restores bytes, bed, profile, RNG and withholds audio")
  record("harvest_serializer_abort",before,{"staged":stage_attempts,"status":world.status,"audio":audio_count()})
  check(world.cultivation.harvest(1,0) and world.progress.plots[0].species<0 and p.character.plants[0]==1
-  and world.rng.state!=rng_before and disk()[garden_path]!=before[garden_path] and disk()[C]!=before[C] and audio_count()==start_audio+1,
+  and world.rng.state==rng_before and disk()[garden_path]!=before[garden_path] and disk()[C]!=before[C] and audio_count()==start_audio+1,
   "retry commits crop, Garden and profile, with one post-commit cue")
  check(not world.cultivation.harvest(1,0) and audio_count()==start_audio+1, "duplicate harvest cannot reward or emit")
  record("harvest_retry_committed",before,{"profile":p.character.plants[0],"status":world.status,"audio":audio_count()})
- world.progress.flowering_unlocked=true
+
  mature(0,0)
  before=disk()
  rng_before=world.rng.state
@@ -329,7 +330,7 @@ func gameplay() -> void:
  world.refresh_feedback()
  check(world.progress.stock[0]==seed_count+2 and p.character.plants[0]==2 and world.rng.state==rng_before and audio_count()==start_audio+2
   and disk()[garden_path]!=before[garden_path] and disk()[C]!=before[C] and Plan.discover(PackedStringArray([garden_path])).state=="pending_recovery"
-  and UIFixture.control(world,"feedback").text.contains("Harvested two") and UIFixture.control(world,"feedback").text.contains("Recovery cleanup is pending"),
+  and UIFixture.control(world,"feedback").text.contains("Harvested 2") and UIFixture.control(world,"feedback").text.contains("Recovery cleanup is pending"),
   "flowering confirmed with one success/audio and retained cleanup warning")
  var committed:=disk()
  world.garden_action(1,"flower")
@@ -376,7 +377,7 @@ func gameplay() -> void:
  check(not world.cultivation.harvest(1,0), "uncertain actual harvest withholds success")
  world.remove_meta(&"guarded_gameplay_test_fault")
  var split:=disk()
- check(world.progress.plots[0].species<0 and p.character.plants[0]==3 and world.rng.state!=rng_before and audio_count()==0
+ check(world.progress.plots[0].species<0 and p.character.plants[0]==3 and world.rng.state==rng_before and audio_count()==0
   and split[C]!=before[C] and split[garden_path]==before[garden_path] and world.persistence_session.pending_notice().contains("uncertain"),"uncertainty preserves tentative memory and split proof without cue")
  check(not world.cultivation.harvest(1,0) and split==disk(),"uncertain replay refused")
  record("harvest_uncertain",before,{"tentative_familiarity":p.character.plants[0],"notice":world.persistence_session.pending_notice()})
@@ -453,7 +454,7 @@ func caller_effect_fault(phase: String, _path: String, outcome: String, attempts
 
 func caller_effects() -> void:
  var fresh := true
- for action in ["irrigation_grant","water","observation","purchase","contribution","construct","refund","sprinkler_purchase","sprinkler_refund"]:
+ for action in ["irrigation_grant","water","observation","purchase","contribution","construct","refund","sprinkler_purchase","sprinkler_refund","grove_purchase","grove_refund"]:
   for outcome in ["ABORTED_RESTORED","UNCERTAIN","COMMITTED_CLEANUP_PENDING"]:
    if not open_world(fresh): return
    fresh=false
@@ -467,23 +468,30 @@ func caller_effects() -> void:
    var prior_spent: int = world.progress.heart.spent
    var prior_energy: int = garden.funds.energy
    var prior_instances := 0
+   var ironwood: int = world.Items.get_item("plant_part_rare_ironroot").legacy_part
+   var prior_ironwood := 0
    match action:
-    "construct","refund","sprinkler_purchase","sprinkler_refund":
+    "construct","refund","sprinkler_purchase","sprinkler_refund","grove_purchase","grove_refund":
      player.pos = world.Stage.HEART
      world.run_heart_save(func():
       world.progress.knowledge=80
       world.progress.garden_development.energy=60
+      world.progress.add_parts(ironwood,1)
       return "")
      garden.funds.energy=60
      world.garden_action(1,"heart_start_cultivation_grounds")
      var kind := "sprinkler" if str(action).begins_with("sprinkler") else "bed"
+     if str(action).begins_with("grove"):
+      kind="refinement_grove"
+      world.garden_action(1,"heart_start_refinement_grove")
      if kind=="sprinkler":
       for tech in ["flowering","clearing_1","irrigation"]: world.garden_action(1,"heart_start_"+tech)
-     if action in ["construct","sprinkler_purchase"]:
+     if action in ["construct","sprinkler_purchase","grove_purchase"]:
       invoke=garden.construct.bind(kind,world.progress.structures.revision)
      else:
       check(garden.construct(kind,world.progress.structures.revision),"prepare a refundable receipt")
       invoke=garden.retire_structure.bind(world.progress.structures.next_id-1,world.progress.structures.revision,true)
+     prior_ironwood=world.progress.part_count(ironwood)
      prior_energy=garden.funds.energy
      prior_instances=world.progress.structures.instances.size()
     "purchase", "contribution", "irrigation_grant":
@@ -551,9 +559,12 @@ func caller_effects() -> void:
    match action:
     "irrigation_grant":
      check(world.progress.heart.has("irrigation")==not aborted and world.progress.structures.instances.size()==prior_instances+(0 if aborted else 2) and world.progress.heart.spent==prior_spent+(0 if aborted else 4),"both free grants and their payment agree with "+outcome)
-    "construct","refund","sprinkler_purchase","sprinkler_refund":
+    "construct","refund","sprinkler_purchase","sprinkler_refund","grove_purchase","grove_refund":
      var price := 24 if str(action).begins_with("sprinkler") else 12
-     var delta := 1 if action in ["construct","sprinkler_purchase"] else -1
+     if str(action).begins_with("grove"): price=40
+     var delta := 1 if action in ["construct","sprinkler_purchase","grove_purchase"] else -1
+     if str(action).begins_with("grove"):
+      check(world.progress.part_count(ironwood)==prior_ironwood-(0 if aborted else delta),"material receipt and balance agree with "+outcome)
      check(world.progress.structures.instances.size()==prior_instances+(0 if aborted else delta)
       and world.progress.garden_development.energy==prior_energy-(0 if aborted else delta*price)
       and garden.funds.energy==prior_energy-(delta*price if committed else 0),"ownership, debit and published Energy match "+outcome)

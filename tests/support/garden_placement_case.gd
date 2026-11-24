@@ -32,6 +32,18 @@ static func deploy_irrigation(garden: Node, kind: String, near: Vector2) -> int:
 	if not site.is_finite() or not garden.place(kind,site,0,id): return 0
 	return id
 
+static func reclaim_orchard(garden: Node) -> void:
+	# Reclaim space for the large orchard before placing its beds along the approaches.
+	for step in 18:
+		var choices: Array = garden.state.frontier_options()
+		if choices.is_empty(): break
+		choices.sort_custom(func(a,b): return a.cells.size()>b.cells.size())
+		var plan: Dictionary = choices.front()
+		garden.plans[plan.sector] = plan
+		if not garden.expand(plan.sector): break
+		garden.reveal.custom_step(3.0)
+	print("HG02_SCALE frontier purchases=",garden.state.revision)
+
 ## Place real owned beds through their ordinary host commands. Sample a regular row spacing,
 ## then try a staggered row for awkward boundaries. Reclaim a legal frontier when needed.
 static func develop(garden: Node, target: int, profile := false) -> bool:
@@ -39,23 +51,12 @@ static func develop(garden: Node, target: int, profile := false) -> bool:
 	var pawn: Vector2 = garden.planar(game.players[1].pos)
 	var revision: int = -1
 	var sites: Array[Vector2] = []
-	if profile:
-		# Reclaim space for the large orchard before placing its beds along the approaches.
-		for step in 18:
-			var choices: Array = garden.state.frontier_options()
-			if choices.is_empty(): break
-			choices.sort_custom(func(a,b): return a.cells.size()>b.cells.size())
-			var plan: Dictionary = choices.front()
-			garden.plans[plan.sector] = plan
-			if not garden.expand(plan.sector): break
-			garden.reveal.custom_step(3.0)
-		print("HG02_SCALE frontier purchases=",garden.state.revision)
 	while garden.bed_ids.size() < target:
 		if garden.state.revision != revision:
 			revision = garden.state.revision
 			sites.clear()
 			var bounds: Rect2 = Shape.shape("test","clearing",garden.state.outline).bounds
-			for offset in [Vector2.ZERO,Vector2(1.35,1.4)]:
+			for offset in [Vector2(.6,.7),Vector2(1.9,.7),Vector2(.6,2.1),Vector2(1.9,2.1),Vector2.ZERO,Vector2(1.35,1.4)]:
 				for y in range(floori(bounds.position.y/2.8), ceili(bounds.end.y/2.8)):
 					for x in range(floori(bounds.position.x/2.7), ceili(bounds.end.x/2.7)):
 						sites.append(Vector2(x*2.7,y*2.8)+offset)
@@ -93,7 +94,7 @@ static func develop(garden: Node, target: int, profile := false) -> bool:
 			var started := Time.get_ticks_usec()
 			for step in 20: game.progress.advance_growth(0.2)
 			var growth_us := (Time.get_ticks_usec()-started)/20.0
-			var packet: int = var_to_bytes([game.garden_snapshot(),garden.snapshot()]).size()
+			var packet: int = var_to_bytes([game.garden_snapshot(),garden.snapshot(),game.cultivation.projection(1)]).size()
 			started=Time.get_ticks_usec()
 			game.stage.update_plots(game.Progress.decode_plots(game.progress.plot_snapshot()))
 			var full_us := Time.get_ticks_usec() - started
@@ -114,13 +115,29 @@ static func develop(garden: Node, target: int, profile := false) -> bool:
 			var roots_us:=Time.get_ticks_usec()-started
 			var index:=preload("res://garden_irrigation.gd").new()
 			started=Time.get_ticks_usec()
-			index.resolve(game.progress.structures)
+			index.resolve(game.progress.structures,game.progress.heart.unlocked)
 			var coverage_us:=Time.get_ticks_usec()-started
 			started=Time.get_ticks_usec()
 			for sample in 20:
 				var aim := placed_bed.at as Vector2
 				garden.infrastructure.preview(aim,index.bed_centers,index.beds_in_range(aim))
 			var overlay_us:=(Time.get_ticks_usec()-started)/20.0
+			# Compare equal structure counts at a single locus and distributed across the orchard.
+			for arrangement in ["overlap","distributed"]:
+				var population: Dictionary = game.progress.structures.duplicate(true)
+				var beds: Array = index.bed_centers.values()
+				var emitters := 0
+				for instance: Dictionary in population.instances.values():
+					if not instance.placed or not preload("res://garden_structure_catalog.gd").DEFINITIONS[instance.kind].has("effect"): continue
+					instance.at = beds[0] if arrangement=="overlap" else beds[(emitters*7)%beds.size()]
+					if instance.kind=="bud_sanctuary": instance.care_mode="standard"
+					emitters += 1
+				var benchmark:=preload("res://garden_irrigation.gd").new()
+				started=Time.get_ticks_usec()
+				for sample in 30:
+					population.revision+=1
+					benchmark.resolve(population,game.progress.heart.unlocked)
+				print("HG04 coverage beds=", beds.size()," layout=",arrangement," emitters=",emitters," affected=",benchmark.effects.size()," mean_us=",(Time.get_ticks_usec()-started)/30.0)
 			print("HG03_SCALE roots_us=",roots_us," root_vertices=",garden.infrastructure.mesh.surface_get_array_len(0)," coverage_us=",coverage_us," overlay_us=",overlay_us," active_beds=",index.watered_slots.size())
 			print("HG02_SCALE beds=",garden.bed_ids.size()," growth_us=",growth_us," render_updates_us=",full_us," one_crop_update_us=",single_us," placement_us=",validation_us," garden_projection_bytes=",packet)
 			game.progress.plots.assign(plots)

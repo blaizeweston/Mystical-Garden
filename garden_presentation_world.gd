@@ -4,7 +4,6 @@ extends RefCounted
 const Interactions = preload("res://garden_interaction_service.gd")
 const Returns = preload("res://garden_return_service.gd")
 const Growth = preload("res://garden_growth_service.gd")
-const Conduit = preload("res://garden_conduit.gd")
 const Participation = preload("res://expedition_participation.gd")
 var _world: WeakRef
 
@@ -31,7 +30,6 @@ func frame(kind: String, selection: Dictionary={}) -> Dictionary:
 		"crop":return _crop_frame(world,peer,actor)
 		"station":return _station_frame(world,actor,str(selection.get("station","")))
 		"return":return _return_frame(world,peer,actor,str(selection.get("context","")))
-		"conduit":return world.garden_commands.conduit_projection(peer).duplicate(true)
 		"ambience":return _ambience_frame(world,peer,actor)
 		"cinematic":return _cinematic_frame(world,peer,actor)
 	return {}

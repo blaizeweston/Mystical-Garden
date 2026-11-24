@@ -18,6 +18,7 @@ var panel: PanelContainer
 var title: Label
 var description: Label
 var outcome: Label
+var enhanced: Button
 var preserve: Button
 var leave: Button
 var flower: Button
@@ -43,13 +44,14 @@ func _ready() -> void:
  description=Label.new();description.custom_minimum_size=Vector2(490,85);description.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;row.add_child(description)
  outcome=Label.new();outcome.custom_minimum_size=Vector2(570,100);outcome.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(outcome)
  preserve=button(box,"Preserve the bud · more time, richer harvest","preserve_bud")
+ enhanced=button(box,"Deep Pulse - 40% more work, +25 percentage points","enhance_bud")
  leave=button(box,"Let it grow normally","leave_bud")
- water=button(box,"Water from the Garden · 25% faster until harvest","water_crop")
- flower=button(box,"Harvest 2 seeds instead of parts","flower_crop")
+ water=button(box,"Water from the Garden","water_crop")
+ flower=button(box,"Harvest seeds instead of parts","flower_crop")
  harvest=button(box,"Harvest crafting parts","harvest_crop")
  quick_water=Button.new()
  quick_water.text="Water plant"
- quick_water.tooltip_text="Use one vessel of Garden water for 25% faster growth."
+ quick_water.tooltip_text="Use one vessel of Garden water to accelerate growth."
  quick_water.focus_mode=Control.FOCUS_NONE
  _ui.mount_prompt_control(quick_water)
  quick_water.hide()
@@ -131,14 +133,18 @@ func _process(_delta: float) -> void:
  elif bed.get("preserved",false):outcome.text+="\nHarvesting seeds forfeits the rare-part bonus."
  if bed.get("watered",false):outcome.text+="\nManually watered until harvest."
  if bed.get("sprinkler",false):outcome.text+="\nActive sprinkler coverage (one watering bonus)."
- if bed.get("flower_enabled",false):outcome.text+="\nSeed harvest · 2 seeds instead of parts."
+ outcome.text+="\n%d seeds or ordinary materials · %d familiarity per harvest."%[bed.get("seeds",2),bed.get("familiarity",1)]
+ if bed.get("vital",1.0)>1.0:outcome.text+="\nVital Roots: x%.2f growth."%bed.vital
+ if bed.get("auto_care",0)>0:outcome.text+="\nAutomatic bud care: "+("enhanced" if bed.auto_care==2 else "standard")
+ if bed.get("preserved",false):outcome.text+="\nAccepted care: "+("Deep Pulse" if bed.opportunity=="deep_bud" else "Patient Bud")
  var pending:=Time.get_ticks_msec()<waiting_until
  preserve.visible=bed.get("available",false);leave.visible=preserve.visible;preserve.disabled=pending;leave.disabled=pending
+ enhanced.visible=preserve.visible and bed.get("enhanced",false);enhanced.disabled=pending
  var has_water: bool=data.get("spring_water",false)
  water.visible=bed.get("water_available",false);water.disabled=pending or not has_water
- water.text="Water crop · 25% faster until harvest" if has_water else "Fill your watering vessel at Garden water"
+ water.text="Water crop · x%.2f growth"%bed.get("water_rate",1.25) if has_water else "Fill your watering vessel at Garden water"
  flower.visible=bed.get("compatible",false) and bed.get("flower_enabled",false);flower.disabled=pending or int(bed.stage)<3
- flower.text="Harvest 2 seeds instead of parts" if int(bed.stage)==3 else "Seed harvest · available when mature"
+ flower.text="Harvest %d seeds instead of parts"%bed.get("seeds",2) if int(bed.stage)==3 else "Seed harvest · available when mature"
  harvest.visible=int(bed.stage)==3;harvest.disabled=pending
 func nearby_crop(data: Dictionary) -> Dictionary:
  if not _facts.get("present",false) or _facts.get("wild",false) or _ui.is_overlay_open() or _ui.cinematic_active():return {}

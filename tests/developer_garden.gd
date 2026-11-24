@@ -92,7 +92,7 @@ func run() -> void:
 			break
 	tools.unlock_button.pressed.emit()
 	var events: Array = progress.garden_interactions.growth.events
-	check(progress.heart.has("irrigation") and progress.heart.has("flowering"),"selected unlock stages its prerequisites")
+	check(progress.heart.has("irrigation") and progress.heart.has("clearing_1"),"selected unlock stages its prerequisites")
 	check(events.size()==count+1 and events.back().technology=="irrigation" and events.back().kind=="spring","the selected unlock queues one real spring reveal")
 	check(Growth.projection(game,1).pending.any(func(event):return event.technology=="irrigation"),"the reveal reaches the normal playback queue")
 	var restored: RefCounted = game.Progress.new()

@@ -20,7 +20,7 @@ func run() -> void:
 	var h = g.heart
 	game.players[1].pos = game.Stage.HEART
 	game.garden_action(1, "research")
-	check(not g.flowering_unlocked, "opening research does not auto-select the free node")
+	check(not h.has("flowering"), "opening research cannot reintroduce retired Flowering")
 	game.garden_action(1, "heart_start_irrigation")
 	game.garden_action(1, "heart_start_cultivation_grounds")
 	game.garden_action(1, "heart_start_invalid")
@@ -34,7 +34,7 @@ func run() -> void:
 	game.garden_action(1, "heart_start_clearing_1")
 	check(not h.has("clearing_1") and h.spent == 7, "insufficient spendable Knowledge refused")
 	game.garden_action(1, "heart_start_flowering")
-	check(g.flowering_unlocked and h.spent == 7, "selected free Flowering immediately usable")
+	check(not h.has("flowering") and h.spent == 7, "retired Flowering cannot charge Knowledge")
 	var old_layout: Dictionary = game.stage.experimental_garden._capture_development()
 	old_layout.version = 1
 	old_layout.buildings=[]
@@ -63,7 +63,7 @@ func run() -> void:
 	for attempt in 2:
 		check(loaded.load_garden() == OK, "load existing v2 record")
 		check(loaded.knowledge == 61 and loaded.heart.spent == 9 and loaded.heart.available_insight(loaded)==52, "unpaid Knowledge and five-point spend refund each apply once")
-		check(loaded.flowering_unlocked and loaded.heart.has("cultivation_grounds") and loaded.heart.has("clearing_1") and loaded.heart.has("monster_studies") and not loaded.heart.has("living_archive") and not loaded.heart.has("infusion"), "funded and already-owned projects survive, unbought Archive stays locked")
+		check(not loaded.heart.has("flowering") and loaded.heart.has("cultivation_grounds") and loaded.heart.has("clearing_1") and loaded.heart.has("monster_studies") and not loaded.heart.has("living_archive") and not loaded.heart.has("infusion"), "funded and already-owned projects survive, unbought Archive stays locked")
 		check(loaded.garden_development.energy == 61 and not loaded.garden_development.has("queue") and loaded.structures.instances.size()==6 and loaded.parts[0]==33 and loaded.plots.size()==3 and loaded.plots[0].age==17.0, "no repeated energy, material debit, lost crop or changed structures")
 	check(FileAccess.get_file_as_bytes(path)==old_bytes, "loading never writes conversion")
 	check(loaded.save_garden()==OK and FileAccess.get_file_as_bytes(path+".pre-immediate-heart-v3.bak")==old_bytes,"first normal save backs up original bytes")

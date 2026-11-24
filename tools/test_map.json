@@ -382,9 +382,9 @@
       "label": "Committed expedition banking/identification, homecoming discovery and reactive life",
       "files": ["garden_return_catalog.gd", "garden_return_catalog.gd.uid", "garden_return_state.gd", "garden_return_state.gd.uid", "garden_return_service.gd", "garden_return_service.gd.uid", "garden_return_view.gd", "garden_return_view.gd.uid", "garden_story_panel.gd", "garden_story_panel.gd.uid", "garden_commands_world.gd", "garden_commands_world.gd.uid"]
     },
-    "garden_conduit": {
-      "files": ["garden_conduit.gd", "garden_conduit.gd.uid", "garden_terrace_view.gd", "garden_terrace_view.gd.uid", "garden_commands_world.gd", "garden_commands_world.gd.uid"],
-      "label": "Researched next-cycle Garden conditions and terrace presentation"
+    "garden_cultivation_structures": {
+      "files": ["garden_irrigation.gd", "garden_structure_catalog.gd", "garden_commands_world.gd", "garden_commands_world.gd.uid"],
+      "label": "Localized cultivation structures, harvest benefits and configured bud care"
     },
     "expedition_pressure": {
       "label": "Avoidable escalating reinforcement waves and replicated spawn warnings",
@@ -1007,6 +1007,7 @@
     "record_character": ["persistence_operations"],
     "run_altar_save": ["persistence_operations"],
     "run_heart_save": ["persistence_operations"],
+    "apply_cultivation_change": ["garden_development","garden_cultivation_structures","cultivation_growth","persistence_operations"],
     "recover_departure_cleanup": ["persistence_operations","departure_settlement","loot"],
     "save_session_garden": ["persistence_operations"],
     "_init": [
@@ -1613,11 +1614,11 @@
     "affinity_scaling": {"kind":"unit", "profile":"affinity", "systems":["combat_affinity_contracts","combat_builds","affinity_cards","expedition_grafts","core_combat","thorn_affinity","frost_affinity","fire_affinity","water_affinity","wood_affinity","vital_affinity","player_lifecycle","player_vitals","player_build_ui"], "package":false},
     "shared_affinity_status": {"kind": "unit", "profile": "affinity", "systems": ["expedition_statistics", "classes", "combat", "combat_affinity_contracts", "core_combat", "enemy_tactics", "fire_affinity", "frost_affinity", "incoming_player_hit", "plant_affinities", "player_hit_conditions", "player_protection", "thorn_affinity", "water_affinity", "weapons"], "package": false},
     "combat_effects": {"kind":"unit", "systems":["combat_effects","core_combat","classes","player_lifecycle"], "profile":"terrain", "package":false},
-    "garden_commands": {"kind":"unit", "systems":["garden_observations","garden_conduit","garden_relationships"], "profile":"terrain", "package":false},
+    "garden_commands": {"kind":"unit", "systems":["garden_observations","garden_cultivation_structures","garden_relationships"], "profile":"terrain", "package":false},
     "garden_cultivation": {"kind":"unit", "systems":["garden_care","cultivation_growth","seeds","items"], "profile":"terrain", "package":false},
     "actor_presentation": {"kind":"unit", "systems":["actor_presentation","presentation","avatar_motion_view","player_weapon_actions","player_lifecycle","player_vitals","expedition_participation","life","items"], "profile":"terrain", "package":false},
-    "garden_view_ports_coop": {"kind":"pair", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_cinematics","garden_returns","garden_life","garden_conduit","connection_flow","world_snapshot","garden","items","characters","seeds","knowledge","gameplay_ui"], "profile":"terrain", "package":true},
-    "garden_view_ports": {"kind":"unit", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_conduit","garden_returns","garden_life","garden_cinematics","gameplay_ui"], "package":false},
+    "garden_view_ports_coop": {"kind":"pair", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_cinematics","garden_returns","garden_life","garden_cultivation_structures","connection_flow","world_snapshot","garden","items","characters","seeds","knowledge","gameplay_ui"], "profile":"terrain", "package":true},
+    "garden_view_ports": {"kind":"unit", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_cultivation_structures","garden_returns","garden_life","garden_cinematics","gameplay_ui"], "package":false},
     "world_presentation": {"kind":"unit", "systems":["world_presentation","presentation","terrain","event_audio","soundscape"], "package":false},
     "world_guidance": {"kind":"unit", "systems":["wild_flora", "world_guidance","gameplay_ui","presentation","party_ui","life","garden"], "package":false},
     "guest_replication": {"kind":"unit", "systems":["guest_replication","world_snapshot","presentation","connection_flow","network_session","life"], "package":false},
@@ -2783,10 +2784,10 @@
       ],
       "package": true
     },
-    "garden_conduit": {
+    "garden_cultivation_structures": {
       "kind": "unit",
       "systems": ["garden_development",
-        "garden_conduit",
+        "garden_cultivation_structures",
         "garden_zones",
         "garden_observations",
         "garden_care",
@@ -2797,10 +2798,10 @@
       ],
       "package": true
     },
-    "garden_conduit_coop": {
+    "garden_cultivation_structures_coop": {
       "kind": "pair",
       "systems": ["garden_development",
-        "garden_conduit",
+        "garden_cultivation_structures",
         "garden_zones",
         "garden_observations",
         "garden_care",
@@ -2819,7 +2820,7 @@
         "items",
         "characters",
         "cultivation_growth",
-        "garden_conduit",
+        "garden_cultivation_structures",
         "ui_copy",
         "event_audio"
       ],
@@ -2834,7 +2835,7 @@
         "items",
         "characters",
         "cultivation_growth",
-        "garden_conduit",
+        "garden_cultivation_structures",
         "garden_stations",
         "ui_copy",
         "event_audio"
@@ -2853,7 +2854,7 @@
         "garden_care",
         "cultivation_growth",
         "garden_returns",
-        "garden_conduit",
+        "garden_cultivation_structures",
         "heart_growth_visual",
         "developer_garden",
         "soundscape",
@@ -2874,7 +2875,7 @@
         "garden_care",
         "cultivation_growth",
         "garden_returns",
-        "garden_conduit",
+        "garden_cultivation_structures",
         "heart_growth_visual"
       ],
       "package": true
@@ -2926,7 +2927,7 @@
         "garden_life",
         "garden_relationships",
         "garden_cinematics",
-        "garden_conduit",
+        "garden_cultivation_structures",
         "characters",
         "heart_growth_visual",
         "avatar_motion_view"
@@ -2978,7 +2979,7 @@
         "garden_care",
         "cultivation_growth",
         "garden_returns",
-        "garden_conduit",
+        "garden_cultivation_structures",
         "garden_stations",
         "actor_collision"
       ],
@@ -3133,7 +3134,7 @@
         "garden_life",
         "garden_relationships",
         "garden_cinematics",
-        "garden_conduit",
+        "garden_cultivation_structures",
         "heart_growth_visual",
         "garden_stations",
         "ui_copy",
@@ -3804,7 +3805,7 @@
         "garden",
         "seeds",
         "garden_cinematics",
-        "garden_conduit",
+        "garden_cultivation_structures",
         "developer_garden",
         "progression_ui"
       ],
@@ -4412,16 +4413,16 @@
     ],
     [
       "knowledge",
-      "garden_conduit",
+      "garden_cultivation_structures",
       "Existing focused research unlocks a usable terrace tool"
     ],
     [
       "garden_zones",
-      "garden_conduit",
+      "garden_cultivation_structures",
       "Catalog footprint and existing universal bed membership"
     ],
     [
-      "garden_conduit",
+      "garden_cultivation_structures",
       "garden_care",
       "Host setting snapshots a bounded policy for future crop cycles"
     ],
@@ -5820,6 +5821,26 @@
         },"rounded_join_import": {"systems": ["garden_canopy"]}, "rounded_join_proposal": {"systems": ["garden_canopy"]}}},
     "affinity_cards.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "assets/terrain_m02/experimental/experiment_garden.gd": {"newline": "lf", "regions": {
+        "hg04_construction_scrolling_1": {"systems": ["garden_development","gameplay_ui"]},
+        "hg04_construction_scrolling_2": {"systems": ["garden_development","gameplay_ui"]},
+        "hg04_construction_scrolling_3": {"systems": ["garden_development","gameplay_ui"]},
+        "hg04__show_placed_info_17": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04__refresh_connections_16": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04__show_ghost_15": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04_open_development_14": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04__refresh_build_choices_13": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04__show_cost_12": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04__initialize_controls_11": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04__initialize_controls_10": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04__initialize_controls_9": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04_place_8": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04__commit_structure_7": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04__project_inventory_6": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04_sync_inventory_5": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04__refresh_guest_review_4": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04__apply_layout_3": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04_snapshot_2": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
+        "hg04_definitions_1": {"systems": ["garden_development", "garden_cultivation_structures", "cultivation_growth", "world_snapshot", "gameplay_ui"]},
         "hg03__commit_development_10": {"systems": ["garden_development", "cultivation_growth", "garden", "world_snapshot"]},
         "hg03__refresh_build_choices_8": {"systems": ["garden_development", "cultivation_growth", "garden", "world_snapshot"]},
         "hg03__show_cost_7": {"systems": ["garden_development", "cultivation_growth", "garden", "world_snapshot"]},
@@ -6203,6 +6224,23 @@
     "progress.gd": {
       "newline": "lf",
       "regions": {
+        "hg04_historical_crop_draw_1": {"systems": ["cultivation_growth","garden_care","persistence_operations"]},
+        "hg04_historical_crop_draw_2": {"systems": ["cultivation_growth","garden_care","persistence_operations"]},
+        "hg04_historical_crop_draw_3": {"systems": ["cultivation_growth","garden_care","persistence_operations"]},
+        "hg04_advance_growth_14": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04_advance_growth_13": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04__serialize_save_12": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04__serialize_save_11": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04_confirm_migration_10": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04_migration_backup_paths_9": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04__read_garden_8": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04__read_garden_7": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04__read_garden_6": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04__read_garden_5": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04__read_garden_4": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04__read_garden_3": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04_definitions_2": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
+        "hg04_definitions_1": {"systems": ["garden_development", "cultivation_growth", "knowledge", "persistence_operations"]},
         "hg03_advance_growth_6": {"systems": ["garden_development", "cultivation_growth", "garden", "persistence_operations"]},
         "hg03_sync_plot_flags_5": {"systems": ["garden_development", "cultivation_growth", "garden", "persistence_operations"]},
         "hg03__serialize_save_4": {"systems": ["garden_development", "cultivation_growth", "garden", "persistence_operations"]},
@@ -6349,6 +6387,9 @@
     "altar_service.gd": {
       "newline": "crlf",
       "regions": {
+        "hg04_definitions_3": {"systems": ["seeds", "garden_cultivation_structures", "garden", "items"]},
+        "hg04_definitions_2": {"systems": ["seeds", "garden_cultivation_structures", "garden", "items"]},
+        "hg04_definitions_1": {"systems": ["seeds", "garden_cultivation_structures", "garden", "items"]},
         "guarded_garden_actions_1": {
           "systems": [
             "persistence_operations",
@@ -6958,7 +6999,7 @@
         "reserved_g07": {
           "systems": [
             "garden_zones",
-            "garden_conduit"
+            "garden_cultivation_structures"
           ]
         }
       }
@@ -7519,6 +7560,11 @@
     "heart_catalog.gd": {
       "newline": "lf",
       "regions": {
+        "hg04_definitions_5": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},
+        "hg04_definitions_4": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},
+        "hg04_definitions_3": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},
+        "hg04_definitions_2": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},
+        "hg04_definitions_1": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},
         "ui_copy_17": {
           "systems": [
             "ui_copy"

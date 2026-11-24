@@ -64,23 +64,9 @@ const DEFINITIONS := [
 		"clearing": 3
 	},
 	{
-		"id": "flowering",
-		"name": "Flowering",
-		"parents": [
-			"heart"
-		],
-		"insight": 0,
-		"position": [
-			370,
-			900
-		],
-		"description": "Harvest two seeds from a mature plant instead of parts. Empties the bed."
-	},
-	{
 		"id": "irrigation",
 		"name": "Living Sprinklers",
 		"parents": [
-			"flowering",
 			"clearing_1"
 		],
 		"insight": 4,
@@ -101,13 +87,13 @@ const DEFINITIONS := [
 			370,
 			650
 		],
-		"description": "Crops grow at 140% of their original speed. Harvesting grants 1 extra familiarity."
+		"description": "Receive a Symbiotic Nursery. Each harvest in its coverage grants two familiarity to the harvester."
 	},
 	{
 		"id": "seed_archive",
 		"name": "Reclamation Altar",
 		"parents": [
-			"flowering"
+			"heart"
 		],
 		"insight": 5,
 		"position": [
@@ -213,8 +199,23 @@ const DEFINITIONS := [
 		"description": "Restore this memory by returning from guardian expeditions in this Garden.",
 		"memory": 2
 	},
- {"id":"living_conduit","name":"Living Water Conduit","parents":["clearing_2","irrigation","cultivation_grounds"],"insight":6,"position":[805,650],
- "description":"Unlock the terrace conduit. The host chooses the bud type for new plantings in Bed 4. Preserving a deep bud takes longer and improves rare harvest chances."}
+	{"id": "seed_conservation", "name": "Seed Conservation", "parents": ["heart"], "insight": 6, "position": [480, 1020], "description": "On a failed two-seed offering, retain the parent whose material was not salvaged."},
+	{"id": "sprinkler_effectiveness", "name": "Living Sprinkler Effectiveness", "parents": ["irrigation"], "insight": 16, "position": [880, 500], "description": "Watering improves to 1.40x, including manual care."},
+	{"id": "sprinkler_coverage", "name": "Living Sprinkler Coverage", "parents": ["irrigation"], "insight": 12, "position": [880, 365], "description": "Extend the coverage radius of every Living Sprinkler to 5 metres."},
+	{"id": "pollination_bloom", "name": "Pollination Bloom", "parents": ["heart"], "insight": 8, "position": [1045, 900], "description": "Receive a Pollination Bloom. Harvest three seeds from a mature covered bed."},
+	{"id": "pollination_bloom_effectiveness", "name": "Pollination Bloom Effectiveness", "parents": ["pollination_bloom"], "insight": 16, "position": [1045, 500], "description": "Receive four seeds per seed harvest."},
+	{"id": "pollination_bloom_coverage", "name": "Pollination Bloom Coverage", "parents": ["pollination_bloom"], "insight": 12, "position": [1045, 365], "description": "Extend the coverage radius of every Pollination Bloom to 4.5 metres."},
+	{"id": "nursery_effectiveness", "name": "Symbiotic Nursery Effectiveness", "parents": ["nursery"], "insight": 16, "position": [1210, 500], "description": "Gain three familiarity per harvest."},
+	{"id": "nursery_coverage", "name": "Symbiotic Nursery Coverage", "parents": ["nursery"], "insight": 12, "position": [1210, 365], "description": "Extend the coverage radius of every Symbiotic Nursery to 4.5 metres."},
+	{"id": "refinement_grove", "name": "Refinement Grove", "parents": ["heart"], "insight": 12, "position": [1375, 900], "description": "Receive a Refinement Grove. Covered material harvests gain 15 percentage points of refined chance."},
+	{"id": "refinement_grove_effectiveness", "name": "Refinement Grove Effectiveness", "parents": ["refinement_grove"], "insight": 16, "position": [1375, 500], "description": "Add 25 percentage points to the material harvest refinement chance."},
+	{"id": "refinement_grove_coverage", "name": "Refinement Grove Coverage", "parents": ["refinement_grove"], "insight": 12, "position": [1375, 365], "description": "Extend the coverage radius of every Refinement Grove to 4 metres."},
+	{"id": "vital_roots", "name": "Vital Roots", "parents": ["heart"], "insight": 8, "position": [1540, 900], "description": "Receive Vital Roots. Covered crops grow at 1.30x speed."},
+	{"id": "vital_roots_effectiveness", "name": "Vital Roots Effectiveness", "parents": ["vital_roots"], "insight": 16, "position": [1540, 500], "description": "Covered crops grow at 1.50x speed before watering and expedition bonuses."},
+	{"id": "vital_roots_coverage", "name": "Vital Roots Coverage", "parents": ["vital_roots"], "insight": 12, "position": [1540, 365], "description": "Extend the coverage radius of every Vital Roots to 6 metres."},
+	{"id": "bud_sanctuary", "name": "Bud Sanctuary", "parents": ["clearing_2", "irrigation"], "insight": 6, "position": [1705, 900], "description": "Receive a Bud Sanctuary. Configure it in Build to preserve eligible buds automatically."},
+	{"id": "bud_sanctuary_effectiveness", "name": "Bud Sanctuary Effectiveness", "parents": ["bud_sanctuary"], "insight": 16, "position": [1705, 500], "description": "Unlock enhanced manual and automatic bud care: 40% extra work and 25 percentage points of refined chance."},
+	{"id": "bud_sanctuary_coverage", "name": "Bud Sanctuary Coverage", "parents": ["bud_sanctuary"], "insight": 12, "position": [1705, 365], "description": "Extend the coverage radius of every Bud Sanctuary to 4.5 metres."}
 ]
 static var _by_id: Dictionary = {}
 
@@ -224,7 +225,7 @@ static func _static_init() -> void:
 static func get_node(id: String) -> Dictionary:
 	return _by_id.get(id,{})
 static func required_core() -> Array:
-	return ["flowering","irrigation","nursery","seed_archive","monster_studies","spore_bench","checkpoint_deposit","living_archive","clearing_1","clearing_2","clearing_3"]
+	return ["irrigation","nursery","seed_archive","monster_studies","spore_bench","checkpoint_deposit","living_archive","clearing_1","clearing_2","clearing_3"]
 static func phase_name(phase: int) -> String:
 	return ["Sheltered Fragment","First Awakening","Rooted Heart","Living Nexus","Remembering Heart"][clampi(phase,0,4)]
 

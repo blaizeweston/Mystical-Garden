@@ -4,7 +4,6 @@ const Shell=preload("res://ui/gameplay/gameplay_ui.tscn")
 const Catalog=preload("res://garden_interaction_catalog.gd")
 const Crops=preload("res://garden_crop_catalog.gd")
 const Returns=preload("res://garden_return_catalog.gd")
-const Conduit=preload("res://garden_conduit.gd")
 const Parts=preload("res://weapon_parts.gd")
 var failed:=false
 var requests:Array=[]
@@ -91,12 +90,6 @@ func run():
 	check(payload(4).action=="flower_crop" and frames.crop.data.beds[0].stage==2,"the flower shortcut requests the real crop without changing its displayed maturity")
 	frames.crop.context="guest:2:new";frames.crop.data.focus={};crop._process(0)
 	check(crop.waiting_until==0 and crop.last_bed.is_empty() and not crop.panel.visible,"a new crop context retires pending inspector state")
-	view.selected=Conduit.POINT;ui.toggle_external(view.panel)
-	frames.conduit={"mode":Conduit.MODES[0].id,"revision":4,"unlocked":true,"host":false}
-	var terrace=view.get_node("Terrace");terrace._process(0)
-	check(terrace.info.visible and terrace.choices.all(func(button):return button.disabled),"guest can inspect the conduit but cannot choose a mode")
-	frames.conduit.host=true;terrace._process(0);terrace.choices[1].pressed.emit()
-	check(payload(5).action=="configure_conduit" and payload(5).revision==4 and payload(5).mode==Conduit.MODES[1].id,"conduit emits its displayed setting and current revision only")
 	frames["return"]={"context":"guest:2:b","wild":false,"motion":false,"diagnostic_source":"host_snapshot","pending":[],"data":{"version":1,"catalog":Returns.signature,"entries":[Returns.DEFINITIONS[0].duplicate(true)]}}
 	var discoveries=view.get_node("ReturnLife");discoveries._process(.2)
 	check(discoveries.traces.lantern_homecoming.visible and discoveries.heart.visible,"committed discoveries produce only their existing visual traces")
@@ -106,5 +99,5 @@ func run():
 	frames.ambience.motion=false;ambience._process(.2)
 	check(not ambience.colonies.sheltered_spring.visible,"ambient-motion settings hide local life without affecting gameplay")
 	view.free();stage.free();ui.free()
-	if not failed:print("PASS: standalone Garden views, detached frames, observation and crop identities, station/conduit intentions, context cleanup and cosmetic return/ambience")
+	if not failed:print("PASS: standalone Garden views, detached frames, observation and crop identities, station intentions, context cleanup and cosmetic return/ambience")
 	quit(1 if failed else 0)

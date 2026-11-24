@@ -115,11 +115,14 @@ func host(menu: Node) -> void:
 	var tenth: int = garden.bed_ids[9]
 	var site := preload("res://tests/support/garden_placement_case.gd").find(garden.construction,"bed",garden.construction.records[tenth].at,0.2,Vector2(0,1.5),tenth)
 	if not check(garden.place("bed",site,0.2,tenth) and garden.construct("bed",game.progress.structures.revision),"relocate tenth and buy one stored bed"): return
-	for tech in ["flowering","irrigation"]: game.garden_action(1,"heart_start_"+tech)
+	for tech in ["irrigation","sprinkler_effectiveness","pollination_bloom","pollination_bloom_effectiveness","bud_sanctuary","clearing_2","bud_sanctuary","bud_sanctuary_effectiveness"]: game.garden_action(1,"heart_start_"+tech)
 	var placement = preload("res://tests/support/garden_placement_case.gd")
 	if not check(placement.deploy_irrigation(garden,"intake",garden.planar(preload("res://garden_water.gd").anchor(game.stage)))>0,"deploy shoreline intake"): return
 	var sprinkler: int=placement.deploy_irrigation(garden,"sprinkler",site)
 	if not check(sprinkler>0 and game.progress.irrigation.watered_slots.has(9),"host waters relocated tenth bed"): return
+	if not check(placement.deploy_irrigation(garden,"pollination_bloom",site)>0,"host deploys pollinator"): return
+	var sanctuary: int = placement.deploy_irrigation(garden,"bud_sanctuary",site)
+	if not check(sanctuary>0 and garden.configure_sanctuary(sanctuary,"enhanced",game.progress.structures.revision),"host selects enhanced care"): return
 	game.players[1].pos = game.stage.bed_position(9)
 	game.players[1].seed_choice = 0
 	game.seed_reserve(game.players[1]).stock[0] += 1
@@ -225,7 +228,7 @@ func guest(menu: Node) -> void:
 	var inventory: Dictionary=garden.remote_development.layout.inventory
 	check(inventory.instances.values().filter(func(e): return not e.placed and e.kind=="bed").size()==1 and game.Progress.decode_plots(game.guest_replication.garden_progress()[12]).size()==10 and garden.construction.records[garden.bed_ids[9]].at.is_equal_approx(str_to_var(read("bed-position"))),"read-only inventory, extended crops and exact moved position")
 	check(not garden.construct("bed",inventory.revision) and not garden.retire_structure(garden.bed_ids[9],inventory.revision,true),"guest cannot buy or refund")
-	if not await until(func(): return game.cultivation.projection(peer).get("beds",[]).any(func(b):return b.slot==9 and b.sprinkler and not b.watered and is_equal_approx(b.growth_rate,1.25)), "host watering result received for the newly planted tenth bed"): return
+	if not await until(func(): return game.cultivation.projection(peer).get("beds",[]).any(func(b):return b.slot==9 and b.sprinkler and not b.watered and is_equal_approx(b.growth_rate,1.40) and b.seeds==4), "host watering result received for the newly planted tenth bed"): return
 	check(garden.remote_irrigation.watered_slots.has(9) and garden.infrastructure.paths.size()==garden.construction.records.size(),"host and guest reproduce the infrastructure")
 	check(var_to_bytes(garden.infrastructure.paths).hex_encode().sha256_text()==read("root-shape"),"guest derived identical root paths")
 	mark("built-"+str(peer))

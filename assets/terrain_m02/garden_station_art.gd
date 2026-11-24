@@ -29,6 +29,34 @@ static func build(id: String, decorative_bed_shoots := true) -> ArrayMesh:
 				var height := 0.52 if intake else 0.83
 				Wood._tube(tool,[Vector3.UP*0.23,outward*0.08+Vector3.UP*(height-0.18),outward*0.28+Vector3.UP*height],[0.095,0.073,0.028],OLIVE)
 			Wood._crown(tool, _fixed_random(), Vector3.UP*(0.36 if intake else 0.61),Vector3(0.14,0.16,0.14),Color("#61958d"))
+		"pollination_bloom":
+			Wood._tube(tool,[Vector3.ZERO,Vector3(0.04,0.34,0),Vector3.UP*0.68],[0.09,0.055,0.03],OLIVE)
+			for i in 7:
+				var dir := Vector3(cos(i*TAU/7),0,sin(i*TAU/7))
+				Wood._crown(tool,_fixed_random(),Vector3.UP*0.68+dir*0.20,Vector3(0.14,0.07,0.14),Color("#de8b98"))
+			Wood._crown(tool,_fixed_random(),Vector3.UP*0.75,Vector3.ONE*0.09,Color("#edc466"))
+		"nursery":
+			_basin(tool,0.38,0.20,BARK,SOIL)
+			for i in 3:
+				var stem := Vector3(cos(i*TAU/3)*0.15,0,sin(i*TAU/3)*0.15)
+				Wood._tube(tool,[stem,stem+Vector3.UP*0.45],[0.04,0.025],OLIVE)
+				Wood._crown(tool,_fixed_random(),stem+Vector3.UP*0.45,Vector3(0.16,0.2,0.14),Color("#90ba64"))
+		"refinement_grove":
+			_basin(tool,0.36,0.18,STONE,SOIL)
+			for i in 5:
+				var dir := Vector3(cos(i*TAU/5),0,sin(i*TAU/5))
+				Wood._tube(tool,[dir*0.10,dir*0.18+Vector3.UP*0.38,dir*0.27+Vector3.UP*(0.63+0.12*(i%2))],[0.09,0.12,0.008],Color("#a885c6"))
+		"vital_roots":
+			for i in 5:
+				var dir := Vector3(cos(i*TAU/5),0,sin(i*TAU/5))
+				Wood._tube(tool,[dir*0.4,dir*0.24+Vector3.UP*0.15,dir*0.08+Vector3.UP*0.5,Vector3.UP*0.73],[0.035,0.1,0.08,0.02],BARK.lerp(GARNET,0.55))
+			Wood._crown(tool,_fixed_random(),Vector3.UP*0.55,Vector3(0.14,0.18,0.14),Color("#dc6555"))
+		"bud_sanctuary":
+			_basin(tool,0.34,0.22,BARK,OLIVE)
+			Wood._crown(tool,_fixed_random(),Vector3.UP*0.45,Vector3(0.16,0.25,0.16),Color("#eac7ae"))
+			for i in 4:
+				var dir := Vector3(cos(i*PI/2),0,sin(i*PI/2))
+				Wood._tube(tool,[dir*0.14,dir*0.30+Vector3.UP*0.42,dir*0.08+Vector3.UP*0.76],[0.07,0.045,0.012],OLIVE)
 		"altar":
 			_basin(tool, 0.86, 0.77, STONE, GARNET)
 			Wood._tube(tool, [Vector3(-0.41, 0.08, 0.42), Vector3(-0.42, 0.46, 0.19),

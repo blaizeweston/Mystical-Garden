@@ -1,5 +1,7 @@
 # Cultivation terrace and Living Water Conduit
 
+Historical design through HG03. HG04 migrated this research to configurable Bud Sanctuaries and retired the numbered-bed command. [Current rules and migration](ARCHITECTURE.md#local-cultivation-structures-hg04)
+
 G-07 proves a second location and a practical Garden tool through the existing boundaries.
 
 **Verdant Refuge** (`clearing_2`) reveals a ruined cultivation terrace northwest of the Heart. The registered location includes existing **Bed 4**; it does not add, move or restrict a planting bed. Recording its root pattern supplies an existing Whispervine refinement clue. Sacrifice, discovery and rewards still happen at the Altar.

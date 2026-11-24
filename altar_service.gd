@@ -29,6 +29,10 @@ static func salvage(draft: Array) -> String:
  var item:=Items.get_item(str(first.item))
  if item.category=="seed" and item.has("legacy_seed"): return Items.part_id(int(Items.Seeds.DEFINITIONS[int(item.legacy_seed)].part))
  return first.item
+# Salvage uses the lexically first parent; the other seed returns to the acting reserve.
+static func conserved_parent(draft: Array) -> String:
+ return str(draft[0].item) if str(draft[0].item) > str(draft[1].item) else str(draft[1].item)
+
 static func recipe_key(draft: Array) -> String:
  return Recipes.key(mode_for(draft),draft[0].item,draft[1].item)
 static func recorded_seed_species(progress) -> Array:
@@ -51,6 +55,8 @@ static func preview(game,player: Dictionary,draft: Array) -> Dictionary:
  if not recorded: return {"known":false,"item":"","can_combine":affordable,"text":"Unknown result. Sacrifice to discover it." if affordable else reason}
  var output: String=recipe.output if not recipe.is_empty() else salvage(draft)
  var text: String="Known result: "+str(Items.get_item(output).name)+" · "+str(Items.get_item(output).rarity)+(". Returns salvaged materials." if recipe.is_empty() else ". Adds one to your stash.")
+ if recipe.is_empty() and mode_for(draft)=="seeds" and game.progress.heart.has("seed_conservation"):
+  text+=" Returns one "+str(Items.get_item(conserved_parent(draft)).name)+"."
  if not affordable: text+="\n"+reason
  return {"known":true,"item":output,"can_combine":affordable,"text":text}
 static func capture(game,player: Dictionary) -> Dictionary:
@@ -89,6 +95,10 @@ static func combine(game,player: Dictionary,draft: Array,effects = null) -> Stri
   var item:=Items.get_item(draft[0].item)
   var source: int=int(item.get("legacy_seed",Items.Seeds.species_for_part(int(item.get("legacy_part",0)))))
   message="The offering did not bind. Recovered one %s. Clue: %s"%[Items.get_item(output).name,game.progress.next_seed_hint(source)]
+  if mode=="seeds" and game.progress.heart.has("seed_conservation"):
+   var parent:=Items.get_item(conserved_parent(draft))
+   game.seed_reserve(player).stock[int(parent.legacy_seed)]+=1
+   message+=" Conserved one "+str(parent.name)+"."
  game.progress.altar_recipes[key]={"item":output,"success":not recipe.is_empty()}
  if mode=="seeds":
   var a:=int(Items.get_item(draft[0].item).get("legacy_seed",-1));var b:=int(Items.get_item(draft[1].item).get("legacy_seed",-1))

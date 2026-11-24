@@ -39,6 +39,7 @@ func run() -> void:
 	preload("res://cultivation_growth.gd").initialize(g.plots[slot])
 	preload("res://garden_crop_state.gd").ensure(g.plots[slot])
 	g.plots[slot].age=12
+	g.advance_growth(0.0)
 	var crop: Dictionary=g.plots[slot].duplicate(true)
 	check(not garden.retire_structure(paid,g.structures.revision,false) and not garden.retire_structure(paid,g.structures.revision,true),"live crop cannot be stored or lost")
 	at=relocation(garden,"bed",paid)
@@ -71,6 +72,17 @@ func run() -> void:
 	for copy in 3:
 		if copy>0: check(garden.construct("sprinkler",g.structures.revision),"pay for additional sprinkler")
 		check(Placement.deploy_irrigation(garden,"sprinkler",bed_center)>0,"place overlapping sprinklers")
+	# Exercise live roots, network payload and crop processing with every field type.
+	g.knowledge=1000
+	game.garden_action(1,"heart_start_clearing_2")
+	Placement.reclaim_orchard(garden)
+	for kind in ["pollination_bloom","nursery","refinement_grove","vital_roots","bud_sanctuary"]:
+		game.garden_action(1,"heart_start_"+kind)
+		var cost: Dictionary = garden.Build.CATALOG[kind].cost
+		for item: String in cost.materials: g.add_parts(game.Items.get_item(item).legacy_part,1)
+		check(garden.construct(kind,g.structures.revision),"buy paid "+kind)
+		for side in [1,-1]:
+			check(Placement.deploy_irrigation(garden,kind,bed_center*side)>0,"place "+kind+" on both sides of the Garden")
 	check(Placement.develop(garden,60,true),"twelve, thirty and sixty actually placed beds with unique stations and water access")
 	var total: int=garden.bed_ids.size()
 	var inventory: Dictionary=g.structures.duplicate(true)

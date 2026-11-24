@@ -372,13 +372,13 @@ func run() -> void:
  var research_before := Slots._save_digest(world.progress.path)
  var research: Dictionary = world.progress.heart.serialize()
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path): return ERR_CANT_CREATE if phase=="stage" else OK)
- world.garden_action(1,"heart_start_flowering")
+ world.garden_action(1,"heart_start_seed_conservation")
  var finish_abort: String = world.status
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(finish_abort.begins_with("Save cancelled") and world.progress.heart.serialize()==research
   and Slots._save_digest(world.progress.path)==research_before,"Developer finish research abort restores its state")
- world.garden_action(1,"heart_start_flowering")
- check(world.progress.flowering_unlocked and Slots._save_digest(world.progress.path)!=research_before,
+ world.garden_action(1,"heart_start_seed_conservation")
+ check(world.progress.heart.has("seed_conservation") and Slots._save_digest(world.progress.path)!=research_before,
   "Developer finish research commits the unlock")
  record("developer_grant_and_research",{"grant":grant,"grant_abort":refusal,"research_abort":finish_abort,
   "garden_before":dev_before,"profile":dev_profile})

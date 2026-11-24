@@ -1,8 +1,29 @@
 # Seed lineages and living-root progression
 
+## Local cultivation tuning (HG04)
+
+Each initial research grants a stored structure. The first sprinkler purchase also grants a unique Water Intake. Effectiveness costs 16 Knowledge and coverage costs 12 Knowledge for each type. Each upgrade requires only that type’s initial research. The two upgrades apply to placed and future instances independently.
+
+| Structure | Initial Knowledge | Additional construction | Base to improved effect | Base to extended radius |
+|---|---:|---|---|---|
+| Living Sprinkler | 4 | 24 Energy | Watering ×1.25 to ×1.40, including manual watering | 3.5 to 5 m |
+| Pollination Bloom | 8 | 32 Energy | 3 to 4 seeds per seed harvest | 3 to 4.5 m |
+| Symbiotic Nursery | 6 | 28 Energy | 2 to 3 familiarity per harvest for the harvesting character | 3 to 4.5 m |
+| Refinement Grove | 12 | 40 Energy + 1 Ironwood Core | +15 to +25 percentage points of refined chance | 2.5 to 4 m |
+| Vital Roots | 8 | 32 Energy | Growth ×1.30 to ×1.50 | 4 to 6 m |
+| Bud Sanctuary | 6 | 36 Energy + 1 Pristine Dewcap material | Automatic standard care, then optional enhanced care | 3 to 4.5 m |
+
+An ordinary harvest gives one material or two same-species seeds and one familiarity. Propagation is available from the start. Independent effects can cover the same bed. An effect applies once across overlapping sources. Only automatic watering requires an active intake. Growth combines watering, Vital Roots and the ×2 expedition rate. Moving infrastructure changes future work. Seed yield, familiarity gain and Grove bonus use the layout at harvest.
+
+The base refined chance uses the harvester’s familiarity before the reward. It starts at 5%, gains 4 percentage points for each of the first five familiarity points, then 0.5 points per additional familiarity, up to 45%. Familiarity caps at 9,999. Standard care adds 20% of the species’ original growth work and 15 percentage points of refined chance. Enhanced care adds 40% work and 25 points. The care component caps at 60% or 70% respectively. The Grove bonus applies afterward, giving a current combined maximum of 95%. Seed harvesting forfeits any refined-material opportunity.
+
+Sanctuaries begin with automatic care disabled. The host chooses standard or researched enhanced care under **Build → Placed**. The strongest enabled eligible sanctuary in range acts once in the young-bud stage. Moving it later preserves the accepted care. Manual tending offers the same tradeoffs. The crop owns a hidden draw and its inspection panel shows only probabilities. Historical preserved buds keep their saved draw. Older ordinary crops with a valid cycle and no draw derive one deterministically from that cycle. For saves predating crop cycles, conversion derives a stable identity and draw from the historical save contents and bed slot, including when a migration write must be retried.
+
+Seed Conservation costs 6 Knowledge and requires Sheltered Heart. A failed two-seed offering salvages the ordinary material of the lexically first stable seed ID and returns the other parent to the actor’s reserve. Identical parents cost one net seed. Known failures preview both outputs. Successful offerings and material synthesis follow the existing altar rules.
+
 ## Current botanical progression (WF02)
 
-All 24 species grow in ordinary Garden beds. Flowering reproduces the species planted. Natural specimens use the WF01 floor roll, depth bands and biome weights. A find fixes one species for everyone. Each participant can return one concealed seed per specimen and identify it at the starting altar.
+All 24 species grow in ordinary Garden beds. Every mature bed can reproduce the species planted. Natural specimens use the WF01 floor roll, depth bands and biome weights. A find fixes one species for everyone. Each participant can return one concealed seed per specimen and identify it at the starting altar.
 
 | Natural founder | Earliest global encounter | Species reachable after adding this founder |
 |---|---:|---:|

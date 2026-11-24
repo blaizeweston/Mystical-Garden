@@ -54,7 +54,7 @@ static func _garden(garden: Dictionary, result: Dictionary) -> void:
 		if bed.species>=0:
 			result.prompt="E  Harvest %s"%("seed" if bed.flowering else "crafting parts") if bed.stage==3 else "%s · %s"%[Seeds.NAMES[bed.species],["Seed","Sprout","Young","Mature"][bed.stage]]
 			if bed.flowering and bed.stage<3: result.prompt+=" · Seed crop"
-			if garden.flowering_unlocked and not bed.flowering:
+			if not bed.flowering:
 				result.prompt+="  |  F  Harvest seeds instead" if int(bed.stage)==3 else "  |  Seeds can be harvested when mature"
 		else: result.prompt="E  Choose a seed to plant"
 	elif garden.near_altar:

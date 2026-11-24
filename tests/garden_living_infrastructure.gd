@@ -99,7 +99,7 @@ func run() -> void:
 	check(garden.place("intake",shore,0,intake) and g.irrigation.watered_slots==mask,"redeploy intake restores coverage")
 	game.garden_action(1,"heart_start_nursery")
 	g.advance_growth(8,true)
-	check(is_equal_approx(bed.age,76),"Nursery 1.4x, Wilds 2x and watering 1.25x")
+	check(is_equal_approx(bed.age,68),"stored Nursery grants no growth boost; Wilds and watering still multiply")
 	game.stage.update_heart_progress(game.heart_state())
 	var saved_stage: int = garden.heart.stage
 	var saved_paths: Dictionary=garden.infrastructure.paths.duplicate(true)

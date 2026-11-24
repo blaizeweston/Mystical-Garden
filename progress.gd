@@ -43,6 +43,7 @@ var personal_parts := Parts.empty_counts()
 const Structures = preload("res://garden_structure_inventory.gd")
 var structures := Structures.new_garden()
 var irrigation := preload("res://garden_irrigation.gd").new()
+var needs_cultivation_backup := false
 var needs_irrigation_backup := false
 var needs_construction_backup := false
 const GROWTH_TIMES := [0.0, 18.0, 45.0, 80.0]
@@ -50,7 +51,6 @@ var needs_plot_backup := false
 var needs_growth_backup:=false
 var plots: Array = [empty_plot(), empty_plot(), empty_plot()]
 var planted: Array = Seeds.counts(false)
-var flowering_unlocked := false
 var flowering: Array = Seeds.counts(false)
 var harvest_ready: Array = Seeds.counts(false)
 var parts: Array = Seeds.counts(0)
@@ -117,6 +117,7 @@ func _read_garden() -> Error:
 		var saved_parts = file.get_value("garden", "parts_%d" % i, 0)
 		parts[i] = maxi(saved_parts, 0) if saved_parts is int else 0
 		crafted[i] = file.get_value("garden", "crafted_%d" % i, false) == true
+	var historic_crop_source := ""
 	var saved_plots = file.get_value("garden", "plots_v2", false)
 	plots.clear()
 	needs_plot_backup = not (saved_plots is Array)
@@ -127,7 +128,10 @@ func _read_garden() -> Error:
 				plots.append({"species": species, "age": maxf(0.0,float(item.get("age",0.0))),
 					"stage": clampi(int(item.get("stage",0)),0,3), "flowering": bool(item.get("flowering", false)) if species >= 0 else false})
 				if species>=0:
-					plots[-1].care=preload("res://garden_crop_state.gd").restore(item.get("care",{}),species)
+					var saved_care: Variant = item.get("care",{})
+					if (not saved_care is Dictionary or saved_care.is_empty()) and historic_crop_source.is_empty():
+						historic_crop_source = file.encode_to_text().sha256_text()
+					plots[-1].care=preload("res://garden_crop_state.gd").restore(saved_care,species,historic_crop_source+":"+str(plots.size()-1))
 					preload("res://cultivation_growth.gd").restore(item,plots[-1])
 	else:
 		# Migrate the former species-specific beds without discarding planted crops.
@@ -135,12 +139,12 @@ func _read_garden() -> Error:
 			plots.append({"species": i if planted[i] else -1, "age": 80.0 if harvest_ready[i] else 18.0,
 				"stage": 3 if harvest_ready[i] else 1, "flowering": bool(flowering[i])})
 			if planted[i]:
-				preload("res://garden_crop_state.gd").ensure(plots[-1])
+				if historic_crop_source.is_empty(): historic_crop_source = file.encode_to_text().sha256_text()
+				plots[-1].care=preload("res://garden_crop_state.gd").restore({},i,historic_crop_source+":"+str(i))
 				preload("res://cultivation_growth.gd").restore({},plots[-1])
 	while plots.size() < 3:
 		plots.append(empty_plot())
 	needs_growth_backup=not saved_plots is Array or saved_plots.any(func(b):return b is Dictionary and int(b.get("species",-1))>=0 and int(b.get("growth_rules",1))<2)
-	advance_growth(0.0)
 	veilcap_discovered = file.get_value("garden", "veilcap_discovered", false) == true
 	var saved_discoveries = file.get_value("garden", "seed_discoveries", [])
 	attempted_pairs = file.get_value("garden", "seed_attempts", [])
@@ -184,7 +188,6 @@ func _read_garden() -> Error:
 	quiet_expeditions = clampi(quiet, 0, 1) if quiet is int else 0
 	var saved_knowledge = file.get_value("garden", "knowledge", 0)
 	knowledge = maxi(saved_knowledge, 0) if saved_knowledge is int else 0
-	flowering_unlocked = file.get_value("garden", "flowering_unlocked", false) == true
 	component_crafts=file.get_value("content","component_crafts",{})
 	if not component_crafts is Dictionary: component_crafts={}
 	shared_components=file.get_value("content","shared_components",{})
@@ -229,7 +232,7 @@ func _read_garden() -> Error:
 		return ERR_FILE_CORRUPT
 	needs_inventory_backup=not file.has_section("inventory")
 	var heart_data: Variant = file.get_value("heart", "state", {})
-	if not heart_data is Dictionary or heart_data.get("version", 0) not in [0, 1, 2, 3, heart.VERSION]:
+	if not heart_data is Dictionary or heart_data.get("version", 0) not in [0, 1, 2, 3, 4, heart.VERSION]:
 		garden_development_error = "Unsupported Heart research record."
 		return ERR_FILE_CORRUPT
 	needs_research_backup = heart_data.get("version") in [1, 2] or garden_development.get("version") == 1
@@ -239,6 +242,7 @@ func _read_garden() -> Error:
 		for batch in garden_development.queue: knowledge += int(batch.knowledge)
 		garden_development.erase("queue")
 		garden_development.version = 2
+	needs_cultivation_backup = int(heart_data.get("version",0)) < heart.VERSION
 	needs_heart_backup=heart.load_state(file,self)
 	needs_irrigation_backup = false
 	needs_construction_backup = not file.has_section_key("construction","inventory")
@@ -261,9 +265,14 @@ func _read_garden() -> Error:
 		if needs_irrigation_backup and heart.has("irrigation"):
 			Structures.grant_research(inventory,"irrigation")
 		structures = inventory
+	if int(heart_data.get("version", 0)) < heart.VERSION:
+		for tech in ["nursery","vital_roots","bud_sanctuary"]:
+			if heart.has(tech): Structures.grant_research(structures,tech)
+		garden_interactions.erase("conduit")
 	if not Structures.valid(structures,plots):
 		garden_development_error = "Historical structures and crop slots disagree."
 		return ERR_FILE_CORRUPT
+	advance_growth(0.0)
 	garden_interactions=preload("res://garden_growth_state.gd").load_history(garden_interactions,self)
 	garden_interactions=preload("res://garden_return_state.gd").initialize(garden_interactions)
 	return OK
@@ -292,11 +301,12 @@ func save_garden_guarded() -> Dictionary:
 	return outcome
 
 func migration_backup_paths() -> PackedStringArray:
-	return PackedStringArray([path + ".pre-irrigation-v2.bak", path + ".pre-construction-v1.bak", path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-immediate-heart-v3.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak"])
+	return PackedStringArray([path + ".pre-cultivation-v5.bak", path + ".pre-irrigation-v2.bak", path + ".pre-construction-v1.bak", path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-immediate-heart-v3.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak"])
 
 func confirm_migration(saved_path: String) -> void:
 	if path != saved_path:
 		return
+	needs_cultivation_backup = false
 	needs_irrigation_backup = false
 	needs_construction_backup = false
 	needs_growth_backup = false
@@ -322,6 +332,9 @@ func _serialize_save(stage := Callable()) -> Error:
 		if not operations.authorizes_serializer(self, stage):
 			return SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, path)
 	ensure_storage()
+	if needs_cultivation_backup and FileAccess.file_exists(path):
+		var copied := _migration_backup(path + ".pre-cultivation-v5.bak", stage.is_valid())
+		if copied != OK: return copied
 	if needs_irrigation_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-irrigation-v2.bak", stage.is_valid())
 		if copied != OK: return copied
@@ -396,7 +409,6 @@ func _serialize_save(stage := Callable()) -> Error:
 	file.set_value("garden", "heartwood_barbs", heartwood_barbs)
 	file.set_value("garden", "crafted_heartwood", crafted_heartwood)
 	file.set_value("garden", "veilcap_discovered", veilcap_discovered)
-	file.set_value("garden", "flowering_unlocked", flowering_unlocked)
 	for i in PLANT_NAMES.size():
 		file.set_value("garden", "stock_%d" % i, stock[i])
 		file.set_value("garden", "planted_%d" % i, planted[i])
@@ -610,7 +622,7 @@ func sync_plot_flags() -> void:
 
 
 func advance_growth(seconds: float,in_wilds: bool=false) -> bool:
-	irrigation.resolve(structures)
+	irrigation.resolve(structures,heart.unlocked)
 	var changed := false
 	for slot in plots.size():
 		var bed: Dictionary = plots[slot]
@@ -621,9 +633,17 @@ func advance_growth(seconds: float,in_wilds: bool=false) -> bool:
 		if not preload("res://cultivation_growth.gd").supported(bed):continue
 		preload("res://cultivation_growth.gd").initialize(bed)
 		var base: float = Seeds.DEFINITIONS[int(bed.species)].grow_seconds
-		var duration: float = preload("res://garden_crop_state.gd").duration(bed,base)
-		var previous_age: float=bed.age
-		bed.age = minf(duration, float(bed.age) + maxf(0,seconds) * preload("res://cultivation_growth.gd").rate(self,bed,in_wilds,irrigation.watered_slots.has(slot)))
+		var care = preload("res://garden_crop_state.gd")
+		var local: Dictionary = irrigation.effects.get(slot,{})
+		var previous_age: float = bed.age
+		var work := maxf(0,seconds) * preload("res://cultivation_growth.gd").rate(self,bed,in_wilds,local.has("watering"),local.get("growth",1.0))
+		# A long tick can cross the bud window. Accept care at that boundary before clamping maturity.
+		if local.has("care") and bed.stage < 3 and previous_age + work >= GROWTH_TIMES[2] * base / 80.0 and care.compatible(bed) and bed.care.choice == "":
+			bed.stage = 2
+			care.choose(bed,"preserve",care.crop_draw(bed),"deep_bud" if local.care >= 2 else "patient_bud")
+			changed = true
+		var duration: float = care.duration(bed,base)
+		bed.age = minf(duration, previous_age + work)
 		changed=changed or not in_wilds and int(previous_age/preload("res://cultivation_growth.gd").SAVE_WORK_INTERVAL)!=int(bed.age/preload("res://cultivation_growth.gd").SAVE_WORK_INTERVAL)
 		var stage := 0
 		for i in range(1, 4):

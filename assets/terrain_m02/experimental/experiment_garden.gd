@@ -77,6 +77,8 @@ var remote_revision := -1
 var inventory_revision := -1
 var build_revision := -1
 var menu_revision := -1
+var sanctuary_mode := OptionButton.new()
+var inventory_info := Label.new()
 var inventory_picker: OptionButton
 var management_tabs: TabContainer
 var store_button: Button
@@ -89,7 +91,7 @@ var construct_info: Label
 var construct_button: Button
 var geometry := {}
 var remote_development := {}
-var development_controls: VBoxContainer
+var development_controls: ScrollContainer
 var guest_scroll: ScrollContainer
 var last_review_revision := -1
 var funds_on_review := -1
@@ -411,7 +413,7 @@ func snapshot() -> Dictionary:
 	if geometry.get("revision", -1) != revision:
 		geometry = {"revision":revision,"outline":state.outline,"owned":state.owned.duplicate(),
 			"growth":state.expansion_history.duplicate(),"roots":network.duplicate(true),
-			"inventory":game.progress.structures.duplicate(true)}
+			"inventory":game.progress.structures.duplicate(true),"cultivation_research":game.progress.heart.unlocked.duplicate()}
 
 	var tier := clearing_tier()
 	if geometry.get("tier", -1) != tier:
@@ -466,7 +468,7 @@ func _apply_layout(layout: Dictionary) -> void:
 			_update_rim()
 			_refresh_root_views()
 	_refresh_revealed_props()
-	_project_inventory(inventory)
+	_project_inventory(inventory,layout.get("cultivation_research",[]))
 	_refresh_structure_views()
 	stage.plot_key = ""
 
@@ -483,7 +485,7 @@ func _refresh_guest_review() -> void:
 			var entry: Dictionary = remote_development.layout.inventory.instances[id]
 			if entry.placed != stored:
 				lines.append("%s #%d" % [Build.CATALOG[entry.kind].name,id])
-				if entry.placed and entry.kind=="sprinkler": lines.append(_sprinkler_info(entry.at))
+				if entry.placed and Build.CATALOG[entry.kind].has("effect"): lines.append(_coverage_info(entry.kind,entry.at,entry))
 	guest_review.text = "\n".join(lines)
 
 func _placement_refusal(kind: String, id: int) -> String:
@@ -517,7 +519,7 @@ func sync_inventory() -> void:
 	_refresh_structure_views()
 	stage.plot_key = ""
 
-func _project_inventory(inventory: Dictionary) -> void:
+func _project_inventory(inventory: Dictionary, remote_research: Array = []) -> void:
 	construction.records.clear()
 	bed_ids.clear()
 	station_ids.clear()
@@ -529,13 +531,13 @@ func _project_inventory(inventory: Dictionary) -> void:
 		if entry.kind=="bed": bed_ids[entry.slot]=id
 		elif STATIONS.has(entry.kind): station_ids[STATIONS[entry.kind]]=id
 	construction._sync_obstacles()
-	if game.multiplayer.is_server(): game.progress.irrigation.resolve(inventory)
-	else: remote_irrigation.resolve(inventory)
+	if game.multiplayer.is_server(): game.progress.irrigation.resolve(inventory,game.progress.heart.unlocked)
+	else: remote_irrigation.resolve(inventory,remote_research)
 	inventory_revision = inventory.revision
 
 func _commit_structure(expected: int, change: Callable) -> bool:
 	if not _may_place() or expected!=int(game.progress.structures.revision) or not game.persistence_session.can_write(): return false
-	var result := Tx.run_gameplay(game,Tx.Scope.GARDEN,change)
+	var result: Dictionary = game.apply_cultivation_change(change)
 	if not Tx.committed(result.persistence) and not result.completed: return false
 	if result.value != true: return false
 	funds.energy = game.progress.garden_development.energy
@@ -585,13 +587,6 @@ func place(kind: String, target: Vector2, yaw: float, id: int = 0, expected := -
 	return _commit_structure(expected if expected>=0 else inventory_revision,func():
 		var slot: int = entry.slot
 		if kind=="bed" and slot==-1:
-			# The first research bed owns the historical conduit slot even if a paid bed is placed first.
-			if game.progress.plots.size()==3 and not entry.paid.is_empty():
-				for owned: Dictionary in game.progress.structures.instances.values():
-					if owned.kind=="bed" and owned.slot<0 and owned.paid.is_empty():
-						owned.slot = game.progress.plots.size()
-						game.progress.plots.append(game.Progress.empty_plot())
-						break
 			slot = game.progress.plots.size()
 			game.progress.plots.append(game.Progress.empty_plot())
 		game.Progress.Structures.place(entry,target,yaw,slot)
@@ -625,9 +620,13 @@ func _initialize_controls() -> void:
 	add_child(development_dialog)
 	development_dialog.visibility_changed.connect(func():
 		if not development_dialog.visible: growth_preview.mesh = null)
+	development_controls = ScrollContainer.new()
+	development_controls.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	development_controls.follow_focus = true
+	development_dialog.add_child(development_controls)
 	var controls := VBoxContainer.new()
-	development_controls = controls
-	development_dialog.add_child(controls)
+	controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	development_controls.add_child(controls)
 	guest_scroll = ScrollContainer.new()
 	guest_scroll.custom_minimum_size = Vector2(440,280)
 	development_dialog.add_child(guest_scroll)
@@ -659,6 +658,9 @@ func _initialize_controls() -> void:
 	var inventory_tab := _tab("Inventory")
 	inventory_picker = OptionButton.new()
 	inventory_tab.add_child(inventory_picker)
+	inventory_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inventory_tab.add_child(inventory_info)
+	inventory_picker.item_selected.connect(func(_i): _show_inventory_info())
 	build_button = _button(inventory_tab,"Place selected structure",func(): _place_selected(inventory_picker))
 	_button(inventory_tab,"Deconstruct purchased structure…",func(): _confirm_refund(inventory_picker))
 	var catalog_tab := _tab("Construct")
@@ -669,6 +671,7 @@ func _initialize_controls() -> void:
 	recipe_row.add_child(construction_kind)
 	_add_recipe_preview(recipe_row)
 	construct_info = Label.new()
+	construct_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	catalog_tab.add_child(construct_info)
 	construct_button = _button(catalog_tab,"Construct and store",func():
 		if construction_kind.selected>=0 and construct(construction_kind.get_selected_metadata(),menu_revision):
@@ -679,6 +682,11 @@ func _initialize_controls() -> void:
 	placed_tab.add_child(building_picker)
 	placed_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	placed_tab.add_child(placed_info)
+	placed_tab.add_child(sanctuary_mode)
+	for label in ["Automatic care disabled","Standard Patient Bud","Enhanced Deep Pulse"]: sanctuary_mode.add_item(label)
+	sanctuary_mode.item_selected.connect(func(index):
+		configure_sanctuary(building_picker.get_selected_id(),["disabled","standard","enhanced"][index],menu_revision)
+		_refresh_build_choices())
 	building_picker.item_selected.connect(func(_index): _show_placed_info())
 	_button(placed_tab,"Relocate for free",func(): _place_selected(building_picker))
 	store_button = _button(placed_tab,"Store for free",func():
@@ -759,8 +767,44 @@ func _show_cost(buy: Button) -> void:
 	preview_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 	var cost: Dictionary = Build.CATALOG[kind].cost
 	buy.disabled = not _affordable(cost)
-	construct_info.text = "Cost: %s · Held: %d Growth Energy\nPlace on reclaimed dry ground with a clear approach." % [_price(cost),funds.energy]
-	if kind == "sprinkler": construct_info.text += "\nOne watering bonus within %.1f m when supplied by a placed Water Intake." % _irrigation().RADIUS_M
+	var held := PackedStringArray(["%d Growth Energy" % funds.energy])
+	for item in cost.materials:
+		var definition: Dictionary = game.Items.get_item(item)
+		held.append("%d %s" % [_shared_free(game.players[game.HOST],definition.legacy_part),definition.name])
+	construct_info.text = "Available: %s\nPlace on reclaimed dry ground with a clear approach." % ", ".join(held)
+	construct_info.text += "\n" + _structure_summary(kind)
+
+func _structure_summary(kind: String) -> String:
+	var owned := 0
+	var placed := 0
+	for entry: Dictionary in game.progress.structures.instances.values():
+		if entry.kind == kind:
+			owned += 1
+			placed += int(entry.placed)
+	var summary := "%d owned, %d placed" % [owned,placed]
+	var irrigation := _irrigation()
+	if Build.CATALOG[kind].has("cost"):
+		summary += "\nAdditional copy: " + _price(Build.CATALOG[kind].cost)
+	if Build.CATALOG[kind].has("effect"):
+		summary += "\n%s within %.1f m" % [_effect_text(kind),irrigation.radius(kind)]
+		summary += "\nEffectiveness %s · Coverage %s" % [
+			"improved" if irrigation.research.has(kind+"_effectiveness") else "base",
+			"improved" if irrigation.research.has(kind+"_coverage") else "base"]
+	return summary
+
+func _show_inventory_info() -> void:
+	var entry: Dictionary = game.progress.structures.instances.get(inventory_picker.get_selected_id(),{})
+	inventory_info.text = _structure_summary(entry.kind) if not entry.is_empty() else ""
+
+func configure_sanctuary(id: int, mode: String, expected: int) -> bool:
+	if not available_here() or mode not in ["disabled","standard","enhanced"]: return false
+	var entry: Dictionary = game.progress.structures.instances.get(id,{})
+	if entry.get("kind")!="bud_sanctuary" or not entry.placed or entry.care_mode==mode: return false
+	if mode=="enhanced" and not game.progress.heart.has("bud_sanctuary_effectiveness"): return false
+	return _commit_structure(expected,func():
+		entry.care_mode = mode
+		game.progress.structures.revision += 1
+		return true)
 
 func _refresh_build_choices() -> void:
 	sync_inventory()
@@ -779,6 +823,7 @@ func _refresh_build_choices() -> void:
 			construction_kind.add_item(def.name)
 			construction_kind.set_item_metadata(construction_kind.item_count-1,kind)
 	_show_cost(construct_button)
+	_show_inventory_info()
 	_show_placed_info()
 
 func open_development() -> void:
@@ -807,8 +852,10 @@ func open_development() -> void:
 	review.text = "Research Reaching Roots to expand." if clearing_tier() <= 0 else "%d growth energy held." % funds.energy
 	if plans.is_empty() and clearing_tier() > 0:
 		review.text = "No frontier fits inside this generated Garden."
+	guest_scroll.hide()
+	development_controls.show()
 	_refresh_build_choices()
-	development_dialog.popup_centered(Vector2i(470, 360))
+	development_dialog.popup_centered(Vector2i(570, 480))
 	management_tabs.get_tab_bar().grab_focus()
 
 func _preview_growth() -> void:
@@ -901,11 +948,14 @@ func _show_ghost() -> void:
 	var refusal := _build_refusal(build_kind, build_target, build_yaw, build_moving)
 	ghost.material_override.albedo_color = Color("#74e2b299") if refusal.is_empty() else Color("#ec8a78bb")
 	var instruction := "Click or Accept to place · Q/E or bumpers rotate" if refusal.is_empty() else refusal
-	if build_kind == "sprinkler":
+	if Build.CATALOG[build_kind].has("effect"):
 		var irrigation := _irrigation()
-		coverage_preview.mesh = infrastructure.preview(build_target,irrigation.bed_centers,irrigation.beds_in_range(build_target))
-		coverage_preview.material_override.albedo_color = Color("#8edfd3") if refusal.is_empty() and irrigation.supplied else Color("#c39c72")
-		instruction += " | " + _sprinkler_info(build_target)
+		coverage_preview.mesh = infrastructure.preview(build_target,irrigation.bed_centers,irrigation.beds_in_range(build_target,build_kind),irrigation.radius(build_kind))
+		var entry: Dictionary = game.progress.structures.instances.get(build_moving,{})
+		var inactive: bool = (build_kind=="sprinkler" and not irrigation.supplied) or (build_kind=="bud_sanctuary" and entry.get("care_mode","disabled")=="disabled")
+		var color := Color("#c39c72") if inactive else Color("#8edfd3")
+		coverage_preview.material_override.albedo_color = Color("#ec8a78") if not refusal.is_empty() else color
+		instruction += " | " + _coverage_info(build_kind,build_target,entry)
 	game.tell(game.HOST, instruction + " · Esc or right-click cancels.")
 
 func _cancel_placement() -> void:
@@ -972,16 +1022,35 @@ func _irrigation() -> RefCounted:
 func _refresh_connections() -> void:
 	infrastructure.sync_layout(construction.records,state,heart.stage,network,_irrigation().supplied,game.multiplayer.is_server() or remote_revision>=0)
 
-func _sprinkler_info(at: Vector2) -> String:
+func _effect_text(kind: String) -> String:
+	var value: float = _irrigation().strength(kind)
+	match kind:
+		"sprinkler": return "Watering x%.2f" % value
+		"pollination_bloom": return "%d seeds per seed harvest" % int(value)
+		"nursery": return "%d familiarity per harvest" % int(value)
+		"vital_roots": return "Growth x%.2f" % value
+		"refinement_grove": return "+%d percentage points of refinement" % roundi(value*100)
+		"bud_sanctuary": return "Standard or enhanced bud care" if value>=2 else "Standard bud care"
+	return ""
+
+func _coverage_info(kind: String, at: Vector2, entry: Dictionary) -> String:
 	var irrigation := _irrigation()
 	var labels := PackedStringArray()
-	for slot: int in irrigation.beds_in_range(at): labels.append(str(slot+1))
-	return "Watering x%.2f within %.1f m | %s | Beds: %s" % [preload("res://cultivation_growth.gd").WATER_RATE,irrigation.RADIUS_M,
-		"Water supplied" if irrigation.supplied else "Inactive: place a Water Intake", ", ".join(labels) if not labels.is_empty() else "none"]
+	for slot: int in irrigation.beds_in_range(at,kind): labels.append(str(slot+1))
+	var status := ""
+	if kind=="sprinkler": status = "Water supplied" if irrigation.supplied else "Inactive: place a Water Intake"
+	if kind=="bud_sanctuary": status = "Automatic care "+str(entry.get("care_mode","disabled"))
+	return "%s within %.1f m | %s Beds: %s" % [_effect_text(kind),irrigation.radius(kind),status,", ".join(labels) if not labels.is_empty() else "none"]
 
 func _show_placed_info() -> void:
 	var entry: Dictionary = game.progress.structures.instances.get(building_picker.get_selected_id(),{})
-	placed_info.text = _sprinkler_info(entry.at) if entry.get("kind")=="sprinkler" else ""
+	placed_info.text = "" if entry.is_empty() else _structure_summary(entry.kind)
+	if not entry.is_empty() and Build.CATALOG[entry.kind].has("effect"):
+		placed_info.text += "\n"+_coverage_info(entry.kind,entry.at,entry)
+	sanctuary_mode.visible = entry.get("kind")=="bud_sanctuary"
+	if sanctuary_mode.visible:
+		sanctuary_mode.set_item_disabled(2,not game.progress.heart.has("bud_sanctuary_effectiveness"))
+		sanctuary_mode.select(["disabled","standard","enhanced"].find(entry.care_mode))
 
 func _refresh_structure_views() -> void:
 	_refresh_connections()

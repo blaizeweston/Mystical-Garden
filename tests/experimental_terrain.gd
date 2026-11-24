@@ -278,8 +278,7 @@ func run() -> void:
 		and plot.get_child_count() == 2, "bed and crop render together after relocation")
 	await _capture("garden-after-growth")
 
-	game.run_heart_save(func(): return game.progress.heart.purchase(game.progress, "flowering"))
-	check(game.progress.flowering_unlocked, "Flowering is usable immediately")
+	check(game.progress.heart.requirements(game.progress,"flowering")=="Unknown memory.", "propagation has no purchasable Flowering node")
 	player.pos = game.stage.gate_position()
 	var starting_tree = game.Classes.connected_tree(int(player.frame))
 	game.handle_loadout_action(game.HOST, player, "learn_%d_%d" % [player.frame, starting_tree.REQUEST_OFFSET])
@@ -468,10 +467,10 @@ func run() -> void:
 		"actual monster drop pays its Knowledge immediately and durably")
 	panel.hide()
 	var after_contribution: int = game.progress.heart.available_insight(game.progress)
-	game.run_heart_save(func(): return game.progress.heart.purchase(game.progress, "flowering"))
-	check(game.progress.heart.has("flowering") and game.progress.plots.size() == 4
+	game.garden_action(game.HOST,"heart_start_flowering")
+	check(not game.progress.heart.has("flowering") and game.progress.plots.size() == 4
 		and game.progress.heart.available_insight(game.progress) == after_contribution,
-		"Contributed Knowledge funds the next existing bed research without automatic placement")
+		"A retired research command cannot debit contributed Knowledge or create a bed")
 	garden.open_development()
 	if not garden.plans.is_empty():
 		check(garden.expand(garden.plans.keys()[0]), "energy still funds player-chosen expansion after return")

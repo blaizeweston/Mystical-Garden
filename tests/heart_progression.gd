@@ -54,9 +54,9 @@ func run():
  h.purchase(g,"monster_studies")
  var spent: int=h.spent
  h.purchase(g,"flowering")
- check(g.flowering_unlocked and h.spent==spent,"duplicate free research cannot spend Knowledge")
+ check(not h.has("flowering") and h.spent==spent,"duplicate free research cannot spend Knowledge")
  h.purchase(g,"irrigation")
- check(h.has("irrigation") and is_equal_approx(h.growth_multiplier(),1.0),"irrigation grants structures without passive growth")
+ check(h.has("irrigation") and g.irrigation.effects.is_empty(),"irrigation grants structures without passive growth")
  for count in range(5,10):
   game.slot_claimed=true;p.pos=Vector3(0,0,1.5)
   check(garden.construct("bed",g.structures.revision) and preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"paid bed %d is placed" % count)
@@ -82,6 +82,7 @@ func run():
  check_rift_retirement(g.path)
  # Legacy earned restoration remains available and receives a recovery backup.
  var legacy_file=ConfigFile.new();legacy_file.load(g.path);legacy_file.erase_section("heart")
+ legacy_file.set_value("garden","flowering_unlocked",true)
  legacy_file.set_value("garden","rift_hook_discovered",true) # Actual pre-tree restoration requirement.
  var legacy_path: String=g.path+".legacy";legacy_file.save(legacy_path)
  var migrated=Progress.new();migrated.path=legacy_path;migrated.load_garden()

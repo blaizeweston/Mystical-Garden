@@ -71,19 +71,21 @@ func projection(id: int) -> Dictionary:
 	var beds: Array=[];var player: Dictionary=world.players.get(id,{})
 	if player.is_empty() or Participation.is_wild(player):return {"version":2,"catalog":Catalog.signature,"beds":[],"focus":{}}
 	var watering_available:=spring_ready()
-	world.progress.irrigation.resolve(world.progress.structures)
+	world.progress.irrigation.resolve(world.progress.structures,world.progress.heart.unlocked)
 	for index in world.progress.plots.size():
 		var bed: Dictionary=world.progress.plots[index];var species: int=int(bed.species)
 		if species<0:continue
 		var familiarity: int=int(player.get("character",{}).get("plants",[])[species])
 		var automatic: bool = world.progress.irrigation.watered_slots.has(index) and State.compatible(bed) and Growth.supported(bed) and bed.stage<3
-		var rates: Dictionary={"current":Growth.rate(world.progress,bed,world.participation.active(),automatic),"garden":Growth.rate(world.progress,bed,false,automatic),"wild":Growth.rate(world.progress,bed,true,automatic),"sprinkler":automatic}
-		beds.append(Rules.bed_projection(index,bed.duplicate(true),familiarity,rates,watering_available,world.progress.flowering_unlocked))
+		var local: Dictionary = world.progress.irrigation.effects.get(index,{})
+		var vital := float(local.get("growth",1.0))
+		var rates: Dictionary={"current":Growth.rate(world.progress,bed,world.participation.active(),automatic,vital),"garden":Growth.rate(world.progress,bed,false,automatic,vital),"wild":Growth.rate(world.progress,bed,true,automatic,vital),"sprinkler":automatic,"effects":local,"water_rate":world.progress.irrigation.strength("sprinkler")}
+		beds.append(Rules.bed_projection(index,bed.duplicate(true),familiarity,rates,watering_available,world.progress.heart.has("bud_sanctuary_effectiveness")))
 	return {"version":2,"catalog":Catalog.signature,"beds":beds,"spring_water":player.get("spring_water",false),"focus":player.get("garden_crop_focus",{}).duplicate(true)}
 func harvest_seeds(id: int,slot: int) -> Dictionary:
 	var world:=_current_world()
 	if world==null:return {}
-	if not eligible(id,slot) or not world.progress.flowering_unlocked:return reject(id,"Research Flowering before harvesting seeds at a Garden bed.")
+	if not eligible(id,slot):return reject(id,"Approach this bed to harvest seeds.")
 	var before: Dictionary=world.progress.plots[slot].duplicate(true)
 	if int(before.species)<0 or int(before.stage)<3:return reject(id,"Let this plant mature, then choose seeds or parts at harvest.")
 	if world.persistence_session.is_guarded():
@@ -110,7 +112,7 @@ func command(id: int, request: Dictionary) -> Dictionary:
 	var slot:=Rules.bed_slot(str(request.get("point","")))
 	var can_tend:=eligible(id,slot)
 	var bed: Dictionary=world.progress.plots[slot] if can_tend else {}
-	var decision:=Rules.care_request(request,can_tend,bed.duplicate(true),spring_ready(),bool(world.players.get(id,{}).get("spring_water",false)))
+	var decision:=Rules.care_request(request,can_tend,bed.duplicate(true),spring_ready(),bool(world.players.get(id,{}).get("spring_water",false)),world.progress.heart.has("bud_sanctuary_effectiveness"))
 	match decision.operation:
 		"reject":return reject(id,decision.error)
 		"noop":return {"changed":false,"revision":decision.revision}
@@ -125,13 +127,12 @@ func command(id: int, request: Dictionary) -> Dictionary:
 				if command_result.persistence.is_empty():return reject(id,notice)
 				world.tell(id,notice);return {"changed":false,"error":notice}
 			preload("res://event_audio.gd").emit(world,"crop_watered",world.stage.bed_position(slot))
-			world.tell(id,"Garden water nourishes this crop. Growth is 25% faster until harvest.")
-			preload("res://diagnostic_journal.gd").event("garden","crop_watered",{"actor":id,"bed":slot,"cycle":bed.care.cycle,"revision":bed.care.revision,"multiplier":Growth.WATER_RATE})
+			world.tell(id,"Garden water nourishes this crop. Watering lasts until harvest.")
+			preload("res://diagnostic_journal.gd").event("garden","crop_watered",{"actor":id,"bed":slot,"cycle":bed.care.cycle,"revision":bed.care.revision,"multiplier":world.progress.irrigation.strength("sprinkler")})
 			return {"changed":true,"revision":bed.care.revision}
-	# Freeze the same one care roll without spending gameplay RNG.
-	var preview_rng:=RandomNumberGenerator.new();preview_rng.seed=world.rng.seed;preview_rng.state=world.rng.state
-	var roll:=preview_rng.randf();var chosen:=str(decision.choice)
-	var result:=Tx.run_gameplay(world,Tx.Scope.PAIR,func():State.choose(bed,chosen,roll);return true)
+	var chosen := str(decision.choice)
+	var policy := "deep_bud" if request.action=="enhance_bud" else "patient_bud"
+	var result:=Tx.run_gameplay(world,Tx.Scope.PAIR,func():State.choose(bed,chosen,State.crop_draw(bed),policy);return true)
 	if not result.completed or result.value!=true:
 		var notice:=Tx.feedback(result,"Could not save the care choice. Nothing changed; please retry.")
 		if result.persistence.is_empty():return reject(id,notice)
@@ -161,7 +162,7 @@ func _harvest_guarded(id: int, slot: int, flower: bool) -> bool:
 	var world:=_current_world()
 	if not eligible(id, slot): return false
 	var bed: Dictionary = world.progress.plots[slot].duplicate(true)
-	if int(bed.species)<0 or int(bed.stage)<3 or (flower and not world.progress.flowering_unlocked): return false
+	if int(bed.species)<0 or int(bed.stage)<3: return false
 	var result: Dictionary = world.run_guarded_action(id, world.actor_profile_scope(id), func(effects):
 		if flower: world.progress.plots[slot].flowering = true
 		var rare := Parts.rare_part(int(bed.species))
@@ -188,10 +189,14 @@ func _harvest(id: int, slot: int, effects = null) -> bool:
 	world.progress.sync_plot_flags()
 	var profile: Dictionary = world.players[id].character
 	var familiarity: int = profile.plants[kind]
-	profile.plants[kind] = Rules.familiarity_after(familiarity,world.progress.heart.has("nursery"))
+	world.progress.irrigation.resolve(world.progress.structures,world.progress.heart.unlocked)
+	var local: Dictionary = world.progress.irrigation.effects.get(slot,{})
+	profile.plants[kind] = Rules.familiarity_after(familiarity,int(local.get("familiarity",1)))
 	world.save_action_profile(id, effects)
-	var harvest_roll: float=world.rng.randf() if not seeds else 0.0
-	var result:=Rules.harvest_yield(bed.duplicate(true),familiarity,harvest_roll)
+	var harvest_roll := 0.0
+	if not seeds:
+		harvest_roll = State.crop_draw(bed) if State.compatible(bed) else world.rng.randf()
+	var result:=Rules.harvest_yield(bed.duplicate(true),familiarity,harvest_roll,local)
 	if seeds:world.seed_reserve(world.players[id]).stock[kind]+=int(result.seeds)
 	else:
 		world.progress.parts[kind]+=int(result.parts)
@@ -222,7 +227,7 @@ func plant_seed(id: int, slot: int) -> bool:
 	var before: Dictionary=world.progress.plots[slot].duplicate(true)
 	var planted := Tx.run_gameplay(world, Tx.Scope.GARDEN, func():
 		stock[kind] -= 1
-		world.progress.plots[slot] = Rules.planted_bed(kind,preload("res://garden_conduit.gd").cycle(world.progress,slot,kind))
+		world.progress.plots[slot] = Rules.planted_bed(kind,State.new_cycle(kind))
 		world.progress.sync_plot_flags()
 		if world.persistence_session.is_guarded() or world.progress.save_garden()==OK: return true
 		stock[kind]+=1;world.progress.plots[slot]=before;world.progress.sync_plot_flags()

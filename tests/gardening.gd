@@ -40,7 +40,7 @@ func run():
 	p.pos = Stage.PLOTS[1]
 	interact(game,p)
 	check(game.progress.plots[1].species == 1, "duplicate crops can grow in separate beds")
-	game.progress.flowering_unlocked = true
+
 	game.progress.advance_growth(float(game.Seeds.DEFINITIONS[1].grow_seconds))
 	var seeds_before: int = reserve.stock[1]
 	game.send_garden_action("flower")

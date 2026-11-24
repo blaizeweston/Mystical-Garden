@@ -1,6 +1,6 @@
 extends RefCounted
 const Catalog = preload("res://heart_catalog.gd")
-const VERSION := 4
+const VERSION := 5
 const Structures = preload("res://garden_structure_inventory.gd")
 var unlocked: Array = ["heart"]
 var spent := 0
@@ -34,28 +34,32 @@ func load_state(file: ConfigFile, owner: RefCounted) -> bool:
 		var receipts: Array = []
 		var retained_cost := 0
 		for id in data.paid:
-			if id is String and (Catalog.enabled(id) or Structures.OLD_PRICES.has(id)) and not receipts.has(id):
+			if id is String and (Catalog.enabled(id) or id == "living_conduit" or Structures.OLD_PRICES.has(id)) and not receipts.has(id):
 				receipts.append(id)
-				retained_cost += int(Structures.OLD_PRICES.get(id, Catalog.get_node(id).get("insight",0)))
+				retained_cost += 6 if id == "living_conduit" else int(Structures.OLD_PRICES.get(id, Catalog.get_node(id).get("insight",0)))
 				unlock_direct(id)
 		# Historic purchases recorded IDs and an aggregate debit. Leave every
 		# supported purchase funded and return only evidenced retired spending.
 		var retired_cost := 5 * int(data.paid.has("infusion")) + 6 * int(data.paid.has("rift_hook")) + 12 * int(data.paid.has("perfect_recollection"))
 		spent -= clampi(spent - retained_cost, 0, retired_cost)
 	if legacy:
-		if file.get_value("garden", "studying_flowering", false) == true: unlock_direct("flowering")
 		# Pre-tree completion may establish earned, still-supported research and guardian memories.
 		var old_discovery: bool=file.get_value("garden","rift_hook_discovered",false)==true
-		var restored: bool=owner.flowering_unlocked and old_discovery and owner.veilcap_discovered and owner.knowledge>=owner.Campaign.FULL_KNOWLEDGE and owner.campaign.memories_complete()
+		var restored: bool=file.get_value("garden","flowering_unlocked",false) == true and old_discovery and owner.veilcap_discovered and owner.knowledge>=owner.Campaign.FULL_KNOWLEDGE and owner.campaign.memories_complete()
 		var old_ending: Variant = file.get_value("campaign", "ending", 0)
 		if restored or (old_ending is int and old_ending in [1, 2]):
 			for id in Catalog.required_core(): unlock_direct(id)
 			for id in ["memory_grove","memory_mire","memory_hollow"]: unlock_direct(id)
-	if int(data.get("version",0)) < VERSION:
+	if int(data.get("version",0)) < 4:
 		for id in Structures.OLD_PRICES:
 			if id in data.get("paid",[]) or id in data.get("unlocked",[]) or owner.plots.size()>3:
 				unlock_direct("cultivation_grounds")
 				break
+	if int(data.get("version", 0)) < VERSION:
+		if has("nursery"): unlock_direct("vital_roots")
+		if "living_conduit" in data.get("unlocked", []) or (data.get("version") in [1,2] and "living_conduit" in data.get("paid", [])):
+			unlock_direct("bud_sanctuary")
+			unlock_direct("bud_sanctuary_effectiveness")
 	sync_legacy(owner)
 	return legacy
 
@@ -63,8 +67,6 @@ func unlock_direct(id: String) -> void:
 	if not has(id) and not Catalog.get_node(id).is_empty(): unlocked.append(id)
 
 func sync_legacy(owner: RefCounted) -> void:
-	if owner.flowering_unlocked: unlock_direct("flowering")
-	owner.flowering_unlocked = has("flowering")
 	sync_memories(owner)
 
 func sync_memories(owner: RefCounted) -> void:
@@ -99,7 +101,8 @@ func complete(owner: RefCounted, id: String) -> void:
 	if node.is_empty() or has(id): return
 	unlock_direct(id)
 	Structures.grant_research(owner.structures,id)
-	if id == "flowering": owner.flowering_unlocked = true
+	if id.ends_with("_coverage") or id.ends_with("_effectiveness"):
+		owner.structures.revision += 1
 	sync_memories(owner)
 
 func clearing_bonus() -> int:
@@ -107,9 +110,6 @@ func clearing_bonus() -> int:
 	for id in ["clearing_1","clearing_2","clearing_3"]:
 		result+=int(has(id))
 	return result
-
-func growth_multiplier() -> float:
-	return 1.4 if has("nursery") else 1.0
 
 # Recollection milestones use whole completed memories.
 @warning_ignore_start("integer_division")
@@ -121,7 +121,7 @@ func phase(owner: RefCounted) -> int:
 	if has("living_archive") and memories>=total/2: return 4
 	if unlocked.size()>=8 and owner.knowledge>=50: return 3
 	if unlocked.size()>=4 and owner.knowledge>=20: return 2
-	if has("flowering") or owner.plots.size()>3 or owner.knowledge>=8: return 1
+	if owner.plots.size()>3 or owner.knowledge>=8: return 1
 	return 0
 
 @warning_ignore_restore("integer_division")

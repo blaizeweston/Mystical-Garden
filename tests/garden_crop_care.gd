@@ -34,9 +34,7 @@ func run() -> void:
  ExpeditionCase.set_membership(game, p, true);check(act(game,request).has("error"),"Wilds actors cannot tend Garden crops");ExpeditionCase.set_membership(game, p, false)
  p.pos=game.stage.gate_position();check(act(game,request).has("error"),"remote crop request is rejected");p.pos=game.Stage.PLOTS[0]
  # Fix a roll that misses the ordinary 5% but succeeds with preservation's 20%.
- for seed_value in 10000:
-  game.rng.seed=seed_value;var roll: float=game.rng.randf()
-  if roll>.05 and roll<.20:game.rng.seed=seed_value;break
+ g.plots[0].care.harvest_draw = 150000
  var rng_before: int=game.rng.state;var parts: Array=g.parts.duplicate();var familiarity: Array=p.character.plants.duplicate();var xp: Array=p.character.xp.duplicate()
  var result:=act(game,request)
  check(result.get("changed",false) and State.preserved(g.plots[0]) and game.rng.state==rng_before,"preserving commits once without advancing gameplay RNG")
@@ -66,7 +64,7 @@ func run() -> void:
  check(g.parts[0]==before+1 and g.part_count(rare)==rare_before+1 and p.character.plants[0]==fam_before+1,"repeated harvest cannot duplicate either payout or familiarity")
  plant(game,0)
  check(g.plots[0].care.cycle!=cycle and act(game,request).has("error"),"replanting the same species invalidates old cycle commands")
- g.advance_growth(168.75);g.flowering_unlocked=true
+ g.advance_growth(168.75)
  var current:=View.request(shown(game,0),"preserve_bud");check(act(game,current).get("changed",false),"second crop may choose its own care")
  var phase_request:=View.request(shown(game,0),"preserve_bud")
  var before_age: float=g.plots[0].age
@@ -94,6 +92,8 @@ func run() -> void:
  var legacy:=ConfigFile.new();legacy.set_value("garden","plots_v2",[{"species":1,"stage":2,"age":45.0,"flowering":false}]);legacy.save(base+"-old.cfg")
  var old=game.Progress.new();old.path=base+"-old.cfg"
  check(old.load_garden()==OK and old.plots[0].species==1 and is_equal_approx(old.plots[0].age/300.0,45.0/80.0) and State.compatible(old.plots[0]),"old planted crops migrate without losing progress")
+ var first_care: Dictionary=old.plots[0].care.duplicate(true)
+ check(old.load_garden()==OK and first_care==old.plots[0].care,"reopening a pre-cycle save before migration is committed cannot reroll the crop")
  old.save_garden();var old_again=game.Progress.new();old_again.path=old.path;old_again.load_garden()
  check(old_again.plots[0].care.cycle==old.plots[0].care.cycle,"migrated crop identity persists")
  game.queue_free();await process_frame

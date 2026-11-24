@@ -119,7 +119,7 @@ func run():
 		check(player.character.plants[i]>0,"per-character familiarity "+d.name)
 		if Seeds.wild_only(i):
 			g.stock[i]=1
-			g.flowering_unlocked=true
+
 			game.cultivation.plant_seed(1,0)
 			g.advance_growth(float(d.grow_seconds))
 			game.cultivation.harvest_seeds(1,0)

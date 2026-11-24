@@ -1,6 +1,6 @@
 extends RefCounted
 ## Host Garden command integration. Progress remains the only saved-state owner.
-## Public requests use peer IDs; pure observation/conduit rules receive facts.
+## Public requests use peer IDs; pure observation rules receive facts.
 const Returns=preload("res://garden_return_service.gd")
 const Rules=preload("res://garden_interaction_service.gd")
 const Session=preload("res://network_session.gd")
@@ -10,7 +10,6 @@ const Tx=preload("res://game_transaction.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
 const State=preload("res://garden_interaction_state.gd")
 const Water=preload("res://garden_water.gd")
-const Conduit=preload("res://garden_conduit.gd")
 const Seeds=preload("res://seed_catalog.gd")
 const Parts=preload("res://weapon_parts.gd")
 const HeartCatalog=preload("res://heart_catalog.gd")
@@ -66,10 +65,10 @@ func projection(id: int) -> Dictionary:
   var received: Dictionary=world.players.get(id,{}).get("garden_interactions",{})
   return received.duplicate(true) if Rules.compatible_projection(received) else {}
  var result:=_observation_data()
- result.merge({"conduit":conduit_projection(id),"returns":return_projection(id),"cultivation":world.cultivation.projection(id),"growth":preload("res://garden_growth_service.gd").projection(world,id),"focus":world.players.get(id,{}).get("garden_focus",{}).duplicate(true)})
+ result.merge({"returns":return_projection(id),"cultivation":world.cultivation.projection(id),"growth":preload("res://garden_growth_service.gd").projection(world,id),"focus":world.players.get(id,{}).get("garden_focus",{}).duplicate(true)})
  return result
 ## One observation selector serves networking and the lightweight local view.
-## The latter never needs to construct every crop, growth scene and conduit.
+## The latter never needs to construct every crop, and growth scene.
 
 func _observation_data() -> Dictionary:
  var world:=_current()
@@ -145,7 +144,6 @@ func command(id: int,payload: String) -> Dictionary:
  var parsed:=Rules.parse(payload)
  if parsed.has("error"):return reject(id,parsed.error)
  var request: Dictionary=parsed.request
- if request.action=="configure_conduit":return configure_conduit(id,request)
  if request.point.begins_with("bed_"):return world.cultivation.command(id,request)
  var definition:=Catalog.point(request.point)
  var player: Dictionary=world.players[id]
@@ -168,36 +166,6 @@ func command(id: int,payload: String) -> Dictionary:
   world.tell(id,"Garden observation recorded: "+definition.name)
   preload("res://diagnostic_journal.gd").event("garden","observation_recorded",{"actor":id,"point_id":definition.id,"observation_id":definition.observation,"revision":saved.revision})
  return saved
-
-func conduit_projection(id: int) -> Dictionary:
- var world:=_current()
- if world==null:return {}
- if not world.multiplayer.is_server():return world.players.get(id,{}).get("garden_interactions",{}).get("conduit",{}).duplicate(true)
- var value:=Conduit.state(world.progress)
- if value.is_empty():return {}
- value.unlocked=world.progress.heart.has("living_conduit");value.host=id==world.HOST
- return value
-
-func configure_conduit(id: int,request: Dictionary) -> Dictionary:
- var world:=_current()
- if world==null or not eligible(id):return {"changed":false,"error":"Garden interaction unavailable."}
- var point:=Conduit.Layout.Catalog.point(Conduit.POINT)
- var in_reach: bool=world.players[id].pos.distance_to(point.position)<=float(point.range)
- var decision:=Conduit.choose(request,Conduit.state(world.progress),id==world.HOST,world.progress.heart.has("living_conduit") and Conduit.Layout.enabled(point,world.progress.heart.unlocked),world.participation.travel_kind().is_empty() and in_reach)
- if decision.has("error"):return reject(id,decision.error)
- if not decision.changed:return {"changed":false,"revision":decision.revision}
- var result=Tx.run_gameplay(world,Tx.Scope.PAIR,func():
-  var next: Dictionary=decision.next
-  world.progress.garden_interactions.conduit=next;return next)
- if not result.completed or not result.value is Dictionary:
-  var notice:=Tx.feedback(result,"Could not save the conduit. Its previous setting remains active.")
-  if result.persistence.is_empty():return reject(id,notice)
-  world.tell(id,notice)
-  return {"changed":false,"error":notice}
- var saved: Dictionary=result.value
- world.tell(id,Conduit.mode(saved.mode).name+" will shape newly planted terrace crops. Existing crops keep their care choice.")
- preload("res://diagnostic_journal.gd").event("garden","conduit_changed",{"actor":id,"zone":Conduit.ZONE,"mode":saved.mode,"revision":saved.revision})
- return {"changed":true,"revision":saved.revision}
 
 func return_projection(id: int) -> Dictionary:
  var world:=_current()

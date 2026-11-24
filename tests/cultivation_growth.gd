@@ -67,13 +67,13 @@ func run() -> void:
  check(not game.garden_commands.command(1,JSON.stringify(request)).changed and is_equal_approx(Growth.rate(g,bed),1.25),"co-op retries cannot stack watering")
  check(game.combat_events.filter(func(e):return e.kind=="audio" and e.shape=="crop_watered").size()==1,"watering plays once after the crop is saved")
  g.heart.unlock_direct("nursery")
- check(is_equal_approx(Growth.rate(g,bed,true),3.5),"Wilds, best Knowledge and watering multiply to one capped 3.5x rate")
- work=bed.age;g.advance_growth(10,true);check(is_equal_approx(bed.age-work,35),"actual growth uses the same rate as previews")
+ check(is_equal_approx(Growth.rate(g,bed,true),2.5),"Wilds and watering combine; Nursery has no global growth effect")
+ work=bed.age;g.advance_growth(10,true);check(is_equal_approx(bed.age-work,25),"actual growth uses the same rate as previews")
  check(shown(game).watered and is_equal_approx(shown(game).garden_remaining/shown(game).wild_remaining,2),"Garden/Wilds ETA reflects watering and research")
  check(game.rng.state==rng_before and p.character.xp==xp and p.character.plants==fam and g.stock==stock,"watering gives no seed, familiarity, XP or random roll")
  g.save_garden();var loaded=game.Progress.new();loaded.path=path;loaded.load_garden()
  check(Growth.watered(loaded.plots[0]) and is_equal_approx(loaded.plots[0].age,bed.age),"long crop work and watering survive reload")
- var age: float=bed.age;g.flowering_unlocked=true
+ var age: float=bed.age
  check(act(game,"flower_crop").has("error") and bed.age==age and not bed.flowering,"immature flowering cannot restart or advance growth")
  g.advance_growth(86400,true);var seeds_before: int=game.seed_reserve(p).stock[int(bed.species)];var parts: Array=g.parts.duplicate();var species: int=bed.species
  var profile_path: String=game.local_character.path;game.local_character.path=base+"-missing/profile"

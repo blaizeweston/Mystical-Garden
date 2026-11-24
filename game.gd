@@ -1375,8 +1375,19 @@ func guarded_growth_tick(elapsed: float) -> void:
 	var message := Transactions.save_growth_checkpoint(self, updated)
 	if not message.is_empty(): status = message
 
+# Credit the fraction of this growth tick at its previous rate inside the same transaction.
+func apply_cultivation_change(action: Callable) -> Dictionary:
+	var elapsed := growth_clock
+	var result := Transactions.run_gameplay(self,Transactions.Scope.GARDEN,func():
+		progress.advance_growth(elapsed,participation.active())
+		var value: Variant = action.call()
+		progress.advance_growth(0.0,participation.active())
+		return value)
+	if result.completed or Transactions.committed(result.persistence): growth_clock = 0.0
+	return result
+
 func run_heart_save(action: Callable) -> String:
-	var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, action)
+	var result := apply_cultivation_change(action)
 	return Transactions.feedback(result, "Research could not be saved.")
 
 func use_heart_research(id: int) -> void:
@@ -1978,7 +1989,7 @@ func inventory_snapshot(player: Dictionary) -> Array:
 
 func garden_snapshot() -> Array:
 	# Protocol 41 reserves slots 9–11. Keep later Garden fields at their established indices.
-	return [0, false, progress.flowering_unlocked,
+	return [0, false, true,
 		progress.flowering, progress.harvest_ready, progress.parts, progress.knowledge, progress.veilcap_discovered, progress.briar_hooks,
 		false, 0, false, progress.plot_snapshot(), progress.discoveries.duplicate(), progress.heartwood_barbs, shared_parts_snapshot(), progress.heart.snapshot(progress)]
 

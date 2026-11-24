@@ -13,7 +13,6 @@ const Owner = preload("res://guarded_title_session.gd")
 const Ops = preload("res://persistence_operations.gd")
 const Plan = preload("res://persistence_recovery_plan.gd")
 const Growth = preload("res://garden_growth_service.gd")
-const Conduit = preload("res://garden_conduit.gd")
 const CleanupNotice := "Saved. Recovery cleanup is pending. Further saves are blocked."
 const G := "user://saves/slot_1/garden.cfg"
 const C := "user://saves/characters/slot_1/character.cfg"
@@ -301,7 +300,7 @@ func fail_receipt(phase: String, _path: String) -> Error:
  return ERR_CANT_CREATE if phase == "publish_receipt" else OK
 
 func verify_cleanup_feedback(stores: Dictionary) -> void:
- for feature in ["planting", "altar", "conduit", "watering", "explicit_garden"]:
+ for feature in ["planting", "altar", "seed conservation", "watering", "explicit_garden"]:
   var world := start(stores.slots, stores.roster, true)
   if world == null: return
   var host: Dictionary = world.players[world.HOST]
@@ -337,21 +336,19 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
     ordinary = "Identified %s." % world.Seeds.NAMES[1]
     check(world.seed_reserve(host).unknown.is_empty() and host.altar_message == ordinary,
      "Altar retains the identification result")
-   "conduit":
-    for tech in ["clearing_1","clearing_2","irrigation","cultivation_grounds","living_conduit"]:
-     world.progress.heart.complete(world.progress,tech)
-    host.pos = Conduit.Layout.Catalog.point(Conduit.POINT).position
-    var result = world.garden_commands.configure_conduit(world.HOST,{"point":Conduit.POINT,"revision":0,"mode":"deep"})
-    ordinary = "Deep pulse will shape newly planted terrace crops. Existing crops keep their care choice."
-    check(Conduit.state(world.progress).mode == "deep" and result.changed and result.revision == 1,
-     "conduit retains the committed business result")
+   "seed conservation":
+    host.pos = world.Stage.HEART
+    world.progress.knowledge += 6
+    world.garden_action(world.HOST,"heart_start_seed_conservation")
+    ordinary = "Seed Conservation unlocked."
+    check(world.progress.heart.has("seed_conservation"),"confirmed research survives cleanup hold")
    "watering":
     host.pos = world.Stage.PLOTS[1]
     host.spring_water = true
     var bed: Dictionary = world.progress.plots[1]
     var result: Dictionary = world.cultivation.command(world.HOST,{"point":"bed_2","cycle":bed.care.cycle,
      "revision":bed.care.revision,"stage":bed.stage,"action":"water_crop"})
-    ordinary = "Garden water nourishes this crop. Growth is 25% faster until harvest."
+    ordinary = "Garden water nourishes this crop. Watering lasts until harvest."
     check(bed.care.get("watered",false) and not host.spring_water and result.changed
      and world.combat_event_serial == previous_event + 1,"watering consumes the charge and emits its cue once")
    "explicit_garden":
@@ -368,10 +365,8 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
    "altar":
     check(saved.get_value("garden","unknown").is_empty() and saved.get_value("garden","seed_discoveries")[1],
      "canonical Altar stores the identification")
-   "conduit":
-    check(saved.get_value("garden_interactions","state").conduit.mode == "deep"
-     and saved.get_value("garden_interactions","state").conduit.revision == 1,
-     "canonical conduit stores the selected mode and revision")
+   "seed conservation":
+    check(saved.get_value("heart","state").unlocked.has("seed_conservation"),"canonical research stores the purchase")
   var proof := Plan.discover(PackedStringArray([G]))
   var journal := ConfigFile.new()
   check(journal.load(G + ".transaction") == OK and journal.get_value("transaction","committed",false),

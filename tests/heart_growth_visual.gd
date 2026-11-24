@@ -32,9 +32,9 @@ func run() -> void:
   view.animate(.75)
   check(is_equal_approx(float(heart.get_meta("rendered_growth")),completed+.5),"camera shot animates actual intermediate growth")
   var middle_scale:=current.scale.y
-  check(middle_scale>start_scale,"research grows the imported mesh itself at the midpoint")
+  check(is_equal_approx(middle_scale,heart.research_scale(completed+.5).y) and (middle_scale>start_scale if completed<heart.MATURE_SCULPT_GROWTH else is_equal_approx(middle_scale,start_scale)),"research animates the sculpt within its mature reservation")
   view.animate(1.5);completed+=1
-  check(float(heart.get_meta("rendered_growth"))==completed and current.scale.y>middle_scale,"research growth completes on the same imported mesh")
+  check(float(heart.get_meta("rendered_growth"))==completed and is_equal_approx(current.scale.y,heart.research_scale(completed).y),"research growth completes on the same imported mesh")
   check(heart.sculpt_models.filter(func(model):return model.is_visible_in_tree()).size()==1,"one authored stage is visible during every research transition")
   check(current.position.is_zero_approx(),"the sculpt and its roots retain their grounded origin")
   view.finish(true);game._process(.016)
