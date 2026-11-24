@@ -128,9 +128,8 @@ def test_trainer(schema: MobSchema, folder: Path) -> None:
     explained = __import__("json").loads(metrics[0]).get("explained_variance")
     check(isinstance(explained, float) and explained <= 1.0, "each update logs the critic's explained variance")
     line = __import__("json").loads(metrics[0])
-    check(line["entropy_messages"] > 0.0 and line["entropy_fight"] > 0.0 and
-          abs(line["entropy_fight"] + line["entropy_messages"] - line["entropy"]) < 1e-3,
-          "each update splits its entropy into fighting and message choices")
+    check(line["entropy_messages"] > 0.0 and line["entropy_fight"] > 0.0 and 0.0 < line["free_share"] <= 1.0,
+          "each update logs fighting entropy on free decisions, message entropy, and the share of free decisions")
     configured = T.load_settings()["trainer"]
     check(T.entropy_weights(configured) == (float(configured["entropy_weight_fight"]), float(configured["entropy_weight_messages"])) and
           T.entropy_weights({"entropy_weight": 0.01}) == (0.01, 0.01), "fighting and message choices have their own entropy bonus")

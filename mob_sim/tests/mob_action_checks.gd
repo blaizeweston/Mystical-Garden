@@ -164,6 +164,16 @@ func test_scripted_dodge() -> void:
 	sim.pool.hurt_at[fighter] = sim.clock.tick
 	decide_now(sim, fighter)
 	check(sim.pool.behaviour[fighter] != sim.contract.id("dodge"), "a mob that cannot dodge does not")
+	var committed := add_mob(sim, "thornmaw", Vector2(-5, 0))
+	place_player(sim, Vector2(-5, 1.5), [committed])
+	var approach := sim.contract.id("approach")
+	sim.pool.behaviour[committed] = approach
+	sim.pool.enemy_target[committed] = 1
+	sim.pool.hurt_at[committed] = sim.clock.tick
+	sim.pool.next_decision[committed] = sim.clock.tick
+	sim.pool.hold_until[committed] = sim.clock.tick + 30
+	sim._decide(sim.clock.tick)
+	check(sim.pool.behaviour[committed] == approach, "a mob inside its behaviour's hold does not dodge out of it")
 
 
 func test_scripted_channel() -> void:

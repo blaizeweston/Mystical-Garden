@@ -71,16 +71,12 @@ func _count_assignments(batch: Batch) -> void:
 
 func _decide_slot(batch: Batch, index: int, slot: int) -> void:
 	var pool := batch.pool
-	var locked := pool.windup_until[slot] > 0 or batch.clock.tick < pool.hold_until[slot]
-	if _legal(batch, index, _dodge) and batch.clock.tick - pool.hurt_at[slot] <= HURT_DODGE_TICKS:
-		if locked:
-			batch.write_intent(index, _dodge, pool.enemy_target[slot], pool.ally_target[slot], pool.manoeuvre[slot])
-		else:
-			batch.write_intent(index, _dodge, 0, 0, 0)
-		return
-	# While locked (MobRules._lock_slot) only the current intent is legal; the game would ignore any other.
-	if locked:
+	# While committed (MobRules._lock_slot) only the current intent is legal; the game would ignore any other.
+	if pool.windup_until[slot] > 0 or batch.clock.tick < pool.hold_until[slot]:
 		batch.write_intent(index, pool.behaviour[slot], pool.enemy_target[slot], pool.ally_target[slot], pool.manoeuvre[slot])
+		return
+	if _legal(batch, index, _dodge) and batch.clock.tick - pool.hurt_at[slot] <= HURT_DODGE_TICKS:
+		batch.write_intent(index, _dodge, 0, 0, 0)
 		return
 	var player := _pick_target(batch, index, slot)
 	if player < 0:

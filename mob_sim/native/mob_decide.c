@@ -235,19 +235,15 @@ static int behaviour_legal(const View *v, int slot, int behaviour, int has_enemy
     return attack_ready(v, slot, attack);
 }
 
-/* While an attack winds up or a behaviour holds, the game keeps the mob's behaviour, targets and manoeuvre
- * (MobRules._commit_slot), so those are the only legal options; during a hold a dodge still cuts through. A choice
- * the game would ignore is never offered, so training never learns from it. Messages are always free. */
+/* While an attack winds up or a behaviour holds, the mob is committed: MobRules._commit_slot keeps its behaviour,
+ * targets and manoeuvre, and nothing cuts through, not even a dodge. Those are the only legal options, so a
+ * committed decision has one choice and training never learns from it. Messages are always free. */
 static void lock_slot(const View *v, uint8_t *row, int slot) {
     const MobDecide *d = v->d;
-    int winding = v->windup_until[slot] > 0;
-    if (!winding && v->tick >= v->hold_until[slot]) return;
+    if (v->windup_until[slot] <= 0 && v->tick >= v->hold_until[slot]) return;
     uint8_t *behaviours = row + d->head_offset[DK_HEAD_BEHAVIOUR];
-    int dodge = d->dim[DD_DODGE];
-    int may_dodge = !winding && dodge >= 0 && behaviours[dodge] != 0;
     memset(behaviours, 0, (size_t)d->dim[DD_BEHAVIOURS]);
     if (v->behaviour[slot] < d->dim[DD_BEHAVIOURS]) behaviours[v->behaviour[slot]] = 1;
-    if (may_dodge) behaviours[dodge] = 1;
     uint8_t *enemy = row + d->head_offset[DK_HEAD_ENEMY];
     memset(enemy, 0, (size_t)d->dim[DD_PLAYERS] + 1);
     enemy[v->enemy_target[slot] <= d->dim[DD_PLAYERS] ? v->enemy_target[slot] : 0] = 1;
@@ -372,15 +368,13 @@ static double nearest_seen(const View *v, int slot) {
 
 static void decide_slot(const View *v, uint8_t *out, int64_t index, int slot) {
     const MobDecide *d = v->d;
-    int locked = v->windup_until[slot] > 0 || v->tick < v->hold_until[slot];
-    if (allowed(v, index, d->dim[DD_DODGE]) && v->tick - v->hurt_at[slot] <= HURT_DODGE_TICKS) {
-        if (locked) write_intent(out, index, d->dim[DD_DODGE], v->enemy_target[slot], v->ally_target[slot], v->manoeuvre[slot]);
-        else write_intent(out, index, d->dim[DD_DODGE], 0, 0, 0);
+    /* While committed (lock_slot) only the current intent is legal; the game would ignore any other. */
+    if (v->windup_until[slot] > 0 || v->tick < v->hold_until[slot]) {
+        write_intent(out, index, v->behaviour[slot], v->enemy_target[slot], v->ally_target[slot], v->manoeuvre[slot]);
         return;
     }
-    /* While locked (lock_slot) only the current intent is legal; the game would ignore any other. */
-    if (locked) {
-        write_intent(out, index, v->behaviour[slot], v->enemy_target[slot], v->ally_target[slot], v->manoeuvre[slot]);
+    if (allowed(v, index, d->dim[DD_DODGE]) && v->tick - v->hurt_at[slot] <= HURT_DODGE_TICKS) {
+        write_intent(out, index, d->dim[DD_DODGE], 0, 0, 0);
         return;
     }
     int player = pick_target(v, index, slot);

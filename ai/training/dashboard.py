@@ -35,7 +35,7 @@ MAX_POINTS = 1500
 RESTART_GAP = 120
 FIELDS = ("wipe_rate", "explore_found_rate", "explore_first_sight_s", "damage_to_party", "life_return",
           "entropy", "entropy_fight", "entropy_messages", "approx_kl", "clip_fraction", "value_loss", "learning_rate",
-          "squad_mix", "replay_gap", "explained_variance", "wipe", "cleared", "timeout", "speed", "rows", "episodes")
+          "squad_mix", "replay_gap", "explained_variance", "free_share", "wipe", "cleared", "timeout", "speed", "rows", "episodes")
 ## Compared hour over hour in the summary.
 SUMMARY = ("wipe_rate", "explore_found_rate", "explore_first_sight_s", "damage_to_party", "life_return", "entropy",
            "approx_kl", "explained_variance", "speed")

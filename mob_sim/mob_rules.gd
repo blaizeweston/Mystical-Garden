@@ -154,20 +154,16 @@ func _mask_slot(batch: Batch, base: int, slot: int, tick: int) -> void:
 	_lock_slot(batch, base, slot, tick)
 
 
-## While an attack winds up or a behaviour holds, _commit_slot keeps the mob's behaviour, targets and manoeuvre,
-## so those are the only legal options; during a hold a dodge still cuts through. A choice the game would ignore is
-## never offered, so training never learns from it. Messages are always free. As mob_decide.c lock_slot.
+## While an attack winds up or a behaviour holds, the mob is committed: _commit_slot keeps its behaviour, targets
+## and manoeuvre, and nothing cuts through, not even a dodge. Those are the only legal options, so a committed
+## decision has one choice and training never learns from it. Messages are always free. As mob_decide.c lock_slot.
 func _lock_slot(batch: Batch, base: int, slot: int, tick: int) -> void:
-	var winding := pool.windup_until[slot] > 0
-	if not winding and tick >= pool.hold_until[slot]:
+	if pool.windup_until[slot] <= 0 and tick >= pool.hold_until[slot]:
 		return
-	var may_dodge := not winding and _dodge >= 0 and batch.masks[base + _dodge] != 0
 	for behaviour in contract.behaviour_count:
 		batch.masks[base + behaviour] = 0
 	if pool.behaviour[slot] < contract.behaviour_count:
 		batch.masks[base + pool.behaviour[slot]] = 1
-	if may_dodge:
-		batch.masks[base + _dodge] = 1
 	var heads := [[Contract.Head.ENEMY_TARGET, pool.enemy_target[slot]], [Contract.Head.ALLY_TARGET, pool.ally_target[slot]],
 		[Contract.Head.MANOEUVRE, pool.manoeuvre[slot]]]
 	for entry: Array in heads:
@@ -226,8 +222,8 @@ func _commit_slot(batch: Batch, index: int, slot: int, tick: int) -> void:
 			manoeuvre = 0
 	pool.message_a[slot] = _message(batch, index, Contract.Head.MESSAGE_A, batch.intents[at + Contract.Head.MESSAGE_A])
 	pool.message_b[slot] = _message(batch, index, Contract.Head.MESSAGE_B, batch.intents[at + Contract.Head.MESSAGE_B])
-	# A dodge cuts through the current behaviour's hold, but not through a wind-up.
-	if pool.windup_until[slot] > 0 or (tick < pool.hold_until[slot] and behaviour != _dodge):
+	# A committed mob (winding up, or inside its behaviour's hold) keeps its intent; nothing cuts through.
+	if pool.windup_until[slot] > 0 or tick < pool.hold_until[slot]:
 		return
 	var previous := pool.behaviour[slot]
 	if behaviour != previous or enemy != pool.enemy_target[slot] or ally != pool.ally_target[slot]:

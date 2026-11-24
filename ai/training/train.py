@@ -291,8 +291,18 @@ class Trainer:
         index = window_t.clamp(min=0)
         start_memory = memory[index[:, 0]]
         stats = {"replay_gap": self._replay_gap(batch, obs, masks, actions, old_log_prob, index, valid, start_memory)}
-        totals = {"policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0, "entropy_messages": 0.0, "approx_kl": 0.0, "clip_fraction": 0.0}
+        totals = {"policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0, "entropy_messages": 0.0, "entropy_fight": 0.0,
+                  "approx_kl": 0.0, "clip_fraction": 0.0}
         message_heads = [i for i, name in enumerate(HEAD_NAMES) if name.startswith("message")]
+        # A decision is free when at least one fighting choice (behaviour, targets, manoeuvre) has more than one legal
+        # option. A committed mob (winding up or inside a hold) has none, and its fighting choices cannot change, so
+        # KL, clipping and fighting entropy are measured on free decisions only: averaged over every decision they
+        # would read low by the committed share, and the learning rate would rise past what the free choices take.
+        free_all = torch.zeros(masks.shape[0], dtype=torch.bool, device=device)
+        for head, (offset, size) in enumerate(self.slices):
+            if head not in message_heads:
+                free_all |= masks[:, offset:offset + size].sum(-1) > 1
+        stats["free_share"] = round(float(free_all.float().mean().item()), 4)
         fight_weight, message_weight = entropy_weights(cfg)
         steps = 0
         # KL is reported from the final pass: by then the policy has moved as far as this update moves it. An
@@ -332,16 +342,20 @@ class Trainer:
                     totals["value_loss"] += value_loss.item()
                     totals["entropy"] += entropy_mean.item()
                     totals["entropy_messages"] += message_mean.item()
-                    kl = ((ratio - 1) - log_ratio).mean().item()
+                    free = free_all[rows][keep]
+                    if free.any():
+                        fight_rows = (entropy - sum(heads[i] for i in message_heads))[keep]
+                        totals["entropy_fight"] += fight_rows[free].mean().item()
+                        kl = ((ratio - 1) - log_ratio)[free].mean().item()
+                        totals["clip_fraction"] += ((ratio - 1).abs() > clip)[free].float().mean().item()
+                    else:
+                        kl = 0.0
                     totals["approx_kl"] += kl
                     if epoch == epochs - 1:
                         final_kl += kl
                         final_steps += 1
-                    totals["clip_fraction"] += ((ratio - 1).abs() > clip).float().mean().item()
                 steps += 1
         stats.update({key: round(value / max(1, steps), 5) for key, value in totals.items()})
-        # Entropy split into the fighting choices (behaviour, targets, manoeuvre) and the two message choices.
-        stats["entropy_fight"] = round(stats["entropy"] - stats["entropy_messages"], 5)
         stats["mean_kl"] = stats["approx_kl"]
         stats["approx_kl"] = round(final_kl / max(1, final_steps), 5)
         stats["value_mean"] = round(values.mean().item(), 4)
