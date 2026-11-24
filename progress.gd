@@ -46,8 +46,6 @@ var needs_plot_backup := false
 var needs_growth_backup:=false
 var plots: Array = [empty_plot(), empty_plot(), empty_plot()]
 var planted: Array = Seeds.counts(false)
-var research_points := 0
-var studying_flowering := false
 var flowering_unlocked := false
 var flowering: Array = Seeds.counts(false)
 var harvest_ready: Array = Seeds.counts(false)
@@ -70,8 +68,6 @@ var heartwood_barbs := 0
 var crafted_heartwood := false
 var veilcap_discovered := false
 var crafted: Array = Seeds.counts(false)
-const INFUSION_KNOWLEDGE := 5
-const FLOWERING_COST := 3
 
 
 func load_garden(recover_interrupted: bool=true) -> Error:
@@ -184,9 +180,6 @@ func _read_garden() -> Error:
 	quiet_expeditions = clampi(quiet, 0, 1) if quiet is int else 0
 	var saved_knowledge = file.get_value("garden", "knowledge", 0)
 	knowledge = maxi(saved_knowledge, 0) if saved_knowledge is int else 0
-	var points = file.get_value("garden", "research_points", 0)
-	research_points = clampi(points, 0, FLOWERING_COST) if points is int else 0
-	studying_flowering = file.get_value("garden", "studying_flowering", false) == true
 	flowering_unlocked = file.get_value("garden", "flowering_unlocked", false) == true
 	component_crafts=file.get_value("content","component_crafts",{})
 	if not component_crafts is Dictionary: component_crafts={}
@@ -231,6 +224,17 @@ func _read_garden() -> Error:
 	if not garden_development_error.is_empty():
 		return ERR_FILE_CORRUPT
 	needs_inventory_backup=not file.has_section("inventory")
+	var heart_data: Variant = file.get_value("heart", "state", {})
+	if not heart_data is Dictionary or heart_data.get("version", 0) not in [0, 1, 2, heart.VERSION]:
+		garden_development_error = "Unsupported Heart research record."
+		return ERR_FILE_CORRUPT
+	needs_research_backup = heart_data.get("version") in [1, 2] or garden_development.get("version") == 1
+	if garden_development.get("version") == 1:
+		# A batch was removed only when its full Knowledge was paid. Energy
+		# and material consumption were already durable on contribution.
+		for batch in garden_development.queue: knowledge += int(batch.knowledge)
+		garden_development.erase("queue")
+		garden_development.version = GardenDevelopment.VERSION
 	needs_heart_backup=heart.load_state(file,self)
 	garden_interactions=preload("res://garden_growth_state.gd").load_history(garden_interactions,self)
 	garden_interactions=preload("res://garden_return_state.gd").initialize(garden_interactions)
@@ -260,7 +264,7 @@ func save_garden_guarded() -> Dictionary:
 	return outcome
 
 func migration_backup_paths() -> PackedStringArray:
-	return PackedStringArray([path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak"])
+	return PackedStringArray([path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-immediate-heart-v3.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak"])
 
 func confirm_migration(saved_path: String) -> void:
 	if path != saved_path:
@@ -293,7 +297,7 @@ func _serialize_save(stage := Callable()) -> Error:
 		if copied != OK:
 			return copied
 	if needs_research_backup and FileAccess.file_exists(path):
-		var copied := _migration_backup(path + ".pre-timed-research-v2.bak", stage.is_valid())
+		var copied := _migration_backup(path + ".pre-immediate-heart-v3.bak", stage.is_valid())
 		if copied != OK:
 			return copied
 	if needs_content_backup and FileAccess.file_exists(path):
@@ -337,7 +341,6 @@ func _serialize_save(stage := Callable()) -> Error:
 	file.set_value("garden", "guest_seeds", guest_seeds)
 	file.set_value("garden", "seed_history", seed_history)
 	file.set_value("garden", "personal_parts", personal_parts)
-	file.set_value("garden", "research_points", research_points)
 	file.set_value("garden", "seed_discoveries", discoveries)
 	file.set_value("garden", "seed_attempts", attempted_pairs)
 	file.set_value("garden", "knowledge", knowledge)
@@ -356,7 +359,6 @@ func _serialize_save(stage := Callable()) -> Error:
 	file.set_value("garden", "heartwood_barbs", heartwood_barbs)
 	file.set_value("garden", "crafted_heartwood", crafted_heartwood)
 	file.set_value("garden", "veilcap_discovered", veilcap_discovered)
-	file.set_value("garden", "studying_flowering", studying_flowering)
 	file.set_value("garden", "flowering_unlocked", flowering_unlocked)
 	for i in PLANT_NAMES.size():
 		file.set_value("garden", "stock_%d" % i, stock[i])
@@ -393,16 +395,6 @@ func remember_expedition(ranged_clears: int, burst_clears: int = 0, choke_clears
 		if quiet_expeditions == 2:
 			ranged_pressure -= 1
 			quiet_expeditions = 0
-
-
-func apply_milestone(depth: int) -> String:
-	if depth == 0:
-		return ""
-	return advance_research(depth)
-
-
-func advance_research(points: int) -> String:
-	return heart.advance(self,points)
 
 
 func pay_shortcut(cost: int, reserved: Array = []) -> Error:
@@ -603,14 +595,6 @@ func advance_growth(seconds: float,in_wilds: bool=false) -> bool:
 		bed.stage = stage
 	sync_plot_flags()
 	return changed
-
-
-func expand_plot() -> Error:
-	if plots.size()>=MAX_PLOTS: return ERR_UNAVAILABLE
-	var id: String="plot_%d"%(plots.size()+1)
-	if not heart.requirements(self,id).is_empty(): return ERR_UNAVAILABLE
-	heart.start(self,id)
-	return OK if heart.paid.has(id) or plots.size()==int(id.trim_prefix("plot_")) else ERR_CANT_CREATE
 
 
 func plot_snapshot() -> PackedByteArray:

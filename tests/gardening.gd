@@ -48,9 +48,9 @@ func run():
 	game.progress.parts.assign([30,0,0])
 	game.progress.knowledge = 60
 	p.pos = Stage.HEART
-	game.send_garden_action("heart_confirm:"+JSON.stringify({"id":"plot_4","plan":{}}))
-	check(game.progress.plots.size()==3 and game.progress.heart.active=="plot_4" and game.progress.parts[0]==30,"host starts Knowledge-funded bed research")
-	game.progress.heart.add_work(game.progress,game.progress.heart.duration(game.progress.heart.active));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched capacity accepts a placed bed")
+	game.send_garden_action("heart_start_plot_4")
+	check(game.progress.plots.size()==3 and game.progress.heart.has("plot_4") and game.progress.parts[0]==30,"host starts Knowledge-funded bed research")
+	check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched capacity accepts a placed bed")
 	check(game.progress.plots.size()==4,"research grows a new independent bed")
 	game.progress.save_garden()
 	var reload := Progress.new()
@@ -71,10 +71,10 @@ func run():
 	game.progress.parts[0] = 200
 	game.progress.knowledge = 400
 	for remaining in range(Progress.MAX_PLOTS-game.progress.plots.size()):
-		game.garden_action(1,"heart_confirm:"+JSON.stringify({"id":"plot_%d"%(game.progress.plots.size()+1),"plan":{}}));check(not game.progress.heart.active.is_empty(), "later bed capacity can be researched")
-		game.progress.heart.add_work(game.progress,game.progress.heart.duration(game.progress.heart.active));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched capacity accepts a placed bed")
+		game.garden_action(1,"heart_start_plot_%d"%(game.progress.plots.size()+1));check(game.progress.heart.has("plot_%d"%(game.progress.plots.size()+1)), "later bed capacity can be researched")
+		check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched capacity accepts a placed bed")
 	var parts_before: int = game.progress.parts[0]
-	check(game.progress.expand_plot() == ERR_UNAVAILABLE and game.progress.parts[0] == parts_before, "bed cap does not consume resources")
+	check(not game.progress.heart.requirements(game.progress,"plot_10").is_empty() and game.progress.parts[0] == parts_before, "bed cap does not consume resources")
 	game._process(.016)
 	check(game.stage.active_plots == 9, "expanded plots are rendered")
 	await process_frame

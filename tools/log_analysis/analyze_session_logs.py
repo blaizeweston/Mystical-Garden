@@ -185,7 +185,7 @@ def analyze(reader):
    if category=='gameplay' and event=='upgrade':
     begin=actions[max(actions)] if actions else None
     upgrades.append({'data':data,'actor':str(begin['data'].get('actor')) if begin else None,'interaction_ref':source_ref(begin) if begin else None,'context':c,'ref':ref})
-   if category=='progression' and event=='garden_changed':research.append({'session':sid,'seq':row['seq'],'utc':row.get('utc'),'role':c.get('role'),'floor':c.get('floor'),'host_session':c.get('host_session'),'world_session':c.get('world_session'),**{k:data.get(k) for k in ['source','active','knowledge','work_seconds','unlocked_count']}})
+   if category=='progression' and event=='garden_changed':research.append({'session':sid,'seq':row['seq'],'utc':row.get('utc'),'role':c.get('role'),'floor':c.get('floor'),'host_session':c.get('host_session'),'world_session':c.get('world_session'),**{k:data.get(k) for k in ['source','active','knowledge','available','work_seconds','unlocked_count']}})
   for begin in actions.values():pending.append({'type':'action_begin_without_retained_end','ref':source_ref(begin),'actor':begin['data'].get('actor'),'action':begin['data'].get('action')})
   for begin in tx.values():pending.append({'type':'transaction_begin_without_retained_outcome','ref':source_ref(begin)})
  # Compare exact host/world/actor/vitals-revision keys; never infer lag from unsynchronized clocks.
@@ -375,7 +375,7 @@ def output(report,reader,directory,offset):
   c=row.get('context',{});events.append({'session':row['session'],'seq':row['seq'],'utc':row.get('utc'),'local_time':local_time(row.get('utc'),offset),'elapsed_ms':row.get('elapsed_ms'),'role':c.get('role'),'peer':c.get('peer'),'host_session':c.get('host_session'),'world_session':c.get('world_session'),'floor':c.get('floor'),'category':row.get('category'),'event':row.get('event'),'level':row.get('level'),'data':row.get('data',{}),'source':row['_source'],'line':row['_line']})
  write_csv(directory/'events.csv',events,['session','seq','utc','local_time','elapsed_ms','role','peer','host_session','world_session','floor','category','event','level','data','source','line'])
  write_csv(directory/'network.csv',report['network_series'],['session','seq','utc','elapsed_ms','role','peer','remote_peer','host_session','world_session','floor','rtt_ms','reliable_loss_estimate_percent','loss_epoch_ms','received_sequence','sent_sequence','snapshot_gaps','rejected_snapshots','fps'])
- write_csv(directory/'research.csv',report['research'],['session','seq','utc','role','floor','host_session','world_session','source','active','knowledge','work_seconds','unlocked_count'])
+ write_csv(directory/'research.csv',report['research'],['session','seq','utc','role','floor','host_session','world_session','source','active','knowledge','available','work_seconds','unlocked_count'])
  write_csv(directory/'upgrades.csv',[{'actor':u['actor'],**u['data'],'ref':u['ref'],'interaction_ref':u['interaction_ref']} for u in report['upgrades']],['actor','id','floor','cost','ref','interaction_ref'])
  write_csv(directory/'life_events.csv',report['life_events'],['actor','kind','floor','changes','ref'])
  write_csv(directory/'damage.csv',report['damage'],['session','actor','amount','applied_hp','hp_after','damage_seq','vitals_revision','hp_per_point','floor','transaction_seq','ref'])

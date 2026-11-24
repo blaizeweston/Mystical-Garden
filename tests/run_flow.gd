@@ -39,8 +39,7 @@ func run():
  var reserve: Dictionary=game.seed_reserve(p)
  reserve.unknown.clear();reserve.parts.fill(0)
  p.carried_seeds.assign([0,1]);p.pouch=true;p.carried_parts[4]=2
- g.heart.start(g,"flowering")
- var research_before: Dictionary=g.heart.progress.duplicate()
+ var research_before: Dictionary=g.heart.serialize()
  var memories_before: Array=g.campaign.memories.duplicate()
  var knowledge_before: int=g.knowledge
  var xp_before: Array=p.character.xp.duplicate()
@@ -50,7 +49,7 @@ func run():
  UIFixture.control(game,"abandon_confirmation").hide()
  game.send_garden_action("abandon_run")
  check(not ExpeditionCase.is_wild(p) and p.carried_seeds.is_empty() and p.carried_parts[4]==0 and not p.pouch,"abandon drops all carried and protected loot")
- check(reserve.unknown.is_empty() and reserve.parts[4]==0 and g.heart.progress==research_before and g.campaign.memories==memories_before and g.knowledge==knowledge_before and p.character.xp==xp_before,"abandon gives no loot, milestone, memory or additional character reward")
+ check(reserve.unknown.is_empty() and reserve.parts[4]==0 and g.heart.serialize()==research_before and g.campaign.memories==memories_before and g.knowledge==knowledge_before and p.character.xp==xp_before,"abandon gives no loot, milestone, memory or additional character reward")
  check(game.deepest_milestone==0 and not game.checkpoint_pending,"abandon resets empty expedition")
  p.pos=game.stage.gate_position();game.send_garden_action("depart")
  check(ExpeditionCase.is_wild(p),"another expedition can start after abandonment")

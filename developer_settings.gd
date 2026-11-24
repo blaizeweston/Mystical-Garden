@@ -12,7 +12,6 @@ var reset: CheckBox
 var reset_digests := {}
 var tech_picker: OptionButton
 var unlock_button: Button
-var finish_button: Button
 var grant_button: Button
 var materials_button: Button
 
@@ -47,10 +46,6 @@ func _ready() -> void:
 		materials_button.tooltip_text = "Top up to 25 of each crafting part and 5 of each seed, including mystery seeds."
 		materials_button.pressed.connect(func(): run_tool("materials"))
 		tools.add_child(materials_button)
-		finish_button = Button.new()
-		finish_button.text = "Finish current research"
-		finish_button.pressed.connect(func(): run_tool("finish"))
-		tools.add_child(finish_button)
 		var unlock_row := HBoxContainer.new()
 		tools.add_child(unlock_row)
 		tech_picker = OptionButton.new()
@@ -95,7 +90,6 @@ func refresh_tools() -> void:
 			tech_picker.select(tech_picker.item_count-1)
 	var available := Developer.can_edit(context)
 	unlock_button.disabled = not available or tech_picker.item_count == 0
-	finish_button.disabled = not available or context.progress.heart.active.is_empty()
 	grant_button.disabled = not available
 	materials_button.disabled = not available
 	if not available and toggle.button_pressed and not context.app_settings.values.get("developer_mode",false):
@@ -139,9 +133,6 @@ func run_tool(action: String) -> void:
 			result = Developer.grant_resources(context)
 		"materials":
 			result = Developer.stock_materials(context)
-		"finish":
-			tech = context.progress.heart.active
-			result = Developer.finish_research(context)
 		"unlock":
 			if tech_picker.selected < 0:
 				return

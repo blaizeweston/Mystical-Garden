@@ -68,6 +68,11 @@ func overflow(menu: Node) -> void:
 
 func submit_altar(game: Node) -> void:
 	game.send_altar_action("identify_all",[],1)
+	var four_identified := func():
+		if game.multiplayer.is_server(): return game.seed_reserve(game.players[1]).stock[3] == 4
+		var inventory: Array = game.guest_replication.inventory()
+		return inventory.size() > 6 and inventory[6][3] == 4
+	if not await until(four_identified, "fixed boss stock identified before breeding"): return
 	var pair: Array=[{"source":"stash","item":"seed_ember_fern"},{"source":"stash","item":"seed_ember_fern"}]
 	game.send_altar_action("combine",pair,2)
 	game.send_altar_action("combine",pair,2)
@@ -84,13 +89,27 @@ func host(menu: Node) -> void:
 	if not await until(func():return game.players.size()==expected and game.players.values().all(func(actor):return Session.ready(actor)),"party registration"): return
 	var peers: Array=game.players.keys()
 	peers.erase(1)
+	# Check the same Garden research and contribution on every registered peer
+	# before using that Garden for the botanical expedition and rejoin checks.
+	game.players[1].pos = game.Stage.HEART
+	var garden = game.stage.experimental_garden
+	var item: String = game.Items.part_id(game.Parts.THORN)
+	game.progress.add_parts(game.Parts.THORN, 5)
+	garden._refresh_parts()
+	var quote: Dictionary = garden.funds.quote({item: 4})
+	if not check(garden.contribute(quote) and not garden.contribute(quote), "four contributed parts consumed once"): return
+	game.garden_action(1,"heart_start_plot_4")
+	game.garden_action(1,"heart_start_plot_4")
+	if not check(game.progress.knowledge == 4 and game.progress.heart.spent == 2 and garden.funds.energy == 8, "one host purchase and contribution"): return
+	if not await until(func(): return peers.all(func(peer): return read("heart-"+str(peer))=="yes"), "every guest sees both currencies and unlock"): return
 	# Each participant identifies concealed boss stock and combines at the shared altar.
-	for peer in game.players:
-		var actor: Dictionary=game.players[peer]
-		actor.pos=game.stage.altar_position()
+	for index in game.players.size():
+		var actor: Dictionary=game.players[game.players.keys()[index]]
+		var angle: float = TAU * index / game.players.size()
+		actor.pos=game.stage.altar_position() + Vector3(cos(angle), 0.0, sin(angle)) * 0.9
 		game.InventoryModel.put(game,actor,"stash",{"item":"boss_mystery_seed","quantity":4,"lineages":{"ember_fern":4}})
 	mark("altar")
-	submit_altar(game)
+	await submit_altar(game)
 	if not await until(func():return game.players.values().all(func(actor):return game.seed_reserve(actor).stock[16]==1),"all altar combinations committed once"): return
 	for actor in game.players.values():
 		check(game.seed_reserve(actor).stock[3]==2 and game.Altar.ancient_count(game,actor)==0,"private fixed contents and one consumption per peer")
@@ -158,8 +177,11 @@ func guest(menu: Node) -> void:
 	var game:=tree.current_scene
 	var peer: int=game.local_player_id()
 	var character: String=game.guest_character.identity
+	if not await until(func(): return game.heart_state().unlocked.has("plot_4") and game.stage.experimental_garden.remote_development.get("energy")==8, "Garden purchase and contribution replicated"): return
+	check(game.heart_state().insight==2 and game.guest_replication.garden_progress()[6]==4, "host Knowledge balances agree")
+	mark("heart-"+str(peer))
 	if not await until(func():return read("altar")=="yes" and game.players[peer].pos.distance_to(game.stage.altar_position())<1.65,"guest reached altar"): return
-	submit_altar(game)
+	await submit_altar(game)
 	if not await until(func():return game.guest_replication.inventory().size()>6 and game.guest_replication.inventory()[6][16]==1 and game.players[peer].get("recorded_seed_recipes",[]).has(16),"identified stock and tested recipe arrive"): return
 	mark("altar-"+str(peer))
 	if not await until(func():return read("gate")=="yes","host positioned guest"): return
@@ -200,6 +222,7 @@ func guest(menu: Node) -> void:
 		game=tree.current_scene
 		check(game.guest_character.identity==character and game.wild_flora_view(game.local_player_id()).is_empty(),"reconnected character does not recover stale flora")
 		game.request_wild_flora.rpc_id(1,plant.identity,stamp)
+		if not await until(func(): return game.heart_state().unlocked.has("plot_4") and game.stage.experimental_garden.remote_development.get("energy")==8, "rejoined client receives committed Heart and Energy"): return
 		mark("rejoined")
 	else:
 		if not await until(func():return game.wild_flora_view(peer).is_empty() and game.participation.floor()==1,"discard old flora after wipe"): return

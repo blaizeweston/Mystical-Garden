@@ -3,6 +3,7 @@ extends RefCounted
 
 const Items = preload("res://item_catalog.gd")
 const GROWTH_BY_RARITY := {"Common": 2, "Uncommon": 3, "Rare": 3, "Epic": 4, "Mythic": 4}
+const KNOWLEDGE_BY_RARITY := {"Common": 1, "Uncommon": 2, "Rare": 3, "Epic": 4, "Mythic": 5}
 const ENERGY_PER_CELL := 1.0
 const CELLS_PER_SURCHARGE := 8
 const TIER_DISCOUNT := 0.10
@@ -12,6 +13,8 @@ var inventory := {}
 var reserved := {}
 var energy := 0
 var inventory_revision := 0
+# Revision of the saved Garden from which this inventory preview was taken.
+var garden_revision := 0
 
 func _init() -> void:
 	for id: String in Items.all():
@@ -44,12 +47,14 @@ func quote(selection: Dictionary) -> Dictionary:
 	if selection.is_empty():
 		return {}
 	var total := 0
+	var knowledge := 0
 	for id in selection:
 		var count = selection[id]
 		if not id is String or not items.has(id) or not count is int or count < 1 or count > available(id):
 			return {}
 		total += count * unit_energy(id)
-	return {"revision": inventory_revision, "items": selection.duplicate(), "energy": total}
+		knowledge += count * int(KNOWLEDGE_BY_RARITY[items[id].rarity])
+	return {"revision": inventory_revision, "garden_revision": garden_revision, "items": selection.duplicate(), "energy": total, "knowledge": knowledge}
 
 func offer(review: Dictionary) -> bool:
 	if review.is_empty() or review.get("revision", -1) != inventory_revision or not review.get("items") is Dictionary:

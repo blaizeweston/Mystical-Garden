@@ -194,13 +194,13 @@ static func run_gameplay(game: Node, scope: Scope, action: Callable, legacy_tran
   return {"completed":saved, "value":value, "notice":game.persistence_session.pending_notice() if saved else game.status, "persistence":boundary}
  return _guarded_gameplay_result(game, scope, action)
 
-## This fixed operation can change only crop/research state and its serialized
+## This fixed operation can change only crop state and its serialized
 ## Garden projection. General Garden commands may also change actors and rewards.
-static func save_growth_checkpoint(game: Node, updated_plots: Array, elapsed: float, in_wilds: bool) -> String:
+static func save_growth_checkpoint(game: Node, updated_plots: Array) -> String:
  var advance := func():
   game.progress.plots.assign(updated_plots)
   game.progress.sync_plot_flags()
-  return game.progress.heart.tick(game.progress, elapsed, in_wilds)
+  return ""
  return feedback(_guarded_gameplay_result(game, Scope.GARDEN, advance, true), "Growth could not be saved.")
 
 static func _guarded_gameplay_result(game: Node, scope: Scope, action: Callable, growth_only := false) -> Dictionary:
@@ -289,7 +289,7 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
    captured.expedition = game.snapshot_expedition_runtime()
  var action_and_save := func():
   if growth_only:
-   captured.growth = game.progress.heart.capture(game.progress)
+   captured.growth = game.progress.plots.duplicate(true)
    # The serializer installs a new detached growth/reveal projection after staging.
    captured.interactions = game.progress.garden_interactions
   else:
@@ -356,7 +356,7 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
   Batch.Outcome.ABORTED_RESTORED:
    if execution.action_ran:
     if growth_only:
-     game.progress.heart.rollback(game.progress, captured.growth)
+     game.progress.plots.assign(captured.growth)
      game.progress.sync_plot_flags()
      game.progress.garden_interactions = captured.interactions
     else:

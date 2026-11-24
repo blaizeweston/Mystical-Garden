@@ -199,19 +199,6 @@ static func _stock_materials(game: Node, details: Dictionary) -> String:
 	return "Materials stocked. Crafting parts are in shared storage and seeds are in your stash."
 
 
-static func finish_research(game: Node) -> String:
-	if not can_edit(game):
-		return "Developer tools are available in the single-player Developer Garden."
-	var progress: RefCounted = game.progress
-	var project: String = progress.heart.active
-	if project.is_empty():
-		return "Start research at the Heart first."
-	var result := Transactions.run_gameplay(game, Transactions.Scope.GARDEN,
-		progress.heart.tick.bind(progress,progress.heart.duration(project),false), false)
-	if result.completed: Journal.event("developer","finish_research",{"tech":project,"unlocked":progress.heart.has(project)})
-	return Transactions.feedback(result, "Research could not be saved.")
-
-
 static func available_tech(game: Node) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for tech in Catalog.DEFINITIONS:
@@ -237,7 +224,7 @@ static func test_unlock(game: Node, id: String) -> String:
 	if not can_edit(game):
 		return "Developer tools are available in the single-player Developer Garden."
 	var details := {}
-	var result := Transactions.run_gameplay(game, Transactions.Scope.GARDEN, _test_unlock.bind(game,id,details), false)
+	var result := Transactions.run_gameplay(game, Transactions.Scope.GARDEN, _test_unlock.bind(game,id,details))
 	if result.completed and not details.is_empty(): Journal.event("developer","test_unlock",details)
 	return Transactions.feedback(result, "Could not save the developer action.")
 
@@ -246,8 +233,6 @@ static func _test_unlock(game: Node, id: String, details: Dictionary) -> String:
 	var path: Array[String] = []
 	if progress.heart.has(id) or not collect_path(progress.heart,id,path) or path.is_empty():
 		return "Choose an available Garden technology."
-	var before: Dictionary = progress.heart.capture(progress)
-	var old_growth: Dictionary = progress.garden_interactions.duplicate(true)
 	for tech in path:
 		var node := Catalog.get_node(tech)
 		progress.knowledge = maxi(progress.knowledge,int(node.knowledge))
@@ -257,9 +242,5 @@ static func _test_unlock(game: Node, id: String, details: Dictionary) -> String:
 			progress.garden_interactions = Growth.initialize(progress.garden_interactions,baseline)
 			progress.garden_interactions.growth.baseline = baseline
 		progress.heart.complete(progress,tech)
-	if not preload("res://save_batch.gd").guarded_active() and progress.save_garden() != OK:
-		progress.heart.rollback(progress,before)
-		progress.garden_interactions = old_growth
-		return "Could not save the developer unlock."
 	details.merge({"tech":id,"prerequisites":path.slice(0,-1)})
 	return "%s restored." % Catalog.get_node(id).name

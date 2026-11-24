@@ -21,9 +21,9 @@ func run() -> void:
  p.pos=game.Stage.HEART;g.knowledge=400;g.parts.fill(60)
  var before=g.heart.serialize();game.send_garden_action("expand_plot")
  check(g.heart.serialize()==before and g.plots.size()==3,"retired bed shortcut cannot start or pay for research")
- game.send_garden_action("heart_confirm:"+JSON.stringify({"id":"plot_4","plan":{}}))
- check(g.heart.active=="plot_4" and g.plots.size()==3,"explicit Knowledge-node research still works")
- g.heart.add_work(g,g.heart.duration("plot_4"));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"Knowledge unlock permits a real placed bed");check(g.plots.size()==4,"bed research completion expands Garden")
+ game.send_garden_action("heart_start_plot_4")
+ check(g.heart.has("plot_4") and g.plots.size()==3,"explicit Knowledge-node research still works")
+ check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"Knowledge unlock permits a real placed bed");check(g.plots.size()==4,"bed research completion expands Garden")
  # Simulate an actual older save rather than rebuilding its retired systems in memory.
  g.campaign.cleared.fill(true)
  check(g.save_garden()==OK,"create a populated disposable Garden")
@@ -34,15 +34,16 @@ func run() -> void:
  old.set_value("campaign","offshoot_progress_0",3)
  old.set_value("campaign","ending",2)
  var research: Dictionary=old.get_value("heart","state")
- research.paid.append("perfect_recollection")
+ research.version=2
+ research.paid=["plot_4","perfect_recollection"]
  research.active="perfect_recollection"
- research.work.perfect_recollection=120.0
+ research.work={"perfect_recollection":120.0}
  research.spent+=12
  old.set_value("heart","state",research)
  var knowledge: int=g.knowledge
  var valid_spending: int=g.heart.spent
  check(old.save(g.path)==OK and g.load_garden()==OK,"load historical records")
- check(g.knowledge==knowledge and g.heart.spent==valid_spending and g.heart.has("plot_4") and g.heart.active.is_empty(),
+ check(g.knowledge==knowledge and g.heart.spent==valid_spending and g.heart.has("plot_4"),
   "refund retired research while preserving paid bed research and lifetime Knowledge")
  for action in ["nurture","harvest_offshoot","awaken"]:game.send_garden_action(action)
  check(game.Progress.decode_plots(g.plot_snapshot()).all(func(b):return not b.has("offshoot")),"legacy history reserves no bed")
@@ -56,7 +57,7 @@ func run() -> void:
  check(g.save_garden()==OK and written.load(g.path)==OK,"modern save succeeds after planting")
  check(not written.has_section_key("campaign","ending") and not written.has_section_key("campaign","offshoot_bed_0")
   and not written.has_section_key("campaign","offshoot_progress_0") and not written.has_section_key("campaign","offshoot_0")
-  and not written.get_value("heart","state").paid.has("perfect_recollection"),"rewritten saves omit retired fields and payments")
+  and not written.get_value("heart","state").has("paid") and not written.get_value("heart","state").unlocked.has("perfect_recollection"),"rewritten saves omit retired fields and payments")
  var restored=game.Progress.new();restored.path=g.path
  check(restored.load_garden()==OK and restored.plots[0].species==0 and restored.heart.spent==valid_spending and restored.campaign.cleared.all(func(x):return x),
   "reload preserves the planted bed and guardian progress without repeating the refund")

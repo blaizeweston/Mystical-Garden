@@ -205,8 +205,7 @@ func host_run(menu: Node) -> void:
 		game.progress.knowledge = 30
 		game.progress.add_parts(part, 60)
 		for id in ["plot_4", "clearing_1"]:
-			game.progress.heart.start(game.progress, id)
-			game.progress.heart.add_work(game.progress, 60.0))
+			game.progress.heart.purchase(game.progress, id))
 	garden.open_offerings()
 	var quote: Dictionary = garden.funds.quote({offering: 16})
 	if not check(garden.contribute(quote) and not garden.contribute(quote), "one guarded offering consumes parts once"):
@@ -373,8 +372,8 @@ func guest_run(menu: Node) -> void:
 	check(not game.persistence_session.authorizes(game.progress.path)
 		and garden.bed_ids.get(3) == bed and game.stage.bed_position(3).is_equal_approx(garden.world(moved[2][1]))
 		and is_equal_approx(garden.bed_yaw(3), -0.37), "guest has matching stable bed transform and no host save access")
-	check(not garden.remote_development.queue.is_empty() and garden.remote_development.energy > 0
-		and not garden.place("bed", Vector2.ZERO, 0.0), "study and energy mirrored; guest cannot build independently")
+	check(game.guest_replication.garden_progress()[6] >= 46 and garden.remote_development.energy > 0
+		and not garden.place("bed", Vector2.ZERO, 0.0), "Knowledge and energy mirrored; guest cannot build independently")
 	check(garden.bed_ids[0] == moved[0][0] and game.stage.bed_position(0).is_equal_approx(garden.world(moved[0][1]))
 		and garden.station_ids.altar == moved[1][0] and game.stage.altar_position().is_equal_approx(garden.world(moved[1][1]))
 		and garden.structure_nodes.size() == 1, "guest sees both relocated starting structures and only one altar")

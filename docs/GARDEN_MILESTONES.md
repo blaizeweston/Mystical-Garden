@@ -9,6 +9,7 @@ Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_
 | Field | Value |
 |---|---|
 | Recent work | The Garden pass through `5fdd294` is integrated into main. Character customization is committed at `e017e88`; `art/weapon-animation-pass` builds on it with raised Focus, nine imported upper-body clips and alternating sword/knife strikes. Follow-up corrections restore neutral omitted animation tracks, relaxed carry, a level side-on spear thrust, lateral bow draw, downward scythe blade and forward utility sweeps. Full-cycle visual review and focused verification cover both bodies and local co-op; subjective motion remains in the playtest queue. Garden/Wilds sliding, saved placement, water and Heart-base protections remain intact. Main, Playtest 9, protected tags and real saves are preserved; evidence is recorded in ARCHITECTURE.md. |
+| HG01 research foundation | On the WF02 development line, explicit Heart purchases unlock immediately and material contributions pay both currencies. The full Knowledge catalog redesign remains a separate milestone. See [Heart research and offerings](ARCHITECTURE.md#heart-research-and-offerings-hg01). |
 | Botanical development branch | WF02 builds on WF01 with five exploration founders and depth-correct Ancient seeds. Next botanical step is manual playtesting of natural placement, readability and founder availability. See [botanical progression](SEED_PROGRESSION.md). |
 | Next combat objective | **CB-08 · Live playtest and release.** Compare pacing and sustain in solo and co-op, apply any tuning, then promote the verified balance. [Combat balance catalogue](COMBAT_BALANCE_MILESTONES.md#live-playtest). |
 | Next player-facing milestone | Review male/female customization and the weapon-presentation pass: elevated Seed Focus carry, forward weapon stances, corrected striking planes, alternating sword/knife attacks, bow draw and bell/censer/fan sweeps. Lower-body idle/walk/run and gameplay contact timing stay unchanged. Continue reviewing building on former spring ground, saved layouts, water and edge sliding. G-08 pacing/listening review remains open. Source work is separate from the installed playtest. |
@@ -17,14 +18,14 @@ Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_
 
 ### Knowledge tree review and expansion playback
 
-The tree has 23 definitions, including the starting Heart. Research updates the Heart. The expansion cutscene now belongs to the frontier purchase in Build. See [Garden expansion scenes](GARDEN_GROWTH_SCENES.md).
+The tree has 22 definitions, including the starting Heart. Research updates the Heart. The expansion cutscene now belongs to the frontier purchase in Build. See [Garden expansion scenes](GARDEN_GROWTH_SCENES.md).
 
 | Nodes | Current gameplay payoff |
 |---|---|
 | Sheltered Heart, Garden Beds 4–9 | The Heart is the starting node. Each bed node unlocks one additional placement. Six purchases repeat the same decision. |
 | Reaching Roots, Verdant Refuge, Living Sanctuary | Unlock repeatable frontier purchases, then discount their growth-energy cost by 10% and 20% from the first tier. Verdant Refuge also unlocks the cultivation terrace. |
 | Flowering, Root Irrigation, Symbiotic Nursery | Harvest mature plants for seeds, fill a vessel at terrain water, grow crops faster and earn additional familiarity. |
-| Reclamation Altar, Offering Altar, Research Infusion | Build a station to reclaim discovered seeds, exchange trophies for Knowledge, or double the research time credited by a plant offering. Modern graft purchases have no Offering Altar chance bonus. |
+| Reclamation Altar, Offering Altar | Build the corresponding station to reclaim discovered seeds or exchange trophies for Knowledge. Modern graft purchases have no Offering Altar chance bonus. |
 | Trophy Preservation, Returning Mycelium | Increase expedition monster-part cargo from six to eight, or send one eligible item home per player at a cleared third gate. |
 | Living Water Conduit | The host selects the bud policy for future crops in Bed 4. The benefit follows the bed identity when moved. |
 | Living Archive and three Remembrances | The Archive tracks guardian memories. The three thresholds are 12, 16 and 20. They record progress and the Archive contributes to the Heart’s late visual phase. |

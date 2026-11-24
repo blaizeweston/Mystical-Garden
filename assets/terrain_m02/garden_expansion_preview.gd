@@ -112,7 +112,10 @@ func bind_controls(container: HBoxContainer, info: Label, forest: Node3D) -> voi
 	_button("Offerings", open_offerings).tooltip_text = "Offer parts to the Heart"
 	offering_dialog = OfferingsView.new()
 	add_child(offering_dialog)
-	offering_dialog.contributed.connect(_refresh_offerings)
+	offering_dialog.contributed.connect(func(gain: int):
+		knowledge.knowledge += gain
+		knowledge.changed.emit()
+		_refresh_offerings())
 	walker = _mesh_node(self)
 	var capsule := CapsuleMesh.new()
 	capsule.height = 1.62

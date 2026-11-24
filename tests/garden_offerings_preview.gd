@@ -29,6 +29,14 @@ func run() -> void:
 	check(funds.quote({Items.seed_id(0): 1}).is_empty() and funds.quote({plant: -1}).is_empty()
 		and funds.quote({plant: 1.5}).is_empty() and funds.quote({plant: funds.available(plant) + 1}).is_empty(),
 		"reject seed, invalid quantities, and reserved stock")
+	var rates := {"Common":Vector2i(2,1),"Uncommon":Vector2i(3,2),"Rare":Vector2i(3,3),"Epic":Vector2i(4,4),"Mythic":Vector2i(4,5)}
+	var checked := {}
+	for id: String in funds.items:
+		var rarity: String = funds.items[id].rarity
+		var single := funds.quote({id: 1})
+		check(Vector2i(single.energy, single.knowledge)==rates[rarity], "both unit rewards for "+id)
+		checked[rarity]=true
+	check(checked.size()==5,"material catalog exercises all five rarities")
 	var reserve_probe := Offerings.new()
 	check(reserve_probe.offer(reserve_probe.quote({plant: reserve_probe.available(plant)}))
 		and reserve_probe.inventory[plant] == reserve_probe.reserved[plant] and reserve_probe.available(plant) == 0,

@@ -369,16 +369,15 @@ func run() -> void:
   and Slots._save_digest(world.progress.path)!=dev_before and Slots._save_digest(world.local_character.path)==dev_profile,
   "Developer grant commits Garden only")
  world.players[1].pos=world.Stage.HEART
- world.garden_action(1,"research")
- check(world.progress.heart.active=="flowering","Developer Garden has actual active research")
  var research_before := Slots._save_digest(world.progress.path)
  var research: Dictionary = world.progress.heart.serialize()
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path): return ERR_CANT_CREATE if phase=="stage" else OK)
- var finish_abort := Developer.finish_research(world)
+ world.garden_action(1,"heart_start_flowering")
+ var finish_abort: String = world.status
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(finish_abort.begins_with("Save cancelled") and world.progress.heart.serialize()==research
   and Slots._save_digest(world.progress.path)==research_before,"Developer finish research abort restores its state")
- Developer.finish_research(world)
+ world.garden_action(1,"heart_start_flowering")
  check(world.progress.flowering_unlocked and Slots._save_digest(world.progress.path)!=research_before,
   "Developer finish research commits the unlock")
  record("developer_grant_and_research",{"grant":grant,"grant_abort":refusal,"research_abort":finish_abort,
@@ -498,9 +497,8 @@ func selected_technology_effects() -> void:
   scene.set_process(false)
   scene.force_playback=true
   scene._process(0)
-  check(not scene.event.is_empty() and pending.size()==1 and scene.event.sequence==pending[0].sequence,
-   "verified cleanup allows the single original growth reveal")
-  scene.finish(true)
+  check(scene.event.is_empty() and pending.size()==1 and growth_service.projection(game,1).seen==pending[0].sequence,
+   "verified cleanup acknowledges the single research notification without a frontier cinematic")
   scene._process(0)
   var seen: Dictionary=growth_service.projection(game,1)
   check(scene.event.is_empty() and seen.pending.is_empty() and pending.size()==1 and seen.seen==pending[0].sequence

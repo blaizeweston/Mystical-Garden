@@ -192,9 +192,10 @@ func timed_research() -> void:
  check(Ops.Authorization.bootstrap(PackedStringArray([garden.path.get_base_dir()])).error == OK, "bootstrap timed migration")
  var old := ConfigFile.new()
  old.set_value("garden", "plots_v2", [])
- old.set_value("heart", "state", {"version":1, "paid":["flowering"], "active":"flowering"})
+ old.set_value("garden", "knowledge", 20)
+ old.set_value("heart", "state", {"version":1, "spent":5, "paid":["flowering","infusion"], "active":"flowering"})
  check(old.save(garden.path) == OK and garden.load_garden_guarded().value == OK, "load legacy heart research")
- var target: String = garden.path + ".pre-timed-research-v2.bak"
+ var target: String = garden.path + ".pre-immediate-heart-v3.bak"
  var original := FileAccess.get_file_as_bytes(garden.path)
  check(garden.needs_research_backup and not garden.needs_heart_backup, "heart version 1 requires only timed research conversion")
  check(Batch._write_bytes(target, "unverifiable backup".to_utf8_buffer()) == OK, "block publication with contradictory backup")
@@ -206,7 +207,8 @@ func timed_research() -> void:
  check(garden.save_garden_guarded().value.outcome.outcome == Batch.Outcome.COMMITTED and not garden.needs_research_backup
   and FileAccess.get_file_as_bytes(target) == original and not FileAccess.file_exists(target + ".tmp"), "matching scratch can safely publish and migration commits")
  var current := ConfigFile.new()
- check(current.load(garden.path) == OK and current.get_value("heart", "state", {}).get("version") == 2, "timed research marker committed")
+ check(current.load(garden.path) == OK and current.get_value("heart", "state", {}).get("version") == 3, "immediate research marker committed")
+ check(garden.load_garden_guarded().value == OK and garden.knowledge == 20 and garden.heart.spent == 0 and garden.heart.has("flowering"), "recovered migration completes Flowering and releases the original five without increasing lifetime Knowledge")
  record("timed_research_backup", {}, {"canonical":Slots._save_digest(garden.path), "backup":Slots._save_digest(target),
   "original":Ops.Batch.Evidence.digest(original), "needs_research_backup":garden.needs_research_backup})
 

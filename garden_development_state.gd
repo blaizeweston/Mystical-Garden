@@ -1,8 +1,7 @@
 extends RefCounted
 ## Versioned save projection, not a second live Garden owner.
-## Positions/radii are metres, yaw is radians, study work is Heart research seconds.
-const VERSION := 1
-const MAX_STUDIES := 32
+## Positions/radii are metres, yaw is radians.
+const VERSION := 2
 const SEED := 117
 const RADIUS := 14
 const SPACING := 1.75
@@ -13,7 +12,7 @@ static func refusal(value: Variant, plot_count: int = -1) -> String:
 		return "Garden development must be a record."
 	if value.is_empty():
 		return "" # An older Garden has not saved construction yet.
-	if value.get("version") != VERSION:
+	if value.get("version") not in [1, VERSION]:
 		return "Unsupported Garden layout version."
 	if value.get("seed") != SEED or value.get("radius") != RADIUS or value.get("spacing") != SPACING:
 		return "Garden layout belongs to a different terrain generation."
@@ -67,7 +66,10 @@ static func refusal(value: Variant, plot_count: int = -1) -> String:
 	for index in plots.size():
 		if not plots.has(index):
 			return "Missing crop-slot placement."
-	if not value.get("queue") is Array or value.queue.size() > MAX_STUDIES:
+	if value.version == VERSION:
+		return "Unexpected historical Heart queue." if value.has("queue") else ""
+	# Only version 1 carried unpaid Knowledge batches.
+	if not value.get("queue") is Array or value.queue.size() > 32:
 		return "Invalid Heart study queue."
 	for study in value.queue:
 		if not study is Dictionary or not study.get("knowledge") is int or study.knowledge <= 0 or not study.get("required") is int or study.required <= 0:

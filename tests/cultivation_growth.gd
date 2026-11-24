@@ -28,7 +28,6 @@ func run() -> void:
  var work: float=bed.age;g.advance_growth(60,true);check(is_equal_approx(bed.age-work,120),"Wilds clock advances twice as fast")
  work=bed.age;game.growth_clock=.99;ExpeditionCase.set_membership(game, p, true);game._physics_process(.01);ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.PLOTS[0]
  check(is_equal_approx(bed.age-work,2.0),"the live host tick selects the Wilds rate")
- work=bed.age;g.apply_milestone(6);check(bed.age==work,"milestones no longer add a second growth payout")
  var request:=View.request(shown(game),"water_crop")
  check(game.garden_commands.command(1,JSON.stringify(request)).has("error") and not Growth.watered(bed),"watering requires the actual spring")
  for tech in ["clearing_1","irrigation"]:g.heart.unlock_direct(tech)

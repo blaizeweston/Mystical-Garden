@@ -1,5 +1,5 @@
 extends RefCounted
-# Stable world-owned technology IDs. Materials are shared plant parts; Knowledge is lifetime XP.
+# Stable world-owned technology IDs. knowledge is the lifetime threshold; insight is the spendable Knowledge price.
 const DEFINITIONS := [
 
 	{
@@ -8,8 +8,6 @@ const DEFINITIONS := [
 		"parents": [],
 		"knowledge": 0,
 		"insight": 0,
-		"materials": 0,
-		"research": 0,
 		"position": [
 			370,
 			1020
@@ -24,8 +22,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 4,
 		"insight": 2,
-		"materials": 4,
-		"research": 0,
 		"position": [
 			80,
 			900
@@ -41,8 +37,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 16,
 		"insight": 3,
-		"materials": 6,
-		"research": 0,
 		"position": [
 			80,
 			775
@@ -58,8 +52,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 28,
 		"insight": 4,
-		"materials": 8,
-		"research": 0,
 		"position": [
 			80,
 			650
@@ -75,8 +67,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 40,
 		"insight": 5,
-		"materials": 10,
-		"research": 0,
 		"position": [
 			80,
 			525
@@ -92,8 +82,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 52,
 		"insight": 6,
-		"materials": 12,
-		"research": 0,
 		"position": [
 			80,
 			400
@@ -109,8 +97,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 64,
 		"insight": 7,
-		"materials": 14,
-		"research": 0,
 		"position": [
 			80,
 			275
@@ -126,8 +112,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 8,
 		"insight": 3,
-		"materials": 3,
-		"research": 0,
 		"position": [
 			225,
 			900
@@ -143,8 +127,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 28,
 		"insight": 5,
-		"materials": 8,
-		"research": 0,
 		"position": [
 			225,
 			650
@@ -160,8 +142,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 60,
 		"insight": 8,
-		"materials": 14,
-		"research": 0,
 		"position": [
 			225,
 			400
@@ -177,8 +157,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 0,
 		"insight": 0,
-		"materials": 0,
-		"research": 3,
 		"position": [
 			370,
 			900
@@ -194,8 +172,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 16,
 		"insight": 4,
-		"materials": 5,
-		"research": 5,
 		"position": [
 			370,
 			775
@@ -210,8 +186,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 38,
 		"insight": 6,
-		"materials": 10,
-		"research": 8,
 		"position": [
 			370,
 			650
@@ -226,8 +200,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 24,
 		"insight": 5,
-		"materials": 8,
-		"research": 6,
 		"position": [
 			515,
 			900
@@ -242,30 +214,11 @@ const DEFINITIONS := [
 		],
 		"knowledge": 12,
 		"insight": 4,
-		"materials": 4,
-		"research": 4,
 		"position": [
 			660,
 			900
 		],
 		"description": "Build an Offering Altar. Offer a trophy for 4 Knowledge the first time its type is offered, then 1 for repeat offerings."
-	},
-	{
-		"id": "infusion",
-		"name": "Research Infusion",
-		"parents": [
-			"flowering",
-			"monster_studies"
-		],
-		"knowledge": 20,
-		"insight": 5,
-		"materials": 6,
-		"research": 6,
-		"position": [
-			660,
-			775
-		],
-		"description": "Plant offerings speed research by two minutes instead of one."
 	},
 	{
 		"id": "spore_bench",
@@ -276,8 +229,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 40,
 		"insight": 5,
-		"materials": 8,
-		"research": 6,
 		"position": [
 			660,
 			650
@@ -293,8 +244,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 45,
 		"insight": 8,
-		"materials": 10,
-		"research": 10,
 		"position": [
 			515,
 			650
@@ -305,14 +254,11 @@ const DEFINITIONS := [
 		"id": "living_archive",
 		"name": "Living Archive",
 		"parents": [
-			"infusion",
 			"seed_archive",
 			"monster_studies"
 		],
 		"knowledge": 60,
 		"insight": 8,
-		"materials": 12,
-		"research": 12,
 		"position": [
 			515,
 			400
@@ -327,8 +273,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 0,
 		"insight": 0,
-		"materials": 0,
-		"research": 0,
 		"position": [
 			280,
 			235
@@ -344,8 +288,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 0,
 		"insight": 0,
-		"materials": 0,
-		"research": 0,
 		"position": [
 			430,
 			235
@@ -361,8 +303,6 @@ const DEFINITIONS := [
 		],
 		"knowledge": 0,
 		"insight": 0,
-		"materials": 0,
-		"research": 0,
 		"position": [
 			580,
 			235
@@ -371,7 +311,7 @@ const DEFINITIONS := [
 		"memory": 2
 	},
  {"id":"living_conduit","name":"Living Water Conduit","parents":["clearing_2","irrigation","plot_4"],
- "knowledge":40,"insight":6,"materials":0,"research":6,"position":[805,650],
+ "knowledge":40,"insight":6,"position":[805,650],
  "description":"Unlock the terrace conduit. The host chooses the bud type for new plantings in Bed 4. Preserving a deep bud takes longer and improves rare harvest chances."}
 ]
 static var _by_id: Dictionary = {}
@@ -382,7 +322,7 @@ static func _static_init() -> void:
 static func get_node(id: String) -> Dictionary:
 	return _by_id.get(id,{})
 static func required_core() -> Array:
-	return ["flowering","irrigation","nursery","seed_archive","monster_studies","infusion","spore_bench","checkpoint_deposit","living_archive","clearing_1","clearing_2","clearing_3"]
+	return ["flowering","irrigation","nursery","seed_archive","monster_studies","spore_bench","checkpoint_deposit","living_archive","clearing_1","clearing_2","clearing_3"]
 static func phase_name(phase: int) -> String:
 	return ["Sheltered Fragment","First Awakening","Rooted Heart","Living Nexus","Remembering Heart"][clampi(phase,0,4)]
 

@@ -241,9 +241,9 @@ static func interaction(game: Node,id: int,action: String,phase: String,request_
 static func garden_state(game: Node) -> Dictionary:
  if game.multiplayer.is_server():
   var heart=game.progress.heart
-  return {"source":"host_authority","knowledge":game.progress.knowledge,"active":heart.active,"work_seconds":int(heart.work.get(heart.active,0)),"unlocked_count":heart.unlocked.size()}
+  return {"source":"host_authority","knowledge":game.progress.knowledge,"available":heart.available_insight(game.progress),"unlocked_count":heart.unlocked.size()}
  var garden: Array=game.guest_replication.garden_progress()
  if garden.size()>16 and garden[16] is Dictionary:
-  var heart: Dictionary=garden[16];var active: String=str(heart.get("active",""))
-  return {"source":"host_snapshot","knowledge":garden[6],"active":active,"work_seconds":int(heart.get("work",{}).get(active,0)),"unlocked_count":heart.get("unlocked",[]).size()}
+  var heart: Dictionary=garden[16]
+  return {"source":"host_snapshot","knowledge":garden[6],"available":int(heart.get("insight",0)),"unlocked_count":heart.get("unlocked",[]).size()}
  return {"source":"awaiting_host"}

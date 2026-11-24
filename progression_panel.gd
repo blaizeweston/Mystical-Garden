@@ -19,13 +19,8 @@ var notice: Label
 var chosen := ""
 var previewed := ""
 var portraits := {}
-var material_row: HBoxContainer
-var material_pick: OptionButton
-var material_preview: Label
-var material_key: String=""
 var heart_buttons: HBoxContainer
 var heart_start_button: Button
-var heart_infuse_button: Button
 var tree_hint: Label
 var class_pick: OptionButton
 var learn_button: Button
@@ -98,19 +93,8 @@ func _ready() -> void:
 		if chosen.begins_with("heart_"):
 			var id:=chosen.trim_prefix("heart_");var node: Dictionary=HeartCatalog.get_node(id)
 			if bool(_facts.get("is_host",false)) and not node.is_empty():
-				var plan: Dictionary={}
-				_garden_request("heart_confirm:"+JSON.stringify({"id":id,"plan":plan}))
+				_garden_request("heart_start_" + id)
 		refresh())
-	heart_infuse_button=Button.new()
-	heart_infuse_button.text="Offer 2 shared plant parts"
-	heart_buttons.add_child(heart_infuse_button)
-	heart_infuse_button.pressed.connect(func():
-		_garden_request("heart_infusion:"+JSON.stringify({"project":_facts.get("heart",{}).get("active",""),"plan":offering_plan().parts}));refresh())
-	material_row=HBoxContainer.new();add_child(material_row);var label:=Label.new();label.text="Research ingredients:";material_row.add_child(label)
-	material_pick=OptionButton.new();material_pick.size_flags_horizontal=Control.SIZE_EXPAND_FILL;material_row.add_child(material_pick)
-	material_pick.item_selected.connect(func(index):
-		_garden_request("heart_material_"+("auto" if index==0 else str(material_pick.get_item_metadata(index))));refresh())
-	material_preview=Label.new();material_preview.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;material_preview.custom_minimum_size.x=900;add_child(material_preview)
 	notice = Label.new()
 	notice.custom_minimum_size.x = 900
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -169,8 +153,6 @@ func present(facts: Dictionary) -> void:
 	notice.visible=not care_tab
 	class_pick.visible=class_tab
 	learn_button.get_parent().visible=class_tab
-	material_row.visible=heart_tab
-	material_preview.visible=heart_tab
 	heart_buttons.visible=heart_tab
 	close_button.text="Back to weapon crafting" if from_crafting else "Close  ·  O / Esc"
 	if care_tab: return
@@ -194,26 +176,11 @@ func present(facts: Dictionary) -> void:
 	if heart_tab:
 		var state: Dictionary=_facts.get("heart",{})
 		var owns: bool=bool(_facts.may_start_research)
-		var can_offer: bool=bool(_facts.may_offer)
 		var id: String=chosen.trim_prefix("heart_") if chosen.begins_with("heart_") else ""
 		var definition: Dictionary=HeartCatalog.get_node(id)
 		heart_start_button.disabled=not owns or definition.is_empty() or state.unlocked.has(id) or definition.has("memory")
-		heart_start_button.text="Resume research" if state.get("paid",[]).has(id) and not state.unlocked.has(id) else "Begin research · %d Knowledge"%int(definition.get("insight",0))
+		heart_start_button.text="Unlocked" if state.unlocked.has(id) else "Unlock · %d Knowledge" % int(definition.get("insight",0))
 		if owns and not definition.is_empty(): heart_start_button.disabled=not str(_facts.research_refusal).is_empty()
-		heart_infuse_button.disabled=not can_offer or str(state.get("active","")).is_empty() or int(offering_plan().missing)>0
-		material_pick.disabled=not can_offer
-		var shared: Array=_facts.shared_parts
-		var material_signature: String=str(shared)+str(state.get("material_choice",""))
-		if material_signature!=material_key:
-			material_key=material_signature;material_pick.clear();material_pick.add_item("Common materials first · optional offering");material_pick.set_item_metadata(0,"auto")
-			for i in Seeds.DEFINITIONS.size():
-				material_pick.add_item("Only %s · %d available"%[Seeds.NAMES[i],shared[i]]);material_pick.set_item_metadata(i+1,str(Seeds.DEFINITIONS[i].id))
-				if str(Seeds.DEFINITIONS[i].id)==state.get("material_choice",""): material_pick.select(i+1)
-		var labels: Array[String]=[]
-		for species in offering_plan().parts: labels.append("%d %s"%[offering_plan().parts[species],Seeds.NAMES[Seeds.index_of(species)]])
-		material_preview.text="Optional offering · %s → %s less research."%[", ".join(labels) if int(offering_plan().missing)==0 else "not enough selected shared plant parts",time_text(float(state.get("offering_seconds",60)))]
-
-
 	notice.text = ("Combine seeds at the Altar. Failed combinations return materials and a clue." if at_altar else "Identify and combine seeds at the Altar.")
 	if class_tab:
 		var class_profile: Dictionary=_facts.profile
@@ -235,11 +202,7 @@ func present(facts: Dictionary) -> void:
 		var state: Dictionary=_facts.get("heart",{})
 		var knowledge := int(_facts.knowledge)
 		notice.text="Lifetime Knowledge %d · Available Knowledge %d · %s"%[knowledge,state.get("insight",0),HeartCatalog.phase_name(int(state.get("phase",0)))]
-		var research: String=state.get("active","")
-		if not research.is_empty():
-			var active_node: Dictionary=HeartCatalog.get_node(research)
-			notice.text+="\nResearch: %s · %s remaining in Garden / %s in Wilds."%[active_node.name,time_text(float(state.get("remaining_seconds",0))),time_text(float(state.get("remaining_seconds",0))/3.0)]
-		tree_hint.text="Select a technology. The host starts research at the Heart."
+		tree_hint.text="Select a technology. The host unlocks it immediately at the Heart."
 	if not str(_facts.notice).is_empty():
 		notice.text += "\n"+str(_facts.notice)
 	show_details()
@@ -291,9 +254,7 @@ func heart_nodes() -> Array:
 		for parent in d.parents:
 			parents.append("heart_"+str(parent))
 			is_ready=is_ready and known.has(parent)
-		var research_progress:=int(state.get("progress",{}).get(id,0))
-		var duration:=maxf(float(state.get("minimum_seconds",60)),float(d.research)*float(state.get("seconds_per_point",120)))
-		var ratio: float=float(state.get("work",{}).get(id,research_progress*120.0))/duration
+		var ratio := 0.0
 		var description: String="[b]%s[/b]\n%s\n\n"%[d.name,d.description]
 		if d.has("memory"):
 			var index:=int(d.memory)
@@ -303,16 +264,13 @@ func heart_nodes() -> Array:
 			description+="Guardian expeditions: %d/%d. Decode through the Living Archive."%[current,needed]
 			is_ready=false
 		else:
-			description+="Requires %d lifetime Knowledge.\nStart cost: %d available Knowledge. No upfront plant parts.\n"%[d.knowledge,d.insight]
-			description+="Research time: %s in Garden, %s in Wilds. Optional plant offerings speed it up.\n"%[time_text(duration),time_text(duration/3.0)]
+			description+="Requires %d lifetime Knowledge.\nPrice: %d available Knowledge.\n"%[d.knowledge,d.insight]
 			if not parents.is_empty():
 				var names: Array[String]=[]
 				for parent in d.parents: names.append(HeartCatalog.get_node(str(parent)).name)
 				description+="Prerequisites: "+", ".join(names)+".\n"
-			is_ready=is_ready and knowledge>=int(d.knowledge) and (state.get("paid",[]).has(id) or (int(state.get("insight",0))>=int(d.insight)))
-			if state.get("paid",[]).has(id) and not owned:
-				description+="This project is funded. Resume it without paying again.\n"
-		description+="\nRestored." if owned else "\nResearch in progress." if state.get("active","")==id else "\nNot yet restored."
+			is_ready=is_ready and knowledge>=int(d.knowledge) and int(state.get("insight",0))>=int(d.insight)
+		description+="\nRestored." if owned else "\nAvailable." if is_ready else "\nUnavailable."
 		var icon: Texture2D=null
 		if id=="heart":
 			var path: String="res://assets/ui/heart/phase_%d.png"%int(state.get("phase",0))
@@ -382,7 +340,7 @@ func show_details() -> void:
 			details.text=node.get("summary",str(node.label)+"\n"+str(node.detail).split("\n\n")[0]) if not previewed.is_empty() else node.detail
 			return
 	if tabs.current_tab==1:
-		details.text="[b]Heart / Knowledge[/b]\n\nResearch Garden upgrades and planting beds. Plant offerings speed up research.\n\nSelect a technology to inspect it."
+		details.text="[b]Heart / Knowledge[/b]\n\nResearch Garden upgrades and planting beds. Unlocks take effect immediately.\n\nSelect a technology to inspect it."
 		return
 	if tabs.current_tab==2:
 		details.text="[b]Class progression[/b]\n\nSelect a node to see its requirements and what it unlocks."
@@ -407,16 +365,6 @@ func change_tab(index: int) -> void:
 	refresh()
 	request_tree_base()
 
-
-# Displayed hours and minutes omit fractional units.
-@warning_ignore_start("integer_division")
-func time_text(seconds: float) -> String:
-	var value:=maxi(0,ceili(seconds))
-	return "%d:%02d"%[value/60,value%60]
-
-@warning_ignore_restore("integer_division")
-func offering_plan() -> Dictionary:
-	return _facts.get("offering",{"parts":{},"missing":0}).duplicate(true)
 
 func request_tree_base() -> void:
 	if tabs==null or tabs.current_tab not in [1,2]: return

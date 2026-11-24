@@ -280,9 +280,6 @@ func _notification(what: int) -> void:
 			return
 		if network_session.role() in ["Host","Solo"] and participation.active():
 			if not expedition_transitions.finish_voluntary(): return
-		elif slot_claimed and not progress.heart.active.is_empty() and not save_session_garden():
-			status = "Could not save research before closing. Please retry."
-			return
 		if character_dirty and persistence_session.can_write() and not save_local_character():
 			return
 		get_tree().quit()
@@ -1371,31 +1368,21 @@ func guarded_growth_tick(elapsed: float) -> void:
 	var in_wilds := participation.active()
 	var original: Array = progress.plots.duplicate(true)
 	var crop_due := progress.advance_growth(elapsed, in_wilds)
-	if not crop_due and not progress.heart.checkpoint_due(elapsed, in_wilds):
-		if not progress.heart.active.is_empty():
-			progress.heart.add_work(progress, progress.heart.progression_work(elapsed, in_wilds))
-		return
-	# Stage the crop and research tick together. An aborted save restores both
-	# to the last simulation tick, ready to cross the boundary again.
+	if not crop_due: return
 	var updated: Array = progress.plots.duplicate(true)
 	progress.plots.assign(original)
 	progress.sync_plot_flags()
-	var message := Transactions.save_growth_checkpoint(self, updated, elapsed, in_wilds)
+	var message := Transactions.save_growth_checkpoint(self, updated)
 	if not message.is_empty(): status = message
 
 func run_heart_save(action: Callable) -> String:
-	var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, action, false)
+	var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, action)
 	return Transactions.feedback(result, "Research could not be saved.")
 
 func use_heart_research(id: int) -> void:
 	if id!=HOST:
 		tell(id,"The host chooses the Garden's research.")
-		return
-	if progress.heart.active.is_empty():
-		if not progress.flowering_unlocked: tell(id,run_heart_save(progress.heart.start.bind(progress,"flowering")))
-		else: show_heart_tree(id)
-	else:
-		tell(id,run_heart_save(progress.heart.infuse.bind(progress)))
+	show_heart_tree(id)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_action(strike: bool) -> void:
@@ -1442,13 +1429,9 @@ func _physics_process(delta: float) -> void:
 			growth_clock = 0.0
 			if persistence_session.is_guarded():
 				guarded_growth_tick(elapsed)
-				if stage.experimental_garden != null:
-					stage.experimental_garden.advance_assimilation(elapsed, participation.active())
 			else:
 				if progress.advance_growth(elapsed,participation.active()) and progress.save_garden() != OK:
 					status = "Plant growth could not be saved. Use Save Garden to retry."
-				var research_message:=progress.heart.tick(progress,elapsed,participation.active())
-				if not research_message.is_empty(): status=research_message
 		if persistence_session.is_blocked(): return
 		motions[HOST] = [direction, now]
 		for id in players:
@@ -1794,7 +1777,7 @@ func milestone_message(message: String, extracted: bool) -> String:
 	if deepest_milestone > 0:
 		progress.remember_expedition(ranged_clears, burst_clears, choke_clears)
 		progress.campaign.record_expedition(deepest_milestone, extracted)
-	return message + progress.apply_milestone(deepest_milestone)
+	return message
 
 
 func encounter_health() -> int:
@@ -1995,7 +1978,7 @@ func inventory_snapshot(player: Dictionary) -> Array:
 
 func garden_snapshot() -> Array:
 	# Protocol 41 reserves slots 9–11. Keep later Garden fields at their established indices.
-	return [progress.research_points, progress.studying_flowering, progress.flowering_unlocked,
+	return [0, false, progress.flowering_unlocked,
 		progress.flowering, progress.harvest_ready, progress.parts, progress.knowledge, progress.veilcap_discovered, progress.briar_hooks,
 		false, 0, false, progress.plot_snapshot(), progress.discoveries.duplicate(), progress.heartwood_barbs, shared_parts_snapshot(), progress.heart.snapshot(progress)]
 
@@ -2464,7 +2447,7 @@ func _apply_loadout_action(id: int, player: Dictionary, fields: PackedStringArra
 func heart_state() -> Dictionary:
 	if multiplayer.is_server(): return progress.heart.snapshot(progress)
 	if guest_replication.garden_progress().size()>16 and guest_replication.garden_progress()[16] is Dictionary: return guest_replication.garden_progress()[16]
-	return {"unlocked":["heart"],"paid":[],"active":"","progress":{},"natural":{},"infused":{},"spent":0,"insight":0,"phase":0,"clearing":0}
+	return {"unlocked":["heart"],"spent":0,"insight":0,"phase":0,"clearing":0}
 
 func monster_cargo_limit() -> int:
 	return Weapons.MONSTER_CARGO_LIMIT+(2 if heart_state().get("unlocked",[]).has("spore_bench") else 0)
@@ -2837,8 +2820,8 @@ func progression_ui_data(selection: Dictionary) -> Dictionary:
 		"memories":[campaign[14],campaign[15],campaign[16]],
 		"at_altar":not Participation.is_wild(player) and player.get("pos",Vector3.ZERO).distance_to(stage.altar_position())<=1.65,
 		"may_learn":preload("res://class_tree_access.gd").can_learn_here(self,player),"may_respec":at_home and between_runs,
-		"is_host":host,"may_start_research":may_start,"may_offer":at_home and not Participation.is_wild(player),
-		"research_refusal":refusal,"offering":preload("res://heart_progress.gd").plan_materials(garden[5],str(heart.get("material_choice","")),int(heart.get("offering_cost",preload("res://heart_progress.gd").OFFER_PARTS))),
+		"is_host":host,"may_start_research":may_start,
+		"research_refusal":refusal,
 		"stories":garden_commands.return_projection(id) if int(selection.get("tab",0))==3 else {},
 		"notice":status}.duplicate(true)
 

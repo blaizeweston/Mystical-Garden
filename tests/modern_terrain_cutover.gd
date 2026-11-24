@@ -56,7 +56,7 @@ func run() -> void:
 	world._process(.016)
 	var garden = world.stage.experimental_garden
 	check(garden!=null and world.progress.player_placed_beds,"a plain world starts with the generated Garden and placed-bed system")
-	check(garden.state!=null and garden.construction!=null and garden.assimilation!=null,"Garden expansion, construction and assimilation remain integrated")
+	check(garden.state!=null and garden.construction!=null and garden.funds!=null,"Garden expansion, construction and offerings remain integrated")
 	check(garden.state.entrance_clear(),"the new Garden entrance remains traversable")
 	world.progress.heart.complete(world.progress,"living_archive")
 	world.stage.update_heart_progress(world.heart_state())

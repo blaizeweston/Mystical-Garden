@@ -262,33 +262,11 @@ func handle(id: int, action: String) -> bool:
    if id==world.HOST: world.ui.close_panels()
    else: world.close_planting_picker.rpc_id(id)
   return true
- if action.begins_with("heart_material_"):
-  if world.at_heart(player) and not Participation.is_wild(player):
-   var choice:=action.trim_prefix("heart_material_")
-   if choice=="auto" or Seeds.index_of(choice)>=0: world.progress.heart.material_choice="" if choice=="auto" else choice
-  return true
- if action.begins_with("heart_confirm:"):
-  if id!=world.HOST or not world.at_heart(player) or world.participation.active(): return true
-  var request=JSON.parse_string(action.trim_prefix("heart_confirm:"))
-  if not request is Dictionary or not request.get("id") is String or not request.get("plan") is Dictionary: return true
-  var node:=HeartCatalog.get_node(request.id)
-  if node.is_empty(): return true
-  var expected: Dictionary={}
-  if not world.progress.heart.matches_plan(request.plan,expected): world.tell(id,"Available ingredients changed. Review the updated material preview and confirm again.");return true
-  world.tell(id,world.run_heart_save(world.progress.heart.start.bind(world.progress,request.id)));return true
  if action.begins_with("heart_start_"):
   if id==world.HOST and world.at_heart(player) and not world.participation.active():
-   world.tell(id,world.run_heart_save(world.progress.heart.start.bind(world.progress,action.trim_prefix("heart_start_"))))
+   var tech := action.trim_prefix("heart_start_")
+   var refusal: String = world.progress.heart.requirements(world.progress, tech)
+   world.tell(id, refusal if not refusal.is_empty() else world.run_heart_save(world.progress.heart.purchase.bind(world.progress, tech)))
   else: world.tell(id,"The host restores Garden technologies at the Heart between expeditions.")
-  return true
- if action.begins_with("heart_infusion:"):
-  if not world.at_heart(player) or Participation.is_wild(player): return true
-  var offer=JSON.parse_string(action.trim_prefix("heart_infusion:"))
-  if not offer is Dictionary: return true
-  if offer.get("project","")!=world.progress.heart.active or not world.progress.heart.matches_plan(offer.get("plan",{}),world.progress.heart.material_plan(world.progress,world.progress.heart.OFFER_PARTS).parts):
-   world.tell(id,"Research or offering materials changed. Review the updated preview and try again.");return true
-  world.tell(id,world.run_heart_save(world.progress.heart.infuse.bind(world.progress)));return true
- if action=="heart_infuse":
-  if world.at_heart(player) and not Participation.is_wild(player): world.tell(id,world.run_heart_save(world.progress.heart.infuse.bind(world.progress)))
   return true
  return false

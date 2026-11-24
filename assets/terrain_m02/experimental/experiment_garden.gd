@@ -18,7 +18,6 @@ const Surface = preload("res://assets/terrain_m02/experimental/experiment_terrai
 const Stations = preload("res://assets/terrain_m02/garden_station_art.gd")
 const Offerings = preload("res://assets/terrain_m02/garden_offerings.gd")
 const OfferView = preload("res://assets/terrain_m02/garden_offerings_view.gd")
-const Study = preload("res://assets/terrain_m02/experimental/heart_assimilation.gd")
 const Journal = preload("res://diagnostic_journal.gd")
 const Tx = preload("res://game_transaction.gd")
 const Catalog = preload("res://heart_catalog.gd")
@@ -29,7 +28,6 @@ const SavedGarden = preload("res://garden_development_state.gd")
 const Spacing := SavedGarden.SPACING
 const Radius := SavedGarden.RADIUS
 const Seed := SavedGarden.SEED
-const MAX_STUDIES := SavedGarden.MAX_STUDIES
 const STATIONS := {"altar": "altar", "study": "monster_studies", "archive": "seed_archive"}
 
 var game: Node
@@ -52,10 +50,7 @@ var bed_material: StandardMaterial3D
 var station_ids := {}
 var structure_nodes := {}
 var funds := Offerings.new()
-var assimilation := Study.new()
-var study_glow := 0.0
 var reclaim_glow := 0.0
-var study_light: Tween
 var offering_dialog: OfferView
 var development_dialog: AcceptDialog
 var frontier: OptionButton
@@ -291,6 +286,7 @@ func _refresh_parts() -> void:
 		var player: Dictionary = game.players[game.HOST]
 		funds.inventory[id] = game.progress.part_count(part)
 		funds.reserved[id] = funds.inventory[id] - _shared_free(player, part)
+	funds.garden_revision = layout_revision
 	funds.inventory_revision += 1
 
 func _shared_free(player: Dictionary, part: int) -> int:
@@ -302,15 +298,11 @@ func _shared_free(player: Dictionary, part: int) -> int:
 func contribute(quote: Dictionary) -> bool:
 	if not available_here() or quote.is_empty() or not quote.get("items") is Dictionary:
 		return false
-	if assimilation.queue.size() >= MAX_STUDIES:
-		game.tell(game.HOST, "The Heart's study queue is full.")
-		return false
-	var starting := assimilation.queue.is_empty()
 	var accepted := _commit_development(func() -> bool:
-		if funds.quote(quote.items) != quote:
+		if quote.get("garden_revision", -1) != layout_revision or funds.quote(quote.items) != quote:
 			return false
+		layout_revision += 1
 		funds.energy += int(quote.energy)
-		assimilation.add(quote.items)
 		return true, func() -> bool:
 		var player: Dictionary = game.players[game.HOST]
 		for id: String in quote.items:
@@ -318,62 +310,13 @@ func contribute(quote: Dictionary) -> bool:
 				return false
 		for id: String in quote.items:
 			game.progress.add_parts(funds.items[id].legacy_part, -int(quote.items[id]))
+		game.progress.knowledge += int(quote.knowledge)
 		return true)
 	if accepted:
-		if starting:
-			_study_light(0.6, 0.22)
-		Journal.event("interaction", "heart_assimilation_queued", {"parts": quote.items,
-			"growth": quote.energy, "knowledge": assimilation.queue.back().knowledge})
+		Journal.event("interaction", "heart_contribution", {"parts": quote.items,
+			"growth": quote.energy, "knowledge": quote.knowledge})
 	_refresh_parts()
 	return accepted
-
-func advance_assimilation(elapsed: float, in_wilds: bool) -> void:
-	if elapsed <= 0.0 or assimilation.queue.is_empty() or get_tree().paused or not game.persistence_session.can_simulate():
-		return
-	var next := assimilation.plan(game.progress.heart.progression_work(elapsed, in_wilds))
-	var knowledge: int = next.earned
-	if knowledge > 0:
-		var accepted := _commit_development(func() -> bool:
-			assimilation.queue.assign(next.queue)
-			return true, func() -> bool:
-			game.progress.knowledge += knowledge
-			return true)
-		if not accepted:
-			if offering_dialog.visible:
-				offering_dialog.refresh_studies()
-			return
-	else:
-		assimilation.queue.assign(next.queue)
-		# Partial work joins the next ordinary save, without per-frame disk writes.
-		game.progress.garden_development = _capture_development()
-	if knowledge > 0:
-		game.tell(game.HOST, "The Heart assimilated its offering. +%d Knowledge." % knowledge)
-		Journal.event("interaction", "heart_assimilation_completed", {"knowledge": knowledge})
-		_study_light(0.65, 0.14, true)
-	else:
-		_study_light(0.18 + 0.09 * sin(float(assimilation.queue[0].done) * 0.65), 0.66)
-	if offering_dialog.visible:
-		offering_dialog.refresh_studies()
-
-func _offering_studies(items: Dictionary) -> Dictionary:
-	var study_summary := assimilation.summary()
-	study_summary.available = game.progress.heart.available_insight(game.progress)
-	study_summary.selected = Study.quote(items).knowledge if not items.is_empty() else 0
-	study_summary.blocked = game.persistence_session.pending_notice()
-	return study_summary
-
-func _study_light(value: float, seconds: float, settle := false) -> void:
-	if study_light != null:
-		study_light.kill()
-	study_light = create_tween()
-	study_light.tween_method(_set_study_glow, study_glow, value, seconds)
-	if settle:
-		var rest := 0.18 if not assimilation.queue.is_empty() else 0.0
-		study_light.tween_method(_set_study_glow, value, rest, 0.75)
-
-func _set_study_glow(amount: float) -> void:
-	study_glow = amount
-	heart.reclaim_light(study_glow + reclaim_glow)
 
 func clearing_tier() -> int:
 	return game.progress.heart.clearing_bonus()
@@ -415,7 +358,7 @@ func _animate_expansion(previous_outline: PackedVector2Array, root: MeshInstance
 	reveal.tween_method(func(t: float):
 		shader.set_shader_parameter("root_progress", t)
 		reclaim_glow = sin(t * PI)
-		heart.reclaim_light(study_glow + reclaim_glow)
+		heart.reclaim_light(reclaim_glow)
 		material.set_shader_parameter("garden_reveal", t)
 		forest.set_reveal(t)
 		barrier.update_shape(t)
@@ -437,7 +380,7 @@ func snapshot() -> Dictionary:
 		if tier > 0:
 			for proposal in state.frontier_options():
 				geometry.frontiers.append([Garden.DIRECTIONS[proposal.sector], funds.expansion_cost(proposal, state.reclaimed_cells, tier)])
-	return {"layout": geometry, "energy": funds.energy, "study": assimilation.summary(), "queue": assimilation.queue.duplicate(true)}
+	return {"layout": geometry, "energy": funds.energy}
 
 func receive_snapshot(snapshot_data: Dictionary) -> void:
 	if game.multiplayer.is_server():
@@ -450,7 +393,6 @@ func receive_snapshot(snapshot_data: Dictionary) -> void:
 		_apply_layout(layout)
 		remote_revision = incoming
 	remote_development = snapshot_data
-	_set_study_glow(0.22 if not snapshot_data.get("queue", []).is_empty() else 0.0)
 	if development_dialog.visible:
 		_refresh_guest_review()
 
@@ -468,7 +410,7 @@ func _apply_layout(layout: Dictionary) -> void:
 			reveal = null
 			roots.get_child(-1).material_override.set_shader_parameter("root_progress", 1.0)
 			reclaim_glow = 0.0
-			_set_study_glow(study_glow)
+			heart.reclaim_light(reclaim_glow)
 		network.assign(layout.roots.duplicate(true))
 		if live_expansion:
 			_animate_expansion(previous_outline, _add_root(network[-1]))
@@ -482,16 +424,10 @@ func _apply_layout(layout: Dictionary) -> void:
 	stage.plot_key = ""
 
 func _refresh_guest_review() -> void:
-	var study: Dictionary = remote_development.get("study", {})
 	var lines := PackedStringArray(["The host manages Garden development.",
-		"Growth energy %d · Pending Knowledge %d" % [int(remote_development.get("energy", 0)), int(study.get("pending", 0))]])
+		"Growth Energy %d" % int(remote_development.get("energy", 0))])
 	for frontier_data: Array in remote_development.get("layout", {}).get("frontiers", []):
 		lines.append("%s frontier · %d energy" % frontier_data)
-	for entry: Dictionary in remote_development.get("queue", []).slice(0, 4):
-		lines.append("%s · %d%%" % [entry.name, roundi(100.0 * entry.done / entry.required)])
-	var remaining: int = remote_development.get("queue", []).size() - 4
-	if remaining > 0:
-		lines.append("%d more queued studies" % remaining)
 	guest_review.text = "\n".join(lines)
 
 func _required(kind: String) -> String:
@@ -550,7 +486,7 @@ func place(kind: String, target: Vector2, yaw: float, moving: int = 0) -> bool:
 		return true, func() -> bool:
 		if kind == "bed" and moving == 0:
 			game.progress.plots.append(game.Progress.empty_plot())
-		return true)
+		return true, int(kind == "bed" and moving == 0))
 	if not accepted:
 		return false
 	_refresh_structure_views()
@@ -563,7 +499,6 @@ func place(kind: String, target: Vector2, yaw: float, moving: int = 0) -> bool:
 func _initialize_controls() -> void:
 	offering_dialog = OfferView.new()
 	offering_dialog.experimental_commit = contribute
-	offering_dialog.study_summary = _offering_studies
 	add_child(offering_dialog)
 	development_dialog = AcceptDialog.new()
 	development_dialog.title = "Garden Development"
@@ -580,7 +515,7 @@ func _initialize_controls() -> void:
 	development_dialog.add_child(guest_review)
 	guest_review.hide()
 	var offering_button := Button.new()
-	offering_button.text = "Heart offerings and studies"
+	offering_button.text = "Heart offerings"
 	offering_button.pressed.connect(func():
 		development_dialog.hide()
 		open_offerings())
@@ -778,7 +713,7 @@ func _capture_development() -> Dictionary:
 		"owned": state.owned.duplicate(), "growth": state.expansion_history.duplicate(),
 		"reclaimed_cells": state.reclaimed_cells, "root_paths": state.roots.duplicate(true),
 		"roots": network.duplicate(true), "buildings": buildings, "next_id": construction.next_id,
-		"energy": funds.energy, "queue": assimilation.queue.duplicate(true)}
+		"energy": funds.energy}
 
 func _restore_buildings(buildings: Array) -> void:
 	construction.records.clear()
@@ -812,23 +747,19 @@ func _restore_development(saved: Dictionary) -> void:
 	state.refresh_owned_cells()
 	layout_revision = saved.layout_revision
 	funds.energy = saved.energy
-	assimilation.queue.assign(saved.queue.duplicate(true))
 	geometry.clear()
 
-func _commit_development(change: Callable, progress_change := Callable()) -> bool:
+func _commit_development(change: Callable, progress_change := Callable(), added_beds := 0) -> bool:
 	# Prepare synchronously, then restore live owners BEFORE attempting durability.
 	# No node, UI, network or animation changes occur until the save is committed.
 	var before := _capture_development()
 	var changed: bool = change.call()
 	var after := _capture_development()
 	_restore_development(before)
-	if not changed:
+	if not changed or not SavedGarden.refusal(after, game.progress.plots.size() + added_beds).is_empty():
 		return false
 	var result := Tx.run_gameplay(game, Tx.Scope.GARDEN, func() -> bool:
 		if progress_change.is_valid() and progress_change.call() != true:
-			return false
-		var reason := SavedGarden.refusal(after, game.progress.plots.size())
-		if not reason.is_empty():
 			return false
 		game.progress.garden_development = after.duplicate(true)
 		return true)

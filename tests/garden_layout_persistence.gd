@@ -100,14 +100,14 @@ func run() -> void:
 		"failed save restores placement, revisions and existing saved bytes")
 	game.progress.path = path
 	check(garden.place("bed", retry, 0.2, ids[0]), "confirmed rollback can be retried")
-	# Offerings, pending work, reclaimed land and roots must reload with placements.
+	# Offerings, reclaimed land and roots must reload with placements.
 	game.progress.heart.unlock_direct("clearing_1")
 	game.progress.add_parts(game.Parts.THORN, 50)
 	garden.open_offerings()
 	var item: String = game.Items.part_id(game.Parts.THORN)
-	check(garden.contribute(garden.funds.quote({item: 30})), "offering durably queues study and growth energy")
+	var knowledge_before: int = game.progress.knowledge
+	check(garden.contribute(garden.funds.quote({item: 30})) and game.progress.knowledge == knowledge_before + 30, "one offering grants both currencies immediately")
 	garden.offering_dialog.hide()
-	garden.advance_assimilation(1.0, false)
 	garden.open_development()
 	check(not garden.plans.is_empty(), "an expansion is available")
 	if not garden.plans.is_empty():
@@ -133,23 +133,18 @@ func run() -> void:
 	check(expansions.size() == 1 and expansions[0].expansion == garden.state.revision,
 		"one saved scene identifies the committed frontier after reload")
 	check(equivalent(garden._capture_development(), saved) and game.progress.plots[0] == crop,
-		"fresh world reload preserves the layout, crop, reclaimed cells, roots, energy and study work")
+		"fresh world reload preserves the layout, crop, reclaimed cells, roots, energy and placements")
 	check(game.stage.bed_positions() == positions and game.stage.altar_position() == altar_position,
 		"reloaded interactions use saved positions")
 	check(garden.construction.next_id == saved.next_id and garden.roots.get_child_count() == saved.roots.size(),
 		"stable structure IDs and root presentation survive restart")
 	check(Water._features(game.stage) == garden.state.layout.water and Water.anchor(game.stage).is_finite(),
 		"terrain water remains reachable after layout reload")
-	var knowledge: int = game.progress.knowledge
-	garden.advance_assimilation(10000.0, false)
-	check(game.progress.knowledge == knowledge + 30 and garden.assimilation.queue.is_empty(), "restored study completes exactly once")
 	var complete: Dictionary = garden._capture_development()
 	var loaded = game.Progress.new()
 	loaded.path = game.progress.path
-	check(loaded.load_garden() == OK and loaded.garden_development == complete and loaded.knowledge == knowledge + 30,
-		"study completion and Knowledge share one durable commit")
-	garden.advance_assimilation(10000.0, false)
-	check(game.progress.knowledge == knowledge + 30, "completed study cannot replay")
+	check(loaded.load_garden() == OK and loaded.garden_development == complete and loaded.knowledge == knowledge_before + 30,
+		"layout and paid Knowledge share one durable commit")
 	# Optional old-save section and malformed data are distinct outcomes.
 	check(Saved.refusal({}).is_empty(), "older Garden without layout remains supported")
 	for bad in [false, {"version": 999}]:

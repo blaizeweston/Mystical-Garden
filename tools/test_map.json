@@ -233,7 +233,7 @@
       "files": ["heart_visuals.gd", "tests/support/garden_case.gd"]
     },
     "knowledge": {
-      "label": "Knowledge research and Garden unlocks",
+      "label": "Immediate Heart research, Knowledge accounting and Garden unlocks",
       "files": [
         "heart_catalog.gd",
         "heart_progress.gd"
@@ -1502,8 +1502,8 @@
     ]
   },
   "suites": {
-    "wild_flora_coop": {"kind":"pair","systems":["wild_flora","seeds","network_session","expeditions","items","world_snapshot","guest_replication","expedition_participation","departure_settlement"],"profile":"terrain","package":false},
-    "wild_flora_party": {"kind":"party","systems":["wild_flora","seeds","network_session","expeditions","items","world_snapshot","guest_replication","expedition_participation","departure_settlement"],"profile":"terrain","package":false},
+    "wild_flora_coop": {"kind":"pair","systems":["wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},
+    "wild_flora_party": {"kind":"party","systems":["wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},
     "wild_flora_generation": {"kind":"unit","systems":["wild_flora","seeds","hex_terrain","terrain"],"profile":"terrain","package":false},
     "wild_flora_harvest": {"kind":"unit","systems":["wild_flora","seeds","items","expeditions","persistence_operations","expedition_participation","player_lifecycle"],"profile":"terrain","package":false},
     "legacy_departure_rejoin": {"kind":"pair","systems":["expedition_statistics","expedition_participation","departure_settlement","network_session","persistence_operations"],"package":false},
@@ -3790,7 +3790,7 @@
       ],
       "package": true
     },
-    "timed_research": {
+    "heart_foundation": {
       "kind": "unit",
       "systems": ["garden_development",
         "knowledge",
@@ -5287,12 +5287,6 @@
         "systems": ["thorn_affinity", "combat_affinity_contracts"],
         "additive": true
       },
-      "experimental_heart_assimilation": {
-        "systems": [
-          "hex_terrain"
-        ],
-        "additive": true
-      },
       "growth_balance": {
         "systems": [
           "cultivation_growth"
@@ -5837,19 +5831,10 @@
           ]
         },
         "saved_garden_layout_5": {
-          "systems": [
-            "garden_development"
-          ]
+          "systems": ["garden_development", "knowledge", "persistence_operations"]
         },
         "saved_garden_layout_6": {
-          "systems": [
-            "garden_development"
-          ]
-        },
-        "saved_garden_layout_7": {
-          "systems": [
-            "garden_development"
-          ]
+          "systems": ["garden_development", "knowledge", "persistence_operations"]
         },
         "saved_garden_layout_8": {
           "systems": [
@@ -5893,7 +5878,7 @@
         },
         "retire_hidden_heart": {"systems": ["garden_heart_view"]},
         "forest_query_boundary": {"systems": ["garden_canopy"]},
-        "imported_heart_binding": {"systems": ["garden_heart_view"]},"canopy_import": {"systems": ["garden_canopy"]}, "canopy_view_fields": {"systems": ["garden_canopy"]}, "canopy_configuration": {"systems": ["garden_canopy"]}, "canopy_initial_boundary": {"systems": ["garden_canopy"]}, "canopy_reveal": {"systems": ["garden_canopy"]}, "canopy_expand": {"systems": ["garden_canopy"]}, "canopy_apply_layout": {"systems": ["garden_canopy"]}, "playtest9_transaction_acceptance_4": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_3": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_2": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_1": {"systems": ["garden", "knowledge", "persistence_operations"]}, "ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
+        "imported_heart_binding": {"systems": ["garden_heart_view"]},"canopy_import": {"systems": ["garden_canopy"]}, "canopy_view_fields": {"systems": ["garden_canopy"]}, "canopy_configuration": {"systems": ["garden_canopy"]}, "canopy_initial_boundary": {"systems": ["garden_canopy"]}, "canopy_reveal": {"systems": ["garden_canopy"]}, "canopy_expand": {"systems": ["garden_canopy"]}, "canopy_apply_layout": {"systems": ["garden_canopy"]}, "playtest9_transaction_acceptance_4": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_3": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_1": {"systems": ["garden", "knowledge", "persistence_operations"]}, "ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "class_tree_access.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "fire_combat.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}}},
 
@@ -6223,9 +6208,7 @@
           ]
         },
         "saved_garden_layout_3": {
-          "systems": [
-            "garden_development"
-          ]
+          "systems": ["garden_development", "knowledge", "persistence_operations"]
         },
         "saved_garden_layout_4": {
           "systems": [
@@ -6270,11 +6253,6 @@
           ]
         },
         "growth_backup_flag": {
-          "systems": [
-            "cultivation_growth"
-          ]
-        },
-        "apply_milestone_growth_balance": {
           "systems": [
             "cultivation_growth"
           ]
@@ -7522,11 +7500,6 @@
           ]
         },
         "ui_copy_12": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_11": {
           "systems": [
             "ui_copy"
           ]

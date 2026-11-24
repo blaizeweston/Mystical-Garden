@@ -22,7 +22,7 @@ func run() -> void:
 	var mature := sculpt.get_node("HeartStage5") as MeshInstance3D
 	var ids: Array = Heart.Research.DEFINITIONS.map(func(entry): return entry.id)
 	mature.position = Vector3.ZERO
-	mature.scale = Heart.research_scale(Heart.Growth.count(ids))
+	mature.scale = Heart.research_scale(maxi(22, Heart.Growth.count(ids))) # Pre-HG01 build reservation.
 	var pose := sculpt.transform * mature.transform
 	var canopy_points := PackedVector2Array()
 	var base_vertices := 0

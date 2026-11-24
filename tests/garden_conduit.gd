@@ -19,7 +19,7 @@ func run() -> void:
  g.knowledge=300;p.pos=game.Stage.HEART
  for tech in ["clearing_1","clearing_2","flowering","irrigation","plot_4"]:
   if tech=="plot_4":check(not g.heart.requirements(g,"living_conduit").is_empty(),"tool requires its usable bed as well as clearing and irrigation")
-  game.garden_action(1,"heart_confirm:"+JSON.stringify({"id":tech,"plan":{}}));g.advance_research(10000)
+  game.garden_action(1,"heart_start_"+tech)
   check(g.heart.has(tech),"normal research completes "+tech)
  # Supply an already-owned fourth bed; physical purchasing is covered by experimental_terrain.
  g.plots.append(g.empty_plot());game.stage.experimental_garden.adopt_recorded_beds();game._process(.016)
@@ -42,8 +42,8 @@ func run() -> void:
  check(game.garden_commands.command(1,JSON.stringify({"point":point.id,"action":"observe","request":"terrace","revision":0})).get("changed",false),"existing observation handler records terrace")
  check(game.garden_commands.projection(1).clues.get(point.observation,"").contains("Altar") and g.knowledge==knowledge and game.rng.state==rng_before,"existing refinement clue grants no reward or RNG draw")
  var species: int=game.Seeds.index_of("whispervine");plant(game,species,3);var original: Dictionary=g.plots[3].care.duplicate(true)
- p.pos=game.Stage.HEART;game.garden_action(1,"heart_confirm:"+JSON.stringify({"id":"living_conduit","plan":{}}));check(g.heart.active=="living_conduit","new node uses existing focused research queue")
- g.advance_research(10000);check(g.heart.has("living_conduit"),"research unlocks the usable tool")
+ p.pos=game.Stage.HEART;game.garden_action(1,"heart_start_living_conduit");check(g.heart.has("living_conduit"),"new node uses existing focused research queue")
+ check(g.heart.has("living_conduit"),"research unlocks the usable tool")
  p.pos=point.position;var path: String=g.path;g.path=base+"-missing/config"
  check(choose(game,"deep").has("error") and Conduit.state(g).mode=="gentle","failed configuration save rolls back")
  g.path=path;check(choose(game,"deep").get("changed",false),"host changes next-cycle policy")

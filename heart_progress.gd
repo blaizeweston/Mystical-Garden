@@ -1,80 +1,48 @@
 extends RefCounted
-const Batch = preload("res://save_batch.gd")
-const Catalog=preload("res://heart_catalog.gd")
-const Seeds=preload("res://seed_catalog.gd")
-var unlocked: Array=["heart"]
-var paid: Array=[]
-var progress: Dictionary={}
-var natural: Dictionary={}
-var infused: Dictionary={}
-var material_choice: String=""
-var active: String=""
-var work: Dictionary={}
-const SECONDS_PER_POINT:=120.0
-# Partial research joins other Garden saves and checkpoints every 30 work-seconds.
-const SAVE_WORK_SECONDS := 30.0
-const WILDS_RATE:=3.0
-const MIN_DURATION:=60.0
-const OFFER_SECONDS:=60.0
-const OFFER_PARTS:=2
-var spent: int=0
-var offered: Array=[]
+const Catalog = preload("res://heart_catalog.gd")
+const VERSION := 3
+var unlocked: Array = ["heart"]
+var spent := 0
+var offered: Array = []
 
 func has(id: String) -> bool:
 	return unlocked.has(id)
 
 func serialize() -> Dictionary:
-	return {"version":2,"work":work.duplicate(),"material_choice":material_choice,"unlocked":unlocked.duplicate(),"paid":paid.duplicate(),"progress":progress.duplicate(),"natural":natural.duplicate(),"infused":infused.duplicate(),"active":active,"spent":spent,"offered":offered.duplicate()}
+	return {"version": VERSION, "unlocked": unlocked.duplicate(), "spent": spent, "offered": offered.duplicate()}
 
 func restore(data: Dictionary) -> void:
-	work=data.get("work",{}).duplicate()
-	unlocked=data.unlocked.duplicate()
-	paid=data.paid.duplicate()
-	progress=data.progress.duplicate()
-	natural=data.natural.duplicate()
-	infused=data.infused.duplicate()
-	material_choice=str(data.get("material_choice",""))
-	active=str(data.active)
-	spent=int(data.spent)
-	offered=data.offered.duplicate()
+	unlocked.assign(data.unlocked)
+	spent = data.spent
+	offered.assign(data.offered)
 
-func load_state(file: ConfigFile,owner: RefCounted) -> bool:
-	var data=file.get_value("heart","state",{})
-	owner.needs_research_backup=data is Dictionary and data.get("version",0)==1
-	unlocked=["heart"];paid=[];progress={};natural={};infused={};active="";work={};spent=0;offered=[]
-	var legacy: bool=not (data is Dictionary and data.get("version",0) in [1,2])
-	if not legacy:
-		for field in ["unlocked","paid"]:
-			var values=data.get(field,[])
-			if values is Array:
-				for id in values:
-					if id is String and not Catalog.get_node(id).is_empty() and not get(field).has(id): get(field).append(id)
-		for field in ["progress","natural","infused"]:
-			var values=data.get(field,{})
-			if values is Dictionary:
-				for id in values:
-					var node:=Catalog.get_node(str(id))
-					if not node.is_empty() and values[id] is int:
-						get(field)[str(id)]=clampi(values[id],0,int(node.research) if field=="progress" else 1000000)
-		var saved_work=data.get("work",{})
-		if saved_work is Dictionary:
-			for id in saved_work:
-				if not Catalog.get_node(str(id)).is_empty() and (saved_work[id] is int or saved_work[id] is float) and is_finite(float(saved_work[id])): work[id]=clampf(float(saved_work[id]),0,duration(str(id)))
-		material_choice=str(data.get("material_choice",""))
-		active=str(data.get("active",""))
-		if not paid.has(active) or has(active) or not Catalog.enabled(active): active=""
-		spent=maxi(0,int(data.get("spent",0))) if data.get("spent",0) is int else 0
-		# Remove only obsolete spending above the cost of supported purchases.
-		if data.get("paid") is Array:
-			var retired_cost := 6 * int(data.paid.has("rift_hook")) + 12 * int(data.paid.has("perfect_recollection"))
-			var retained_cost := 0
-			for id in paid: retained_cost += int(Catalog.get_node(id).insight)
-			spent -= clampi(spent - retained_cost, 0, retired_cost)
-		var gifts=data.get("offered",[])
-		if gifts is Array:
-			for part in gifts:
-				if part is int and owner.Parts.is_monster(part) and not offered.has(part): offered.append(part)
+func load_state(file: ConfigFile, owner: RefCounted) -> bool:
+	var data: Dictionary = file.get_value("heart", "state", {})
+	var legacy := data.is_empty() or int(data.get("version", 0)) == 0
+	unlocked = ["heart"]
+	spent = maxi(0, data.spent) if data.get("spent") is int else 0
+	offered.clear()
+	if data.get("unlocked") is Array:
+		for id in data.unlocked:
+			if id is String: unlock_direct(id)
+	if data.get("offered") is Array:
+		for part in data.offered:
+			if part is int and owner.Parts.is_monster(part) and not offered.has(part):
+				offered.append(part)
+	if data.get("version") in [1, 2] and data.get("paid") is Array:
+		var receipts: Array = []
+		var retained_cost := 0
+		for id in data.paid:
+			if id is String and Catalog.enabled(id) and not receipts.has(id):
+				receipts.append(id)
+				retained_cost += int(Catalog.get_node(id).insight)
+				unlock_direct(id)
+		# Historic purchases recorded IDs and an aggregate debit. Leave every
+		# supported purchase funded and return only evidenced retired spending.
+		var retired_cost := 5 * int(data.paid.has("infusion")) + 6 * int(data.paid.has("rift_hook")) + 12 * int(data.paid.has("perfect_recollection"))
+		spent -= clampi(spent - retained_cost, 0, retired_cost)
 	if legacy:
+		if file.get_value("garden", "studying_flowering", false) == true: unlock_direct("flowering")
 		for count in range(4,owner.plots.size()+1): unlock_direct("plot_%d"%count)
 		# Pre-tree completion may establish earned, still-supported research and guardian memories.
 		var old_discovery: bool=file.get_value("garden","rift_hook_discovered",false)==true
@@ -90,24 +58,10 @@ func unlock_direct(id: String) -> void:
 	if not has(id) and not Catalog.get_node(id).is_empty(): unlocked.append(id)
 
 func sync_legacy(owner: RefCounted) -> void:
-	if not Catalog.enabled(active): active=""
-	for count in range(4,owner.plots.size()+1): unlock_direct("plot_%d"%count)
+	for count in range(4, owner.plots.size() + 1): unlock_direct("plot_%d" % count)
 	if owner.flowering_unlocked: unlock_direct("flowering")
-	if owner.studying_flowering and not has("flowering") and not paid.has("flowering"):
-		paid.append("flowering")
-		progress.flowering=owner.research_points
-		natural.flowering=owner.research_points
-		if active.is_empty(): active="flowering"
-	for id in progress:
-		if not work.has(id): work[id]=float(progress[id])*SECONDS_PER_POINT
-	if has(active): active=""
+	owner.flowering_unlocked = has("flowering")
 	sync_memories(owner)
-	mirror(owner)
-
-func mirror(owner: RefCounted) -> void:
-	owner.flowering_unlocked=owner.flowering_unlocked or has("flowering")
-	owner.studying_flowering=active=="flowering" and not has("flowering")
-	owner.research_points=owner.FLOWERING_COST if has("flowering") else int(progress.get("flowering",0))
 
 func sync_memories(owner: RefCounted) -> void:
 	if not has("living_archive"): return
@@ -118,11 +72,6 @@ func sync_memories(owner: RefCounted) -> void:
 func available_insight(owner: RefCounted) -> int:
 	return maxi(0,int(owner.knowledge)-spent)
 
-func total_materials(owner: RefCounted) -> int:
-	var total:=0
-	for count in owner.parts: total+=int(count)
-	return total
-
 func requirements(owner: RefCounted,id: String) -> String:
 	var node:=Catalog.get_node(id)
 	if node.is_empty(): return "Unknown memory."
@@ -131,119 +80,25 @@ func requirements(owner: RefCounted,id: String) -> String:
 	for parent in node.parents:
 		if not has(parent): return "Requires "+str(Catalog.get_node(parent).name)+"."
 	if owner.knowledge<int(node.knowledge): return "Requires %d lifetime Knowledge."%int(node.knowledge)
-	if not paid.has(id):
-		if available_insight(owner)<int(node.insight): return "Need %d available Knowledge."%int(node.insight)
+	if available_insight(owner)<int(node.insight): return "Need %d available Knowledge."%int(node.insight)
 	return ""
 
-func material_plan(owner: RefCounted,amount: int) -> Dictionary:
-	return plan_materials(owner.parts,material_choice,amount)
+func purchase(owner: RefCounted, id: String) -> String:
+	var refusal := requirements(owner, id)
+	if not refusal.is_empty(): return refusal
+	var node := Catalog.get_node(id)
+	spent += int(node.insight)
+	complete(owner, id)
+	return "%s unlocked." % node.name
 
-static func plan_materials(parts: Array,choice: String,amount: int) -> Dictionary:
-	var plan: Dictionary={};var order: Array=[]
-	for i in parts.size():
-		if choice.is_empty() or str(Seeds.DEFINITIONS[i].id)==choice: order.append(i)
-	order.sort_custom(func(a,b): return int(Seeds.DEFINITIONS[a].tier)<int(Seeds.DEFINITIONS[b].tier) if int(Seeds.DEFINITIONS[a].tier)!=int(Seeds.DEFINITIONS[b].tier) else a<b)
-	var left:=amount
-	for i in order:
-		var take:=mini(maxi(0,int(parts[i])),left)
-		if take>0: plan[str(Seeds.DEFINITIONS[i].id)]=take;left-=take
-	return {"parts":plan,"missing":left}
-func spend_materials(owner: RefCounted,amount: int) -> bool:
-	var plan:=material_plan(owner,amount)
-	if int(plan.missing)>0: return false
-	for id in plan.parts: owner.parts[owner.Seeds.index_of(id)]-=int(plan.parts[id])
-	return true
-func capture(owner: RefCounted) -> Dictionary:
-	var flags: Dictionary={}
-	for field in ["knowledge","flowering_unlocked","studying_flowering","research_points"]:
-		flags[field]=owner.get(field)
-	return {"state":serialize(),"parts":owner.parts.duplicate(),"plots":owner.plots.duplicate(true),"flags":flags}
-
-func rollback(owner: RefCounted,before: Dictionary) -> void:
-	restore(before.state)
-	owner.parts.assign(before.parts)
-	owner.plots.assign(before.plots)
-	for field in before.flags: owner.set(field,before.flags[field])
-
-func start(owner: RefCounted,id: String) -> String:
-	sync_legacy(owner)
-	var error:=requirements(owner,id)
-	if not error.is_empty(): return error
-	var before:=capture(owner)
-	var node:=Catalog.get_node(id)
-	if not paid.has(id):
-		spent+=int(node.insight)
-		paid.append(id)
-	active=id
-	mirror(owner)
-	if not Batch.guarded_active() and owner.save_garden()!=OK:
-		rollback(owner,before)
-		return "Could not save the upgrade. Knowledge was returned."
-	return "%s restored."%node.name if has(id) else "Researching %s. It advances naturally, three times faster in the Wilds. Plant offerings speed it up; switching focus preserves progress."%node.name
-
-func complete(owner: RefCounted,id: String) -> void:
-	var node:=Catalog.get_node(id)
-	if node.is_empty(): return
+func complete(owner: RefCounted, id: String) -> void:
+	var node := Catalog.get_node(id)
+	if node.is_empty() or has(id): return
 	unlock_direct(id)
-	progress[id]=int(node.research)
-	work[id]=duration(id)
-	if active==id: active=""
-	if node.has("plots") and not owner.get("player_placed_beds"):
-		while owner.plots.size()<int(node.plots): owner.plots.append(owner.empty_plot())
-	mirror(owner)
+	if node.has("plots") and not owner.player_placed_beds and owner.garden_development.is_empty():
+		while owner.plots.size() < int(node.plots): owner.plots.append(owner.empty_plot())
+	if id == "flowering": owner.flowering_unlocked = true
 	sync_memories(owner)
-
-func duration(id: String) -> float:
-	return maxf(MIN_DURATION,float(Catalog.get_node(id).get("research",0))*SECONDS_PER_POINT)
-
-func add_work(owner: RefCounted,seconds: float) -> String:
-	sync_legacy(owner)
-	if active.is_empty() or seconds<=0:return ""
-	var id=active;var node=Catalog.get_node(id)
-	work[id]=minf(duration(id),float(work.get(id,0))+seconds)
-	progress[id]=mini(int(node.research),floori(float(work[id])/SECONDS_PER_POINT))
-	if float(work[id])>=duration(id):
-		complete(owner,id);return "%s restored."%node.name
-	mirror(owner)
-	return ""
-
-func advance(owner: RefCounted,points: int) -> String:
-	sync_legacy(owner)
-	if active.is_empty() or points<=0:return ""
-	natural[active]=int(natural.get(active,0))+points
-	return add_work(owner,points*SECONDS_PER_POINT)
-
-static func progression_work(seconds: float, in_wilds: bool) -> float:
-	return seconds * (WILDS_RATE if in_wilds else 1.0)
-
-func checkpoint_due(seconds: float,in_wilds: bool) -> bool:
-	if active.is_empty() or seconds <= 0: return false
-	var current := float(work.get(active, 0.0))
-	var next := current + progression_work(seconds, in_wilds)
-	# Floor settlement writes all partial work. During combat, only an actual
-	# unlock needs its own transaction.
-	return next >= duration(active) or (not in_wilds and floori(current / SAVE_WORK_SECONDS) != floori(next / SAVE_WORK_SECONDS))
-
-func tick(owner: RefCounted,seconds: float,in_wilds: bool) -> String:
-	if active.is_empty() or seconds<=0:return ""
-	if Batch.guarded_active() or not checkpoint_due(seconds, in_wilds):
-		return add_work(owner, progression_work(seconds, in_wilds))
-	var before=capture(owner)
-	var message=add_work(owner,progression_work(seconds,in_wilds))
-	if owner.save_garden()!=OK:
-		rollback(owner,before);return "Research could not be saved; progress will retry."
-	return message
-
-func infuse(owner: RefCounted) -> String:
-	sync_legacy(owner)
-	if active.is_empty():return "Choose a research project in the Heart tree."
-	var id=active;var node=Catalog.get_node(id);var before=capture(owner)
-	if not spend_materials(owner,OFFER_PARTS):return "Need two shared plant parts in the selected offering."
-	infused[id]=int(infused.get(id,0))+1
-	var message=add_work(owner,OFFER_SECONDS*(2.0 if has("infusion") else 1.0))
-	if not Batch.guarded_active() and owner.save_garden()!=OK:
-		rollback(owner,before);return "Could not save the offering. Materials were returned."
-	return message if not message.is_empty() else "%s: %ds remaining."%[node.name,ceili(duration(id)-float(work.get(id,0)))]
 
 func clearing_bonus() -> int:
 	var result:=0
@@ -274,20 +129,5 @@ func snapshot(owner: RefCounted) -> Dictionary:
 	result["phase"]=phase(owner)
 	result["insight"]=available_insight(owner)
 	result["knowledge_available"]=available_insight(owner)
-	result["remaining_seconds"]=maxf(0,duration(active)-float(work.get(active,0))) if not active.is_empty() else 0.0
-	result["wilds_rate"]=WILDS_RATE
-	result["seconds_per_point"]=SECONDS_PER_POINT
-	result["minimum_seconds"]=MIN_DURATION
-	result["offering_seconds"]=OFFER_SECONDS*(2.0 if has("infusion") else 1.0)
-	result["offering_cost"]=OFFER_PARTS
 	result["clearing"]=clearing_bonus()
 	return result
-
-func matches_plan(proposed,expected: Dictionary) -> bool:
-	if not proposed is Dictionary or proposed.size()!=expected.size(): return false
-	for id in expected:
-		if not proposed.has(id): return false
-		var amount=proposed[id]
-		if not (amount is int or amount is float) or not is_finite(float(amount)): return false
-		if float(amount)!=float(int(amount)) or int(amount)!=int(expected[id]): return false
-	return true
