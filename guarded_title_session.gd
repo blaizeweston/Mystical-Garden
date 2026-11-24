@@ -15,6 +15,10 @@ var _garden_slot := -1
 var _profile_slot := -1
 var _garden_path := ""
 var _profile_path := ""
+# Lease markers expire after 30 seconds. Renew with two full intervals in
+# reserve; a transiently busy native lock gets a retry after one second.
+const RENEW_SECONDS := 8.0
+const BUSY_RETRY_SECONDS := 1.0
 var _heartbeat_at := 0.0
 var _profile_heartbeat_at := 0.0
 var _stagger_heartbeats := false
@@ -287,7 +291,7 @@ func start(progress: RefCounted, local_profile: RefCounted, guest_profile: RefCo
   return _startup_failed(result)
  _heartbeat_at = Time.get_unix_time_from_system()
  _stagger_heartbeats = stagger_heartbeats and _garden != null and _roster != null
- _profile_heartbeat_at = _heartbeat_at - 0.5
+ _profile_heartbeat_at = _heartbeat_at - RENEW_SECONDS * 0.5
  progress.require_guarded_access = true
  local_profile.require_guarded_access = true
  guest_profile.require_guarded_access = true
@@ -323,26 +327,28 @@ func reload_guest(profile: RefCounted) -> Error:
 
 func tick() -> Dictionary:
  var now := Time.get_unix_time_from_system()
- var garden_due := now - _heartbeat_at >= 1.0
- # Keep one write per frame in the experimental session, with the same
- # renewal interval for each marker. After a long frame, the Garden goes first.
- var profile_due := now - _profile_heartbeat_at >= 1.0 and not garden_due if _stagger_heartbeats else garden_due
+ var garden_due := now - _heartbeat_at >= RENEW_SECONDS
+ var profile_due := now - _profile_heartbeat_at >= RENEW_SECONDS if _stagger_heartbeats else garden_due
+ if _stagger_heartbeats and garden_due: profile_due = false
  if not garden_due and not profile_due:
   return Ops.management_result(OK, "")
- if garden_due:
-  _heartbeat_at = now
- if profile_due:
-  _profile_heartbeat_at = now
  if not owns_leases():
   return Ops.management_result(ERR_UNAUTHORIZED, "stale_session_lease")
- if garden_due and _garden != null:
-  var result := outcome(_garden.heartbeat_guarded(_garden_slot))
-  if not completed(result) and (result.get("state") != "busy" or not owns_leases()):
-   return result
- if profile_due and _roster != null:
-  var result := outcome(_roster.heartbeat_guarded(_profile_slot))
-  if not completed(result) and (result.get("state") != "busy" or not owns_leases()):
-   return result
+ if garden_due:
+  _heartbeat_at = now
+  if _garden != null:
+   var result := outcome(_garden.heartbeat_guarded(_garden_slot))
+   if not completed(result):
+    if result.get("state") != "busy" or not owns_leases(): return result
+    _heartbeat_at -= RENEW_SECONDS - BUSY_RETRY_SECONDS
+ if profile_due:
+  _profile_heartbeat_at = now
+  if _roster != null:
+   var result := outcome(_roster.heartbeat_guarded(_profile_slot))
+   if not completed(result):
+    if result.get("state") != "busy" or not owns_leases(): return result
+    _profile_heartbeat_at -= RENEW_SECONDS - BUSY_RETRY_SECONDS
+    if not _stagger_heartbeats: _heartbeat_at = minf(_heartbeat_at, _profile_heartbeat_at)
  return Ops.management_result(OK, "")
 
 func release() -> Dictionary:

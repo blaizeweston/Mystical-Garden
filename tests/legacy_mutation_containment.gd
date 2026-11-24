@@ -126,7 +126,7 @@ func run() -> void:
  if mode in ["owner", "contender"]:
   contend(mode)
   return
- check(not Gate.PRODUCTION_CUTOVER_APPROVED and Gate.VERIFIED_WRITERS.is_empty(), "cutover remains closed")
+ check(not Gate.MIGRATED_SAVES_APPROVED and Gate.VERIFIED_WRITERS.is_empty(), "cutover remains closed")
  var menu = load("res://main_menu.tscn").instantiate()
  root.add_child(menu)
  current_scene = menu

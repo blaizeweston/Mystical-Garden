@@ -71,8 +71,16 @@ func restart(expect_commit: bool, expected: Array) -> void:
 	# A fresh OS process inherits only the disposable data root and the
 	# expected hashes. It has no live world, receipts or Finalization.
 	var output := []
-	var arguments := PackedStringArray(["--headless","--path",ProjectSettings.globalize_path("res://"),
-		"--script","res://tests/legacy_departure_outcomes.gd","--","recover",str(expect_commit),expected[0],expected[1]])
+	var arguments := PackedStringArray(["--headless"])
+	var pack := OS.get_environment("MYSTICAL_VALIDATION_PACK")
+	if pack.is_empty():
+		arguments.append_array(["--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/legacy_departure_outcomes.gd"])
+	else:
+		var driver: String = get_script().resource_path
+		check(FileAccess.file_exists(pack) and driver.is_absolute_path(), "restart uses the exact tested package and external driver")
+		if failed: return
+		arguments.append_array(["--path", driver.get_base_dir(), "--main-pack", pack, "--script", driver])
+	arguments.append_array(["--","recover",str(expect_commit),expected[0],expected[1]])
 	var code := OS.execute(OS.get_executable_path(),arguments,output,true)
 	var transcript := "".join(output)
 	check(code == 0 and transcript.contains("Recovered original journal") and not transcript.contains("ERROR:"),"independent recovery process: " + transcript)
@@ -86,7 +94,8 @@ func run() -> void:
 		check(Batch.recover(G)==OK and not FileAccess.file_exists(G+".transaction"),"restart reconciles journal")
 		check(disk()==[args[2],args[3]],"recovery preserves expected canonical bytes")
 		if not failed: print("Recovered original journal")
-		quit(int(failed)); return
+		# Only the parent writes the runner verdict. It checks this process's output and exit.
+		super.quit(int(failed)); return
 	for path in [G,C]: DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	open_world()
 	var player: Dictionary = world.players[1]

@@ -1,8 +1,9 @@
 extends RefCounted
-## Every inventoried production entry must be bound and verified before cutover.
-## There is no settings, feature-flag or environment override for this checkpoint.
+## Release builds always use guarded writers. Bringing older player data into the
+## dedicated release root is a separate deployment decision.
+const Playtest = preload("res://playtest_storage.gd")
 
-const PRODUCTION_CUTOVER_APPROVED := false
+const MIGRATED_SAVES_APPROVED := false
 const Root = preload("res://persistence_root.gd")
 const VALIDATION_ROUTE := &"persistence_production_route_validation"
 const REQUIRED_WRITERS = {
@@ -41,35 +42,37 @@ const CUTOVER_REQUIREMENTS = [
  "desktop_recovery_and_close_acceptance",
  "separate_pc_multiplayer_acceptance",
 ]
-# Record production entry points here only once the actual call sites enforce the
-# scope and both source and packaged writer fixtures cover refusal and success.
+# Evidence inventory for admitting migrated data. Fresh release roots do not import older saves.
 const VERIFIED_WRITERS = []
 # Each entry must reference the reviewed evidence, not a runtime preference.
 # These remain empty until current candidate and deployment acceptance is signed.
 const VERIFIED_REQUIREMENTS = {}
 
-static func evaluate_activation(approved: bool, writers: Array, requirements: Dictionary) -> Dictionary:
+static func evaluate_migration(approved: bool, writers: Array, requirements: Dictionary) -> Dictionary:
  var blockers := PackedStringArray()
  for writer: String in REQUIRED_WRITERS:
   if not writers.has(writer): blockers.append(writer)
  for requirement: String in CUTOVER_REQUIREMENTS:
   var evidence: Variant = requirements.get(requirement, "")
   if not evidence is String or evidence.strip_edges().is_empty(): blockers.append(requirement)
- if not approved: blockers.append("production_cutover_not_approved")
+ if not approved: blockers.append("migrated_saves_not_approved")
  blockers.sort()
  return {"allowed":blockers.is_empty(),"blockers":blockers}
 
 static func startup_refusal() -> String:
- if not PRODUCTION_CUTOVER_APPROVED: return ""
- if not activation_status().allowed:
-  return "The production save cutover is not signed off. No save files were opened."
- return Root.prepare()
+ # Numbered builds are admitted by Playtest.inspect in Diagnostics before the
+ # title opens. Their marker, version and physical root must all match.
+ if Playtest.retail():
+  if not Playtest.refusal.is_empty(): return Playtest.refusal
+  return "" if Playtest.inspected else "The playtest save folder has not been verified."
+ if not OS.has_feature("template_release"): return ""
+ return Root.prepare(MIGRATED_SAVES_APPROVED and migration_status().allowed)
 
 static func default_route(tree: SceneTree) -> bool:
  if tree == null:
   return false
- # An incomplete approved build must refuse startup, never fall back to old IO.
- if PRODUCTION_CUTOVER_APPROVED:
+ # Failures in a release stay on the guarded route and are refused before opening saves.
+ if OS.has_feature("template_release"):
   return true
  # Internal fixture seam. No command line or player preference enables this.
  return (OS.has_feature("editor") or OS.has_feature("debug")) and DisplayServer.get_name() == "headless" and tree.has_meta(VALIDATION_ROUTE) \
@@ -100,5 +103,5 @@ const GROUP_2B_GUARDED_ROUTES = {
  "save_batch.gd::_run_guarded/_recover_guarded": "canonical absence and deletion metadata compensation",
 }
 
-static func activation_status() -> Dictionary:
- return evaluate_activation(PRODUCTION_CUTOVER_APPROVED, VERIFIED_WRITERS, VERIFIED_REQUIREMENTS)
+static func migration_status() -> Dictionary:
+ return evaluate_migration(MIGRATED_SAVES_APPROVED, VERIFIED_WRITERS, VERIFIED_REQUIREMENTS)

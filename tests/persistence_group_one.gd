@@ -204,8 +204,8 @@ func run() -> void:
  var legacy := model()
  legacy.progress.knowledge = 81
  check(legacy.progress.save_garden() == OK and legacy.local_character.save_profile() == OK and not FileAccess.file_exists(G + ".transaction"), "legacy route stays active outside opted-in operation")
- check(not Integration.activation_status().allowed and Integration.VERIFIED_WRITERS.is_empty(), "production remains gated")
- record("legacy_route", {"files": hashes(), "activation": Integration.activation_status()})
+ check(not Integration.migration_status().allowed and Integration.VERIFIED_WRITERS.is_empty(), "older save migration remains gated")
+ record("legacy_route", {"files": hashes(), "activation": Integration.migration_status()})
  world.free()
  other_world.free()
  persisted.free()

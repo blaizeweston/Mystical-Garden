@@ -112,7 +112,9 @@ func _ready() -> void:
 			set_process_unhandled_key_input(false)
 			return
 	production_route = Persistence.default_route(get_tree())
-	if production_route: guarded_persistence = true
+	if production_route:
+		guarded_persistence = true
+		if OS.has_feature("template_release"): import_legacy = false
 	get_tree().auto_accept_quit = true
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = RootUI.make_theme()
@@ -205,7 +207,7 @@ void fragment() {
 		var version: String = Playtest.build().playtest_version
 		var build_label := label(sidebar,version,14,Color("#bfc594"))
 		build_label.name = "PlaytestVersion"
-		print("PLAYTEST READY: %s · protocol %d · %s" % [build_label.text,Network.PROTOCOL,Playtest.build().get("persistence_label","legacy-contained")])
+		print("PLAYTEST READY: %s · protocol %d · %s" % [build_label.text,Network.PROTOCOL,"guarded" if production_route and guarded_persistence and production_backend_ready else "unavailable"])
 		label(sidebar,"Plant affinities",14,Color("#bfc594"))
 		print("PLAYTEST COMBAT: " + preload("res://combat_ruleset.gd").ID)
 	var title_space:=Control.new()
@@ -904,7 +906,7 @@ func _launch_guarded(join: bool) -> void:
 	if has_meta(&"experimental_terrain"):
 		game.set_meta(&"experimental_terrain", true)
 	var session_owner: GuardedSession = game.persistence_session
-	var result := session_owner.start(game.progress, game.local_character, game.guest_character, null if join else storage, selected, garden.get("digest", ""), characters, selected_character, profile.digest, game.has_meta(&"experimental_terrain"))
+	var result := session_owner.start(game.progress, game.local_character, game.guest_character, null if join else storage, selected, garden.get("digest", ""), characters, selected_character, profile.digest, (production_route or game.has_meta(&"experimental_terrain")))
 	if not GuardedSession.completed(result):
 		game.free()
 		notice.text = GuardedSession.notice(result)

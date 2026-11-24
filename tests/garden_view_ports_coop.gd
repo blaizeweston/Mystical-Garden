@@ -38,7 +38,7 @@ func run():
 	base=signals.path_join("garden-view-ports-"+OS.get_cmdline_user_args()[1])
 	# Existing fixture-only guarded title route, restricted to the verified
 	# disposable root. Production activation remains false.
-	check(not Gate.PRODUCTION_CUTOVER_APPROVED,"production writers remain disabled")
+	check(not Gate.MIGRATED_SAVES_APPROVED,"older save migration remains gated")
 	set_meta(Gate.VALIDATION_ROUTE,true)
 	change_scene_to_file(ProjectSettings.get_setting("application/run/main_scene"));await scene_changed
 	var menu:Node=current_scene

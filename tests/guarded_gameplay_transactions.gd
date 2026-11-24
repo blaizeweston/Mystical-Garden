@@ -293,7 +293,7 @@ func run() -> void:
  world.free()
  check(DirAccess.remove_absolute(profile_lease) == OK, "dispose injected expired profile lease")
  verify_cleanup_feedback(stores)
- check(not preload("res://persistence_writer_integration.gd").activation_status().allowed, "production gate disabled")
+ check(not preload("res://persistence_writer_integration.gd").migration_status().allowed, "older save migration stays disabled")
  if not failed: print("PASS: guarded gameplay transactions")
  quit(1 if failed else 0)
 

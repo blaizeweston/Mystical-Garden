@@ -65,13 +65,13 @@ func startup(menu: Node) -> void:
  refused = competing.start(world.progress, world.local_character, world.guest_character, menu.storage, 0, garden_digest, menu.characters, 0, profile_digest, world.has_meta(&"experimental_terrain"))
  check(refused.state == "busy" and owner.owns_leases(), "competing launch cannot release original owner")
  var renewed_before := Slots._save_digest(profile_marker)
- owner._heartbeat_at -= 2.0
+ owner._heartbeat_at -= Session.RENEW_SECONDS + 0.1
  check(Session.completed(owner.tick()) and Slots._save_digest(profile_marker) != renewed_before, "owner renews original store instance")
  lease_marker(profile_marker, OS.get_process_id(), 60)
  var successor := Roster.new()
  check(completed(successor.claim_guarded(0)), "successor acquires expired profile")
  renewed_before = Slots._save_digest(profile_marker)
- owner._heartbeat_at -= 2.0
+ owner._heartbeat_at -= Session.RENEW_SECONDS + 0.1
  check(not Session.completed(owner.tick()), "stale heartbeat refused")
  owner.release()
  check(owner.is_guarded() and not owner.can_write() and not owner.authorizes(profile), "released owner never falls through to unguarded saving")
@@ -97,8 +97,12 @@ func staggered_heartbeat(menu: Node) -> void:
   "experimental session owns both leases before renewal")
  var first_garden := Slots._save_digest(garden_marker)
  var first_profile := Slots._save_digest(profile_marker)
- owner._heartbeat_at -= 2.0
- owner._profile_heartbeat_at -= 2.0
+ owner._heartbeat_at -= 1.1
+ owner._profile_heartbeat_at -= 1.1
+ check(Session.completed(owner.tick()) and Slots._save_digest(garden_marker) == first_garden
+  and Slots._save_digest(profile_marker) == first_profile, "one second of idle play writes neither lease")
+ owner._heartbeat_at -= Session.RENEW_SECONDS + 0.1
+ owner._profile_heartbeat_at -= Session.RENEW_SECONDS + 0.1
  check(Session.completed(owner.tick()) and Slots._save_digest(garden_marker) != first_garden
   and Slots._save_digest(profile_marker) == first_profile, "simultaneously due experimental leases publish only the Garden marker first")
  var garden_after := Slots._save_digest(garden_marker)
@@ -108,12 +112,12 @@ func staggered_heartbeat(menu: Node) -> void:
   and Slots._save_digest(profile_marker) == first_profile and Slots._save_digest(garden_marker) == garden_after,
   "pending profile recovery refuses the second renewal and preserves the evidence and both markers")
  check(DirAccess.remove_absolute(evidence) == OK, "remove fixture-created journal")
- owner._profile_heartbeat_at -= 2.0
+ owner._profile_heartbeat_at -= Session.RENEW_SECONDS + 0.1
  check(Session.completed(owner.tick()) and Slots._save_digest(profile_marker) != first_profile
   and Slots._save_digest(garden_marker) == garden_after, "eligible profile renews separately")
  lease_marker(profile_marker, OS.get_process_id() + 1, 0)
  var foreign := Slots._save_digest(profile_marker)
- owner._heartbeat_at -= 2.0
+ owner._heartbeat_at -= Session.RENEW_SECONDS + 0.1
  check(owner.tick().error == ERR_UNAUTHORIZED and Slots._save_digest(profile_marker) == foreign
   and Slots._save_digest(garden_marker) == garden_after, "foreign profile lease prevents either renewal")
  check(Slots._save_digest(garden) == garden_digest and Slots._save_digest(profile) == profile_digest,
@@ -344,7 +348,7 @@ func run() -> void:
  await process_frame
  check(current_scene.guarded_persistence and Slots._save_digest(selected_path) != "absent", "return retains opt-in and original Garden")
  record("menu_and_developer", {"garden": selected_path, "profile": selected_profile, "developer": developer_path})
- check(not preload("res://persistence_writer_integration.gd").activation_status().allowed, "production remains disabled")
+ check(not preload("res://persistence_writer_integration.gd").migration_status().allowed, "older save migration remains gated")
  current_scene.queue_free();current_scene=null
  await process_frame
  await process_frame

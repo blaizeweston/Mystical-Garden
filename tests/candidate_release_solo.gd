@@ -26,7 +26,7 @@ func until(condition: Callable) -> bool:
  return condition.call()
 
 func run() -> void:
- check(not Gate.PRODUCTION_CUTOVER_APPROVED and Gate.VERIFIED_WRITERS.is_empty() and not Gate.default_route(self),"normal release route stays off")
+ check(not Gate.MIGRATED_SAVES_APPROVED and Gate.VERIFIED_WRITERS.is_empty() and not Gate.default_route(self),"prototype fixture and older save migration stay isolated")
  set_meta(Gate.VALIDATION_ROUTE,true)
  # Negative startup only. All positive startup uses the main scene below.
  var unowned: Node = load("res://world.tscn").instantiate()

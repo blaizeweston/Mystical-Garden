@@ -20,24 +20,24 @@ func run() -> void:
  if "--migration-admit" in OS.get_cmdline_user_args():
   await migrated_admission()
   return
- check(not Gate.activation_status().allowed and not Gate.default_route(self),"production stays inactive")
+ check(not Gate.migration_status().allowed and not Gate.default_route(self),"prototype fixture and older save migration stay isolated")
  var all_writers: Array = Gate.REQUIRED_WRITERS.keys()
  var requirements := {}
  for key in Gate.CUTOVER_REQUIREMENTS: requirements[key] = "fixture evidence only"
- check(Gate.evaluate_activation(true,all_writers,requirements).allowed,"complete sign-off can satisfy the gate")
- check(not Gate.evaluate_activation(false,all_writers,requirements).allowed,"approval is independent")
+ check(Gate.evaluate_migration(true,all_writers,requirements).allowed,"complete sign-off can satisfy the gate")
+ check(not Gate.evaluate_migration(false,all_writers,requirements).allowed,"approval is independent")
  for writer in all_writers:
   var selected := all_writers.duplicate()
   selected.erase(writer)
-  check(Gate.evaluate_activation(true,selected,requirements).blockers.has(writer),"each writer is required: "+writer)
+  check(Gate.evaluate_migration(true,selected,requirements).blockers.has(writer),"each writer is required: "+writer)
  for requirement in Gate.CUTOVER_REQUIREMENTS:
   var selected := requirements.duplicate()
   selected.erase(requirement)
-  check(Gate.evaluate_activation(true,all_writers,selected).blockers.has(requirement),"each deployment requirement is required")
+  check(Gate.evaluate_migration(true,all_writers,selected).blockers.has(requirement),"each deployment requirement is required")
   selected[requirement] = " "
-  check(not Gate.evaluate_activation(true,all_writers,selected).allowed,"empty evidence is not sign-off")
+  check(not Gate.evaluate_migration(true,all_writers,selected).allowed,"empty evidence is not sign-off")
   selected[requirement] = true
-  check(not Gate.evaluate_activation(true,all_writers,selected).allowed,"a boolean is not evidence")
+  check(not Gate.evaluate_migration(true,all_writers,selected).allowed,"a boolean is not evidence")
  var config := Location.policy()
  var roaming := "C:/disposable/profile/AppData/Roaming"
  var account := "C:/disposable/profile"
@@ -63,7 +63,7 @@ func run() -> void:
  check(not FileAccess.file_exists(marker_path),"fixture begins without a guarded marker")
  check(not Location.prepare().is_empty(),"unapproved old-root location is refused")
  check(not FileAccess.file_exists(marker_path),"refusal creates no identity")
- check(not Gate.PRODUCTION_CUTOVER_APPROVED and Gate.VERIFIED_WRITERS.is_empty() and Gate.VERIFIED_REQUIREMENTS.is_empty(),"no acceptance claims or activation added")
+ check(not Gate.MIGRATED_SAVES_APPROVED and Gate.VERIFIED_WRITERS.is_empty() and Gate.VERIFIED_REQUIREMENTS.is_empty(),"no acceptance claims or activation added")
  if not failed: print("PASS: AC-06 cutover readiness ",checks," checks")
  quit(1 if failed else 0)
 
@@ -89,6 +89,13 @@ func native_roundtrip() -> void:
    var stored := file.store_buffer(bytes)
    file.flush()
    return OK if stored and file.get_error() == OK else ERR_FILE_CANT_WRITE)
+ var migrated: Dictionary = JSON.parse_string(original.get_string_from_utf8())
+ migrated.origin = "migration"
+ migrated.manifest_sha256 = "a".repeat(64)
+ var migrated_bytes := JSON.stringify(migrated).to_utf8_buffer()
+ check(change.call(migrated_bytes).error==OK and not Location.prepare().is_empty()
+  and FileAccess.get_file_as_bytes(path)==migrated_bytes,"a migration marker requires explicit admission and is preserved on refusal")
+ check(Location.prepare(true).is_empty(),"reviewed migration rehearsal admits the same marker")
  var invalid: Dictionary = change.call("{malformed".to_utf8_buffer())
  check(invalid.error == OK and invalid.value == OK,"disposable malformed marker injected")
  check(not Location.prepare().is_empty() and FileAccess.get_file_as_string(path) == "{malformed","invalid identity retained and refused")
@@ -108,7 +115,8 @@ func migrated_admission() -> void:
  if failed:
   quit(1)
   return
- check(Location.prepare().is_empty(),"copied root identity accepted by native gate")
+ check(not Location.prepare().is_empty(),"fresh-only release refuses migrated data without approval")
+ check(Location.prepare(true).is_empty(),"approved migration rehearsal accepts the copied root identity")
  var marker: String = "user://" + str(Location.policy().marker)
  var original := FileAccess.get_file_as_bytes(marker)
  var profile_path := "user://saves/characters/slot_1/character.cfg"

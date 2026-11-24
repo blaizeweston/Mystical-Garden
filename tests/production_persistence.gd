@@ -239,7 +239,7 @@ func garden_f5_faults(menu: Node) -> void:
  store.fail_restore=false
 
 func run() -> void:
- check(not Gate.PRODUCTION_CUTOVER_APPROVED and not Gate.default_route(self),"normal startup remains inactive")
+ check(not Gate.MIGRATED_SAVES_APPROVED and not Gate.default_route(self),"prototype fixture uses its original route")
  set_meta(Gate.VALIDATION_ROUTE,true)
  check(Gate.default_route(self),"validation routes through normal title selection")
  var legacy := Garden.new()

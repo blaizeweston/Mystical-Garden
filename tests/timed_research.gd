@@ -16,8 +16,11 @@ func run():
  h.tick(g,10,true);check(h.has("plot_4") and is_equal_approx(h.work.plot_4,h.duration("plot_4")) and g.plots.size()==3,"Wilds research advances three times faster and unlocks construction without placing a bed")
  g.knowledge=400;h.start(g,"flowering");h.tick(g,10,false);g.parts[0]=2
  h.infuse(g);check(g.parts[0]==0 and h.work.flowering==70,"plant offering removes one minute before infusion technology")
+ var research_disk := FileAccess.get_sha256(g.path)
+ h.tick(g,1,false);h.tick(g,10,true)
+ check(h.work.flowering==101 and FileAccess.get_sha256(g.path)==research_disk,"partial Garden and Wilds work advances without rewriting the Garden")
  var before=h.serialize();var path=g.path;g.path="res://.godot/missing-timed-research/fail.cfg"
- h.tick(g,10,true);check(h.serialize()==before,"failed timer save rolls back research")
+ h.tick(g,30,false);check(h.serialize()==before,"failed timer checkpoint rolls back research")
  g.parts[0]=2;h.infuse(g);check(h.serialize()==before and g.parts[0]==2,"failed offering restores parts and research")
  g.path=path;g.save_garden()
  var reload=game.Progress.new();reload.path=path;reload.load_garden()
@@ -31,7 +34,7 @@ func run():
  legacy.save_garden();check(FileAccess.file_exists(path+".old.pre-timed-research-v2.bak"),"migration creates a recovery copy before writing new timers")
  h.unlock_direct("infusion")
  game.garden_action(1,'heart_infusion:'+JSON.stringify({"project":"flowering","plan":{"thorn_bloom":2}}))
- check(h.work.flowering==190,"Infusion technology doubles offering effectiveness")
+ check(h.work.flowering==221,"Infusion technology doubles offering effectiveness")
  game.queue_free();await process_frame
  if not failed:print("PASS: spendable Knowledge, timed research, Wilds acceleration, optional offerings, rollback, persistence and migration")
  quit(1 if failed else 0)

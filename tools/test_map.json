@@ -112,7 +112,7 @@
       "files": ["scout_behavior.gd", "scout_behavior.gd.uid", "enemy_attack_hits.gd", "enemy_attack_hits.gd.uid", "assets/terrain_m02/wilds_boss_layout.gd", "assets/terrain_m02/wilds_boss_layout.gd.uid"]
     },
     "persistence_operations": {
-      "label": "Guarded persistence operations, explicit session holds and activation gate",
+      "label": "Guarded release saves, session leases, recovery holds and migrated-save admission",
       "files": [
         "guest_profile_projection.gd",
         "guest_profile_projection.gd.uid",

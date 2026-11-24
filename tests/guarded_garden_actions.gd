@@ -210,6 +210,30 @@ func gameplay() -> void:
   "offering advances the committed research")
  record("research_start_and_infuse_commit",research_before,{"active":world.progress.heart.active,"feedback":world.status})
  var heart = world.progress.heart
+ var saved_bed: Dictionary = world.progress.plots[0].duplicate(true)
+ var bed: Dictionary = world.progress.empty_plot()
+ bed.species = 0
+ preload("res://garden_crop_state.gd").ensure(bed)
+ preload("res://cultivation_growth.gd").initialize(bed)
+ world.progress.plots[0] = bed
+ var tick_stages: Array[String] = []
+ heart.work.flowering = 0.0
+ world.set_meta(&"guarded_gameplay_test_fault",func(phase,path):
+  if phase=="stage": tick_stages.append(path)
+  return OK)
+ var before_ticks := disk()
+ for second in 29: world.guarded_growth_tick(1.0)
+ check(disk()==before_ticks and tick_stages.is_empty() and heart.work.flowering==29.0 and bed.age==29.0,
+  "29 ordinary ticks accrue crop and research work without a save")
+ world.guarded_growth_tick(1.0)
+ check(tick_stages==[garden_path+".txn_stage"] and disk()[C]==before_ticks[C],
+  "coincident crop and research checkpoints stage just one Garden")
+ var checkpoint := ConfigFile.new()
+ check(checkpoint.load(garden_path)==OK and checkpoint.get_value("heart","state").work.flowering==30.0,
+  "the combined checkpoint persisted the full research interval")
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ world.progress.plots[0] = saved_bed
+ world.progress.sync_plot_flags()
  heart.work.flowering = heart.duration("flowering") - 0.1
  var timer_before := disk()
  var timer_model: Dictionary = heart.serialize()

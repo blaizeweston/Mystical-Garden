@@ -47,7 +47,7 @@ func title() -> Node:
 
 func run() -> void:
  var role := OS.get_cmdline_user_args()[0]
- check(not Gate.default_route(self) and not Gate.PRODUCTION_CUTOVER_APPROVED and Network.PROTOCOL==41,"normal startup stays inactive and protocol 41 is current")
+ check(not Gate.default_route(self) and not Gate.MIGRATED_SAVES_APPROVED and Network.PROTOCOL==41,"prototype fixture uses its original route and protocol 41 is current")
  sync_path = ProjectSettings.globalize_path("user://release-fixtures/four-title-")
  set_meta(Gate.VALIDATION_ROUTE,true)
  if role!="host":

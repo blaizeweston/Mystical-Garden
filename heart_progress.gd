@@ -11,6 +11,8 @@ var material_choice: String=""
 var active: String=""
 var work: Dictionary={}
 const SECONDS_PER_POINT:=120.0
+# Partial research joins other Garden saves and checkpoints every 30 work-seconds.
+const SAVE_WORK_SECONDS := 30.0
 const WILDS_RATE:=3.0
 const MIN_DURATION:=60.0
 const OFFER_SECONDS:=60.0
@@ -219,11 +221,21 @@ func advance(owner: RefCounted,points: int) -> String:
 static func progression_work(seconds: float, in_wilds: bool) -> float:
 	return seconds * (WILDS_RATE if in_wilds else 1.0)
 
+func checkpoint_due(seconds: float,in_wilds: bool) -> bool:
+	if active.is_empty() or seconds <= 0: return false
+	var current := float(work.get(active, 0.0))
+	var next := current + progression_work(seconds, in_wilds)
+	# Floor settlement writes all partial work. During combat, only an actual
+	# unlock needs its own transaction.
+	return next >= duration(active) or (not in_wilds and floori(current / SAVE_WORK_SECONDS) != floori(next / SAVE_WORK_SECONDS))
+
 func tick(owner: RefCounted,seconds: float,in_wilds: bool) -> String:
 	if active.is_empty() or seconds<=0:return ""
+	if Batch.guarded_active() or not checkpoint_due(seconds, in_wilds):
+		return add_work(owner, progression_work(seconds, in_wilds))
 	var before=capture(owner)
 	var message=add_work(owner,progression_work(seconds,in_wilds))
-	if not Batch.guarded_active() and owner.save_garden()!=OK:
+	if owner.save_garden()!=OK:
 		rollback(owner,before);return "Research could not be saved; progress will retry."
 	return message
 

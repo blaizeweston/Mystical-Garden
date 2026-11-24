@@ -50,7 +50,7 @@ flowchart LR
   combat_affinity_contracts["CR02 development build resolution<br/> Catalyst contracts and event provenance"]
   plant_affinities["Explicit plant affinities and material quality for the inactive combat rework"]
   hex_terrain["Standalone M02 hex grid<br/> terrain data<br/> generator and welded surface"]
-  persistence_operations["Guarded persistence operations<br/> explicit session holds and activation gate"]
+  persistence_operations["Guarded release saves<br/> session leases<br/> recovery holds and migrated-save admission"]
   health_pool_hud["Main health pool and floor map layout"]
   persistence_save_access["Opt-in save directory bootstrap and passive inspection"]
   persistence_recovery_plan["Read-only save participant and journal discovery"]

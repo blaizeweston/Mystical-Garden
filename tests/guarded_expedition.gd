@@ -230,6 +230,11 @@ func exercise() -> void:
  world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
  check(world.monster_rewards.pending_count()==1 and world.rng.state==frozen,"duplicate receipt does not reroll")
  var expected_seed_reward: bool = world.battlefield.clear_seed_count(world.participation.depth()) > 0
+ var immediate_wallet = world.wallet_for(actor)
+ var immediate_drops: Array = world.wild_item_drops.duplicate(true)
+ check(immediate_wallet.earned_sparks() > initial_wallet.earned_sparks() and world.flush_kill_rewards()
+  and world.monster_rewards.pending_count()==1 and actor.character.monsters[world.enemy_kind]==0,
+  "mid-floor kill supplies run loot and keeps permanent credit pending")
  var frozen_item: String = world.monster_rewards.pending_receipts()[0].rewards[0].item
  check(not frozen_item.is_empty(),"fixture freezes an actual trophy roll")
  world.encounter.set_hp(-1, 0)
@@ -240,8 +245,8 @@ func exercise() -> void:
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.finish_combat(1,world.tactics.position)
  check(not world.encounter_rewarded and not actor.loot_pending and actor.character.monsters[world.enemy_kind]==0 and world.monster_rewards.pending_count()==1
-  and world.wild_item_drops.is_empty() and world.combat_event_serial==serial and world.rng.state==frozen and disk()==before
-  and world.wallet_for(actor)==initial_wallet and world.run_wallet(actor)==0,"encounter abort keeps the frozen receipt and withholds rewards, drop and cue")
+  and world.wild_item_drops==immediate_drops and world.combat_event_serial==serial and world.rng.state==frozen and disk()==before
+  and world.wallet_for(actor)==immediate_wallet,"encounter abort keeps the frozen receipt and withholds rewards, drop and cue")
  record("encounter_abort",before)
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.finish_combat(1,world.tactics.position)
@@ -465,13 +470,10 @@ func exercise() -> void:
  world.remove_meta(&"guarded_gameplay_test_fault")
  ally.character.xp[departed_class]+=100
  ally.safe_items.clear()
- # Simulate a non-banking operation between departure and the experimental
- # floor checkpoint without starting another terrain session.
- world.set_meta(&"experimental_terrain",true)
+ # A non-banking operation cannot retire a disconnected reward recipient.
  var deferred: Dictionary=world.run_guarded_action(1,Tx.Scope.PAIR,func(effects):
   world.settle_expedition_rewards(effects)
   return true)
- world.remove_meta(&"experimental_terrain")
  check(Tx.committed(deferred.persistence) and world.departure_settlement.blocks_admission(departed_identity)
   and world.monster_rewards.pending_count()==1 and not world.progress.character_records.has(departed_identity),
   "non-banking transaction cannot retire the recipient of frozen Class XP")

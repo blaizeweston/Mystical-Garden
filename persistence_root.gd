@@ -42,12 +42,13 @@ static func valid_marker(value: Variant) -> bool:
  return value.keys().size() == 5 and value.get("manifest_sha256") is String \
   and digest.search(value.manifest_sha256) != null
 
-## Runs before diagnostics/preferences/canonical bootstrap, only after approval.
+## Runs before diagnostics, preferences and canonical bootstrap in an unnumbered release.
 ## Missing markers can initialize a genuinely fresh root, never an existing save.
-static func prepare() -> String:
+static func prepare(allow_migrated := false) -> String:
  var refusal := location_error(OS.get_user_data_dir(), OS.get_environment("APPDATA"), OS.get_environment("USERPROFILE"),
-  str(ProjectSettings.get_setting("application/config/custom_user_dir_name", "")))
+  str(ProjectSettings.get_setting_with_override("application/config/custom_user_dir_name")))
  if not refusal.is_empty(): return refusal
+ if not Auth.replacement_available(): return "The guarded save library is missing or incompatible."
  var path: String = "user://" + str(policy().marker)
  # Godot can create its own logfile before any autoload runs. It is the
  # only additional fresh-root file allowed and passes the same native gate.
@@ -61,7 +62,8 @@ static func prepare() -> String:
    var read_error := existing.get_error()
    existing.close()
    var parser := JSON.new()
-   return OK if read_error == OK and parser.parse(text) == OK and valid_marker(parser.data) else ERR_INVALID_DATA
+   if read_error != OK or parser.parse(text) != OK or not valid_marker(parser.data): return ERR_INVALID_DATA
+   return OK if parser.data.origin == "fresh" or allow_migrated else ERR_UNAUTHORIZED
   var directory := DirAccess.open("user://")
   if directory == null: return ERR_CANT_OPEN
   directory.include_hidden = true

@@ -551,7 +551,8 @@ func _lease_guarded(slot: int, operation: String, roster := false, catalog := ""
 	if not catalog.is_empty():
 		auxiliary.append(catalog)
 		auxiliary.append(catalog + ".tmp")
-	return Ops.run_management(participants, auxiliary, func(context):
+	var marker := ConfigFile.new()
+	var validate := func():
 		if paths(slot) != location or slot >= capacity:
 			return Ops.management_result(ERR_BUSY, "destination_changed")
 		if not catalog.is_empty() and FileAccess.file_exists(catalog + ".tmp"):
@@ -561,7 +562,6 @@ func _lease_guarded(slot: int, operation: String, roster := false, catalog := ""
 			var status := info.load(catalog)
 			if status != OK or slot >= clampi(int(info.get_value("roster", "capacity", COUNT)), COUNT, 128):
 				return Ops.management_result(ERR_INVALID_DATA, "roster_capacity_changed")
-		var marker := ConfigFile.new()
 		var error := marker.load(file) if FileAccess.file_exists(file) else ERR_FILE_NOT_FOUND
 		if error != OK and error != ERR_FILE_NOT_FOUND:
 			return Ops.management_result(error, "session_marker_unreadable")
@@ -572,10 +572,17 @@ func _lease_guarded(slot: int, operation: String, roster := false, catalog := ""
 			return Ops.management_result(ERR_UNAUTHORIZED, "stale_lease")
 		marker.set_value("session", "process_id", OS.get_process_id())
 		marker.set_value("session", "updated", Time.get_unix_time_from_system())
-		var result := Ops.write_metadata(context, file, marker)
-		if result.error == OK:
-			_owned_markers[file] = FileAccess.get_sha256(file)
-		return result)
+		return Ops.management_result(OK, "")
+	var result: Dictionary
+	if operation == "heartbeat":
+		result = Ops.renew_lease(file, marker, validate)
+	else:
+		result = Ops.run_management(participants, auxiliary, func(context):
+			var checked: Dictionary = validate.call()
+			return Ops.write_metadata(context, file, marker) if checked.error == OK else checked)
+	if result.get("ran", false) and result.value is Dictionary and result.value.error == OK:
+		_owned_markers[file] = marker.encode_to_text().sha256_text()
+	return result
 
 func remember_slot_guarded(slot: int) -> Dictionary:
 	var location := paths(slot)

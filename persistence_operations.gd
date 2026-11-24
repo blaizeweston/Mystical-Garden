@@ -8,7 +8,6 @@ const Layout = preload("res://persistence_save_layout.gd")
 const Planner = preload("res://persistence_recovery_plan.gd")
 const Batch = preload("res://save_batch.gd")
 const Inspection = preload("res://persistence_save_inspection.gd")
-const Integration = preload("res://persistence_writer_integration.gd")
 
 const MAX_AUXILIARIES := 64
 const MAX_AUXILIARY_BYTES := 1024 * 1024
@@ -192,7 +191,7 @@ static func write_metadata(context: RefCounted, target: String, file: ConfigFile
   return management_result(ERR_UNAUTHORIZED, "unsupported_metadata_target")
  var scratch := target + ".tmp"
  var checked := run_nested(context, PackedStringArray([target, scratch]), func(_access_context):
-  return _write_metadata_locked(target, scratch, file.encode_to_text().to_utf8_buffer()))
+  return _write_metadata_locked(_native_context, target, scratch, file.encode_to_text().to_utf8_buffer()))
  return checked.value if checked.ran else checked
 
 ## Archive copies precede the canonical transaction. Never overwrite or
@@ -254,6 +253,39 @@ static func archive_copies(context: RefCounted, destinations: Dictionary, fault 
   return complete)
  return checked.value if checked.ran else checked
 
+## A renewal publishes only the session marker. Its destination is fixed, so we
+## can acquire first and inspect once under the native lock. The slot owner
+## rechecks its current digest, expiry and catalog before the marker is written.
+static func renew_lease(marker: String, config: ConfigFile, validate: Callable) -> Dictionary:
+ if Batch.active or _context != null:
+  return management_result(ERR_BUSY, "operation_in_progress")
+ var directory := marker.get_base_dir()
+ var layout := Layout.directories()
+ var participants := PackedStringArray()
+ for leaf in layout.get(directory, []):
+  participants.append(directory.path_join(leaf))
+ if participants.is_empty() or marker != directory.path_join("session.cfg"):
+  return management_result(ERR_UNAUTHORIZED, "lease_scope_rejected")
+ var metadata := Layout.deletion_metadata(participants[0], layout)
+ if metadata.is_empty():
+  return management_result(ERR_UNAUTHORIZED, "lease_scope_rejected")
+ participants.append(metadata)
+ var scratch := marker + ".tmp"
+ var boundary := Authorization.run(participants + PackedStringArray([marker, scratch, metadata + ".tmp"]), func(token):
+  for path in participants:
+   if Batch.guarded_write_pending(path): return management_result(ERR_BUSY, "unresolved_transaction", "pending_recovery")
+  var plan := Planner.discover(participants)
+  if plan.state not in ["healthy", "empty"]:
+   return _refuse(plan.state, plan.reason)
+  if FileAccess.file_exists(scratch) or FileAccess.file_exists(metadata + ".tmp"):
+   return management_result(ERR_BUSY, "metadata_publication_pending", "unresolved")
+  var checked: Dictionary = validate.call()
+  if checked.error != OK: return checked
+  return _write_metadata_locked(token, marker, scratch, config.encode_to_text().to_utf8_buffer()))
+ if not boundary.ran:
+  return _result(boundary.error, "busy" if boundary.error == ERR_BUSY else "invalid", "lease_renewal_refused", boundary.native_error)
+ return boundary
+
 ## A terminal owner may relinquish its lease while recovery remains pending.
 ## This touches only the exact marker. It grants no save or recovery access.
 static func relinquish_lease(marker: String, digest: String) -> Dictionary:
@@ -278,7 +310,7 @@ static func relinquish_lease(marker: String, digest: String) -> Dictionary:
   return _result(boundary.error,"busy" if boundary.error==ERR_BUSY else "invalid","lease_release_refused",boundary.native_error)
  return boundary
 
-static func _write_metadata_locked(target: String, scratch: String, bytes: PackedByteArray) -> Dictionary:
+static func _write_metadata_locked(token: RefCounted, target: String, scratch: String, bytes: PackedByteArray) -> Dictionary:
  if not Authorization.replacement_available():
   return management_result(ERR_UNAVAILABLE, "replacement_backend_unavailable")
  if FileAccess.file_exists(scratch) or DirAccess.dir_exists_absolute(scratch) or DirAccess.dir_exists_absolute(target):
@@ -291,7 +323,7 @@ static func _write_metadata_locked(target: String, scratch: String, bytes: Packe
  var staged := Planner._read_bytes(scratch, MAX_AUXILIARY_BYTES)
  if written != OK or not staged.ok or staged.bytes != bytes:
   return _metadata_abort(scratch, written if written != OK else ERR_FILE_CANT_WRITE)
- var moved := Authorization.replace_authorized(_native_context, scratch, target)
+ var moved := Authorization.replace_authorized(token, scratch, target)
  var current := Planner._read_bytes(target, MAX_AUXILIARY_BYTES) if FileAccess.file_exists(target) else {}
  if current.get("ok", false) and current.bytes == bytes and not FileAccess.file_exists(scratch):
   return management_result(OK, "")
@@ -490,14 +522,6 @@ static func _same_recovery_selection(previous: Dictionary, current: Dictionary) 
  for key in ["state", "requested", "participants", "journal_anchors", "observed"]:
   if previous.get(key) != current.get(key): return false
  return true
-
-static func run_production(paths: PackedStringArray, auxiliaries: PackedStringArray, operation: Callable, expected := {}) -> Dictionary:
- var activation := Integration.activation_status()
- if not activation.allowed:
-  var result := _result(ERR_UNAVAILABLE, "invalid", "production_integration_incomplete")
-  result.blockers = activation.blockers
-  return result
- return run(paths, auxiliaries, operation, expected)
 
 ## Serializers, slot helpers, and recovery helpers must use an existing context.
 ## This entry point cannot extend its scope or grant recovery on a pending plan.

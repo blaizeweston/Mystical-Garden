@@ -62,19 +62,15 @@ func check_block(id: String, outcome: Dictionary, error: Error, reason: String) 
  check(not outcome.ran and outcome.error == error and outcome.reason == reason, id)
  record(id, outcome)
 
-func test_activation(paths: PackedStringArray) -> void:
- var result := Integration.activation_status()
- check(not result.allowed and result.blockers.has("production_cutover_not_approved"), "production remains disabled")
+func test_migration_gate() -> void:
+ var result := Integration.migration_status()
+ check(not result.allowed and result.blockers.has("migrated_saves_not_approved"), "older save migration remains gated")
  for writer in Integration.REQUIRED_WRITERS:
-  check(result.blockers.has(writer), "unverified writer blocks production: "+writer)
+  check(result.blockers.has(writer), "unverified writer blocks migration: "+writer)
  for requirement in Integration.CUTOVER_REQUIREMENTS:
   check(result.blockers.has(requirement), "unmet requirement blocks production: "+requirement)
  for writer in Integration.AUXILIARY_WRITERS:
   check(not result.blockers.has(writer), "auxiliary output is outside canonical scope: "+writer)
- var before := manifest("user://")
- var blocked := Operations.run_production(paths, PackedStringArray(), must_not_run)
- check_block("production_disabled", blocked, ERR_UNAVAILABLE, "production_integration_incomplete")
- check(before == manifest("user://") and not FileAccess.file_exists(Sentinel), "activation check acquired a lock or wrote files")
 
 func test_writers(paths: PackedStringArray, files: PackedStringArray) -> void:
  var empty := Operations.prepare(paths, files)
@@ -195,7 +191,7 @@ func test_recovery(paths: PackedStringArray, files: PackedStringArray) -> void:
 func run() -> void:
  var paths := PackedStringArray([Garden, ProfilePath])
  var files := PackedStringArray([Garden + ".tmp", ProfilePath + ".tmp", Catalog, Catalog + ".tmp", WorldMarker, WorldMarker + ".tmp", RosterMarker, Tombstone])
- test_activation(paths)
+ test_migration_gate()
  var bootstrap := Authorization.bootstrap(PackedStringArray([Garden.get_base_dir(), ProfilePath.get_base_dir(), OtherProfile.get_base_dir()]))
  check(bootstrap.error == OK, "bootstrap disposable directories before preparing scope")
  test_writers(paths, files)

@@ -282,6 +282,9 @@ func _notification(what: int) -> void:
 			return
 		if network_session.role() in ["Host","Solo"] and participation.active():
 			if not expedition_transitions.finish_voluntary(): return
+		elif slot_claimed and not progress.heart.active.is_empty() and not save_session_garden():
+			status = "Could not save research before closing. Please retry."
+			return
 		if character_dirty and persistence_session.can_write():
 			save_local_character()
 		get_tree().quit()
@@ -887,14 +890,14 @@ func award_combat_progress() -> void:
 	flush_kill_rewards()
 
 func _defers_kill_profiles() -> bool:
-	return has_meta(&"experimental_terrain") and persistence_session.is_guarded()
+	return persistence_session.is_guarded()
 
 func flush_kill_rewards() -> bool:
 	if persistence_session.is_blocked():
 		return false
-	# The active experimental floor pays run loot promptly and banks Class XP
+	# The active floor pays run loot promptly and banks Class XP
 	# at a checkpoint. Disconnected profiles use the departure settlement owner.
-	if _defers_kill_profiles() and participation.active():
+	if _defers_kill_profiles() and participation.active() and departure_settlement.is_empty():
 		return true
 	if persistence_session.is_guarded() or (not SaveBatch.active and not departure_settlement.is_empty()):
 		if not monster_rewards.has_pending() and departure_settlement.is_empty():
@@ -1036,6 +1039,8 @@ func _publish_kill_reward_notices(notices: Array[Dictionary], require_profile :=
 		totals[id].xp += int(notice.xp)
 		totals[id].parts += int(notice.parts)
 	for id in totals:
+		# A frozen recipient may lose its transport before reward feedback.
+		if id != HOST and not multiplayer.get_peers().has(id): continue
 		var notice: Dictionary = totals[id]
 		var essence := int(notice.essence) / float(Director.config().essence_sparks_per_point)
 		var message := "+%.2f essence · +%d class XP%s%s" % [essence, notice.xp, " pending" if xp_pending else "", " · Monster part nearby" if notice.parts > 0 else ""]
@@ -1433,14 +1438,23 @@ func extraction_checkpoint_open() -> bool:
 
 func guarded_growth_tick(elapsed: float) -> void:
 	if not persistence_session.can_write(): return
+	var in_wilds := participation.active()
 	var original: Array = progress.plots.duplicate(true)
-	if not progress.advance_growth(elapsed,participation.active()): return
+	var crop_due := progress.advance_growth(elapsed, in_wilds)
+	if not crop_due and not progress.heart.checkpoint_due(elapsed, in_wilds):
+		if not progress.heart.active.is_empty():
+			progress.heart.add_work(progress, progress.heart.progression_work(elapsed, in_wilds))
+		return
+	# Stage the crop and research tick together. An aborted save restores both
+	# to the last simulation tick, ready to cross the boundary again.
 	var updated: Array = progress.plots.duplicate(true)
 	progress.plots.assign(original)
 	progress.sync_plot_flags()
-	Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func():
+	var message := run_heart_save(func():
 		progress.plots.assign(updated)
-		progress.sync_plot_flags())
+		progress.sync_plot_flags()
+		return progress.heart.tick(progress, elapsed, in_wilds))
+	if not message.is_empty(): status = message
 
 func run_heart_save(action: Callable) -> String:
 	var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, action, false)
@@ -1505,9 +1519,6 @@ func _physics_process(delta: float) -> void:
 			growth_clock = 0.0
 			if persistence_session.is_guarded():
 				guarded_growth_tick(elapsed)
-				if persistence_session.can_write() and not progress.heart.active.is_empty():
-					var message := run_heart_save(progress.heart.tick.bind(progress,elapsed,participation.active()))
-					if not message.is_empty(): status = message
 				if stage.experimental_garden != null:
 					stage.experimental_garden.advance_assimilation(elapsed, participation.active())
 			else:
@@ -2149,7 +2160,7 @@ func _process(_delta: float) -> void:
 	session_world.update()
 	if returning_to_title: return
 	if not multiplayer.is_server() and not guest_replication.has_details(): return
-	if not persistence_session.is_guarded() and (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= 1.0:
+	if not persistence_session.is_guarded() and (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= GuardedTitleSession.RENEW_SECONDS:
 		var slots := preload("res://save_slots.gd").new()
 		slots.root_path = slot_storage_root
 		if slot_claimed: slots.heartbeat(active_slot)

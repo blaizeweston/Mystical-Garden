@@ -163,7 +163,7 @@ func roster_test() -> void:
 func run() -> void:
  worlds_test()
  roster_test()
- check(not preload("res://persistence_writer_integration.gd").activation_status().allowed, "production disabled")
+ check(not preload("res://persistence_writer_integration.gd").migration_status().allowed, "older save migration gated")
  if not failed:
   print("PASS: guarded destructive slot and roster operations")
  quit(1 if failed else 0)

@@ -648,7 +648,7 @@ func advance_growth(seconds: float,in_wilds: bool=false) -> bool:
 		var duration: float = preload("res://garden_crop_state.gd").duration(bed,base)
 		var previous_age: float=bed.age
 		bed.age = minf(duration, float(bed.age) + maxf(0,seconds) * preload("res://cultivation_growth.gd").rate(self,bed,in_wilds))
-		changed=changed or int(previous_age/preload("res://cultivation_growth.gd").SAVE_WORK_INTERVAL)!=int(bed.age/preload("res://cultivation_growth.gd").SAVE_WORK_INTERVAL)
+		changed=changed or not in_wilds and int(previous_age/preload("res://cultivation_growth.gd").SAVE_WORK_INTERVAL)!=int(bed.age/preload("res://cultivation_growth.gd").SAVE_WORK_INTERVAL)
 		var stage := 0
 		for i in range(1, 4):
 			if bed.age >= (duration if i==3 else GROWTH_TIMES[i] * base / 80.0):

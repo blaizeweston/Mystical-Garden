@@ -79,14 +79,13 @@ if($PlaytestVersion){
  $metadata.git_commit=$PlaytestCommit
  $metadata.input_manifest_sha256=$InputManifestSha256
  $metadata.save_root="Mystical Garden Playtest $PlaytestVersion"
- $metadata.persistence='legacy with native containment'
+ $metadata.persistence='guarded sessions with a version-specific save root'
+ $metadata.persistence_label='guarded'
  if($ExperimentalTerrain){
   $mode=Get-Content -LiteralPath (Join-Path $project 'assets/terrain_m02/experimental/experiment_mode.gd') -Raw
   $modeVersion=[regex]::Match($mode,'const NETWORK_VERSION := "([a-z0-9-]+)"')
   if(-not $modeVersion.Success){throw 'Experimental terrain version is missing.'}
   $metadata.terrain_mode=$modeVersion.Groups[1].Value
-  $metadata.persistence='guarded experimental sessions with a version-specific save root'
-  $metadata.persistence_label='experimental-terrain'
  }
  $env:MYSTICAL_VALIDATION_DATA_DIR=$metadata.save_root
 }
@@ -121,7 +120,10 @@ try {
   $configuration=[IO.File]::ReadAllText($settings)
   $pattern='(?m)^config/custom_user_dir_name="Mystical Garden Prototype"\r?$'
   if([regex]::Matches($configuration,$pattern).Count -ne 1){throw 'Unexpected committed user-data configuration.'}
-  $configuration=[regex]::Replace($configuration,$pattern,('config/custom_user_dir_name="'+$metadata.save_root+"`"`nconfig/mystical_playtest=true`nconfig/disable_project_settings_override.template_release=true"))
+  $configuration=[regex]::Replace($configuration,$pattern,('config/custom_user_dir_name="'+$metadata.save_root+"`"`nconfig/mystical_playtest=true"))
+  $releaseRoot='(?m)^config/custom_user_dir_name\.template_release="Mystical Garden Guarded 1"\r?$'
+  if([regex]::Matches($configuration,$releaseRoot).Count -ne 1){throw 'Missing guarded release root.'}
+  $configuration=[regex]::Replace($configuration,$releaseRoot,('config/custom_user_dir_name.template_release="'+$metadata.save_root+'"'))
   if($configuration -notmatch '(?m)^\[debug\]'){throw 'Missing Godot debug settings section.'}
   $configuration=[regex]::Replace($configuration,'(?m)^\[debug\]\r?$',"[debug]`nfile_logging/enable_file_logging=false`nfile_logging/enable_file_logging.pc=false")
   if($configuration -match '(?m)^\[editor\]'){throw 'Unexpected existing editor settings section.'}

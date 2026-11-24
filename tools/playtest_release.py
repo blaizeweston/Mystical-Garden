@@ -371,7 +371,9 @@ def _retail_probes(stage, pack, metadata, env, desktop_profile):
     sandbox = stage / "retail"
     sandbox.mkdir()
     version = metadata["playtest_version"]
-    persistence_label = metadata.get("persistence_label", "legacy-contained")
+    persistence_label = metadata["persistence_label"]
+    if persistence_label != "guarded":
+        raise ValueError("Numbered playtests require guarded saves in their version-specific root.")
     combat_ruleset = metadata.get("combat_ruleset", "")
     combat_line = f"PLAYTEST COMBAT: {combat_ruleset}" if combat_ruleset else ""
     ready = re.compile(rf"(?m)^PLAYTEST READY: {re.escape(version)} . protocol {metadata['protocol']} . {re.escape(persistence_label)}$")
@@ -729,8 +731,8 @@ def build(args):
         metadata["godot_version"] = version_info
         metadata["protocol"] = int(re.search(r"(?m)^const PROTOCOL\s*:?=\s*(\d+)", (project / "network_settings.gd").read_text())[1])
         gate = (project / "persistence_writer_integration.gd").read_text()
-        if "const PRODUCTION_CUTOVER_APPROVED := false" not in gate or "const VERIFIED_WRITERS = []" not in gate:
-            raise ValueError("Playtest export requires disabled production persistence.")
+        if "const MIGRATED_SAVES_APPROVED := false" not in gate or "const VERIFIED_WRITERS = []" not in gate:
+            raise ValueError("Numbered playtests must keep migration of older player saves disabled.")
         checks = summarize(project, package, output)
         shutil.copyfile(pack.with_name("export-project.godot"), output / "export-project.godot")
         shutil.copyfile(export_root / "export.log", output / "export.log")

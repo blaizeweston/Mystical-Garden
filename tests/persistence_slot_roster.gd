@@ -215,7 +215,7 @@ func run() -> void:
  test_developer()
  test_leases(worlds)
  var integration = preload("res://persistence_writer_integration.gd")
- check(not integration.activation_status().allowed and integration.VERIFIED_WRITERS.is_empty(), "activation remains disabled")
+ check(not integration.migration_status().allowed and integration.VERIFIED_WRITERS.is_empty(), "activation remains disabled")
  if not failed:
   print("PASS: guarded slot and roster management")
  quit(1 if failed else 0)
