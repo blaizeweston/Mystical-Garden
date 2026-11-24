@@ -30,6 +30,17 @@ func run():
   seen.append(n.id)
  g.knowledge=400;g.parts.fill(500)
  check(h.phase(g)==1,"knowledge begins organic growth")
+ var research_progress=Progress.new()
+ research_progress.knowledge=200
+ var tree=research_progress.heart
+ for blocked in ["wild_harvest","refined_gathering","root_resonance","deep_root_network","reaching_tendrils"]:
+  tree.purchase(research_progress,blocked)
+  check(not tree.has(blocked) and tree.spent==0,"missing prerequisite refuses "+blocked)
+ for row in [["careful_gathering",8],["wild_harvest",10],["refined_gathering",16],["botanical_awareness",6],["root_resonance",12],["checkpoint_deposit",8],["reaching_tendrils",16],["deep_root_network",16]]:
+  var original_spent: int=tree.spent
+  tree.purchase(research_progress,row[0])
+  tree.purchase(research_progress,row[0])
+  check(tree.has(row[0]) and tree.spent==original_spent+row[1] and research_progress.knowledge==200,"exact cost and immediate shared unlock "+row[0])
  var before: Array=g.parts.duplicate()
  h.purchase(g,"cultivation_grounds")
  check(g.plots.size()==3 and h.has("cultivation_grounds") and g.knowledge==400 and h.spent==4 and g.parts==before,"bed permission spends only available Knowledge")
@@ -116,20 +127,20 @@ func run():
  check(ExpeditionCase.is_wild(p),"focused character enters Wilds before checkpoint courier checks")
  ExpeditionCase.set_world(game, {"encounter_number": 6});game.encounter.set_hp(-1, 1);game.encounter.clear_scouts()
  p.pos=game.battlefield.advance;p.carried_seeds.assign([0,1]);p.pouch=true
- check(not game.can_checkpoint_bank(p),"live checkpoint cannot send items")
- game.encounter.set_hp(-1, 0)
- check(game.can_checkpoint_bank(p),"cleared third-gate upgrade gate offers courier")
+ check(not game.can_use_returning_root(p),"historical gate cannot bank during combat")
+ game.encounter.set_hp(-1,0)
+ game.garden_action(1,"bank_seed_0")
+ check(p.carried_seeds==[0,1] and not game.can_use_returning_root(p),"clear gate cannot bank either")
+ ExpeditionCase.returning_root(game,p,"heart-root")
  var unknown_before: int=reserve.unknown.size()
- game.bank_checkpoint_item(1,p,"bank_seed_0")
- check(ExpeditionCase.is_wild(p) and p.carried_seeds==[1] and not p.pouch and reserve.unknown.size()==unknown_before+1,"one seed banks without ending expedition or transferring pouch")
- check(not game.can_checkpoint_bank(p),"one courier item per checkpoint")
- ExpeditionCase.set_world(game, {"encounter_number": 12});p.last_deposit=0;p.carried_parts[trophy]=1
- var valid_path: String=g.path;g.path="res://.godot/no-such-directory/courier.cfg"
- game.bank_checkpoint_item(1,p,"bank_part_%d"%trophy)
- check(p.carried_parts[trophy]==1 and p.last_deposit==0,"courier save failure returns carried material")
- g.path=valid_path
- game.bank_checkpoint_item(1,p,"bank_part_%d"%trophy)
- check(p.carried_parts[trophy]==0 and game.seed_reserve(p).parts[trophy]==1,"courier banks a selected monster material")
+ var bank:=ExpeditionCase.deposit_request(game,p,"unidentified_seed")
+ game.garden_action(1,bank)
+ check(p.carried_seeds.is_empty() and p.safe_items.front().seeds==[0] and reserve.unknown.size()==unknown_before+1 and reserve.unknown.back()==1,"root secures one carried seed while protecting the pouch")
+ check(not game.can_use_returning_root(p),"one unit per root")
+ ExpeditionCase.returning_root(game,p,"heart-second")
+ p.carried_parts[trophy]=1
+ game.garden_action(1,ExpeditionCase.deposit_request(game,p,game.Items.part_id(trophy)))
+ check(p.carried_parts[trophy]==1 and game.can_use_returning_root(p),"trophy provenance is mixed; refusal preserves allowance")
  ExpeditionCase.set_membership(game, p, false);ExpeditionCase.set_world(game, {"depth": 0});ExpeditionCase.set_world(game, {"destination": game.Campaign.GROVE})
  for phase in 5:
   game.stage.update_heart_progress({"phase":phase,"unlocked":h.unlocked})

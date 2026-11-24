@@ -10,7 +10,7 @@ func _initialize() -> void:
 	var field := Field.new()
 	check(field.generate_flora(1, 0).is_empty(), "unconfigured practice floor")
 	field.configure(0, 6, 241, 20)
-	check(field.generate_flora(1, 0).is_empty(), "authored boss lair")
+	check(field.generate_flora(1, 0).is_empty() and not field.generate_returning_root(61,true,[],Vector3.INF).is_finite(), "authored boss lair")
 	field.configure(1, 1, 0)
 	check(field.generate_flora(1, 0).is_empty(), "configured practice floor")
 	verify_species()
@@ -74,6 +74,15 @@ func verify_introductory_placement() -> void:
 
 func sample_terrain(per_band_and_biome: int) -> void:
 	var results := []
+	var roots := {"floors":0,"base_roll":0,"base_placed":0,"improved_roll":0,"improved_placed":0,"base_with_plant":0,"improved_with_plant":0}
+	var bonus_seeds := 0
+	var bonus_parts := 0
+	for i in 10000:
+		var identity := "floor-%d" % (i / 4)
+		var actor := "participant-%d" % (i % 4)
+		bonus_seeds += int(preload("res://wild_flora.gd").bonus_roll(identity,actor,"seed") < 0.25)
+		bonus_parts += int(preload("res://wild_flora.gd").bonus_roll(identity,actor,"refined") < 0.15)
+	print("GATHERING_SAMPLE claims=10000 extra_seeds=",bonus_seeds," refined_parts=",bonus_parts)
 	var species_totals := Seeds.counts()
 	for band in BANDS.size():
 		var low: int = BANDS[band][0]
@@ -90,6 +99,22 @@ func sample_terrain(per_band_and_biome: int) -> void:
 				var rolled := flora_random.randf() < Flora.SPAWN_CHANCE
 				var before := [field.has_seed_cache(), field.cache, field.spawn_points.duplicate(), field.entry, field.advance]
 				var specimen := field.generate_flora(depth)
+				var origin: Vector3 = specimen.get("position",Vector3.INF)
+				var draw := field.root_random(field.configured_key,depth).randf()
+				var base := field.generate_returning_root(depth,false,[],origin)
+				var improved := field.generate_returning_root(depth,true,[],origin)
+				roots.floors += 1
+				roots.base_roll += int(draw < 0.25)
+				roots.improved_roll += int(draw < 0.40)
+				roots.base_placed += int(base.is_finite())
+				roots.improved_placed += int(improved.is_finite())
+				roots.base_with_plant += int(base.is_finite() and origin.is_finite())
+				roots.improved_with_plant += int(improved.is_finite() and origin.is_finite())
+				check(not base.is_finite() or (base==improved and draw<0.25),"upgrade preserves existing root sites")
+				check(improved==field.generate_returning_root(depth,true,[],origin),"repeatable root placement")
+				if improved.is_finite():
+					check(draw<0.40 and not field.navigation_graph.route(Field.planar(field.entry),Field.planar(improved)).is_empty(),"reachable Returning Root")
+					check(not origin.is_finite() or improved.distance_to(origin)>3.15,"flora and root interactions do not overlap")
 				check(specimen == field.generate_flora(depth), "same floor identity repeats")
 				check(before == [field.has_seed_cache(), field.cache, field.spawn_points, field.entry, field.advance], "no terrain/spawn/cache mutation")
 				summary.floors += 1
@@ -116,6 +141,7 @@ func sample_terrain(per_band_and_biome: int) -> void:
 	var species_counts := {}
 	for i in species_totals.size():
 		species_counts[Seeds.DEFINITIONS[i].id] = species_totals[i]
+	print("ROOT_SAMPLE ",JSON.stringify(roots))
 	print("FLORA_SAMPLE ", JSON.stringify({"bands": results, "species": species_counts}))
 
 func check(ok: bool, description: String) -> void:

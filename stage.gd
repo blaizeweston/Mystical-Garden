@@ -56,6 +56,9 @@ var terrain_key := Vector3i(-1, -1, -1)
 var support_hit_until: Array[int] = []
 var last_foe_hp := 0
 var foe_hit_until := 0
+var _root_mesh: MeshInstance3D
+var _root_identity := ""
+var _specimen_light: OmniLight3D
 var _wild_specimen: Node3D
 var _wild_specimen_id := ""
 var _wild_specimen_picked := false
@@ -375,8 +378,43 @@ func show_wild_flora(view: Dictionary, observer: Vector3, wild: bool) -> void:
 		_wild_specimen.scale = Vector3.ONE * (0.72 if picked else 1.25)
 		_wild_specimen_id = identity
 		_wild_specimen_picked = picked
+		_specimen_light = OmniLight3D.new()
+		_specimen_light.light_color = Color("#c0deb0")
+		_specimen_light.light_energy = 0.95
+		_specimen_light.omni_range = 1.15
+		_specimen_light.position.y = 0.48
+		_wild_specimen.add_child(_specimen_light)
 	if _wild_specimen != null:
 		_wild_specimen.visible = nearby
+		_specimen_light.visible = nearby and preload("res://wild_flora.gd").aware(view,observer,visual_field.clear_line)
+
+func show_returning_root(view: Dictionary, observer: Vector3, wild: bool) -> void:
+	var identity := str(view.get("identity","")) if wild else ""
+	if _root_mesh != null and identity != _root_identity:
+		_root_mesh.free()
+		_root_mesh = null
+	if identity.is_empty(): return
+	var nearby := observer.distance_squared_to(view.position) <= preload("res://exploration.gd").SIGHT ** 2
+	if _root_mesh == null and nearby:
+		var bark := ShaderMaterial.new()
+		bark.shader = preload("res://assets/terrain_m02/heart_bark.gdshader")
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		surface.set_material(bark)
+		var vertices := 0
+		for i in 3:
+			var angle := TAU * i / 3.0
+			var path: Array[Vector3] = []
+			for point: Vector3 in [Vector3(0.76,-0.05,0.1),Vector3(0.53,0.18,0.08),Vector3(0.26,0.57,0),Vector3(0.14,0.72,0.11),Vector3(-0.14,0.49,0.2)]:
+				path.append(point.rotated(Vector3.UP,angle))
+			vertices = preload("res://assets/terrain_m02/garden_heart_roots.gd").append_root(surface,{"main":path,"radius":0.19,"branches":[]},vertices)
+		_root_mesh = MeshInstance3D.new()
+		_root_mesh.name = "ReturningRoot"
+		_root_mesh.mesh = surface.commit()
+		_root_mesh.position = WILD_OFFSET + view.position
+		add_child(_root_mesh)
+		_root_identity = identity
+	if _root_mesh != null: _root_mesh.visible = nearby
 
 
 func build_actor(parent: Node3D, scene: PackedScene, leg_prefix: String, count: int) -> Dictionary:

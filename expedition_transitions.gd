@@ -342,7 +342,6 @@ func reset() -> void:
 		player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new()
 		game.AffinityCards.clear(player)
 		player.upgrade_seed=Crypto.new().generate_random_bytes(8).hex_encode().hash()
-		player.last_deposit=0
 		player.carried_parts.fill(0)
 		player.carried_seeds.clear()
 		player.pouch = false

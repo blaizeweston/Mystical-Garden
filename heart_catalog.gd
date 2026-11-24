@@ -129,20 +129,14 @@ const DEFINITIONS := [
 		],
 		"description": "Carry up to 8 monster parts into the Wilds, up from 6."
 	},
-	{
-		"id": "checkpoint_deposit",
-		"name": "Returning Mycelium",
-		"parents": [
-			"seed_archive",
-			"monster_studies"
-		],
-		"insight": 8,
-		"position": [
-			515,
-			650
-		],
-		"description": "Each player can send one seed or material home at every cleared third gate."
-	},
+	{"id": "checkpoint_deposit", "name": "Returning Root", "parents": ["heart"], "insight": 8, "position": [515, 650], "description": "Discover living roots in the Wilds. Each explorer can send one carried seed or plant material home at each root."},
+	{"id": "deep_root_network", "name": "Deep Root Network", "parents": ["checkpoint_deposit"], "insight": 16, "position": [430, 520], "description": "Each explorer can deposit two individual items at each Returning Root."},
+	{"id": "reaching_tendrils", "name": "Reaching Tendrils", "parents": ["checkpoint_deposit"], "insight": 16, "position": [600, 520], "description": "Increase the chance of a Returning Root on eligible floors from 25% to 40%."},
+	{"id": "careful_gathering", "name": "Careful Gathering", "parents": ["heart"], "insight": 8, "position": [1880, 900], "description": "Natural specimens have a 25% chance to yield a second seed of the same species for each explorer."},
+	{"id": "wild_harvest", "name": "Wild Harvest", "parents": ["careful_gathering"], "insight": 10, "position": [1880, 690], "description": "Every natural specimen harvest also yields one ordinary material from that plant."},
+	{"id": "refined_gathering", "name": "Refined Gathering", "parents": ["wild_harvest"], "insight": 16, "position": [1880, 500], "description": "Each explorer also has a 15% chance to gather one refined material from a natural specimen."},
+	{"id": "botanical_awareness", "name": "Botanical Awareness", "parents": ["heart"], "insight": 6, "position": [2050, 900], "description": "Visible, unharvested specimens catch the light within six metres."},
+	{"id": "root_resonance", "name": "Root Resonance", "parents": ["botanical_awareness"], "insight": 12, "position": [2050, 690], "description": "Sense when a floor holds a plant the Garden has yet to identify."},
 	{
 		"id": "living_archive",
 		"name": "Living Archive",

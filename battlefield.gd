@@ -97,9 +97,24 @@ func generate_flora(global_floor: int, starter_species: int = -1, exclusions: Ar
 		place = _starter_flora_position(reserved)
 	return {"species": species, "position": place} if place.is_finite() else {}
 
+static func root_random(key: Vector3i, depth: int) -> RandomNumberGenerator:
+	var random := RandomNumberGenerator.new()
+	random.seed = ("returning-root/v1/%d/%d/%d/%d" % [key.x,key.y,key.z,depth]).sha256_text().left(15).hex_to_int()
+	return random
+
+func generate_returning_root(depth: int, tendrils: bool, exclusions: Array, plant: Vector3) -> Vector3:
+	const Flora = preload("res://wild_flora.gd")
+	if depth < 1 or configured_key.z == 0 or configured_key.x < 0 or boss_kind >= 0: return Vector3.INF
+	var random := root_random(configured_key,depth)
+	if random.randf() >= (Flora.TENDRILS_CHANCE if tendrils else Flora.ROOT_CHANCE): return Vector3.INF
+	var reserved := exclusions.duplicate()
+	reserved.append_array(spawn_points)
+	reserved.append(leader)
+	return _flora_position(random,reserved,plant)
+
 # Try room margins (including side branches) and trail shoulders. Each site must
 # have a walkable connection to an already-certified anchor on the arrival graph.
-func _flora_position(random: RandomNumberGenerator, reserved: Array) -> Vector3:
+func _flora_position(random: RandomNumberGenerator, reserved: Array, plant := Vector3.INF) -> Vector3:
 	var layout: Dictionary = generated.layout
 	var candidates := PackedVector4Array() # anchor x/z followed by proposed x/z
 	for room: String in navigation_graph.room_points:
@@ -123,6 +138,7 @@ func _flora_position(random: RandomNumberGenerator, reserved: Array) -> Vector3:
 	for offset in candidates.size():
 		var site := candidates[(first + offset) % candidates.size()]
 		var point := Vector2(site.z, site.w)
+		if plant.is_finite() and world(point).distance_to(plant) <= 3.15: continue
 		if _flora_site_clear(Vector2(site.x, site.y), point, reserved):
 			return world(point)
 	return Vector3.INF

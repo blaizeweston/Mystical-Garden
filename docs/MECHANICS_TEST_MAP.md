@@ -391,7 +391,7 @@ flowchart LR
 
 | System | Source files | Covering suites |
 |---|---|---|
-| wild_flora | `wild_flora.gd`, `wild_flora.gd.uid`, `wild_flora_generation.gd`, `wild_flora_generation.gd.uid` | `wild_flora_coop`, `wild_flora_party`, `wild_flora_generation`, `wild_flora_harvest`, `world_guidance`, `experimental_terrain`, `exploration_ui` |
+| wild_flora | `returning_root.gd`, `returning_root.gd.uid`, `wild_flora.gd`, `wild_flora.gd.uid`, `wild_flora_generation.gd`, `wild_flora_generation.gd.uid` | `wild_flora_coop`, `wild_flora_party`, `wild_flora_generation`, `wild_flora_harvest`, `world_guidance`, `gameplay_ui`, `experimental_terrain`, `expedition_forfeiture`, `expedition_forfeiture_coop`, `guarded_garden_actions`, `exploration_ui`, `heart_progression` |
 | expedition_statistics | `expedition_statistics.gd`, `expedition_statistics.gd.uid`, `ui/gameplay/expedition_summary.gd`, `ui/gameplay/expedition_summary.gd.uid` | `legacy_departure_rejoin`, `legacy_departure_outcomes`, `expedition_results_rejoin`, `expedition_statistics`, `shared_affinity_status`, `experimental_terrain_coop`, `expedition_forfeiture_coop`, `guarded_expedition`, `four_players_coop` |
 | actor_collision | `assets/terrain_m02/terrain_actor_motion.gd`, `assets/terrain_m02/terrain_actor_motion.gd.uid`, `assets/terrain_m02/terrain_prop_geometry.gd`, `assets/terrain_m02/terrain_prop_geometry.gd.uid` | `terrain_actor_collision`, `heart_build_reservation`, `garden_living_infrastructure`, `garden_construction_inventory`, `garden_layout_persistence`, `garden_layout_transactions`, `ce04_void`, `ce04_spirit`, `modern_terrain_cutover`, `cr02_mode_coop`, `cr02_definitions_mismatch`, `experimental_terrain_coop`, `experimental_terrain`, `garden_construction`, `garden_expansion`, `wilds_boundary`, `wilds_play_floor`, `terrain_botanical_art`, `guarded_gameplay_transactions`, `boss_lairs`, `four_players_coop`, `garden_spring`, `heart_growth_visual`, `projectile_terrain`, `network_movement_coop`, `network_contract`, `network_contract_coop` |
 | garden_development | `garden_development_state.gd`, `garden_development_state.gd.uid`, `garden_structure_inventory.gd`, `garden_structure_inventory.gd.uid`, `garden_structure_catalog.gd`, `garden_structure_catalog.gd.uid`, `garden_irrigation.gd`, `garden_irrigation.gd.uid`, `garden_infrastructure_view.gd`, `garden_infrastructure_view.gd.uid`, `assets/shaders/garden_sprinkler.gdshader`, `assets/shaders/garden_sprinkler.gdshader.uid` | `wild_flora_coop`, `wild_flora_party`, `terrain_actor_collision`, `heart_build_reservation`, `garden_living_infrastructure`, `garden_construction_inventory`, `garden_layout_persistence`, `garden_layout_transactions`, `shared_affinity_party`, `modern_terrain_cutover`, `garden_cinematic_view`, `garden_feature_ui`, `experimental_terrain_coop`, `experimental_terrain`, `garden_offerings_preview`, `garden_knowledge_preview`, `garden_construction`, `garden_expansion`, `candidate_release_solo`, `candidate_release_party`, `serializer_integrity`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `guarded_gameplay_transactions`, `four_players_coop`, `garden_cleanup`, `garden_cleanup_coop`, `garden_cultivation_structures`, `garden_cultivation_structures_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gate_garden_services`, `heart_foundation` |
@@ -528,7 +528,6 @@ flowchart LR
 | `_apply_loadout_action` | classes, characters, weapons, items |
 | `_apply_pending_kill_rewards` | loot |
 | `_apply_run_kill_reward` | loot |
-| `_bank_checkpoint_item` | items, garden_returns |
 | `_capture_pending_departure` | departure_settlement |
 | `_cycle_slot` | weapons, items |
 | `_defers_kill_profiles` | loot |
@@ -580,11 +579,10 @@ flowchart LR
 | `attract_loot` | loot |
 | `available_parts` | weapons |
 | `award_combat_progress` | loot |
-| `bank_checkpoint_item` | items |
 | `bound_position` | terrain |
 | `campaign_snapshot` | foundation |
-| `can_checkpoint_bank` | items |
 | `can_see_item_drop` | loot |
+| `can_use_returning_root` | wild_flora, items |
 | `can_vault` | terrain |
 | `checkpoint_all_ready` | expeditions |
 | `checkpoint_card_data` | expeditions, affinity_cards |
@@ -654,7 +652,7 @@ flowchart LR
 | `next_part` | seeds |
 | `offer_monster` | seeds, garden_stations |
 | `open_checkpoint_cards` | expeditions, combat_affinity_contracts, ui_copy, affinity_cards |
-| `open_deposit_menu` | items |
+| `open_deposit_menu` | wild_flora, items |
 | `open_garden_altar` | seeds |
 | `open_gate_preparation` | expeditions |
 | `open_graft_menu` | weapons |
@@ -732,7 +730,6 @@ flowchart LR
 | `send_wild_flora_harvest` | wild_flora |
 | `settle_expedition_rewards` | loot, persistence_operations, garden_returns |
 | `shared_parts_snapshot` | weapons |
-| `show_checkpoint_deposit` | items |
 | `show_garden_altar` | seeds |
 | `show_gate_preparation` | expeditions |
 | `show_graft_menu` | weapons |
@@ -798,7 +795,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_process` | core_stale_terrain | core_combat |
 | `game.gd::_process` | party_panel | party_ui |
 | `game.gd::_process` | gate_range | gate_access |
-| `game.gd::can_checkpoint_bank` | gate_range | gate_access |
 | `game.gd::at_weapon_gate` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::at_weapon_gate` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
 | `game.gd::at_weapon_gate` | gate_range | gate_access |
@@ -826,10 +822,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_physics_process` | wood_affinity_1 | wood_affinity, combat_affinity_contracts |
 | `game.gd::_physics_process` | thorn_tick | thorn_affinity, combat_affinity_contracts |
 | `game.gd::_physics_process` | growth_balance | cultivation_growth |
-| `game.gd::bank_checkpoint_item` | guarded_garden_actions | persistence_operations, items, ui_copy, garden_returns |
-| `game.gd::bank_checkpoint_item` | guarded_gameplay_writer | persistence_operations |
-| `game.gd::bank_checkpoint_item` | ui_copy | ui_copy |
-| `game.gd::bank_checkpoint_item` | garden_returns | garden_returns |
 | `game.gd::update_pressure` | reinforcement_service | expedition_pressure |
 | `game.gd::at_garden_station` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::at_garden_station` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
@@ -1411,6 +1403,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `garden_altar_panel.gd` | ui_copy_3 | ui_copy |
 | `garden_altar_panel.gd` | ui_copy_1 | ui_copy |
 | `garden_altar_panel.gd` | ui_copy_0 | ui_copy |
+| `heart_catalog.gd` | hg05_exploration_0 | wild_flora, knowledge |
 | `heart_catalog.gd` | hg04_definitions_5 | knowledge, garden_cultivation_structures, garden_development |
 | `heart_catalog.gd` | hg04_definitions_4 | knowledge, garden_cultivation_structures, garden_development |
 | `heart_catalog.gd` | hg04_definitions_3 | knowledge, garden_cultivation_structures, garden_development |
@@ -1983,13 +1976,16 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `assets/enemies/catalog.json` | enemy_attack_plan_0 (colossus.description) | enemy_attack_plan |
 | `assets/enemies/catalog.json` | choir_copy (root_choir.description) | enemy_attack_plan |
 | `assets/data/weapon_template.json` | cb03_template_roll_spread (roll_spread_hp) | weapon_balance |
+| `battlefield.gd` | root_random (method body) | wild_flora |
+| `battlefield.gd` | generate_returning_root (method body) | wild_flora |
 | `battlefield.gd` | generate_flora (method body) | wild_flora |
 | `battlefield.gd` | _flora_position (method body) | wild_flora |
 | `battlefield.gd` | _starter_flora_position (method body) | wild_flora |
 | `battlefield.gd` | _flora_site_clear (method body) | wild_flora |
 | `inventory_model.gd` | garden_or_party_has_seed (method body) | wild_flora |
 | `inventory_model.gd` | _reserve_has_seed (method body) | wild_flora |
-| `inventory_model.gd` | admit_wild_seed (method body) | wild_flora |
+| `inventory_model.gd` | admit_wild_harvest (method body) | wild_flora |
+| `stage.gd` | show_returning_root (method body) | wild_flora |
 | `stage.gd` | show_wild_flora (method body) | wild_flora |
 | `stage.gd` | update_heart_progress (method body) | garden, garden_cinematics, garden_development, garden_heart_view, heart_growth_visual, hex_terrain, persistence_operations, terrain |
 | `stage.gd` | update_plots (method body) | garden, garden_cinematics, garden_development |

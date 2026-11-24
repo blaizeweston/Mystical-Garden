@@ -14,7 +14,7 @@ static func project(facts: Dictionary) -> Dictionary:
 	var result := {"prompt":"","details":"","session_text":""}
 	if facts.wild: _wild(facts,result)
 	else: _garden(facts.garden,result)
-	if facts.courier: result.details+="\nJ · Send one carried find home"
+	if facts.root_access: result.prompt="E  Returning Root · secure a carried resource"
 	if not facts.garden_prompt.is_empty(): result.prompt=facts.garden_prompt
 	if not facts.rescue.is_empty():
 		result.prompt="E  Revive %s · costs them %d maximum HP"%[facts.rescue.name,facts.rescue.cost] if facts.rescue.allowed else "This ally has too little maximum health to revive."
@@ -42,6 +42,7 @@ static func _wild(facts: Dictionary, result: Dictionary) -> void:
 		if facts.offer_floor!=facts.floor: result.details+="\nE  Choose an upgrade   ·   %d Essence"%facts.wallet
 	if facts.flora_near and (facts.cleared or result.prompt.is_empty()):
 		result.prompt="E  Harvest wild specimen"
+		result.details=facts.get("harvest_benefits","")
 	if facts.cache_near: result.prompt="E  Search the abandoned clearing"
 	if facts.graft_near:
 		result.prompt="E  Grafting Altar"

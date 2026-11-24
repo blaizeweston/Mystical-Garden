@@ -46,6 +46,12 @@ func host_run() -> void:
  world._queue_monster_reward("floor-two-pending",0,0,guest.pos,false)
  guest.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  guest.carried_seeds=[1]
+ world.progress.heart.unlocked.append("checkpoint_deposit")
+ guest.carried_parts[1]=1
+ var bank_before: int=world.seed_reserve(guest).parts[1]
+ ExpeditionCase.returning_root(world,guest,"guest-departure")
+ world.garden_action(id,ExpeditionCase.deposit_request(world,guest,world.Items.part_id(1)))
+ check(world.seed_reserve(guest).parts[1]==bank_before+1,"guest secures a plant part before leaving")
  world.send_expedition_state(0,true)
  mark("exit-ready")
  if not await until(func():return marked("save-refused")):
@@ -53,6 +59,7 @@ func host_run() -> void:
   return
  check(not ExpeditionCase.is_wild(guest) and guest.character.xp==original and leader.character.xp[0]>100
   and world.monster_rewards.pending_count()==0 and world.run_wallet(guest)==0,"forfeiture clears guest rewards while keeping teammate rewards")
+ check(world.seed_reserve(guest).parts[1]==bank_before+1 and ExpeditionCase.is_wild(leader),"individual forfeiture preserves deposit while teammate continues")
  var report: Dictionary = world.expedition_statistics.result_for(owner)
  check(report.get("outcome")=="Abandonment" and report.players.size()==2 and report.players[report.personal_index].xp>0 and report.floor==2,"early return freezes two distinct records with gross earned XP")
  check(report.players.any(func(row):return row.outcome=="In the Wilds") and world.ui.visible_expedition_result().is_empty(),"active host keeps playing")

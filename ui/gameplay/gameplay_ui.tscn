@@ -439,13 +439,14 @@ layout_mode = 2
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8745098039215686, 0.8313725490196079, 0.6509803921568628, 1)
 theme_override_font_sizes/font_size = 22
-text = "Returning Mycelium"
+text = "Returning Root"
 
-[node name="Explanation" type="Label" parent="Surface/Overlay/DepositMenu/Courier"]
+[node name="RootAllowance" type="Label" parent="Surface/Overlay/DepositMenu/Courier"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7843137254901961, 0.8196078431372549, 0.6784313725490196, 1)
 theme_override_font_sizes/font_size = 14
-text = "Send one carried item home from this checkpoint."
+text = "Send one carried resource home."
 
 [node name="DepositPick" type="OptionButton" parent="Surface/Overlay/DepositMenu/Courier"]
 unique_name_in_owner = true
@@ -455,7 +456,7 @@ custom_minimum_size = Vector2(420, 0)
 [node name="DepositButton" type="Button" parent="Surface/Overlay/DepositMenu/Courier"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Bank selected item"
+text = "Secure one selected item"
 
 [node name="KeepExploring" type="Button" parent="Surface/Overlay/DepositMenu/Courier"]
 unique_name_in_owner = true
@@ -590,12 +591,12 @@ focus_mode = 0
 [node name="TitleConfirmation" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true
 title = "End this expedition?"
-dialog_text = "Leaving ends the expedition. Your run's Class XP, monster familiarity and carried items (including the safe pouch) will be forfeited. Courier deliveries and progression from earlier expeditions remain."
+dialog_text = "Leaving ends the expedition. Your run's Class XP, monster familiarity and carried items (including the safe pouch) will be forfeited. Returning Root deliveries and progression from earlier expeditions remain."
 ok_button_text = "Return to Main Menu"
 
 [node name="AbandonConfirmation" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true
 title = "Abandon this expedition?"
-dialog_text = "Return to the Garden now? All carried seeds, materials, monster cargo and safe-pouch contents will be lost.\nNo expedition milestone, research or guardian-memory rewards will be granted.\nAll Class XP and monster familiarity earned this run, including earlier cleared floors, will be revoked. Courier deliveries and progression from earlier expeditions remain."
+dialog_text = "Return to the Garden now? All carried seeds, materials, monster cargo and safe-pouch contents will be lost.\nNo expedition milestone, research or guardian-memory rewards will be granted.\nAll Class XP and monster familiarity earned this run, including earlier cleared floors, will be revoked. Returning Root deliveries and progression from earlier expeditions remain."
 ok_button_text = "Abandon & return"
 cancel_button_text = "Keep exploring"

@@ -102,6 +102,8 @@ func host(menu: Node) -> void:
 	game.garden_action(1,"heart_start_cultivation_grounds")
 	if not check(game.progress.knowledge == 4 and game.progress.heart.spent == 4 and garden.funds.energy == 8, "one host purchase and contribution"): return
 	if not await until(func(): return peers.all(func(peer): return read("heart-"+str(peer))=="yes"), "every guest sees both currencies and unlock"): return
+	# Keep waiting guests at the reserved gate approach while the host builds.
+	for peer in peers: game.players[peer].pos=game.stage.gate_position()
 	# Use the same real Garden with more than nine beds before travelling.
 	game.players[1].pos=Vector3(0,0,1.5)
 	game.run_heart_save(func():
@@ -111,13 +113,14 @@ func host(menu: Node) -> void:
 	garden._refresh_parts()
 	if not check(garden.contribute(garden.funds.quote({item:150})), "fund additional construction"): return
 	game.garden_action(1,"heart_start_clearing_1")
+	game.garden_action(1,"heart_start_irrigation")
+	var placement = preload("res://tests/support/garden_placement_case.gd")
+	if not check(placement.deploy_irrigation(garden,"intake",garden.planar(preload("res://garden_water.gd").anchor(game.stage)))>0,"deploy shoreline intake: "+game.status): return
 	if not check(preload("res://tests/support/garden_placement_case.gd").develop(garden,10), "host develops ten placed beds"): return
 	var tenth: int = garden.bed_ids[9]
 	var site := preload("res://tests/support/garden_placement_case.gd").find(garden.construction,"bed",garden.construction.records[tenth].at,0.2,Vector2(0,1.5),tenth)
 	if not check(garden.place("bed",site,0.2,tenth) and garden.construct("bed",game.progress.structures.revision),"relocate tenth and buy one stored bed"): return
-	for tech in ["irrigation","sprinkler_effectiveness","pollination_bloom","pollination_bloom_effectiveness","bud_sanctuary","clearing_2","bud_sanctuary","bud_sanctuary_effectiveness"]: game.garden_action(1,"heart_start_"+tech)
-	var placement = preload("res://tests/support/garden_placement_case.gd")
-	if not check(placement.deploy_irrigation(garden,"intake",garden.planar(preload("res://garden_water.gd").anchor(game.stage)))>0,"deploy shoreline intake"): return
+	for tech in ["sprinkler_effectiveness","pollination_bloom","pollination_bloom_effectiveness","clearing_2","bud_sanctuary","bud_sanctuary_effectiveness"]: game.garden_action(1,"heart_start_"+tech)
 	var sprinkler: int=placement.deploy_irrigation(garden,"sprinkler",site)
 	if not check(sprinkler>0 and game.progress.irrigation.watered_slots.has(9),"host waters relocated tenth bed"): return
 	if not check(placement.deploy_irrigation(garden,"pollination_bloom",site)>0,"host deploys pollinator"): return
@@ -157,12 +160,23 @@ func host(menu: Node) -> void:
 	for actor in game.players.values():
 		check(game.seed_reserve(actor).stock[3]==2 and game.Altar.ancient_count(game,actor)==0,"private fixed contents and one consumption per peer")
 	if not await until(func():return peers.all(func(peer):return read("altar-"+str(peer))=="yes"),"private results and shared recipe replicated"): return
+	game.players[1].pos=game.Stage.HEART
+	for tech in ["careful_gathering","wild_harvest","refined_gathering","botanical_awareness","root_resonance","checkpoint_deposit","deep_root_network","reaching_tendrils"]:
+		game.garden_action(1,"heart_start_"+tech)
+		check(game.progress.heart.has(tech),"host purchased shared "+tech)
 	for peer in game.players: game.players[peer].pos=game.stage.gate_position()
 	game.garden_action(1,"learn_0_66")
 	mark("gate")
 	if not await until(func():return game.players.values().all(func(actor):return Build.departure_refusal(actor).is_empty()),"all players chose a working starting focus"): return
 	if party: mark("full")
-	game.map_rng.seed=16
+	# Pick an ordinary first floor that passes the real independent generation roll.
+	var probe:=RandomNumberGenerator.new()
+	for seed_value in range(16,128):
+		probe.seed=seed_value
+		var key:=Vector3i(game.participation.route(),1,probe.randi_range(1,2147483647))
+		if game.battlefield.root_random(key,1).randf()<0.40:
+			game.map_rng.seed=seed_value
+			break
 	game.PartyTravel.request(game,1,"depart")
 	mark("depart",str(game.participation.travel_epoch()))
 	if not await until(func():return game.participation.participants().size()==expected,"party departed through actual gate"): return
@@ -177,14 +191,28 @@ func host(menu: Node) -> void:
 	check(game.players.values().all(func(actor):return actor.carried_seeds.is_empty()),"distant or invalid requests awarded no seeds")
 	game.players[1].pos=plant.position
 	game.send_action(false)
-	check(game.wild_flora_view(1).claimed and game.players[1].carried_seeds==[plant.species],"host interaction harvested exact shared species")
+	check(game.wild_flora_view(1).claimed and game.players[1].carried_seeds.count(plant.species)>=1,"host interaction harvested exact shared species")
 	for peer in peers:
 		check(not game.wild_flora_view(peer).claimed,"host harvesting left guest claim available")
 		game.players[peer].pos=plant.position
 	mark("claim")
 	if not await until(func():return peers.all(func(peer):return read("claimed-"+str(peer))=="yes"),"guests received private claimed projections"): return
-	for peer in peers:
-		check(game.players[peer].carried_seeds==[plant.species],"exactly one seed with immutable species for "+str(peer))
+	var carried_after: Dictionary={}
+	for peer: int in game.players:
+		var actor: Dictionary=game.players[peer]
+		var returning: Dictionary=game.ReturningRoot.view(game,peer,actor)
+		if not check(not returning.is_empty() and returning.remaining==2,"one generated root with two allowances per explorer"): return
+		var character: String=game._kill_reward_identity(peer,actor)
+		var quantity:=1+int(game.WildFlora.bonus_roll(plant.identity,character,"seed")<0.25)
+		check(actor.carried_seeds.size()==quantity and actor.carried_seeds.count(plant.species)==quantity and actor.carried_parts[game.Seeds.DEFINITIONS[plant.species].part]==1,"authoritative personal bundle")
+		actor.pos=returning.position
+		carried_after[peer]=quantity-1
+	mark("root-deposit")
+	await deposit_pair(game,1,plant)
+	if not await until(func():return peers.all(func(peer):return read("secured-"+str(peer))=="yes"),"every client used both personal deposits"): return
+	for peer: int in game.players:
+		var actor: Dictionary=game.players[peer]
+		check(game.seed_reserve(actor).unknown.has(plant.species) and actor.carried_seeds.size()==carried_after[peer] and actor.carried_parts[game.Seeds.DEFINITIONS[plant.species].part]==0,"one seed and one plant part secured per character")
 	if party and not await until(func():return read("refused")=="yes","fifth client refused"): return
 	if not check(game.participation.advance(game.participation.epoch(),6),"advance authoritative floor"): return
 	game.start_encounter()
@@ -196,7 +224,7 @@ func host(menu: Node) -> void:
 	mark("next",next.identity)
 	if not await until(func():return peers.all(func(peer):return read("stale-"+str(peer))=="yes"),"all guests tried previous-floor requests"): return
 	await tree.create_timer(0.5).timeout
-	for peer in peers: check(not game.wild_flora_view(peer).claimed and game.players[peer].carried_seeds==[plant.species],"old identity and old action stamp rejected")
+	for peer in peers: check(not game.wild_flora_view(peer).claimed and game.players[peer].carried_seeds.size()==carried_after[peer],"old identity and old action stamp rejected")
 	mark("verified")
 	if not party:
 		if not await until(func():return game.players.size()==1,"guest detached during expedition"): return
@@ -207,6 +235,8 @@ func host(menu: Node) -> void:
 	if not await until(func():return read("rejoined")=="yes" if not party else peers.all(func(peer):return read("garden-"+str(peer))=="yes"),"Garden state recovered"): return
 	if not party:
 		check(game.players.size()==2,"same character rejoined once")
+		for actor: Dictionary in game.players.values():
+			check(game.seed_reserve(actor).unknown.has(plant.species) and game.seed_reserve(actor).parts[game.Seeds.DEFINITIONS[plant.species].part]>=1,"deposits survive disconnect, wipe and Garden rejoin")
 		for peer in game.players: check(game.wild_flora_view(peer).is_empty(),"no collectible survives expedition cleanup")
 	game.return_to_main_menu()
 	if await until(func():return tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"host shut down"): mark("offline")
@@ -253,9 +283,13 @@ func guest(menu: Node) -> void:
 	if not await until(func():return read("claim")=="yes" and game.players[peer].pos.distance_to(plant.position)<0.6,"guest in interaction range"): return
 	check(not game.wild_flora_view(peer).claimed,"host's claim is private")
 	game.send_action(false)
-	if not await until(func():return game.wild_flora_view(peer).get("claimed",false) and game.guest_replication.carried_count()==1,"normal guest interaction acquires one seed"): return
+	if not await until(func():return game.wild_flora_view(peer).get("claimed",false) and game.guest_replication.carried_count()>=1,"normal guest interaction acquires one seed"): return
 	game.send_wild_flora_harvest(plant.identity)
 	mark("claimed-"+str(peer))
+	if not await until(func():return read("root-deposit")=="yes" and game.can_use_returning_root(game.players[peer]),"within reach of authoritative root"): return
+	await deposit_pair(game,peer,plant)
+	if failed: return
+	mark("secured-"+str(peer))
 	if not await until(func():return not read("next").is_empty() and game.wild_flora_view(peer).get("identity","")==read("next"),"next floor replaces old projection"): return
 	game.request_wild_flora.rpc_id(1,read("next"),stamp)
 	game.send_wild_flora_harvest(plant.identity)
@@ -283,3 +317,25 @@ func guest(menu: Node) -> void:
 		if not await until(func():return game.wild_flora_view(peer).is_empty() and game.participation.floor()==1,"discard old flora after wipe"): return
 		mark("garden-"+str(peer))
 	await until(func():return read("offline")=="yes" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest observed normal teardown")
+
+func deposit_pair(game: Node, peer: int, plant: Dictionary) -> void:
+	var actor: Dictionary=game.players[peer]
+	var part: String=game.Items.part_id(game.Seeds.DEFINITIONS[plant.species].part)
+	var stamp:=Identity.current_stamp(game,actor)
+	var unit:=0
+	for item: String in ["unidentified_seed",part]:
+		var returning: Dictionary=game.ReturningRoot.view(game,peer,game.players[peer])
+		var command: String=game.ReturningRoot.request(returning,stamp,item)
+		if item == part: game.send_garden_action(game.ReturningRoot.request(returning,stamp,game.Items.Ancient.ITEM))
+		game.send_action(false)
+		var picker: OptionButton=game.ui.get_node("%DepositPick")
+		var option: int=-1
+		for i in picker.item_count:
+			if picker.get_item_metadata(i)==command: option=i
+		if not check(game.ui.panel_is_open("deposit") and option>=0,"interact opens reviewed choice with live allowance"): return
+		picker.select(option)
+		game.ui.get_node("%DepositButton").pressed.emit()
+		game.send_garden_action(command)
+		unit+=1
+		if not await until(func():return game.ReturningRoot.view(game,peer,game.players[peer]).get("used",0)==unit,"receipt for exactly one reviewed unit"): return
+	check(not game.can_use_returning_root(game.players[peer]),"personal capacity exhausted")

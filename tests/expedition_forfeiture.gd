@@ -70,8 +70,9 @@ func run() -> void:
  world.progress.heart.unlocked.append("checkpoint_deposit")
  actor.carried_seeds=[0,1]
  var stored_before: int=world.progress.unknown.size()
- world.bank_checkpoint_item(1,actor,"deposit_seed_0")
- check(world.progress.unknown.size()==stored_before+1 and actor.last_deposit==3,"courier delivery commits before abandonment")
+ ExpeditionCase.returning_root(world,actor,"forfeiture")
+ world.garden_action(1,ExpeditionCase.deposit_request(world,actor,"unidentified_seed"))
+ check(world.progress.unknown.size()==stored_before+1 and not world.can_use_returning_root(actor),"courier delivery commits before abandonment")
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[1]}]
  actor.carried_parts[1]=2
  actor.carried_items={"fixture":1}

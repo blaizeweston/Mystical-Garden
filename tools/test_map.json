@@ -8,7 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
-    "wild_flora": {"label":"Natural Wilds specimens, deterministic selection and per-character harvest","files":["wild_flora.gd","wild_flora.gd.uid","wild_flora_generation.gd","wild_flora_generation.gd.uid"]},
+    "wild_flora": {"label":"Natural Wilds specimens, deterministic selection and per-character harvest","files":["returning_root.gd","returning_root.gd.uid","wild_flora.gd","wild_flora.gd.uid","wild_flora_generation.gd","wild_flora_generation.gd.uid"]},
     "expedition_statistics": {"label":"Host expedition statistics, committed results and summary tabs","files":["expedition_statistics.gd","expedition_statistics.gd.uid","ui/gameplay/expedition_summary.gd","ui/gameplay/expedition_summary.gd.uid"]},
       "actor_collision": {
         "label": "Shared tangent sliding, mesh-fitted walking bodies and low-stone step-over",
@@ -990,10 +990,6 @@
       "items",
       "knowledge"
     ],
-    "_bank_checkpoint_item": [
-      "items",
-      "garden_returns"
-    ],
     "_drop_inventory_stack": [
       "loot",
       "items"
@@ -1323,17 +1319,11 @@
       "seeds",
       "garden_stations"
     ],
-    "can_checkpoint_bank": [
-      "items"
+    "can_use_returning_root": [
+      "wild_flora", "items"
     ],
     "open_deposit_menu": [
-      "items"
-    ],
-    "show_checkpoint_deposit": [
-      "items"
-    ],
-    "bank_checkpoint_item": [
-      "items"
+      "wild_flora", "items"
     ],
     "at_weapon_gate": [
       "foundation"
@@ -1632,7 +1622,7 @@
     "player_build_ui": {"kind": "unit", "systems": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_summary", "progression_ui"], "package": false},
     "garden_cinematic_view": {"kind": "unit", "systems": ["garden_development", "garden_heart_view", "garden_cinematics", "gameplay_ui", "heart_growth_visual", "presentation"], "package": false},
     "garden_feature_ui": {"kind": "unit", "systems": ["garden_development", "garden_feature_ui", "gameplay_ui", "seeds", "items", "expedition_grafts", "persistence_operations"], "package": false},
-    "gameplay_ui": {"kind": "unit", "systems": ["gameplay_ui", "presentation", "affinity_cards", "party_ui"], "package": false},
+    "gameplay_ui": {"kind": "unit", "systems": ["wild_flora", "gameplay_ui", "presentation", "affinity_cards", "party_ui"], "package": false},
     "player_hit_conditions": {"kind": "unit", "systems": ["player_hit_conditions", "combat", "life"], "package": true},
     "player_protection": {"kind": "unit", "systems": ["player_protection", "class_balance", "combat"], "package": true},
     "player_weapon_actions": {"kind": "unit", "systems": ["player_weapon_actions", "weapons", "combat"], "package": true},
@@ -1974,8 +1964,8 @@
       ],
       "package": true
     },
-    "expedition_forfeiture": {"kind": "unit", "systems": ["player_lifecycle", "player_vitals", "player_cooldowns", "departure_settlement", "expedition_wallet", "persistence_operations", "persistence_authorization", "persistence_recovery_plan", "combat", "life", "expeditions", "loot", "connection_flow", "garden_returns", "expedition_sustain", "characters", "event_audio", "encounter_roster", "enemy_tactics", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "network_session"], "package": false},
-    "expedition_forfeiture_coop": {"kind": "pair", "systems": ["expedition_statistics", "player_lifecycle", "player_vitals", "player_cooldowns", "departure_settlement", "expedition_wallet", "world_snapshot", "persistence_operations", "persistence_authorization", "persistence_recovery_plan", "combat", "life", "expeditions", "loot", "connection_flow", "garden_returns", "expedition_sustain", "characters", "event_audio", "encounter_roster", "enemy_tactics", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "network_session"], "package": false},
+    "expedition_forfeiture": {"kind": "unit", "systems": ["wild_flora", "player_lifecycle", "player_vitals", "player_cooldowns", "departure_settlement", "expedition_wallet", "persistence_operations", "persistence_authorization", "persistence_recovery_plan", "combat", "life", "expeditions", "loot", "connection_flow", "garden_returns", "expedition_sustain", "characters", "event_audio", "encounter_roster", "enemy_tactics", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "network_session"], "package": false},
+    "expedition_forfeiture_coop": {"kind": "pair", "systems": ["wild_flora", "expedition_statistics", "player_lifecycle", "player_vitals", "player_cooldowns", "departure_settlement", "expedition_wallet", "world_snapshot", "persistence_operations", "persistence_authorization", "persistence_recovery_plan", "combat", "life", "expeditions", "loot", "connection_flow", "garden_returns", "expedition_sustain", "characters", "event_audio", "encounter_roster", "enemy_tactics", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "network_session"], "package": false},
     "guarded_expedition": {
       "candidate_release": true,
       "kind": "unit",
@@ -2044,7 +2034,7 @@
     "guarded_garden_actions": {
       "candidate_release": true,
       "kind": "unit",
-      "systems": ["garden_development",
+      "systems": ["wild_flora", "garden_development",
         "expedition_wallet",
         "persistence_operations",
         "persistence_authorization",
@@ -3124,7 +3114,7 @@
     },
     "heart_progression": {
       "kind": "unit",
-      "systems": ["garden_heart_view",
+      "systems": ["wild_flora", "garden_heart_view",
         "knowledge",
         "garden",
         "seeds",
@@ -5172,13 +5162,6 @@
           "gate_access"
         ]
       }},
-    "can_checkpoint_bank": {
-      "gate_range": {
-        "systems": [
-          "gate_access"
-        ]
-      }
-    },
     "at_weapon_gate": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"], "additive": true},
       "experimental_terrain_1": {
         "systems": [
@@ -5301,35 +5284,6 @@
         ],
         "additive": true
       }},
-    "bank_checkpoint_item": {
-      "guarded_garden_actions": {
-        "systems": [
-          "persistence_operations",
-          "items",
-          "ui_copy",
-          "garden_returns"
-        ],
-        "additive": true
-      },
-      "guarded_gameplay_writer": {
-        "systems": [
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-      "ui_copy": {
-        "systems": [
-          "ui_copy"
-        ],
-        "additive": true
-      },
-      "garden_returns": {
-        "systems": [
-          "garden_returns"
-        ],
-        "additive": true
-      }
-    },
     "update_pressure": {
       "reinforcement_service": {
         "systems": [
@@ -5649,6 +5603,8 @@
     }},
   "script_functions": {
     "battlefield.gd": {
+      "root_random": ["wild_flora"],
+      "generate_returning_root": ["wild_flora"],
       "generate_flora": ["wild_flora"],
       "_flora_position": ["wild_flora"],
       "_starter_flora_position": ["wild_flora"],
@@ -5657,9 +5613,9 @@
     "inventory_model.gd": {
       "garden_or_party_has_seed": ["wild_flora"],
       "_reserve_has_seed": ["wild_flora"],
-      "admit_wild_seed": ["wild_flora"]
+      "admit_wild_harvest": ["wild_flora"]
     },
-    "stage.gd": {"show_wild_flora": ["wild_flora"], "update_heart_progress": ["garden", "garden_cinematics", "garden_development", "garden_heart_view", "heart_growth_visual", "hex_terrain", "persistence_operations", "terrain"], "update_plots": ["garden", "garden_cinematics", "garden_development"]}},
+    "stage.gd": {"show_returning_root": ["wild_flora"], "show_wild_flora": ["wild_flora"], "update_heart_progress": ["garden", "garden_cinematics", "garden_development", "garden_heart_view", "heart_growth_visual", "hex_terrain", "persistence_operations", "terrain"], "update_plots": ["garden", "garden_cinematics", "garden_development"]}},
   "json_regions": {
     "assets/characters/weapon_actions.json": {
       "fan_release_profile": {"fields": ["fan"], "systems": ["ranged_release", "ability_aim"]},
@@ -7560,6 +7516,7 @@
     "heart_catalog.gd": {
       "newline": "lf",
       "regions": {
+      "hg05_exploration_0": {"systems": ["wild_flora", "knowledge"]},
         "hg04_definitions_5": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},
         "hg04_definitions_4": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},
         "hg04_definitions_3": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},

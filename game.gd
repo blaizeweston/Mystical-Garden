@@ -65,7 +65,7 @@ var settings_path: String="user://settings.cfg"
 var settings_dialog: Window
 var mouse_controls:=MouseCombat.new()
 const HOST := 1
-const COURIER_ANCIENT_OPTION := 1000 # Ordinary parts start at 1001.
+const ReturningRoot = preload("res://returning_root.gd")
 static var PORT: int=clampi(int(OS.get_environment("MYSTICAL_GARDEN_TEST_PORT")),1024,65535) if not OS.get_environment("MYSTICAL_GARDEN_TEST_PORT").is_empty() else 24576
 const MAX_HEALTH := 10
 const ENEMY_HEALTH := 3
@@ -153,6 +153,8 @@ var ranged_damage_this_room := 0
 var ranged_clears := 0
 const WildFlora = preload("res://wild_flora.gd")
 var wild_flora := WildFlora.new()
+var _resonance_floor := ""
+var _resonance_until := 0
 var rng := RandomNumberGenerator.new()
 var deepest_milestone := 0
 var checkpoint_pending:=false
@@ -350,8 +352,7 @@ func _handle_ui_request(command: String, data: Dictionary) -> void:
 		"ready": send_travel_ready(bool(data.unready))
 		"checkpoint": send_garden_action(affinity_checkpoint_action(int(data.revision),str(data.choice)))
 		"bank":
-			var value := int(data.value)
-			send_garden_action("bank_ancient_0" if value==COURIER_ANCIENT_OPTION else "bank_part_%d"%(value-1000) if value>=1000 else "bank_seed_%d"%value)
+			send_garden_action(str(data.get("command","")))
 		"refresh_progression": ui.present_progression(progression_ui_data(data))
 		"close_progression":
 			if bool(data.from_crafting) and at_weapon_gate(players.get(local_player_id(),{})): open_gate_preparation()
@@ -492,7 +493,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("graft"):
 		send_garden_action("graft")
 	elif event.is_action_pressed("donate"):
-		send_garden_action("donate")
+		open_deposit_menu()
 	elif event.is_action_pressed("select_donation"):
 		send_garden_action("select_donation")
 	elif event.is_action_pressed("destination"):
@@ -515,10 +516,12 @@ func send_action(strike: bool) -> void:
 		var actor: Dictionary = players.get(peer, {})
 		var flora := wild_flora_view(peer)
 		var field := battlefield if multiplayer.is_server() else stage.visual_field
-		if WildFlora.within_reach(flora, actor.get("pos", Vector3.INF), field.clear_line) and Life.nearest(self, actor) == 0:
+		var near_plant := WildFlora.within_reach(flora, actor.get("pos", Vector3.INF), field.clear_line)
+		if (near_plant or can_use_returning_root(actor)) and Life.nearest(self, actor) == 0:
 			var ground_item := nearest_inventory_drop(actor) if multiplayer.is_server() else nearest_visible_inventory_drop(actor)
 			if ground_item.is_empty():
-				send_wild_flora_harvest(flora.identity)
+				if near_plant: send_wild_flora_harvest(flora.identity)
+				else: open_deposit_menu()
 				return
 	if multiplayer.is_server():
 		act(HOST, strike)
@@ -568,6 +571,7 @@ func garden_action(id: int, action: String) -> void:
 		return
 	if not persistence_session.can_write(): return
 	var diagnostic_request:=Journal.interaction(self,id,action,"begin")
+	if action=="donate" and Participation.is_wild(players.get(id,{})): return
 	var persistent: bool=action=="donate" or action.begins_with("care_")
 	if persistent and not persistence_session.is_guarded(): Transactions.run(self,func(): _garden_action(id,action))
 	else: _garden_action(id,action)
@@ -619,8 +623,8 @@ func _garden_action(id: int, action: String) -> void:
 	if action.begins_with(AffinityCards.COMMAND):
 		_affinity_checkpoint_command(id, player, action)
 		return
-	if action.begins_with("bank_"):
-		bank_checkpoint_item(id,player,action)
+	if action.begins_with(ReturningRoot.COMMAND):
+		ReturningRoot.deposit(self,id,player,action)
 		return
 	if (action.begins_with("class_") and action not in ["class_skill","class_skill_two"]) or action.begins_with("loadweapon_") or action.begins_with("loadpart_") or action.begins_with("pack_") or action.begins_with("learn_") or action.begins_with("respec_") or action=="clearpack":
 		handle_loadout_action(id,player,action)
@@ -649,10 +653,7 @@ func _garden_action(id: int, action: String) -> void:
 			if id == HOST and not Participation.is_wild(player) and not participation.active() and stage.gate_position().distance_to(player.pos) <= preload("res://gate_interaction.gd").RANGE:
 				cycle_destination()
 		"donate":
-			if Participation.is_wild(player):
-				if id==HOST: open_deposit_menu()
-				else: show_checkpoint_deposit.rpc_id(id)
-				return
+			if Participation.is_wild(player): return
 			if at_heart(player):
 				donate_part(id, player)
 		"select_donation":
@@ -1754,7 +1755,13 @@ func wild_flora_view(peer: int) -> Dictionary:
 	var actor: Dictionary = players.get(peer, {})
 	if not Participation.is_wild(actor): return {}
 	if multiplayer.is_server():
-		return wild_flora.view(_kill_reward_identity(peer, actor))
+		var specimen := wild_flora.view(_kill_reward_identity(peer, actor))
+		if specimen.is_empty(): return {}
+		var owned: Array = progress.heart.unlocked
+		specimen.awareness = "botanical_awareness" in owned and Life.alive(actor)
+		specimen.resonance = "root_resonance" in owned and not progress.discoveries[specimen.species]
+		specimen.benefits = WildFlora.harvest_description(owned)
+		return specimen
 	if peer != multiplayer.get_unique_id() or ActionIdentity.current_stamp(self, actor).is_empty(): return {}
 	return actor.get("wild_flora", {}).duplicate()
 
@@ -1765,10 +1772,17 @@ func harvest_wild_flora(peer: int, identity: String) -> bool:
 	if not Session.belongs_to(actor, network_session) or Session.peer_for(actor) != peer \
 			or not Session.ready_for(actor) or not participation.contains(peer) or not Life.alive(actor): return false
 	var character := _kill_reward_identity(peer, actor)
-	if not wild_flora.collect(identity, character, actor.pos, battlefield.clear_line,
-			InventoryModel.admit_wild_seed.bind(self, actor)): return false
+	var receipt := {}
+	var admitted := func(species: int) -> bool:
+		receipt.merge(InventoryModel.admit_wild_harvest(species,self,actor,identity,character))
+		if not receipt.is_empty(): return true
+		tell(peer,"Your carried inventory could not accept the harvest. The specimen is still available.")
+		return false
+	if not wild_flora.collect(identity,character,actor.pos,battlefield.clear_line,admitted): return false
 	Journal.event("expedition", "flora_harvest", {"specimen":identity, "character":character, "species":Seeds.DEFINITIONS[actor.carried_seeds.back()].id})
-	tell(peer, "Seed collected. Return it to the Garden for identification.")
+	var rewards := PackedStringArray(["%d unidentified seed%s" % [receipt.seeds,"s" if receipt.seeds > 1 else ""]])
+	for part: int in receipt.parts: rewards.append(Parts.part_name(part))
+	tell(peer, "Collected %s. Return with your finds to secure them." % ", ".join(rewards))
 	return true
 
 
@@ -1805,12 +1819,14 @@ func start_encounter() -> void:
 	if participation.run_id() <= 0: return
 	var floor_key := "%s/%d/%d/%d/%d" % [network_session.session_identity(), participation.run_id(),
 		participation.route(), participation.floor(), participation.seed()]
+	var occupied: Array[Vector3] = [tactics.position]
+	for slot in encounter.scout_count(): occupied.append(encounter.position(slot))
 	wild_flora.begin(floor_key, func() -> Dictionary:
-		var occupied: Array[Vector3] = [tactics.position]
-		for slot in encounter.scout_count():
-			occupied.append(encounter.position(slot))
 		var starter := WildFlora.starter(participation.floor(), InventoryModel.garden_or_party_has_seed.bind(progress, players))
 		return battlefield.generate_flora(participation.floor(), starter, occupied))
+	if "checkpoint_deposit" in progress.heart.unlocked:
+		wild_flora.generate_root(floor_key,func(plant: Vector3) -> Vector3:
+			return battlefield.generate_returning_root(participation.floor(),"reaching_tendrils" in progress.heart.unlocked,occupied,plant))
 
 
 func reset_encounter(seed_value: int = -1) -> void:
@@ -2053,6 +2069,12 @@ func _process(_delta: float) -> void:
 	stage.draw_state(rendered_players, local_id, tactics.position, enemy_health(), tactics.winding_up, LeaderBehavior.strike_radius(self), data[3], participation.depth(), graft_altar_open(), briar_bound, tactics.longlimb, campaign_state,
 		rendered_pack, _delta,view_id)
 	stage.show_wild_flora(flora, observer, wild)
+	var returning := ReturningRoot.view(self,local_id,p)
+	var root_access := ReturningRoot.nearby(returning,p,visual_field)
+	stage.show_returning_root(returning,observer,wild)
+	if flora.get("resonance",false) and flora.identity != _resonance_floor and Life.alive(p) and not ui.is_overlay_open():
+		_resonance_floor = flora.identity
+		_resonance_until = Time.get_ticks_msec() + 5000
 	var travel := party_travel_state()
 	ui.present_travel(travel)
 	world_view.present_effects({"site":participation.route(),"floor":participation.floor(),"seed":participation.seed(),
@@ -2087,7 +2109,7 @@ func _process(_delta: float) -> void:
 	var context: Dictionary=WorldGuidance.project({"wild":wild,"position":p.get("pos",Vector3.ZERO),"fallen":PlayerLifecycle.fallen(p),
 		"floor":participation.floor(),"depth":participation.depth(),"route":participation.route(),
 		"role":network_session.role(),"party_size":players.size(),"host_port":network_session.port() if network_session.role()=="Host" else 0,
-		"cleared":encounter_cleared(),"flora_near":WildFlora.within_reach(flora, p.get("pos",Vector3.INF), visual_field.clear_line),
+		"cleared":encounter_cleared(),"harvest_benefits":flora.get("benefits",""),"flora_near":WildFlora.within_reach(flora, p.get("pos",Vector3.INF), visual_field.clear_line),
 		"leader":{"boss_kind":tactics.boss_kind,"winding_up":tactics.winding_up,"landing":tactics.landing,"attack_mode":tactics.attack_mode,"position":tactics.position,"radius":LeaderBehavior.strike_radius(self)},
 		"scouts":rendered_pack,"campaign":campaign_state,"warnings":warnings,
 		"gate_distance":visual_field.advance.distance_to(p.get("pos",Vector3.ZERO)),"upgrade_open":wild and upgrade_checkpoint_open(),"extraction_open":wild and extraction_checkpoint_open(),
@@ -2095,9 +2117,11 @@ func _process(_delta: float) -> void:
 		"wallet":(run_wallet(p) if multiplayer.is_server() else int(p.get("wallet",0))) if wild else 0,
 		"cache_near":wild and visual_field.has_seed_cache() and not p.get("cache_claimed",false) and visual_field.cache.distance_to(p.pos)<=1.55,
 		"graft_near":near_graft,"improvements":{"used":improvements.get("used",false),"remaining":improvements.remaining} if improvements.has("remaining") else {"used":improvements.get("used",false)},
-		"garden":garden_facts,"courier":wild and can_checkpoint_bank(p),"garden_prompt":garden_prompt,"rescue":rescue,"pickup":not ground_id.is_empty()})
+		"garden":garden_facts,"root_access":root_access,"garden_prompt":garden_prompt,"rescue":rescue,"pickup":not ground_id.is_empty()})
 	var prompt: String=context.prompt
 	var details: String=context.details
+	if wild and flora.get("resonance",false) and flora.identity == _resonance_floor and Time.get_ticks_msec() < _resonance_until:
+		details += "\nThe Heart senses unfamiliar life nearby."
 	var session_text: String=context.session_text
 	refresh_feedback()
 
@@ -2126,7 +2150,7 @@ func _process(_delta: float) -> void:
 	ui.present_menu({"session_text":"Developer Garden · Single player" if has_meta("developer_garden") else session_text,
 		"role":network_session.role(),"can_host":not has_meta("developer_garden") and network_session.role() in ["Host","Solo"] and not (network_session.role()=="Solo" and wild),
 		"can_join":not has_meta("developer_garden") and network_session.role()=="Solo" and not wild,
-		"can_leave":network_session.role()!="Solo","can_save":multiplayer.is_server(),"can_bank":can_checkpoint_bank(p),"wild":wild,
+		"can_leave":network_session.role()!="Solo","can_save":multiplayer.is_server(),"can_bank":root_access,"wild":wild,
 		"look":Array(p.get("character",{}).get("appearance",p.get("appearance",[0,0,0,0,0])))})
 	ui.present_context(prompt,details)
 	ui.present_hud({"party":preload("res://party_hud.gd").members(players,local_id,travel.get("members",[])),
@@ -2554,81 +2578,20 @@ func _offer_monster(id: int,player: Dictionary,requested: int,effects) -> void:
 		return
 	action_feedback(effects,id,"Offered %s. The Heart gained %d Knowledge."%[Parts.part_name(part),reward])
 
-func can_checkpoint_bank(player: Dictionary) -> bool:
-	return not player.is_empty() and Participation.is_wild(player) and upgrade_checkpoint_open() and heart_state().get("unlocked",[]).has("checkpoint_deposit") and player.get("pos",Vector3.INF).distance_to(battlefield.advance if multiplayer.is_server() else stage.visual_field.advance)<=preload("res://gate_interaction.gd").RANGE and int(player.get("last_deposit",0))!=participation.floor()
+func can_use_returning_root(player: Dictionary) -> bool:
+	var peer := local_player_id()
+	var field := battlefield if multiplayer.is_server() else stage.visual_field
+	return ReturningRoot.nearby(ReturningRoot.view(self,peer,player),player,field)
 
 func open_deposit_menu() -> void:
-	var id: int=HOST if multiplayer.is_server() else multiplayer.get_unique_id()
-	var player: Dictionary=players.get(id,{})
-	if not can_checkpoint_bank(player):
-		status="The courier needs Returning Mycelium and a cleared checkpoint gate. One item may be sent per checkpoint."
-		return
-	var items: Array = []
-	var seeds: int=player.carried_seeds.size() if multiplayer.is_server() else guest_replication.carried_count()
-	var bag: Array=InventoryModel.snapshot(self,player).carry if multiplayer.is_server() else player.get("bag",{}).get("carry",[])
-	if bag.any(func(stack):return stack.item==Items.Ancient.ITEM):
-		items.append({"label":"Ancient Mystery Seed","id":COURIER_ANCIENT_OPTION})
-	for i in seeds: items.append({"label":"Mysterious seed %d"%(i+1),"id":i})
-	for part in range(1,Parts.DEFINITIONS.size()):
-		if player.get("carried_parts",Parts.empty_counts())[part]>0:
-			items.append({"label":Parts.part_name(part),"id":1000+part})
-	ui.show_deposit(items)
-
-@rpc("authority","call_remote","reliable")
-func show_checkpoint_deposit() -> void:
-	open_deposit_menu()
-
-func bank_checkpoint_item(id: int,player: Dictionary,action: String) -> void:
-	if not can_checkpoint_bank(player): return
-	var fields:=action.split("_")
-	if fields.size()!=3 or not fields[2].is_valid_int(): return
-	if persistence_session.is_guarded():
-		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _bank_checkpoint_item(id, player, fields, effects))
-	else:
-		_bank_checkpoint_item(id, player, fields, null)
-
-func _bank_checkpoint_item(id: int,player: Dictionary,fields: PackedStringArray,effects) -> void:
-	var index:=int(fields[2])
-	var return_before: Dictionary=progress.garden_interactions.duplicate(true)
-	var reserve:=seed_reserve(player)
-	var old_pouch: bool=player.pouch
-	var species_id: int=-1
-	var ancient := {}
-	if fields[1]=="ancient" and index==0:
-		ancient=InventoryModel.take(self,player,"carry",Items.Ancient.ITEM,1)
-		if ancient.is_empty(): return
-		InventoryModel.put(self,player,"stash",ancient)
-		garden_commands.credit_return(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),Participation.is_wild(player)),[],"checkpoint:"+str(participation.floor()),true)
-	elif fields[1]=="seed":
-		if index<0 or index>=player.carried_seeds.size(): return
-		species_id=int(player.carried_seeds[index])
-		player.carried_seeds.remove_at(index)
-		garden_commands.credit_return(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),[species_id],"checkpoint:"+str(participation.floor()))
-		reserve.unknown.append(species_id)
-		if index==0 and player.get("safe_items",[]).is_empty(): player.pouch=false
-	elif fields[1]=="part":
-		if index<=0 or index>=Parts.DEFINITIONS.size() or player.carried_parts[index]<=0: return
-		player.carried_parts[index]-=1
-		reserve.parts[index]+=1
-	else: return
-	if effects == null and progress.save_garden()!=OK:
-		progress.garden_interactions=return_before
-		if not ancient.is_empty():
-			InventoryModel.undo_put(self,player,"stash",ancient)
-			InventoryModel.put(self,player,"carry",ancient)
-		elif species_id>=0:
-			reserve.unknown.pop_back()
-			player.carried_seeds.insert(index,species_id)
-			player.pouch=old_pouch
-		else:
-			player.carried_parts[index]+=1
-			reserve.parts[index]-=1
-		tell(id,"Could not save courier delivery. Your item was returned.")
-		return
-	player.last_deposit=participation.floor()
-	action_feedback(effects,id,"Item sent to Garden storage.")
-
-
+	var peer := local_player_id()
+	var actor: Dictionary = players.get(peer,{})
+	var root := ReturningRoot.view(self,peer,actor)
+	var stamp := ActionIdentity.current_stamp(self,actor)
+	var field := battlefield if multiplayer.is_server() else stage.visual_field
+	if stamp.is_empty() or not ReturningRoot.nearby(root,actor,field): return
+	var bag: Array = InventoryModel.snapshot(self,actor).carry if multiplayer.is_server() else actor.get("bag",{}).get("carry",[])
+	ui.show_deposit(ReturningRoot.choices(bag,root,stamp),root.remaining)
 
 func at_weapon_gate(player: Dictionary) -> bool:
 	return not player.is_empty() and not Participation.is_wild(player) and not PlayerLifecycle.fallen(player) and stage.gate_position().distance_to(player.get("pos",Vector3.INF))<=preload("res://gate_interaction.gd").RANGE

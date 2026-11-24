@@ -50,3 +50,13 @@ static func remove_actor(game: Node, peer: int) -> void:
 	game.network_session.release_peer(peer)
 	game.participation.detach(peer)
 	game.players.erase(peer)
+
+## Install a floor-local specimen/root at the actor for persistence fault injection.
+## Procedural placement and normal encounter entry are covered separately.
+static func returning_root(game: Node, actor: Dictionary, floor_key: String) -> void:
+	game.wild_flora.begin(floor_key, func(): return {})
+	game.wild_flora.generate_root(floor_key,func(_plant): return actor.pos)
+
+static func deposit_request(game: Node, actor: Dictionary, item: String) -> String:
+	var root: Dictionary = game.ReturningRoot.view(game,game.Session.peer_for(actor),actor)
+	return game.ReturningRoot.request(root,game.ActionIdentity.current_stamp(game,actor),item)

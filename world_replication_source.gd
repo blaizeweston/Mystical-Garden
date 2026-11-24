@@ -105,7 +105,7 @@ func owner_details(peer: int, common: Dictionary) -> Dictionary:
 		"weapon":actor.weapon,"prepared":actor.prepared,
 		"spirit_prepared":{"echoes":actor.get("spirit_card_echoes",[]).size(),"shadows":actor.get("spirit_card_shadows",[]).size(),"compatibility":load("res://spirit_replicas.gd").info()},"dodge_state":timers.configure_dodge(_world.combat_build(actor).dodge_capacity(),now).dodge_projection(now),"dodge_ready":timers.configure_dodge(_world.combat_build(actor).dodge_capacity(),now).ready(Cooldowns.DODGE,now),"last_offer":Cards.completed_floor(actor),
 		"reclaim_choice":actor.get("reclaim_choice",0),"offering_choice":actor.get("offering_choice",0),
-		"last_deposit":actor.get("last_deposit",0),"catalyst":actor.catalyst,"graft_part":0,"graft_floor":0,
+		"catalyst":actor.catalyst,"graft_part":0,"graft_floor":0,
 		"prepared_catalyst":actor.prepared_catalyst,"cargo_plan":actor.cargo_plan,
 		"stored_parts":_world.stored_counts(actor),"weapon_stats":_world.weapon_stats(actor,not wild),
 		"carried_parts":actor.carried_parts,"reserve_parts":_world.seed_reserve(actor).parts,
@@ -120,6 +120,7 @@ func owner_details(peer: int, common: Dictionary) -> Dictionary:
 	# One recipient-specific specimen at most. Reliable details also recover
 	# this projection after travel or reconnect; the 20 Hz frame stays unchanged.
 	if not wild: result.recorded_seed_recipes = _world.Altar.recorded_seed_species(_world.progress)
+	result.returning_root = _world.ReturningRoot.view(_world,peer,actor) if wild else {}
 	result.wild_flora = _world.wild_flora_view(peer) if wild else {}
 	if wild:
 		result.affinity_feedback = preload("res://combat_status.gd").affinity_feedback(_world,actor)

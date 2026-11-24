@@ -1,5 +1,22 @@
 # Seed lineages and living-root progression
 
+## Wilds exploration research (HG05)
+
+Prices and probabilities are provisional. These are shared, immediate Heart purchases.
+
+| Research | Knowledge | Requires | Effect |
+|---|---:|---|---|
+| Careful Gathering | 8 | Sheltered Heart | Each personal harvest has a 25% chance of a second seed of the same species. |
+| Wild Harvest | 10 | Careful Gathering | Each harvest also yields one ordinary part from the specimen. |
+| Refined Gathering | 16 | Wild Harvest | Independent 15% chance of one additional refined part. |
+| Botanical Awareness | 6 | Sheltered Heart | An unclaimed specimen catches the light within 6 m and a clear line of sight. |
+| Root Resonance | 12 | Botanical Awareness | One brief floor hint when the specimen is unfamiliar to the shared Garden. |
+| Returning Root | 8 | Sheltered Heart | An eligible floor has a 25% chance of one root. Each explorer can secure one carried resource unit there. |
+| Deep Root Network | 16 | Returning Root | Two individually selected units per explorer per root. |
+| Reaching Tendrils | 16 | Returning Root | Increase the per-floor chance to 40%. |
+
+A specimen always supplies its concealed base seed. Both bonus draws depend on the floor specimen and the participant. Wild material recovery grants no familiarity or discovery Knowledge. Identify recovered seeds at the Garden altar. The two Returning Root upgrades can be purchased in either order.
+
 ## Local cultivation tuning (HG04)
 
 Each initial research grants a stored structure. The first sprinkler purchase also grants a unique Water Intake. Effectiveness costs 16 Knowledge and coverage costs 12 Knowledge for each type. Each upgrade requires only that type’s initial research. The two upgrades apply to placed and future instances independently.
@@ -23,7 +40,7 @@ Seed Conservation costs 6 Knowledge and requires Sheltered Heart. A failed two-s
 
 ## Current botanical progression (WF02)
 
-All 24 species grow in ordinary Garden beds. Every mature bed can reproduce the species planted. Natural specimens use the WF01 floor roll, depth bands and biome weights. A find fixes one species for everyone. Each participant can return one concealed seed per specimen and identify it at the starting altar.
+All 24 species grow in ordinary Garden beds. Every mature bed can reproduce the species planted. Natural specimens use the WF01 floor roll, depth bands and biome weights. A find fixes one species for everyone. Each participant can recover at least one concealed seed per harvested specimen and identify it at the starting altar.
 
 | Natural founder | Earliest global encounter | Species reachable after adding this founder |
 |---|---:|---:|

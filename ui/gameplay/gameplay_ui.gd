@@ -110,7 +110,7 @@ func _ready() -> void:
 
 func _request_deposit() -> void:
 	if _deposit_pick.selected < 0: return
-	requested.emit("bank",{"value":_deposit_pick.get_item_id(_deposit_pick.selected)})
+	requested.emit("bank",{"command":_deposit_pick.get_item_metadata(_deposit_pick.selected)})
 	close_panels()
 
 func show_checkpoint_offer(offer: Dictionary, wallet: int, floor_number: int, waiting: bool) -> void:
@@ -386,10 +386,17 @@ func present_connection(waiting: bool, message: String) -> void:
 	_connection_panel.visible = waiting
 	if waiting: _connection_label.text = message
 
-func show_deposit(items: Array) -> void:
+func show_deposit(items: Array, remaining: int) -> void:
 	_deposit_pick.clear()
-	for item in items: _deposit_pick.add_item(item.label,int(item.id))
+	for item in items:
+		_deposit_pick.add_item(item.label)
+		_deposit_pick.set_item_metadata(_deposit_pick.item_count-1,item.command)
+	var allowance := "%d deposit%s remaining." % [remaining,"s" if remaining!=1 else ""]
+	%RootAllowance.text = allowance + (" Choose one carried unit to secure." if not items.is_empty() else " No eligible carried resources.")
+	_deposit_button.disabled = items.is_empty()
 	toggle_panel("deposit")
+	if items.is_empty(): %KeepExploring.grab_focus()
+	else: _deposit_pick.grab_focus()
 
 func present_hud(state: Dictionary, chart_expanded: bool) -> void:
 	if panel_is_open("summary") and not bool(state.get("wild",false)): close_panels()
@@ -421,7 +428,7 @@ func present_menu(state: Dictionary) -> void:
 	_join_button.disabled = not state.can_join
 	_leave_button.disabled = not state.can_leave
 	_save_button.disabled = not state.can_save
-	_deposit_button.disabled = not state.can_bank
+	_deposit_button.disabled = not state.can_bank or _deposit_pick.item_count == 0
 	_abandon_button.disabled = not state.wild
 	_appearance_button.disabled = state.wild
 	var look := Appearance.normalize(state.look)

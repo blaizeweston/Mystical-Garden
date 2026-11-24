@@ -80,12 +80,25 @@ func run() -> void:
 		check(world.harvest_wild_flora(1, banked.identity), "new expedition has its own claim")
 		clear_floor(actor, 3)
 		world.progress.heart.unlocked.append("checkpoint_deposit")
-		world.bank_checkpoint_item(1, actor, "deposit_seed_0")
+		ExpeditionCase.returning_root(world,actor,"return-seed")
+		world.garden_action(1,ExpeditionCase.deposit_request(world,actor,"unidentified_seed"))
 		check(reserve.unknown == [banked.species] and actor.carried_seeds.is_empty(), "courier banks the exact species")
 		clear_floor(actor,6)
 		world.InventoryModel.put(world,actor,"carry",{"item":"boss_mystery_seed","quantity":2,"lineages":{"ironroot":2}})
-		world.bank_checkpoint_item(1,actor,"bank_ancient_0")
-		world.bank_checkpoint_item(1,actor,"bank_ancient_0")
+		ExpeditionCase.returning_root(world,actor,"return-ancient")
+		var deposit := ExpeditionCase.deposit_request(world,actor,"boss_mystery_seed")
+		var original_position: Vector3=actor.pos
+		actor.pos+=Vector3.RIGHT*4
+		world.garden_action(1,deposit)
+		actor.pos=original_position
+		actor[PlayerLifecycle.STATE]=actor[PlayerLifecycle.STATE].fall()
+		world.garden_action(1,deposit)
+		actor[PlayerLifecycle.STATE]=PlayerLifecycle.start_life()
+		world.garden_action(1,deposit)
+		check(world.can_use_returning_root(actor) and world.InventoryModel.counts(world,actor,"carry").get("boss_mystery_seed")==2,"distance, fallen state and prior life all refuse with no debit")
+		deposit=ExpeditionCase.deposit_request(world,actor,"boss_mystery_seed")
+		world.garden_action(1,deposit)
+		world.garden_action(1,deposit)
 		world.expedition_transitions.abandon(1)
 		check(world.InventoryModel.extra_stash(world,actor).get("boss_mystery_seed",{})=={"ironroot":1} and actor.carried_items.is_empty(),"exactly one courier Ancient survives abandonment")
 		check(reserve.unknown == [banked.species] and not world.participation.active(), "courier delivery survives abandonment once")
@@ -112,6 +125,7 @@ func run() -> void:
 		check(world.expedition_transitions.finish_failed(), "wipe settlement commits")
 		check(reserve.unknown == [kept.species] and actor.carried_seeds.is_empty() and actor.safe_items.is_empty(), "only pouched species recovered from wipe")
 	verify_spawn_equivalence(actor, reserve)
+	verify_gathering(actor)
 	close_world()
 	await process_frame
 	if not failed:
@@ -174,3 +188,43 @@ func formation() -> Array:
 	for slot in world.encounter.scout_count():
 		result.append([world.encounter.scout(slot).kind, world.encounter.position(slot)])
 	return result
+
+func verify_gathering(actor: Dictionary) -> void:
+	var original_membership: Dictionary=world.participation.savepoint()
+	ExpeditionCase.set_membership(world,actor,true)
+	var before: int=world.progress.knowledge
+	var character: String=world._kill_reward_identity(1,actor)
+	for id in ["careful_gathering","wild_harvest","refined_gathering","botanical_awareness","root_resonance"]:
+		world.progress.heart.unlocked.append(id)
+	var species: int=world.Seeds.index_of("moon_lotus")
+	var ordinary: int=world.Seeds.DEFINITIONS[species].part
+	var refined: int=world.Parts.rare_part(species)
+	world.progress.discoveries[species]=false
+	var observed: Dictionary={}
+	for i in 180:
+		var key: String="gather/%d"%i
+		var extra:=Flora.bonus_roll(key,character,"seed")<0.25
+		var rare:=Flora.bonus_roll(key,character,"refined")<0.15
+		var outcome: String=str([extra,rare])
+		if observed.has(outcome): continue
+		observed[outcome]=true
+		world.wild_flora.begin(key,func():return {"species":species,"position":actor.pos})
+		var plant: Dictionary=world.wild_flora_view(1)
+		check(plant.resonance and Flora.aware(plant,actor.pos+Vector3.RIGHT*6,func(_a,_b):return true),"unfamiliar and within inclusive six metres")
+		check(not Flora.aware(plant,actor.pos+Vector3.RIGHT*6.01,func(_a,_b):return true) and not Flora.aware(plant,actor.pos,func(_a,_b):return false),"range and occlusion suppress awareness")
+		var parts: Array=actor.carried_parts
+		var seeds: Array=actor.carried_seeds.duplicate()
+		var ordinary_before: int=parts[ordinary]
+		var rare_before: int=parts[refined]
+		var locked:=parts.duplicate()
+		locked.make_read_only()
+		actor.carried_parts=locked
+		check(not world.harvest_wild_flora(1,key) and not world.wild_flora_view(1).claimed and actor.carried_seeds==seeds,"rejected bundle credits nothing")
+		actor.carried_parts=parts
+		check(world.harvest_wild_flora(1,key) and not world.harvest_wild_flora(1,key),"retry claims once")
+		check(actor.carried_seeds.slice(seeds.size())==([species,species] if extra else [species]) and parts[ordinary]==ordinary_before+1 and parts[refined]==rare_before+int(rare),"exact deterministic species and part bundle")
+		check(not Flora.aware(world.wild_flora_view(1),actor.pos,func(_a,_b):return true),"claimed plant no longer indicated")
+	check(observed.size()==4 and before==world.progress.knowledge and not world.progress.discoveries[species],"independent bonus outcomes, no permanent discovery")
+	world.progress.discoveries[species]=true
+	check(not world.wild_flora_view(1).resonance,"shared Garden discovery suppresses resonance")
+	world.participation.restore_savepoint(original_membership)

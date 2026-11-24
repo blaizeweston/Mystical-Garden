@@ -362,8 +362,16 @@ func gameplay() -> void:
  check(Cards.ledger(p).count()==1 and world.wallet_for(p).spent_essence()==spent,"duplicate card cannot acquire or spend twice")
  world.progress.heart.unlocked.append("checkpoint_deposit")
  p.carried_parts[1]=1
- world.garden_action(1,"bank_part_1")
- check(p.last_deposit==18 and p.carried_parts[1]==0 and world.seed_reserve(p).parts[1]==1, "courier persists one stack item")
+ ExpeditionCase.returning_root(world,p,"guarded-deposit")
+ var bank := ExpeditionCase.deposit_request(world,p,world.Items.part_id(1))
+ var initial_bank := disk()
+ world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):return ERR_CANT_CREATE if phase=="replace" else OK)
+ world.garden_action(1,bank)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ check(p.carried_parts[1]==1 and world.can_use_returning_root(p) and disk()==initial_bank,"verified rollback restores allowance and durable resources")
+ world.garden_action(1,bank)
+ world.garden_action(1,bank)
+ check(not world.can_use_returning_root(p) and p.carried_parts[1]==0 and world.seed_reserve(p).parts[1]==1, "courier persists one stack item")
  record("cards_courier",before,{"spent":spent,"floor":world.participation.floor(),"cards":Cards.ledger(p).count(),"status":world.status})
 
  ExpeditionCase.set_membership(world, p, false)
@@ -426,16 +434,18 @@ func terminal_wilds_faults() -> void:
  actor.pos=world.battlefield.advance
  world.progress.heart.unlocked.append("checkpoint_deposit")
  actor.carried_parts[1]=1
+ ExpeditionCase.returning_root(world,actor,"uncertain-root")
+ var bank := ExpeditionCase.deposit_request(world,actor,world.Items.part_id(1))
  var initial:=disk()
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):
   return ERR_CANT_CREATE if phase in ["publish_commit_marker","restore"] else OK)
- world.garden_action(1,"bank_part_1")
+ world.garden_action(1,bank)
  world.remove_meta(&"guarded_gameplay_test_fault")
- check(actor.carried_parts[1]==0 and actor.last_deposit==6 and world.persistence_session.pending_notice().contains("uncertain")
+ check(actor.carried_parts[1]==0 and not world.can_use_returning_root(actor) and world.persistence_session.pending_notice().contains("uncertain")
   and not world.status.begins_with("Banked") and disk()[garden_path+".transaction"]!="absent",
   "courier uncertainty retains tentative cargo and withholds success")
  var unresolved := disk()
- world.garden_action(1,"bank_part_1")
+ world.garden_action(1,bank)
  check(disk()==unresolved,"courier replay is blocked")
  record("courier_uncertain",initial,{"notice":world.persistence_session.pending_notice()})
  close_world()
@@ -443,6 +453,25 @@ func terminal_wilds_faults() -> void:
  current_scene.garden_recovery_button.pressed.emit()
  current_scene.recovery_confirmation.confirmed.emit()
  check(disk()==initial,"title B2 restores courier original bytes")
+ if not open_world(): return
+ actor=world.players[1]
+ ExpeditionCase.set_membership(world,actor,true)
+ world.progress.heart.unlocked.append("checkpoint_deposit")
+ actor.carried_parts[1]=2
+ actor.pos=world.battlefield.advance
+ var secured_before: int=world.seed_reserve(actor).parts[1]
+ ExpeditionCase.returning_root(world,actor,"cleanup-root")
+ bank=ExpeditionCase.deposit_request(world,actor,world.Items.part_id(1))
+ world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):return ERR_CANT_CREATE if phase=="publish_receipt" else OK)
+ world.garden_action(1,bank)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ var secured:=disk()
+ check(actor.carried_parts[1]==1 and world.seed_reserve(actor).parts[1]==secured_before+1 and not world.can_use_returning_root(actor) and world.persistence_session.is_blocked(),"confirmed deposit retains its spent allowance during cleanup: "+world.status)
+ world.garden_action(1,bank)
+ check(secured==disk() and Ops.recover(PackedStringArray([garden_path])).value.verified and disk()[garden_path]==secured[garden_path],"recovery preserves committed unit without replay")
+ close_world()
+ await process_frame
+
 
 func caller_effect_fault(phase: String, _path: String, outcome: String, attempts: Dictionary) -> Error:
  if phase=="stage":

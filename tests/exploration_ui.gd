@@ -87,6 +87,14 @@ func run():
 	stage.show_wild_flora(specimen,Vector3.ZERO,true)
 	stage.show_wild_flora(specimen,Vector3.ZERO,false)
 	check(not stage.has_node("WildSpecimen"), "returning to the Garden clears the local specimen")
+	var returning := {"identity":"root-floor","position":Vector3(2,0,2),"remaining":2}
+	stage.show_returning_root(returning,Vector3(25,0,25),true)
+	check(not stage.has_node("ReturningRoot"),"distant roots do not allocate geometry")
+	stage.show_returning_root(returning,returning.position,true)
+	var root_mesh: MeshInstance3D=stage.get_node("ReturningRoot")
+	check(root_mesh.mesh.get_surface_count()==1 and root_mesh.find_children("*","CollisionObject3D",true,false).is_empty(),"one local nonblocking Heart root mesh")
+	stage.show_returning_root({},Vector3.ZERO,false)
+	check(not stage.has_node("ReturningRoot"),"floor discard removes root model")
 	await process_frame
 	if not failed: print("PASS: fog memory, floor reset, drop markers and map controls")
 	quit(1 if failed else 0)

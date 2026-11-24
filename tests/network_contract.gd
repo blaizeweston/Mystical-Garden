@@ -62,7 +62,7 @@ func run() -> void:
 		var channel := 0 if match.get_string(3).is_empty() else int(match.get_string(3))
 		check(definition.sender == match.get_string(1) and definition.delivery == match.get_string(2)
 			and int(definition.channel) == channel,"sender, delivery and channel agree for "+name)
-	check(found.size() == Contract.RPCS.size() and found.size() == 27,"all current RPCs are covered once")
+	check(found.size() == Contract.RPCS.size() and found.size() == 26 and not found.has("show_checkpoint_deposit") and Contract.CAPABILITIES.get("returning_root")==1,"all current RPCs are covered once")
 	var scene_source := FileAccess.get_file_as_string("res://world.tscn")
 	check(('[node name="'+Contract.RPC_NODE+'" type="Node3D"]') in scene_source,"RPC root NodePath is preserved")
 	if not failed: print("PASS: explicit network RPC contract, private-method independence, signature incompatibility and protocol-41 schema")

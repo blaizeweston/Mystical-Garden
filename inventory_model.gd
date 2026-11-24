@@ -124,11 +124,24 @@ static func _reserve_has_seed(stored: Dictionary, species: int) -> bool:
  return not stored.is_empty() and (stored.stock[species] > 0 or stored.unknown.has(species))
 
 ## Carried unidentified seeds retain their species through transfer, banking and identification.
-static func admit_wild_seed(species: int, game: Node, player: Dictionary) -> bool:
- if not Participation.is_wild(player) or not player.get("carried_seeds") is Array: return false
- if player.carried_seeds.is_read_only() or species < 0 or species >= preload("res://seed_catalog.gd").DEFINITIONS.size(): return false
- put(game,player,"carry",{"item":"unidentified_seed","quantity":1,"seeds":[species]})
- return true
+static func admit_wild_harvest(species: int, game: Node, player: Dictionary, identity: String, character: String) -> Dictionary:
+ const Flora=preload("res://wild_flora.gd")
+ if not Participation.is_wild(player) or not player.get("carried_seeds") is Array: return {}
+ if player.carried_seeds.is_read_only() or species < 0 or species >= game.Seeds.DEFINITIONS.size(): return {}
+ var owned: Array=game.progress.heart.unlocked
+ var seeds := [species]
+ if "careful_gathering" in owned and Flora.bonus_roll(identity,character,"seed") < Flora.BONUS_SEED: seeds.append(species)
+ var parts := []
+ if "wild_harvest" in owned: parts.append(game.Seeds.DEFINITIONS[species].part)
+ if "refined_gathering" in owned and Flora.bonus_roll(identity,character,"refined") < Flora.REFINED_MATERIAL:
+  parts.append(game.Parts.rare_part(species))
+ # Validate every destination before changing any stack or marking the specimen claimed.
+ for part: int in parts:
+  if not game.Parts.is_plant(part) or not player.get("carried_parts") is Array or player.carried_parts.is_read_only(): return {}
+  if part >= player.carried_parts.size() or not player.carried_parts[part] is int or player.carried_parts[part] < 0 or player.carried_parts[part] == 9223372036854775807: return {}
+ put(game,player,"carry",{"item":"unidentified_seed","quantity":seeds.size(),"seeds":seeds})
+ for part: int in parts: put(game,player,"carry",{"item":Items.part_id(part),"quantity":1})
+ return {"seeds":seeds.size(),"parts":parts}
 
 static func put(game,player: Dictionary,bucket: String,stack: Dictionary) -> void:
  var id:=str(stack.item);var amount:=int(stack.quantity);var definition:=Items.get_item(id)

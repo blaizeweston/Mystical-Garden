@@ -12,7 +12,7 @@ func facts() -> Dictionary:
 		"scouts":PackedFloat32Array(),"campaign":PackedInt32Array(),"warnings":[],"gate_distance":20.0,"upgrade_open":false,
 		"extraction_open":false,"offer_floor":3,"wallet":8,"cache_near":false,"graft_near":false,"improvements":{},
 		"garden":{"bed":{},"flowering_unlocked":false,"near_altar":false,"near_gate":false,"near_heart":false,"development":false,
-			"deepest_clear":6,"best_extraction":3},"courier":false,"garden_prompt":"","rescue":{},"pickup":false}
+			"deepest_clear":6,"best_extraction":3},"root_access":false,"garden_prompt":"","rescue":{},"pickup":false}
 func _initialize():call_deferred("run")
 func run() -> void:
 	var f:=facts()
@@ -48,8 +48,10 @@ func run() -> void:
 	check(Guidance.project(f).prompt=="E  Search the abandoned clearing","near cache retains existing prompt priority")
 	f.graft_near=true;f.improvements={"used":true,"remaining":0}
 	check(Guidance.project(f).prompt=="E  Grafting Altar" and Guidance.project(f).details=="Altar used · 0 remaining","native graft usage is displayed without owning the ledger")
-	f.courier=true;f.garden_prompt="Inspect living roots"
-	check(Guidance.project(f).prompt=="Inspect living roots" and Guidance.project(f).details.ends_with("J · Send one carried find home"),"Garden override and protected courier hint coexist")
+	f.root_access=true
+	check(Guidance.project(f).prompt.contains("Returning Root"),"nearby root offers a deposit")
+	f.garden_prompt="Inspect living roots"
+	check(Guidance.project(f).prompt=="Inspect living roots","Garden override retains priority")
 	f.rescue={"name":"Ally","allowed":true,"cost":20};f.pickup=true
 	check(Guidance.project(f).prompt=="E  Revive Ally · costs them 20 maximum HP","revival takes priority over pickup and Garden prompts")
 	f.rescue.allowed=false
@@ -84,5 +86,5 @@ func run() -> void:
 	check(Guidance.project(f).session_text=="Host  ·  4 player(s)\nHosting on UDP 24576","host port remains host-only presentation")
 	f.role="Guest"
 	check(not Guidance.project(f).session_text.contains("UDP"),"guest label does not claim to host")
-	if not failed:print("PASS: pure world guidance, native warning geometry, prompt priorities, Garden crops, checkpoint/graft/courier/revival hints and detached facts")
+	if not failed:print("PASS: pure world guidance, native warning geometry, prompt priorities, Garden crops, checkpoint, graft, Returning Root and revival hints and detached facts")
 	quit(1 if failed else 0)
