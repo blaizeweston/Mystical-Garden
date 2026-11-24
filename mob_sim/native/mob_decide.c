@@ -32,6 +32,7 @@ static const MdKind input_kinds[DI_COUNT] = {
     [DI_PARTY_ALIVE] = DK_BYTES, [DI_PARTY_X] = DK_FLOATS, [DI_PARTY_Z] = DK_FLOATS, [DI_MASKS] = DK_BYTES,
     [DI_COMMAND_PLAYER] = DK_BYTES, [DI_COMMAND_UNTIL] = DK_INTS, [DI_MANA] = DK_FLOATS, [DI_DODGE_READY] = DK_INTS,
     [DI_ROOT_UNTIL] = DK_INTS, [DI_STUN_UNTIL] = DK_INTS, [DI_HURT_AT] = DK_INTS,
+    [DI_HOLD_UNTIL] = DK_INTS, [DI_BEHAVIOUR] = DK_BYTES, [DI_ALLY_TARGET] = DK_BYTES, [DI_MANOEUVRE] = DK_BYTES,
 };
 
 MdKind md_config_kind(int index) { return config_kinds[index]; }
@@ -54,7 +55,8 @@ typedef struct {
     const int *slots, *active, *generation, *species, *mutations, *leader, *leader_generation;
     const int *ready_at, *cooldown_until, *windup_until, *seen_tick, *allies;
     const uint8_t *alive, *flags, *enemy_target, *visible, *party_present, *party_alive, *masks, *command_player;
-    const int *command_until, *dodge_ready, *root_until, *stun_until, *hurt_at;
+    const int *command_until, *dodge_ready, *root_until, *stun_until, *hurt_at, *hold_until;
+    const uint8_t *behaviour, *ally_target, *manoeuvre;
     const float *xz, *seen_x, *seen_z, *party_x, *party_z, *mana;
     int64_t slot_count, active_count;
 } View;
@@ -141,7 +143,8 @@ static int bind(View *v, const MobDecide *d, const void *const *items, const int
             || lengths[DI_ALLIES] != (int64_t)capacity * d->dim[DD_ALLIES] || lengths[DI_PARTY_X] != players
             || lengths[DI_COMMAND_PLAYER] != capacity || lengths[DI_COMMAND_UNTIL] != capacity || lengths[DI_MANA] != capacity
             || lengths[DI_DODGE_READY] != capacity || lengths[DI_ROOT_UNTIL] != capacity || lengths[DI_STUN_UNTIL] != capacity
-            || lengths[DI_HURT_AT] != capacity) {
+            || lengths[DI_HURT_AT] != capacity || lengths[DI_HOLD_UNTIL] != capacity || lengths[DI_BEHAVIOUR] != capacity
+            || lengths[DI_ENEMY_TARGET] != capacity || lengths[DI_ALLY_TARGET] != capacity || lengths[DI_MANOEUVRE] != capacity) {
         return 0;
     }
     memset(v, 0, sizeof(*v));
@@ -158,7 +161,8 @@ static int bind(View *v, const MobDecide *d, const void *const *items, const int
     BIND(party_alive, DI_PARTY_ALIVE, uint8_t); BIND(party_x, DI_PARTY_X, float); BIND(party_z, DI_PARTY_Z, float);
     BIND(masks, DI_MASKS, uint8_t); BIND(command_player, DI_COMMAND_PLAYER, uint8_t); BIND(command_until, DI_COMMAND_UNTIL, int);
     BIND(mana, DI_MANA, float); BIND(dodge_ready, DI_DODGE_READY, int); BIND(root_until, DI_ROOT_UNTIL, int);
-    BIND(stun_until, DI_STUN_UNTIL, int); BIND(hurt_at, DI_HURT_AT, int);
+    BIND(stun_until, DI_STUN_UNTIL, int); BIND(hurt_at, DI_HURT_AT, int); BIND(hold_until, DI_HOLD_UNTIL, int);
+    BIND(behaviour, DI_BEHAVIOUR, uint8_t); BIND(ally_target, DI_ALLY_TARGET, uint8_t); BIND(manoeuvre, DI_MANOEUVRE, uint8_t);
     for (int64_t i = 0; i < v->slot_count; i++) {
         if (v->slots[i] < 0 || v->slots[i] >= capacity) return 0;
     }
@@ -231,6 +235,30 @@ static int behaviour_legal(const View *v, int slot, int behaviour, int has_enemy
     return attack_ready(v, slot, attack);
 }
 
+/* While an attack winds up or a behaviour holds, the game keeps the mob's behaviour, targets and manoeuvre
+ * (MobRules._commit_slot), so those are the only legal options; during a hold a dodge still cuts through. A choice
+ * the game would ignore is never offered, so training never learns from it. Messages are always free. */
+static void lock_slot(const View *v, uint8_t *row, int slot) {
+    const MobDecide *d = v->d;
+    int winding = v->windup_until[slot] > 0;
+    if (!winding && v->tick >= v->hold_until[slot]) return;
+    uint8_t *behaviours = row + d->head_offset[DK_HEAD_BEHAVIOUR];
+    int dodge = d->dim[DD_DODGE];
+    int may_dodge = !winding && dodge >= 0 && behaviours[dodge] != 0;
+    memset(behaviours, 0, (size_t)d->dim[DD_BEHAVIOURS]);
+    if (v->behaviour[slot] < d->dim[DD_BEHAVIOURS]) behaviours[v->behaviour[slot]] = 1;
+    if (may_dodge) behaviours[dodge] = 1;
+    uint8_t *enemy = row + d->head_offset[DK_HEAD_ENEMY];
+    memset(enemy, 0, (size_t)d->dim[DD_PLAYERS] + 1);
+    enemy[v->enemy_target[slot] <= d->dim[DD_PLAYERS] ? v->enemy_target[slot] : 0] = 1;
+    uint8_t *ally = row + d->head_offset[DK_HEAD_ALLY];
+    memset(ally, 0, (size_t)d->dim[DD_ALLIES] + 2);
+    ally[v->ally_target[slot] <= d->dim[DD_ALLIES] + 1 ? v->ally_target[slot] : 0] = 1;
+    uint8_t *manoeuvre = row + d->head_offset[DK_HEAD_MANOEUVRE];
+    memset(manoeuvre, 0, (size_t)d->dim[DD_MANOEUVRES]);
+    manoeuvre[v->manoeuvre[slot] < d->dim[DD_MANOEUVRES] ? v->manoeuvre[slot] : 0] = 1;
+}
+
 static void mask_slot(const View *v, uint8_t *row, int slot) {
     const MobDecide *d = v->d;
     uint8_t *enemy = row + d->head_offset[DK_HEAD_ENEMY];
@@ -267,6 +295,7 @@ static void mask_slot(const View *v, uint8_t *row, int slot) {
     for (int behaviour = 0; behaviour < d->dim[DD_BEHAVIOURS]; behaviour++) {
         behaviours[behaviour] = (uint8_t)behaviour_legal(v, slot, behaviour, has_enemy, has_ally);
     }
+    lock_slot(v, row, slot);
 }
 
 MdResult md_masks(const MobDecide *d, const void *const *items, const int64_t *lengths, uint8_t *out) {
@@ -343,8 +372,15 @@ static double nearest_seen(const View *v, int slot) {
 
 static void decide_slot(const View *v, uint8_t *out, int64_t index, int slot) {
     const MobDecide *d = v->d;
+    int locked = v->windup_until[slot] > 0 || v->tick < v->hold_until[slot];
     if (allowed(v, index, d->dim[DD_DODGE]) && v->tick - v->hurt_at[slot] <= HURT_DODGE_TICKS) {
-        write_intent(out, index, d->dim[DD_DODGE], 0, 0, 0);
+        if (locked) write_intent(out, index, d->dim[DD_DODGE], v->enemy_target[slot], v->ally_target[slot], v->manoeuvre[slot]);
+        else write_intent(out, index, d->dim[DD_DODGE], 0, 0, 0);
+        return;
+    }
+    /* While locked (lock_slot) only the current intent is legal; the game would ignore any other. */
+    if (locked) {
+        write_intent(out, index, v->behaviour[slot], v->enemy_target[slot], v->ally_target[slot], v->manoeuvre[slot]);
         return;
     }
     int player = pick_target(v, index, slot);

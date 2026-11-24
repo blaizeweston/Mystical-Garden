@@ -151,6 +151,31 @@ func _mask_slot(batch: Batch, base: int, slot: int, tick: int) -> void:
 				batch.masks[base + contract.head_offsets[head] + symbol] = 1
 	for behaviour in contract.behaviour_count:
 		batch.masks[base + behaviour] = int(_behaviour_legal(slot, behaviour, has_enemy, has_ally, tick))
+	_lock_slot(batch, base, slot, tick)
+
+
+## While an attack winds up or a behaviour holds, _commit_slot keeps the mob's behaviour, targets and manoeuvre,
+## so those are the only legal options; during a hold a dodge still cuts through. A choice the game would ignore is
+## never offered, so training never learns from it. Messages are always free. As mob_decide.c lock_slot.
+func _lock_slot(batch: Batch, base: int, slot: int, tick: int) -> void:
+	var winding := pool.windup_until[slot] > 0
+	if not winding and tick >= pool.hold_until[slot]:
+		return
+	var may_dodge := not winding and _dodge >= 0 and batch.masks[base + _dodge] != 0
+	for behaviour in contract.behaviour_count:
+		batch.masks[base + behaviour] = 0
+	if pool.behaviour[slot] < contract.behaviour_count:
+		batch.masks[base + pool.behaviour[slot]] = 1
+	if may_dodge:
+		batch.masks[base + _dodge] = 1
+	var heads := [[Contract.Head.ENEMY_TARGET, pool.enemy_target[slot]], [Contract.Head.ALLY_TARGET, pool.ally_target[slot]],
+		[Contract.Head.MANOEUVRE, pool.manoeuvre[slot]]]
+	for entry: Array in heads:
+		var offset: int = base + contract.head_offsets[entry[0]]
+		var size: int = contract.head_sizes[entry[0]]
+		for option in size:
+			batch.masks[offset + option] = 0
+		batch.masks[offset + (int(entry[1]) if int(entry[1]) < size else 0)] = 1
 
 
 func _behaviour_legal(slot: int, behaviour: int, has_enemy: bool, has_ally: bool, tick: int) -> bool:

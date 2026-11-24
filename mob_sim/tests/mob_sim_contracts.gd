@@ -196,6 +196,37 @@ func test_masks() -> void:
 	check(brain.last_masks[contract.id("melee_attack")] == 0, "an attack on cooldown is masked")
 
 
+## While a behaviour holds or an attack winds up the game ignores new intents, so only the current one is offered.
+func test_locks() -> void:
+	var brain := ForcedBrain.new()
+	var sim := make_sim(2, brain)
+	var contract := sim.contract
+	brain.behaviour = contract.id("approach")
+	brain.enemy = 1
+	brain.manoeuvre = 2
+	var slot := add_mob(sim, "rootbound", Vector2(10, 10), 0, 0, -1, 1)
+	place_player(sim, 0, Vector2(10.8, 10))
+	run_ticks(sim, 12)
+	sim.pool.hold_until[slot] = sim.clock.tick + 120
+	run_ticks(sim, 8)
+	# Reads the brain's latest masks on each call (a lambda would keep the array it captured).
+	var legal := func(head: int) -> PackedInt32Array:
+		var found := PackedInt32Array()
+		for option in contract.head_sizes[head]:
+			if brain.last_masks[contract.head_offsets[head] + option] != 0:
+				found.append(option)
+		return found
+	check(legal.call(Contract.Head.BEHAVIOUR) == PackedInt32Array([contract.id("approach")]), "during a hold only the current behaviour is legal")
+	check(legal.call(Contract.Head.ENEMY_TARGET) == PackedInt32Array([1]) and legal.call(Contract.Head.ALLY_TARGET) == PackedInt32Array([0])
+		and legal.call(Contract.Head.MANOEUVRE) == PackedInt32Array([2]), "during a hold the targets and manoeuvre stay as they are")
+	var talking := bool(contract.rules.messages_enabled)
+	check(legal.call(Contract.Head.MESSAGE_A).size() == (contract.message_symbols if talking else 1), "messages stay free during a hold")
+	sim.pool.hold_until[slot] = 0
+	run_ticks(sim, 8)
+	check(legal.call(Contract.Head.BEHAVIOUR).size() > 1 and legal.call(Contract.Head.MANOEUVRE).size() == contract.manoeuvre_count,
+		"choices open again when the hold ends")
+
+
 func test_rules() -> void:
 	var brain := ForcedBrain.new()
 	var sim := make_sim(1, brain)
@@ -422,6 +453,7 @@ func run() -> void:
 	test_species()
 	test_pool()
 	test_masks()
+	test_locks()
 	test_rules()
 	test_attack_timing()
 	test_interrupt_and_death()
