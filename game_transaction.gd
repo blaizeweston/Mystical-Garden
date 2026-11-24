@@ -6,10 +6,10 @@ const EncounterRoster = preload("res://encounter_roster.gd")
 const EnemyTactics = preload("res://enemy_tactics.gd")
 const ExpeditionParticipation = preload("res://expedition_participation.gd")
 
-static func snapshot(object: Object) -> Dictionary:
+static func snapshot(object: Object, skip_property: StringName = &"") -> Dictionary:
  var result: Dictionary={}
  for property in object.get_property_list():
-  if not (int(property.usage)&PROPERTY_USAGE_SCRIPT_VARIABLE): continue
+  if property.name == skip_property or not (int(property.usage)&PROPERTY_USAGE_SCRIPT_VARIABLE): continue
   var value=object.get(property.name)
   if value is Array or value is Dictionary: result[property.name]=value.duplicate(true)
   elif value is int or value is float or value is bool or value is String or value is Vector3: result[property.name]=value
@@ -52,7 +52,7 @@ static func run(game: Node,action: Callable, verdict := {}):
 static func _run_legacy(game: Node, action: Callable, verdict: Dictionary, paths: PackedStringArray, auxiliary: PackedStringArray) -> Variant:
  var diagnostic_transaction=preload("res://diagnostic_journal.gd").event("save","transaction_begin",{"operation":action.get_method()})
  var world:=snapshot(game.progress);var heart: Dictionary=game.progress.heart.serialize();var campaign:=snapshot(game.progress.campaign)
- var state:=snapshot(game);state.erase("players");var local:=snapshot(game.local_character);var guest:=snapshot(game.guest_character)
+ var state:=snapshot(game,&"players");var local:=snapshot(game.local_character);var guest:=snapshot(game.guest_character)
  var players: Dictionary=game.players.duplicate(true)
  var rng_state: int = game.rng.state
  var rewards: MonsterRewards = game.get("monster_rewards")
@@ -192,12 +192,24 @@ static func run_gameplay(game: Node, scope: Scope, action: Callable, legacy_tran
   var boundary: Dictionary = verdict.get("persistence", {})
   var saved: bool = committed(boundary) if not boundary.is_empty() else verdict.get("error", OK) == OK
   return {"completed":saved, "value":value, "notice":game.persistence_session.pending_notice() if saved else game.status, "persistence":boundary}
+ return _guarded_gameplay_result(game, scope, action)
+
+## This fixed operation can change only crop/research state and its serialized
+## Garden projection. General Garden commands may also change actors and rewards.
+static func save_growth_checkpoint(game: Node, updated_plots: Array, elapsed: float, in_wilds: bool) -> String:
+ var advance := func():
+  game.progress.plots.assign(updated_plots)
+  game.progress.sync_plot_flags()
+  return game.progress.heart.tick(game.progress, elapsed, in_wilds)
+ return feedback(_guarded_gameplay_result(game, Scope.GARDEN, advance, true), "Growth could not be saved.")
+
+static func _guarded_gameplay_result(game: Node, scope: Scope, action: Callable, growth_only := false) -> Dictionary:
  if _owner != null:
   return {"completed": false, "value": null, "notice": "Save operation is already in progress.",
    "persistence": _refusal(ERR_BUSY, "nested_gameplay_operation", "busy")}
  # The existing fault callback is available to disposable headless fixtures.
  var fault: Callable = game.get_meta(&"guarded_gameplay_test_fault", Callable()) if DisplayServer.get_name() == "headless" else Callable()
- var boundary: Dictionary = _run_guarded(game, action, Callable(), fault, scope)
+ var boundary: Dictionary = _run_guarded(game, action, Callable(), fault, scope, growth_only)
  var execution: Variant = boundary.get("value")
  var confirmed := committed(boundary)
  return {"completed": confirmed and boundary.error == OK, "value": execution.value if confirmed else null,
@@ -224,7 +236,7 @@ static func _report(game: Node, boundary: Dictionary) -> String:
 static func run_guarded(game: Node, action: Callable, publish := Callable(), scope := Scope.LEGACY) -> Dictionary:
  return _run_guarded(game, action, publish, Callable(), scope)
 
-static func _run_guarded(game: Node, action: Callable, publish: Callable, fault := Callable(), scope := Scope.LEGACY) -> Dictionary:
+static func _run_guarded(game: Node, action: Callable, publish: Callable, fault := Callable(), scope := Scope.LEGACY, growth_only := false) -> Dictionary:
  if not Thread.is_main_thread() or not is_instance_valid(game) or not action.is_valid():
   return _refusal(ERR_INVALID_PARAMETER, "invalid_transaction")
  var owner: RefCounted = game.persistence_session if game.persistence_session.is_guarded() else null
@@ -249,16 +261,15 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
   return {"error": OK, "ran": true, "nested": true, "value": action.call()}
 
  var captured := {}
- var rewards: MonsterRewards = game.get("monster_rewards")
+ var rewards: MonsterRewards = null if growth_only else game.get("monster_rewards")
  var operations = load("res://persistence_operations.gd")
  var anchor: String = serializers[0].path
- var action_and_save := func():
+ var capture_gameplay := func():
   if game.get("expedition_statistics") != null: captured.statistics = game.expedition_statistics.savepoint()
   captured.world = snapshot(game.progress)
   captured.heart = game.progress.heart.serialize()
   captured.campaign = snapshot(game.progress.campaign)
-  captured.game = snapshot(game)
-  captured.game.erase("players")
+  captured.game = snapshot(game, &"players")
   captured.players = game.players.duplicate(true)
   captured.local = snapshot(game.local_character)
   captured.guest = snapshot(game.guest_character)
@@ -276,7 +287,14 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
    captured.participation = participation.savepoint()
   if game.has_method("snapshot_expedition_runtime"):
    captured.expedition = game.snapshot_expedition_runtime()
-  game.transaction_publishes.clear()
+ var action_and_save := func():
+  if growth_only:
+   captured.growth = game.progress.heart.capture(game.progress)
+   # The serializer installs a new detached growth/reveal projection after staging.
+   captured.interactions = game.progress.garden_interactions
+  else:
+   capture_gameplay.call()
+   game.transaction_publishes.clear()
   _owner = game
   _participants = serializers
   var value: Variant = action.call()
@@ -325,10 +343,9 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
     "pending_recovery" if execution.get("reason") == "unresolved_transaction" else execution.get("state", "invalid"))
    boundary.release_error = release_error
   if captured.has("statistics"): game.expedition_statistics.hold_uncertain()
-  if captured.has("monster_rewards"):
-   # Gameplay ran, but its save verdict is missing. Hold tentative rewards.
-   rewards.finish_settlement(MonsterRewards.Result.UNCERTAIN)
-   game.transaction_publishes.clear()
+  if not captured.is_empty():
+   if rewards != null: rewards.finish_settlement(MonsterRewards.Result.UNCERTAIN)
+   if not growth_only: game.transaction_publishes.clear()
    boundary.state = "unresolved"
    boundary.reason = "missing_gameplay_finalization"
    if boundary.error == OK: boundary.error = ERR_BUG
@@ -338,12 +355,17 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
  match finalized.outcome:
   Batch.Outcome.ABORTED_RESTORED:
    if execution.action_ran:
-    _restore_guarded(game, captured)
+    if growth_only:
+     game.progress.heart.rollback(game.progress, captured.growth)
+     game.progress.sync_plot_flags()
+     game.progress.garden_interactions = captured.interactions
+    else:
+     _restore_guarded(game, captured)
   Batch.Outcome.UNCERTAIN:
    if captured.has("statistics"): game.expedition_statistics.hold_uncertain()
    if rewards != null:
     rewards.finish_settlement(MonsterRewards.Result.UNCERTAIN)
-   game.transaction_publishes.clear()
+   if not growth_only: game.transaction_publishes.clear()
   Batch.Outcome.COMMITTED, Batch.Outcome.COMMITTED_CLEANUP_PENDING:
    if rewards != null:
     var cleanup: bool = finalized.outcome == Batch.Outcome.COMMITTED_CLEANUP_PENDING or finalized.write_blocked or boundary.release_error != OK

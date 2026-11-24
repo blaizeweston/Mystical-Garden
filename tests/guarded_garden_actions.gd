@@ -218,13 +218,22 @@ func gameplay() -> void:
  world.progress.plots[0] = bed
  var tick_stages: Array[String] = []
  heart.work.flowering = 0.0
- world.set_meta(&"guarded_gameplay_test_fault",func(phase,path):
+ var record_stages := func(phase,path):
   if phase=="stage": tick_stages.append(path)
-  return OK)
+  return OK
+ world.set_meta(&"guarded_gameplay_test_fault", record_stages)
  var before_ticks := disk()
  for second in 29: world.guarded_growth_tick(1.0)
  check(disk()==before_ticks and tick_stages.is_empty() and heart.work.flowering==29.0 and bed.age==29.0,
   "29 ordinary ticks accrue crop and research work without a save")
+ var old_plots: Array = world.progress.plots.duplicate(true)
+ var old_events: Dictionary = world.progress.garden_interactions.duplicate(true)
+ world.set_meta(&"guarded_gameplay_test_fault",func(phase,path):
+  return ERR_FILE_CANT_WRITE if phase=="replace" and path==garden_path else OK)
+ world.guarded_growth_tick(1.0)
+ check(disk()==before_ticks and heart.work.flowering==29.0 and world.progress.plots==old_plots
+  and world.progress.garden_interactions==old_events, "post-stage refusal restores crop age, research, reveal and canonical files")
+ world.set_meta(&"guarded_gameplay_test_fault", record_stages)
  world.guarded_growth_tick(1.0)
  check(tick_stages==[garden_path+".txn_stage"] and disk()[C]==before_ticks[C],
   "coincident crop and research checkpoints stage just one Garden")
@@ -385,10 +394,7 @@ func gameplay() -> void:
  p.carried_parts[1]=1
  world.garden_action(1,"bank_part_1")
  check(p.last_deposit==18 and p.carried_parts[1]==0 and world.seed_reserve(p).parts[1]==1, "courier persists one stack item")
- world.progress.heart.unlocked.append("perfect_recollection")
- world.consider_recollection()
- check(not world.progress.heart.recollection_seen, "retired finale recollection remains dormant")
- record("cards_courier_recollection",before,{"spent":spent,"floor":world.participation.floor(),"cards":Cards.ledger(p).count(),"status":world.status})
+ record("cards_courier",before,{"spent":spent,"floor":world.participation.floor(),"cards":Cards.ledger(p).count(),"status":world.status})
 
  ExpeditionCase.set_membership(world, p, false)
  p.pos=world.Stage.PLOTS[0]

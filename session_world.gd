@@ -379,6 +379,6 @@ func update(now: int = -1) -> void:
 
 func allow_remote(id: int, channel: String, limit: int, read_only := false) -> bool:
 	var game = _world.get_ref()
-	if (not read_only and not game.persistence_session.can_write()) or not game.players.has(id): return false
+	if (not read_only and not game.persistence_session.can_simulate()) or not game.players.has(id): return false
 	if not Session.belongs_to(game.players[id],game.network_session) or Session.peer_for(game.players[id]) != id: return false
 	return game.network_session.allow(id,channel,limit,Time.get_ticks_msec())

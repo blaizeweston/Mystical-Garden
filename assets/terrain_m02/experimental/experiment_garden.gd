@@ -328,7 +328,7 @@ func contribute(quote: Dictionary) -> bool:
 	return accepted
 
 func advance_assimilation(elapsed: float, in_wilds: bool) -> void:
-	if elapsed <= 0.0 or assimilation.queue.is_empty() or get_tree().paused or not game.persistence_session.can_write():
+	if elapsed <= 0.0 or assimilation.queue.is_empty() or get_tree().paused or not game.persistence_session.can_simulate():
 		return
 	var next := assimilation.plan(game.progress.heart.progression_work(elapsed, in_wilds))
 	var knowledge: int = next.earned
@@ -530,7 +530,7 @@ func _may_place() -> bool:
 	if not game.players.has(game.HOST) or not game.multiplayer.is_server() or not game.slot_claimed:
 		return false
 	var player: Dictionary = game.players[game.HOST]
-	return not Participation.is_wild(player) and not PlayerLifecycle.fallen(player) and game.participation.travel_kind().is_empty() and reveal == null and game.persistence_session.can_write() and game.progress.garden_development_error.is_empty()
+	return not Participation.is_wild(player) and not PlayerLifecycle.fallen(player) and game.participation.travel_kind().is_empty() and reveal == null and game.persistence_session.can_simulate() and game.progress.garden_development_error.is_empty()
 
 func place(kind: String, target: Vector2, yaw: float, moving: int = 0) -> bool:
 	var refusal := _build_refusal(kind, target, yaw, moving)

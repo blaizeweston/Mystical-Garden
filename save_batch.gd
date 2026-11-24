@@ -32,8 +32,16 @@ static func write(path: String, bytes: PackedByteArray) -> Error:
   staged[path] = bytes
   return OK
  return Legacy.run(PackedStringArray([path]), func(_plan):
-  var error := _write_bytes(path + ".tmp", bytes)
-  return DirAccess.rename_absolute(path + ".tmp", path) if error == OK else error)
+  var scratch := path + ".tmp"
+  if FileAccess.file_exists(scratch) or DirAccess.dir_exists_absolute(scratch): return ERR_BUSY
+  var error := _write_bytes(scratch, bytes)
+  if error != OK: return error
+  error = DirAccess.rename_absolute(scratch, path)
+  # A locked destination leaves our freshly staged image behind. Remove only
+  # these confirmed bytes under the same authorization, so closing can retry.
+  if error != OK and FileAccess.file_exists(scratch) and FileAccess.get_file_as_bytes(scratch) == bytes:
+   DirAccess.remove_absolute(scratch)
+  return error)
 
 static func record_serializer_error(error: Error, path: String) -> Error:
  if _guarded_owner != null:

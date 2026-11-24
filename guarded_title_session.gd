@@ -19,6 +19,9 @@ var _profile_path := ""
 # reserve; a transiently busy native lock gets a retry after one second.
 const RENEW_SECONDS := 8.0
 const BUSY_RETRY_SECONDS := 1.0
+const SIMULATION_LEASE_CHECK_MS := 1000
+var _lease_check_until_ms := 0
+var _lease_verified := false
 var _heartbeat_at := 0.0
 var _profile_heartbeat_at := 0.0
 var _stagger_heartbeats := false
@@ -45,6 +48,14 @@ func is_blocked() -> bool:
 
 func can_write() -> bool:
  return not is_blocked() and (not _guarded or (not _stopping and owns_leases()))
+
+## Movement, previews and transient combat share a bounded lease observation.
+## Transaction authorization still reads both current markers under the root lock.
+func can_simulate() -> bool:
+ if is_blocked() or _stopping: return false
+ if not _guarded: return true
+ if Time.get_ticks_msec() >= _lease_check_until_ms: return owns_leases()
+ return _lease_verified
 
 func pending_notice() -> String:
  return _pending_notice if is_blocked() else ""
@@ -302,8 +313,10 @@ static func _claim_written(boundary: Dictionary) -> bool:
  return boundary.get("ran", false) and boundary.get("value") is Dictionary and completed(boundary.value)
 
 func owns_leases() -> bool:
- return (_garden != null or _roster != null) and (_garden == null or _garden.owns_guarded_lease(_garden_slot)) \
+ _lease_verified = (_garden != null or _roster != null) and (_garden == null or _garden.owns_guarded_lease(_garden_slot)) \
   and (_roster == null or _roster.owns_guarded_lease(_profile_slot))
+ _lease_check_until_ms = Time.get_ticks_msec() + SIMULATION_LEASE_CHECK_MS
+ return _lease_verified
 
 func authorizes(path: String) -> bool:
  return (path == _profile_path or (_garden != null and path == _garden_path)) and owns_leases()
@@ -352,6 +365,7 @@ func tick() -> Dictionary:
  return Ops.management_result(OK, "")
 
 func release() -> Dictionary:
+ _lease_verified = false
  var result := Ops.management_result(OK,"")
  if _roster != null:
   result=outcome(_roster.release_guarded(_profile_slot))

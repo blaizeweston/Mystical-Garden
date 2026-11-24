@@ -152,6 +152,18 @@ func run() -> void:
 	check(world.recover_departure_cleanup() and disk()==committed and world.persistence_session.can_write(),"canonical in-place cleanup preserves both byte images")
 	enter(1)
 	check(world.expedition_transitions.finish_voluntary() and world.ui.visible_expedition_result().get("outcome")=="Abandonment" and not FileAccess.file_exists(G+".transaction"),"ordinary clean departure publishes one result")
+	var previous_profile := FileAccess.get_sha256(C)
+	world.local_character.data.xp[0] += 1
+	world.character_dirty = true
+	lock(C,FileAccess.READ)
+	world.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	await process_frame
+	check(current_scene == world and world.character_dirty and world.status.contains("could not be saved")
+		and FileAccess.get_sha256(C)==previous_profile, "editor close with a locked character keeps the unsaved session open")
+	unlock()
+	world.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	check(not world.character_dirty and FileAccess.get_sha256(C)!=previous_profile,
+		"retrying close saves the same progress once the profile is writable")
 	world.free()
 	if not failed: print("PASS: legacy departure durability, rollback, cleanup, uncertainty, reports and restart recovery")
 	quit(int(failed))

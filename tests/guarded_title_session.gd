@@ -9,6 +9,13 @@ const Ops = preload("res://persistence_operations.gd")
 const Developer = preload("res://developer_mode.gd")
 var failed := false
 
+class ObservedLease extends RefCounted:
+ var checks := 0
+ var current := true
+ func owns_guarded_lease(_slot: int) -> bool:
+  checks += 1
+  return current
+
 func _initialize() -> void:
  call_deferred("run")
 
@@ -138,6 +145,23 @@ func finalized(kind: Batch.Outcome, blocked := false, release_error := OK) -> Di
   "value": {"outcome": value, "action_ran": true}}
 
 func session_state() -> void:
+ var simulated := Session.new()
+ var lease := ObservedLease.new()
+ simulated._guarded = true
+ simulated._garden = lease
+ simulated._garden_path = "fixture/garden.cfg"
+ for frame in 120:
+  check(simulated.can_simulate(), "transient operations can share an ownership observation")
+ check(lease.checks == 1, "120 simulation observations read the lease once")
+ lease.current = false
+ check(not simulated.authorizes(simulated._garden_path) and lease.checks == 2 and not simulated.can_simulate(),
+  "write authorization reads the marker immediately and invalidates stale simulation access")
+ lease.current = true
+ simulated._lease_check_until_ms = 0
+ check(simulated.can_simulate() and lease.checks == 3, "expired simulation observation must be reverified")
+ lease.current = false
+ simulated._lease_check_until_ms = 0
+ check(not simulated.can_simulate() and lease.checks == 4, "a foreign marker stops simulation even without a save")
  var ordinary := Session.new()
  check(not ordinary.is_guarded() and not ordinary.owns_leases() and ordinary.can_write(),
   "ordinary production route does not acquire guarded authority")

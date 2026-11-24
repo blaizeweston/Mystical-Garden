@@ -88,7 +88,7 @@ class Recipient extends RefCounted:
 			and is_same(_actor, _world.players.get(_peer, {}))
 
 	func observe(contact: Contact) -> Dictionary:
-		if not _is_current() or not Life.alive(_actor) or not _world.persistence_session.can_write():
+		if not _is_current() or not Life.alive(_actor) or not _world.persistence_session.can_simulate():
 			return {}
 		var observation := {
 			"within_hit_grace": _actor[Conditions.STATE].grace_active(contact.now),
@@ -126,7 +126,7 @@ class Recipient extends RefCounted:
 		return Wood.absorption_plan(_actor, hp, preload("res://affinity_time.gd").now(_world))
 
 	func commit_contact(contact: Contact, hp: int, bark: Dictionary, epoch: int) -> Dictionary:
-		if not _is_current() or not _world.persistence_session.can_write():
+		if not _is_current() or not _world.persistence_session.can_simulate():
 			return result(Outcome.REJECTED)
 		if _world.persistence_session.is_guarded() and hp >= int(Vitals.current_hp(_actor)):
 			return _guarded_loss(func(effects) -> Dictionary:
@@ -157,7 +157,7 @@ class Recipient extends RefCounted:
 		if update.slow_applied: _world.action_feedback(effects, _peer, "Slowed.")
 
 	func apply_health_loss(amount: int) -> Dictionary:
-		if not _is_current() or not _world.persistence_session.can_write():
+		if not _is_current() or not _world.persistence_session.can_simulate():
 			return result(Outcome.REJECTED)
 		if _world.persistence_session.is_guarded():
 			if amount < int(Vitals.current_hp(_actor)):

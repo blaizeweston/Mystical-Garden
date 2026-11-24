@@ -285,8 +285,8 @@ func _notification(what: int) -> void:
 		elif slot_claimed and not progress.heart.active.is_empty() and not save_session_garden():
 			status = "Could not save research before closing. Please retry."
 			return
-		if character_dirty and persistence_session.can_write():
-			save_local_character()
+		if character_dirty and persistence_session.can_write() and not save_local_character():
+			return
 		get_tree().quit()
 
 
@@ -562,16 +562,19 @@ func request_garden_action(action: String) -> void:
 
 
 func garden_action(id: int, action: String) -> void:
-	if not persistence_session.can_write(): return
 	if action.begins_with("card_cast:"):
+		if not persistence_session.can_simulate(): return
 		preload("res://card_active_actions.gd").command(self,id,players.get(id,{}),action)
 		return
 	if action.begins_with("core_cast:"):
+		if not persistence_session.can_simulate(): return
 		preload("res://core_combat.gd").command(self,id,players.get(id,{}),action)
 		return
 	if action.begins_with("class_cast:"):
+		if not persistence_session.can_simulate(): return
 		preload("res://ability_aim.gd").command(self,id,players.get(id,{}),action)
 		return
+	if not persistence_session.can_write(): return
 	var diagnostic_request:=Journal.interaction(self,id,action,"begin")
 	var persistent: bool=action in ["experiment","donate"] or action.begins_with("breed_") or action.begins_with("care_")
 	if persistent and not persistence_session.is_guarded(): Transactions.run(self,func(): _garden_action(id,action))
@@ -1437,7 +1440,7 @@ func extraction_checkpoint_open() -> bool:
 
 
 func guarded_growth_tick(elapsed: float) -> void:
-	if not persistence_session.can_write(): return
+	if not persistence_session.can_simulate(): return
 	var in_wilds := participation.active()
 	var original: Array = progress.plots.duplicate(true)
 	var crop_due := progress.advance_growth(elapsed, in_wilds)
@@ -1450,10 +1453,7 @@ func guarded_growth_tick(elapsed: float) -> void:
 	var updated: Array = progress.plots.duplicate(true)
 	progress.plots.assign(original)
 	progress.sync_plot_flags()
-	var message := run_heart_save(func():
-		progress.plots.assign(updated)
-		progress.sync_plot_flags()
-		return progress.heart.tick(progress, elapsed, in_wilds))
+	var message := Transactions.save_growth_checkpoint(self, updated, elapsed, in_wilds)
 	if not message.is_empty(): status = message
 
 func run_heart_save(action: Callable) -> String:
@@ -1507,7 +1507,7 @@ func _physics_process(delta: float) -> void:
 			if multiplayer.is_server() and persistence_session.can_publish_state():
 				send_expedition_state(delta)
 			return
-		if not persistence_session.can_write(): return
+		if not persistence_session.can_simulate(): return
 	if multiplayer.is_server():net_motion.frame(delta,players)
 	mouse_controls.frame(self)
 	var direction := Vector2.ZERO if ui.is_overlay_open() or ui.cinematic_active() else Input.get_vector("left", "right", "up", "down")
@@ -1726,7 +1726,9 @@ func act(id: int, strike: bool) -> void:
 	if not strike:Journal.interaction(self,id,"interact","end",request)
 
 func _act(id: int, strike: bool) -> void:
-	if not persistence_session.can_write(): return
+	if strike:
+		if not persistence_session.can_simulate(): return
+	elif not persistence_session.can_write(): return
 	if not players.has(id) or not Session.ready_for(players[id]):
 		return
 	var p: Dictionary = players[id]
