@@ -30,7 +30,7 @@ const DEFINITIONS := [
 			80,
 			900
 		],
-		"description": "Add a planting bed for any species.",
+		"description": "Unlock a total of 4 planting beds. Place the additional bed through Build.",
 		"plots": 4
 	},
 	{
@@ -47,7 +47,7 @@ const DEFINITIONS := [
 			80,
 			775
 		],
-		"description": "Add a planting bed for any species.",
+		"description": "Unlock a total of 5 planting beds. Place the additional bed through Build.",
 		"plots": 5
 	},
 	{
@@ -64,7 +64,7 @@ const DEFINITIONS := [
 			80,
 			650
 		],
-		"description": "Add a planting bed for any species.",
+		"description": "Unlock a total of 6 planting beds. Place the additional bed through Build.",
 		"plots": 6
 	},
 	{
@@ -81,7 +81,7 @@ const DEFINITIONS := [
 			80,
 			525
 		],
-		"description": "Add a planting bed for any species.",
+		"description": "Unlock a total of 7 planting beds. Place the additional bed through Build.",
 		"plots": 7
 	},
 	{
@@ -98,7 +98,7 @@ const DEFINITIONS := [
 			80,
 			400
 		],
-		"description": "Add a planting bed for any species.",
+		"description": "Unlock a total of 8 planting beds. Place the additional bed through Build.",
 		"plots": 8
 	},
 	{
@@ -115,7 +115,7 @@ const DEFINITIONS := [
 			80,
 			275
 		],
-		"description": "Add a planting bed for any species.",
+		"description": "Unlock a total of 9 planting beds. Place the additional bed through Build.",
 		"plots": 9
 	},
 	{
@@ -132,7 +132,7 @@ const DEFINITIONS := [
 			225,
 			900
 		],
-		"description": "The living clearing expands and its grass, water and root paths spread.",
+		"description": "Unlock repeatable Garden expansion. Choose a frontier in Build and pay with growth energy from offerings.",
 		"clearing": 1
 	},
 	{
@@ -149,7 +149,7 @@ const DEFINITIONS := [
 			225,
 			650
 		],
-		"description": "Expand the sanctuary again, opening more room around the Garden.",
+		"description": "Open the cultivation terrace. Future Build expansions cost 10% less growth energy than at Reaching Roots.",
 		"clearing": 2
 	},
 	{
@@ -166,7 +166,7 @@ const DEFINITIONS := [
 			225,
 			400
 		],
-		"description": "The Heart reclaims the broadest circle of living land.",
+		"description": "Future Build expansions cost 20% less growth energy than at Reaching Roots.",
 		"clearing": 3
 	},
 	{
@@ -216,7 +216,7 @@ const DEFINITIONS := [
 			370,
 			650
 		],
-		"description": "Plants grow faster. Harvesting grants 1 extra familiarity."
+		"description": "Crops grow at 140% of their original speed. Harvesting grants 1 extra familiarity."
 	},
 	{
 		"id": "seed_archive",
@@ -248,7 +248,7 @@ const DEFINITIONS := [
 			660,
 			900
 		],
-		"description": "Build an Offering Altar. Trade monster trophies for Knowledge. First offerings grant more. +5% grafting chance."
+		"description": "Build an Offering Altar. Offer a trophy for 4 Knowledge the first time its type is offered, then 1 for repeat offerings."
 	},
 	{
 		"id": "infusion",
@@ -300,24 +300,6 @@ const DEFINITIONS := [
 			650
 		],
 		"description": "Each player can send one seed or material home at every cleared third gate."
-	},
-	{
-		"id": "rift_hook",
-		"name": "Rift Resonance",
-		"parents": [
-			"flowering",
-			"monster_studies"
-		],
-		"knowledge": 24,
-		"insight": 6,
-		"materials": 6,
-		"research": 4,
-		"position": [
-			515,
-			525
-		],
-		"description": "Study the discovered Veilcap lineage and its interaction with monster grafts. Field discovery remains an alternate way to learn Rift Hook.",
-		"fact": "veilcap"
 	},
 	{
 		"id": "living_archive",
@@ -395,7 +377,6 @@ const DEFINITIONS := [
 			"memory_grove",
 			"memory_mire",
 			"memory_hollow",
-			"rift_hook",
 			"nursery",
 			"checkpoint_deposit",
 			"spore_bench",
@@ -414,16 +395,19 @@ const DEFINITIONS := [
 	},
  {"id":"living_conduit","name":"Living Water Conduit","parents":["clearing_2","irrigation","plot_4"],
  "knowledge":40,"insight":6,"materials":0,"research":6,"position":[805,650],
- "description":"Build a water conduit at the terrace. The host chooses how new crops grow. Preserving deeper buds takes longer and improves rare harvest chances."}
+ "description":"Unlock the terrace conduit. The host chooses the bud type for new plantings in Bed 4. Preserving a deep bud takes longer and improves rare harvest chances."}
 ]
+static var _by_id: Dictionary = {}
+
+static func _static_init() -> void:
+	for node in DEFINITIONS: _by_id[node.id]=node
+
 static func get_node(id: String) -> Dictionary:
-	for node in DEFINITIONS:
-		if node.id==id: return node
-	return {}
+	return _by_id.get(id,{})
 static func required_core() -> Array:
-	return ["flowering","irrigation","nursery","seed_archive","monster_studies","infusion","spore_bench","checkpoint_deposit","rift_hook","living_archive","clearing_1","clearing_2","clearing_3"]
+	return ["flowering","irrigation","nursery","seed_archive","monster_studies","infusion","spore_bench","checkpoint_deposit","living_archive","clearing_1","clearing_2","clearing_3"]
 static func phase_name(phase: int) -> String:
 	return ["Sheltered Fragment","First Awakening","Rooted Heart","Living Nexus","Remembering Heart","Perfect Recollection"][clampi(phase,0,5)]
 
 static func enabled(id: String) -> bool:
-	return id!="perfect_recollection" or preload("res://campaign.gd").LEGACY_ENDING_ENABLED
+	return _by_id.has(id) and (id!="perfect_recollection" or preload("res://campaign.gd").LEGACY_ENDING_ENABLED)

@@ -112,6 +112,11 @@ func run() -> void:
 	check(not garden.plans.is_empty(), "an expansion is available")
 	if not garden.plans.is_empty():
 		var sector: int = garden.plans.keys()[0]
+		var receipts: Dictionary = game.progress.garden_interactions.duplicate(true)
+		game.progress.path = base + "-missing/failed-expansion.cfg"
+		check(not garden.expand(sector) and garden.state.revision == 0 and garden.reveal == null
+			and game.progress.garden_interactions == receipts, "failed expansion publishes neither land nor a scene")
+		game.progress.path = path
 		check(garden.expand(sector) and not garden.expand(sector), "one expansion consumes its energy once")
 		if garden.reveal != null: garden.reveal.custom_step(3.0)
 	garden.development_dialog.hide()
@@ -124,6 +129,9 @@ func run() -> void:
 	game = await world(false)
 	if game == null: quit(1); return
 	garden = game.stage.experimental_garden
+	var expansions: Array = game.progress.garden_interactions.growth.events.filter(func(e): return e.kind == "expansion")
+	check(expansions.size() == 1 and expansions[0].expansion == garden.state.revision,
+		"one saved scene identifies the committed frontier after reload")
 	check(equivalent(garden._capture_development(), saved) and game.progress.plots[0] == crop,
 		"fresh world reload preserves the layout, crop, reclaimed cells, roots, energy and study work")
 	check(game.stage.bed_positions() == positions and game.stage.altar_position() == altar_position,

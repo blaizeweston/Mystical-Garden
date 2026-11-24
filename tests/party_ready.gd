@@ -81,7 +81,7 @@ func run():
  game.expedition_transitions.abandon(1);game.expedition_transitions.abandon(2)
  # Restored legacy worlds must not start the deferred finale for either party member.
  setup_guest();guest=game.players[2]
- game.progress.flowering_unlocked=true;game.progress.veilcap_discovered=true;game.progress.rift_hook_discovered=true;game.progress.knowledge=game.Campaign.FULL_KNOWLEDGE
+ game.progress.flowering_unlocked=true;game.progress.veilcap_discovered=true;game.progress.knowledge=game.Campaign.FULL_KNOWLEDGE
  game.progress.campaign.memories.assign(game.Campaign.MEMORY_REQUIREMENTS);game.progress.campaign.offshoots.fill(game.Campaign.MATURE)
  for technology in game.HeartCatalog.required_core(): game.progress.heart.unlock_direct(technology)
  for technology in ["memory_grove","memory_mire","memory_hollow","perfect_recollection"]: game.progress.heart.unlock_direct(technology)

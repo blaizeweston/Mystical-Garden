@@ -313,9 +313,6 @@ func heart_nodes() -> Array:
 				for parent in d.parents: names.append(HeartCatalog.get_node(str(parent)).name)
 				description+="Prerequisites: "+", ".join(names)+".\n"
 			is_ready=is_ready and knowledge>=int(d.knowledge) and (state.get("paid",[]).has(id) or (int(state.get("insight",0))>=int(d.insight)))
-			if d.get("fact","")=="veilcap":
-				is_ready=is_ready and bool(_facts.veilcap)
-				description+="Discover Veilcap to study this memory.\n"
 			if d.get("fact","")=="offshoots": description+="Resolve the three offshoot choices before the final recollection.\n"
 			if state.get("paid",[]).has(id) and not owned:
 				description+="This project is funded. Resume it without paying again.\n"

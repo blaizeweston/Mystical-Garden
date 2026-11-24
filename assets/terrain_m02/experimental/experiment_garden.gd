@@ -73,6 +73,7 @@ var build_yaw := 0.0
 var reveal: Tween
 var growth_preview: MeshInstance3D
 var layout_revision := 0
+const RECLAIM_SECONDS := 2.45
 var remote_revision := -1
 var geometry := {}
 var remote_development := {}
@@ -383,29 +384,33 @@ func expand(sector: int) -> bool:
 	var plan: Dictionary = plans[sector]
 	var cost := funds.expansion_cost(plan, state.reclaimed_cells, clearing_tier())
 	var outline := state.outline
+	var number := state.revision + 1
 	var accepted := _commit_development(func() -> bool:
 		if funds.energy < cost or not state.apply(plan):
 			return false
 		funds.energy -= cost
 		layout_revision += 1
 		network.append(Roots.plan(state.roots[-1], heart.stage, state, network))
-		return true)
+		return true, preload("res://garden_growth_state.gd").record_expansion.bind(game.progress, number, Garden.DIRECTIONS[sector]))
 	if not accepted:
 		return false
 	Journal.event("interaction", "garden_expanded", {"sector": sector, "revision": state.revision, "energy_spent": cost})
-	barrier.begin_shape(outline, state.outline)
+	plans.clear()
+	_animate_expansion(outline, _add_root(network[-1]))
+	return true
+
+func expansion_route(number: int) -> PackedVector3Array:
+	if number < 1 or number > network.size():
+		return PackedVector3Array()
+	return PackedVector3Array(network[number - 1].main)
+
+func _animate_expansion(previous_outline: PackedVector2Array, root: MeshInstance3D) -> void:
+	barrier.begin_shape(previous_outline, state.outline)
 	barrier.update_shape(0.0)
 	_update_rim(0.0)
-	var root := MeshInstance3D.new()
-	var root_plan: Dictionary = network[-1]
-	root.mesh = Roots.mesh(root_plan)
-	var shader := ShaderMaterial.new()
-	shader.shader = Bark
+	var shader := root.material_override as ShaderMaterial
 	shader.set_shader_parameter("growing_root", true)
 	shader.set_shader_parameter("root_progress", 0.0)
-	root.material_override = shader
-	roots.add_child(root)
-	plans.clear()
 	reveal = create_tween()
 	reveal.tween_method(func(t: float):
 		shader.set_shader_parameter("root_progress", t)
@@ -414,9 +419,8 @@ func expand(sector: int) -> bool:
 		material.set_shader_parameter("garden_reveal", t)
 		forest.set_reveal(t)
 		barrier.update_shape(t)
-		_refresh_revealed_props(), 0.0, 1.0, 2.45)
+		_refresh_revealed_props(), 0.0, 1.0, RECLAIM_SECONDS)
 	reveal.finished.connect(func(): reveal = null)
-	return true
 
 func snapshot() -> Dictionary:
 	if geometry.get("revision", -1) != layout_revision:
@@ -451,16 +455,29 @@ func receive_snapshot(snapshot_data: Dictionary) -> void:
 		_refresh_guest_review()
 
 func _apply_layout(layout: Dictionary) -> void:
-	barrier.begin_shape(state.outline, layout.outline)
+	var previous_outline := state.outline
+	var live_expansion: bool = remote_revision >= 0 and layout.growth.size() == state.revision + 1
+	var growth_changed: bool = remote_revision < 0 or layout.growth.size() != state.revision
 	state.outline = layout.outline
 	state.owned = layout.owned.duplicate()
 	state.expansion_history.assign(layout.growth)
 	state.revision = state.expansion_history.size()
-	barrier.update_shape(1.0)
-	_update_rim()
-	network.assign(layout.roots.duplicate(true))
+	if growth_changed:
+		if reveal != null:
+			reveal.kill()
+			reveal = null
+			roots.get_child(-1).material_override.set_shader_parameter("root_progress", 1.0)
+			reclaim_glow = 0.0
+			_set_study_glow(study_glow)
+		network.assign(layout.roots.duplicate(true))
+		if live_expansion:
+			_animate_expansion(previous_outline, _add_root(network[-1]))
+		else:
+			barrier.begin_shape(previous_outline, state.outline)
+			barrier.update_shape(1.0)
+			_update_rim()
+			_refresh_root_views()
 	_restore_buildings(layout.buildings)
-	_refresh_root_views()
 	_refresh_structure_views()
 	stage.plot_key = ""
 
@@ -838,9 +855,13 @@ func _refresh_root_views() -> void:
 	for child in roots.get_children():
 		child.free()
 	for plan: Dictionary in network:
-		var root := MeshInstance3D.new()
-		root.mesh = Roots.mesh(plan)
-		var shader := ShaderMaterial.new()
-		shader.shader = Bark
-		root.material_override = shader
-		roots.add_child(root)
+		_add_root(plan)
+
+func _add_root(plan: Dictionary) -> MeshInstance3D:
+	var root := MeshInstance3D.new()
+	root.mesh = Roots.mesh(plan)
+	var shader := ShaderMaterial.new()
+	shader.shader = Bark
+	root.material_override = shader
+	roots.add_child(root)
+	return root

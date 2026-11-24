@@ -103,6 +103,12 @@ func run() -> void:
 	check(requests.size()==count,"a pending acknowledgement is not sent every frame")
 	view._process(.7)
 	check(requests.size()==count+1 and requests.back().data.action=="growth_ack:8","a delayed acknowledgement retains the existing one-second retry")
+	next_event.sequence=9
+	view.present(facts([next_event]))
+	view._process(0)
+	check(not view.is_active() and requests.back().data.action=="growth_ack:9" and not stage.has_meta("garden_growth_camera")
+		and requests[-2].command=="research_audio" and requests[-2].data.sequence==9,
+		"even with cinematics enabled, research plays its completion cue and leaves the camera alone")
 	view.present(facts([event]))
 	view.begin(event)
 	view.free()

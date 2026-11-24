@@ -99,12 +99,16 @@ func _ambience_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary:
 
 func _cinematic_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary:
 	var data:=Growth.projection(world,peer)
+	var pending: Array=data.get("pending",[])
+	var expansion: bool=not pending.is_empty() and pending[0].get("kind")=="expansion"
+	var garden=world.stage.experimental_garden
+	var building_menu_open: bool=garden!=null and (garden.development_dialog.visible or garden.offering_dialog.visible)
 	return {"context":str(world.network_session.role()=="Guest")+":"+str(peer),
-		"pending":data.get("pending",[]).duplicate(true),"player_present":not actor.is_empty(),
+		"pending":pending.duplicate(true),"player_present":not actor.is_empty(),
 		"player_position":actor.get("pos",world.Stage.SPAWN),"blocked":world.persistence_session.is_blocked(),
 		"safe":not Participation.is_wild(actor) and data.get("ready",false) and world.network_session.role()!="Connecting",
-		"skip_playback":world.has_meta(&"experimental_terrain") or not world.app_settings.values.get("garden_cinematics",true) or not world.app_settings.values.get("ambient_motion",true),
-		"can_start":not world.ui.is_overlay_open() and world.settings_dialog!=null and not world.settings_dialog.visible}
+		"skip_playback":(world.has_meta(&"experimental_terrain") and not expansion) or not world.app_settings.values.get("garden_cinematics",true) or not world.app_settings.values.get("ambient_motion",true),
+		"can_start":not building_menu_open and not world.ui.is_overlay_open() and world.settings_dialog!=null and not world.settings_dialog.visible}
 
 ## Presentation Nodes are separate from the detached data frames.
 func interface_layers() -> Array:

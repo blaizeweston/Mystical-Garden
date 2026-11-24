@@ -2130,9 +2130,10 @@ func inventory_snapshot(player: Dictionary) -> Array:
 
 
 func garden_snapshot() -> Array:
+	# Protocol 41 reserves slots 9–11. Keep later Garden fields at their established indices.
 	return [progress.research_points, progress.studying_flowering, progress.flowering_unlocked,
 		progress.flowering, progress.harvest_ready, progress.parts, progress.knowledge, progress.veilcap_discovered, progress.briar_hooks,
-		progress.studying_rift_hook, progress.rift_research_points, progress.rift_hook_discovered, progress.plot_snapshot(), progress.discoveries.duplicate(), progress.heartwood_barbs, shared_parts_snapshot(), progress.heart.snapshot(progress)]
+		false, 0, false, progress.plot_snapshot(), progress.discoveries.duplicate(), progress.heartwood_barbs, shared_parts_snapshot(), progress.heart.snapshot(progress)]
 
 
 @rpc("authority", "call_remote", "unreliable_ordered",4)
@@ -2244,7 +2245,7 @@ func _process(_delta: float) -> void:
 	var heart := heart_state()
 	world_view.present_garden(_delta,{"plots":Progress.decode_plots(shared[12]),"heart":heart,
 		"wild":wild,"site":participation.route(),"floor":participation.floor(),"boss":tactics.boss_kind>=0,"observer":observer,
-		"knowledge":int(shared[6]),"technologies":int(shared[2])+int(shared[7])+int(shared[11])})
+		"knowledge":int(shared[6]),"technologies":int(shared[2])+int(shared[7])})
 	var host_side := multiplayer.is_server()
 	var ready_skill := (local_timers == null or local_timers.ready(Cooldowns.Q, cooldown_now)) if host_side else bool(p.get("skill_ready", false))
 	var second_ready := (local_timers == null or local_timers.ready(Cooldowns.R, cooldown_now)) if host_side else bool(p.get("skill_two_ready", false))
@@ -2980,7 +2981,7 @@ func progression_ui_data(selection: Dictionary) -> Dictionary:
 		"profile":preload("res://ui/gameplay/player_build_projection.gd").progression_profile(player.get("character",guest_character.data)),
 		"known_seeds":garden[13] if garden.size()>13 else Seeds.counts(false),
 		"seed_stock":seed_reserve(player).stock if host else guest_replication.inventory()[6] if guest_replication.inventory().size()>6 else Seeds.counts(),
-		"heart":heart,"shared_parts":garden[5],"knowledge":int(garden[6]),"veilcap":bool(garden[7]),
+		"heart":heart,"shared_parts":garden[5],"knowledge":int(garden[6]),
 		"memories":[campaign[14],campaign[15],campaign[16]],"finale_available":bool(campaign[17]),
 		"at_altar":not Participation.is_wild(player) and player.get("pos",Vector3.ZERO).distance_to(stage.altar_position())<=1.65,
 		"may_learn":preload("res://class_tree_access.gd").can_learn_here(self,player),"may_respec":at_home and between_runs,

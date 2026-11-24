@@ -69,10 +69,6 @@ var briar_hooks := 0
 var crafted_hook := false
 var heartwood_barbs := 0
 var crafted_heartwood := false
-var rift_hook_discovered := false
-var studying_rift_hook := false
-var rift_research_points := 0
-const RIFT_RESEARCH_COST := 4
 var veilcap_discovered := false
 var crafted: Array = Seeds.counts(false)
 const INFUSION_KNOWLEDGE := 5
@@ -176,10 +172,6 @@ func _read_garden() -> Error:
 	var barbs = file.get_value("garden", "heartwood_barbs", 0)
 	heartwood_barbs = maxi(0, barbs) if barbs is int else 0
 	crafted_heartwood = file.get_value("garden", "crafted_heartwood", false) == true
-	rift_hook_discovered = file.get_value("garden", "rift_hook_discovered", false) == true
-	studying_rift_hook = not rift_hook_discovered and file.get_value("garden", "studying_rift_hook", false) == true
-	var rift_points = file.get_value("garden", "rift_research_points", 0)
-	rift_research_points = clampi(rift_points, 0, RIFT_RESEARCH_COST) if rift_points is int else 0
 	campaign.load_state(file)
 	wilds_memory=Learning.normalize(file.get_value("wilds","memory_v1",{}))
 	var pressure = file.get_value("wilds", "ranged_pressure", 0)
@@ -239,7 +231,7 @@ func _read_garden() -> Error:
 		return ERR_FILE_CORRUPT
 	needs_inventory_backup=not file.has_section("inventory")
 	needs_heart_backup=heart.load_state(file,self)
-	garden_interactions=preload("res://garden_growth_state.gd").initialize(garden_interactions,preload("res://garden_growth_state.gd").snapshot(self))
+	garden_interactions=preload("res://garden_growth_state.gd").load_history(garden_interactions,self)
 	garden_interactions=preload("res://garden_return_state.gd").initialize(garden_interactions)
 	return OK
 
@@ -361,9 +353,6 @@ func _serialize_save(stage := Callable()) -> Error:
 	file.set_value("garden", "crafted_hook", crafted_hook)
 	file.set_value("garden", "heartwood_barbs", heartwood_barbs)
 	file.set_value("garden", "crafted_heartwood", crafted_heartwood)
-	file.set_value("garden", "rift_hook_discovered", rift_hook_discovered)
-	file.set_value("garden", "studying_rift_hook", studying_rift_hook)
-	file.set_value("garden", "rift_research_points", rift_research_points)
 	file.set_value("garden", "veilcap_discovered", veilcap_discovered)
 	file.set_value("garden", "studying_flowering", studying_flowering)
 	file.set_value("garden", "flowering_unlocked", flowering_unlocked)
@@ -414,16 +403,8 @@ func advance_research(points: int) -> String:
 	return heart.advance(self,points)
 
 
-func discover_rift_hook() -> void:
-	if not rift_hook_discovered:
-		knowledge += 4
-	rift_hook_discovered = true
-	heart.unlock_direct("rift_hook")
-	studying_rift_hook = false
-
-
 func heart_restored() -> bool:
-	return heart.has("perfect_recollection") and flowering_unlocked and veilcap_discovered and rift_hook_discovered and (
+	return heart.has("perfect_recollection") and flowering_unlocked and veilcap_discovered and (
 		knowledge >= Campaign.FULL_KNOWLEDGE and campaign.memories_complete())
 
 

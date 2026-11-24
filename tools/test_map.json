@@ -1587,6 +1587,7 @@
       "garden_layout_persistence": {
         "kind": "unit",
         "systems": [
+          "garden_cinematics",
           "garden_development",
           "garden",
           "garden_zones",
@@ -1804,7 +1805,7 @@
     },
     "experimental_terrain_coop": {"profile": "terrain",
       "kind": "pair",
-      "systems": ["garden_development", "garden_heart_view", "garden_canopy",
+      "systems": ["expedition_statistics", "garden_cinematics", "garden_development", "garden_heart_view", "garden_canopy",
         "loot",
         "departure_settlement",
         "world_snapshot",
@@ -4489,7 +4490,7 @@
     [
       "garden_cinematics",
       "heart_growth_visual",
-      "Each unlock animates one permanent growth step"
+      "Completed research sets Heart size independently of the Build expansion camera"
     ],
     [
       "knowledge",
@@ -4829,7 +4830,7 @@
     [
       "event_audio",
       "garden_cinematics",
-      "Committed research plays its cue at the Garden reveal or when the player skips growth scenes"
+      "Committed research plays its completion cue without taking the camera"
     ],
     [
       "weapons",
@@ -6042,12 +6043,12 @@
         },
         "saved_garden_layout_8": {
           "systems": [
-            "garden_development"
+            "garden_cinematics", "garden_canopy", "garden_development"
           ]
         },
         "saved_garden_layout_9": {
           "systems": [
-            "garden_development"
+            "garden_cinematics", "garden_canopy", "garden_development"
           ]
         },
         "saved_garden_layout_10": {
@@ -6077,7 +6078,7 @@
         },
         "saved_garden_layout_15": {
           "systems": [
-            "garden_development"
+            "garden_cinematics", "garden_canopy", "garden_development"
           ]
         },
         "retire_hidden_heart": {"systems": ["garden_heart_view"]},
@@ -6376,6 +6377,37 @@
     "progress.gd": {
       "newline": "lf",
       "regions": {
+        "retired_research_discovery": {
+          "systems": [
+            "knowledge",
+            "expeditions"
+          ]
+        },
+        "retired_research_fields": {
+          "systems": [
+            "knowledge",
+            "persistence_operations"
+          ]
+        },
+        "retired_research_load": {
+          "systems": [
+            "knowledge",
+            "persistence_operations"
+          ]
+        },
+        "load_growth_history": {
+          "systems": [
+            "knowledge",
+            "garden_cinematics",
+            "persistence_operations"
+          ]
+        },
+        "retired_research_save": {
+          "systems": [
+            "knowledge",
+            "persistence_operations"
+          ]
+        },
         "saved_garden_layout_1": {
           "systems": [
             "garden_development"

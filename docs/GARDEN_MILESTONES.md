@@ -14,6 +14,24 @@ Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_
 | Project state | G-00–G-07 and W-00–W-07 are complete. G-08, W-08 and C-07 remain in the playtest queue. |
 | Listening review | Use A-06 to gather human feedback on cue recognition, mix balance and listening fatigue. The same sessions can cover the existing Garden and Wilds playtest milestones. |
 
+### Knowledge tree review and expansion playback
+
+The tree has 24 definitions, including the starting Heart and the hidden Perfect Recollection finale. Research updates the Heart. The expansion cutscene now belongs to the frontier purchase in Build. See [Garden expansion scenes](GARDEN_GROWTH_SCENES.md).
+
+| Nodes | Current gameplay payoff |
+|---|---|
+| Sheltered Heart, Garden Beds 4–9 | The Heart is the starting node. Each bed node unlocks one additional placement. Six purchases repeat the same decision. |
+| Reaching Roots, Verdant Refuge, Living Sanctuary | Unlock repeatable frontier purchases, then discount their growth-energy cost by 10% and 20% from the first tier. Verdant Refuge also unlocks the cultivation terrace. |
+| Flowering, Root Irrigation, Symbiotic Nursery | Harvest mature plants for seeds, fill a vessel at terrain water, grow crops faster and earn additional familiarity. |
+| Reclamation Altar, Offering Altar, Research Infusion | Build a station to reclaim discovered seeds, exchange trophies for Knowledge, or double the research time credited by a plant offering. Modern graft purchases have no Offering Altar chance bonus. |
+| Trophy Preservation, Returning Mycelium | Increase expedition monster-part cargo from six to eight, or send one eligible item home per player at a cleared third gate. |
+| Living Water Conduit | The host selects the bud policy for future crops in Bed 4. The benefit follows the bed identity when moved. |
+| Living Archive, three Remembrances, Perfect Recollection | The Archive tracks guardian memories. The three thresholds are 12, 16 and 20. They record progress and the Archive contributes to the Heart’s late visual phase. The concluding encounter is disabled. |
+
+Rift Resonance is retired. Existing Gardens retain lifetime Knowledge and recover any Knowledge spent on the retired node, up to its six-point price. Old discovery and research flags no longer start research or play a cue.
+
+Living Archive and the three Remembrances are under design review. They still record guardian progress. One possible replacement would use the Archive to open a final expedition route, with the fight before extraction while the party still has its cards and grafts. That route has not been approved or implemented.
+
 ## Rules for continuing and editing
 
 1. Read this handoff and the dependency map before coding. Re-check current source at the touched boundary; older screenshots/notes are historical evidence, not authority over current mechanics.

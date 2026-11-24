@@ -74,6 +74,9 @@ func guest_run():
  check(int(game.players[id].get("client_hurt_until",0))>Time.get_ticks_msec(),"guest receives deduplicated hit feedback");mark("hit")
  check(await until(func():return game.heart_state().get("active","")=="plot_4"),"guest sees research project")
  check(game.heart_state().get("insight",0)==6,"guest sees spendable Knowledge decrease");mark("timer")
+ var garden: Array=game.guest_replication.garden_progress()
+ check(garden.slice(9,12)==[false,0,false] and garden[12] is PackedByteArray and garden[16].active=="plot_4",
+  "retired research leaves the reliable Garden slots and active project aligned")
  check(await until(func():return game.heart_state().get("active","")=="flowering" and game.guest_replication.garden_progress()[5][0]==2),"guest sees available offering materials")
  var panel=UIFixture.control(game,"progression_view")
  panel.tabs.current_tab=1;panel.refresh()

@@ -63,6 +63,47 @@ func mark(key: String, value := "ok") -> void:
 	if check(file != null, "write synchronization marker " + key):
 		file.store_string(value)
 
+func dismiss_extraction_report(game: Node) -> bool:
+	if not check(await until(func(): return game.ui.panel_is_open("expedition_results")), "extraction presents the local player's report"):
+		return false
+	game.ui.close_panels()
+	return check(not game.ui.is_overlay_open(), "dismissing the report returns control to the Garden")
+
+func watch_expansion(game: Node) -> bool:
+	var scene = game.get_node("GardenInteractions/GrowthScenes")
+	scene.set_process(false)
+	scene.force_playback = true
+	game.app_settings.values.garden_cinematics = true
+	game.app_settings.values.ambient_motion = true
+	var started := await until(func():
+		scene._process(0.1)
+		if scene.is_active() and scene.event.kind == "return":
+			scene.finish(true)
+		return scene.is_active())
+	if not check(started and scene.event.kind == "expansion" and scene.event.expansion == 1,
+			"Build opens the expansion shot through this viewer's private queue"):
+		return false
+	var garden = game.stage.experimental_garden
+	var route: PackedVector3Array = garden.expansion_route(1)
+	scene.animate(garden.RECLAIM_SECONDS)
+	check(scene.tip.is_equal_approx(route[-1]) and game.stage.get_meta("garden_growth_camera").target.is_equal_approx(route[-1])
+		and scene.curtain.visible and not scene.root_mesh.visible, "camera reaches the purchased frontier, using its real root")
+	var sequence: int = scene.event.sequence
+	if role == "guest":
+		mark("watching", str(sequence))
+		if not check(await until(func(): return read("host-skipped") == str(sequence)), "host watches and skips the same expansion"):
+			return false
+		check(scene.is_active(), "host skip leaves the guest camera running")
+		scene._process(scene.EXPANSION_DURATION)
+	else:
+		if not check(await until(func(): return read("watching") == str(sequence)), "guest is watching the host's expansion"):
+			return false
+		scene.finish(true)
+		mark("host-skipped", str(sequence))
+	var growth = preload("res://garden_growth_service.gd")
+	return check(await until(func(): return not scene.is_active() and growth.projection(game, game.local_player_id()).get("seen", 0) >= sequence),
+		"viewer independently finishes the expansion and its acknowledgement reaches the host")
+
 func read(key: String) -> String:
 	return FileAccess.get_file_as_string(signals.path_join(key))
 
@@ -271,12 +312,14 @@ func host_run(menu: Node) -> void:
 	mark("extract", str(game.participation.travel_epoch()))
 	if not check(await until(func(): return not game.participation.active() and read("guest-return") == "ok"), "party extracts to the same developed Garden"):
 		return
+	if not await dismiss_extraction_report(game): return
 	keeper.pos = Vector3(0, 0, 1.5)
 	garden.open_development()
 	if not check(not garden.plans.is_empty() and garden.expand(garden.plans.keys()[0]), "host expands with the guest connected"):
 		return
 	garden.development_dialog.hide()
 	mark("expansion", str(garden.state.outline).sha256_text())
+	if not await watch_expansion(game): return
 	if not check(await until(func(): return ready_guest(game) == 0 and game.departure_settlement.is_empty()), "host settles the original disconnect"):
 		return
 	mark("detached")
@@ -385,10 +428,12 @@ func guest_run(menu: Node) -> void:
 	if not check(await until(func(): return not ExpeditionCase.is_wild(game.players[id])), "guest returns through party extraction"):
 		return
 	check(garden.bed_ids.get(3) == bed and game.Progress.decode_plots(game.guest_replication.garden_progress()[12])[3].species == 0, "return preserves bed and crop")
+	if not await dismiss_extraction_report(game): return
 	mark("guest-return")
 	if not check(await until(func(): return not read("expansion").is_empty() and garden.state.revision == 1), "guest receives growth and forest geometry"):
 		return
 	check(str(garden.state.outline).sha256_text() == read("expansion"), "outer forest matches the host")
+	if not await watch_expansion(game): return
 	var identity: String = game.guest_character.identity
 	var world_id := game.get_instance_id()
 	game.return_to_main_menu()
@@ -402,6 +447,8 @@ func guest_run(menu: Node) -> void:
 	garden = game.stage.experimental_garden
 	check(game.guest_character.identity == identity and garden.state.revision == 1 and garden.bed_ids.get(3) == bed
 		and str(garden.state.outline).sha256_text() == read("expansion"), "reconnect restores host layout and guest identity")
+	check(garden.reveal == null and not preload("res://garden_growth_service.gd").projection(game, game.local_player_id()).get("pending", []).any(
+		func(e): return e.kind == "expansion"), "restoring an acknowledged layout does not replay the frontier")
 	mark("rejoined")
 	if not check(await until(func(): return not read("depart-again").is_empty()), "rejoined guest receives second travel"):
 		return

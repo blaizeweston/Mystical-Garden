@@ -6,7 +6,7 @@ const Enemies=preload("res://enemy_catalog.gd")
 const Motion=preload("res://weapon_motion.gd")
 const Cards=preload("res://affinity_card_catalog.gd")
 const MODES: Array=["guard","front_guard","counter_guard","bastion","ward","bind","strangle","snare","volley","reap","windstep","charge","harvest","quake","nova","bloodmoon","snare_field","judgement","salvo","siphon","heal","sanctuary","growth","bloom_detonate","requiem"]
-const Effects: Array=["reach","damage","windup_damage","cooldown","recovery","pull","knockback","stagger","heal_on_kill","skill_heal","max_health","skill_cooldown","skill_duration","dodge_cooldown","graft_chance","targets","familiarity","power","technique","rift_hook"]
+const Effects: Array=["reach","damage","windup_damage","cooldown","recovery","pull","knockback","stagger","heal_on_kill","skill_heal","max_health","skill_cooldown","skill_duration","dodge_cooldown","graft_chance","targets","familiarity","power","technique"]
 static func effect_errors(effects: Dictionary,label: String) -> Array[String]:
  var errors: Array[String]=[]
  for key in effects:

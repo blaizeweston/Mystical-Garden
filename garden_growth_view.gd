@@ -1,6 +1,6 @@
 extends Node
 
-# Presentation only. The host commits research; each viewer acknowledges their own scene.
+# Presentation only. The host commits the expansion; each viewer acknowledges their own scene.
 const Stage=preload("res://stage.gd")
 const Layout=preload("res://garden_layout.gd")
 const Water=preload("res://garden_water.gd")
@@ -37,6 +37,8 @@ var mesh_step:=-1
 var hud_layers: Dictionary={}
 var world_labels: Dictionary={}
 var _source_context:=""
+var _expansion_route: Curve3D
+const EXPANSION_DURATION:=5.0
 ## Only presentation nodes cross this boundary; never Game or mutable actors.
 func configure(stage: Node3D, points: Dictionary) -> void:
  _stage=stage;_points=points.duplicate()
@@ -84,6 +86,7 @@ func conceal(pending: Array,forming: float=0.0) -> void:
  restore_visuals()
  var hidden_zones: Array=[]
  for value in pending:
+  if value.get("kind")=="expansion" or (value.has("technology") and value.sequence!=_event.get("sequence",-1)):continue
   var end:=destination(value);var amount:=forming if not _event.is_empty() and value.sequence==_event.sequence else 0.0
   for model in _stage.garden_edge.get_children()+_stage.garden_beds.get_children():
    var route: bool=model.has_meta("garden_route_target") and model.get_meta("garden_route_target").distance_to(end)<.25
@@ -101,18 +104,39 @@ func conceal(pending: Array,forming: float=0.0) -> void:
  _stage.set_meta("garden_growth_hidden_zones",hidden_zones)
 func begin(value: Dictionary) -> void:
  refresh_requested.emit()
+ if value.get("kind")=="expansion":
+  var garden=_stage.experimental_garden
+  if garden==null:return
+  var route: PackedVector3Array=garden.expansion_route(int(value.expansion))
+  if route.size()<2:return # Geometry and private viewer details can arrive separately.
+  _expansion_route=Curve3D.new()
+  for point in route:_expansion_route.add_point(point)
  _event=value.duplicate(true);_elapsed=0;mesh_step=-1;target=destination(_event);tip=Stage.HEART;_source_context=context()
- curtain.show();root_mesh.show();glow.show()
+ curtain.show();root_mesh.visible=_expansion_route==null;glow.show()
  requested.emit("research_audio",value.duplicate(true))
- var growth_range:=preload("res://heart_growth_visuals.gd").counts(_event,_facts.get("pending",[]),_stage.heart_unlocked)
- preload("res://heart_growth_visuals.gd").animate(_stage,growth_range,0)
+ if _expansion_route!=null:
+  target=_expansion_route.get_point_position(_expansion_route.point_count-1)
+ else:
+  var growth_range:=preload("res://heart_growth_visuals.gd").counts(_event,_facts.get("pending",[]),_stage.heart_unlocked)
+  preload("res://heart_growth_visuals.gd").animate(_stage,growth_range,0)
  interfaces_requested.emit()
  for child in _interface_layers:
   if is_instance_valid(child):hud_layers[child]=child.visible;child.hide()
- for label in _stage.find_children("*","Label3D",true,false):world_labels[label]=label.visible
+ for label in _stage.find_children("*","Label3D",true,false):
+  world_labels[label]=label.visible;label.hide()
+ if _expansion_route!=null:animate(0)
  preload("res://diagnostic_journal.gd").event("garden","growth_scene_started",{"technology":_event.get("technology",""),"sequence":_event.sequence,"kind":_event.kind})
 func animate(time: float) -> void:
  _elapsed=time
+ if _expansion_route!=null:
+  var travel_fraction:=clampf(time/_stage.experimental_garden.RECLAIM_SECONDS,0,1)
+  tip=_expansion_route.sample_baked(_expansion_route.get_baked_length()*travel_fraction)
+  var return_fraction:=smoothstep(3.4,EXPANSION_DURATION,time)
+  var player_position: Vector3=_facts.get("player_position",Stage.SPAWN)
+  _stage.set_meta("garden_growth_camera",{"target":tip.lerp(player_position,return_fraction),"size":lerpf(10,16.5,return_fraction)})
+  caption.text=str(_event.name)+" · "+("Roots reach outward" if travel_fraction<1 else "New ground takes shape")
+  glow.position=Vector3(tip.x,maxf(0,tip.y)+0.16,tip.z);glow.visible=return_fraction<.5
+  return
  var travel:=clampf((time-1.5)/4.0,0,1);var form:=clampf((time-FORM_START_SECONDS)/FORM_DURATION_SECONDS,0,1);var returning:=smoothstep(7.2,DURATION,time)
  tip=root_point(Stage.HEART,target,travel)
  var home: Vector3=Stage.garden_camera_target(_facts.get("player_position",Stage.SPAWN),_stage.garden_extent)
@@ -151,9 +175,11 @@ func restore_interface() -> void:
 func finish(acknowledge: bool) -> void:
  if _event.is_empty():return
  refresh_requested.emit()
- var growth_model=preload("res://heart_growth_visuals.gd")
- var settled: int=growth_model.counts(_event,_facts.get("pending",[]),_stage.heart_unlocked).y
- growth_model.hold(_stage,settled)
+ if _expansion_route==null:
+  var growth_model=preload("res://heart_growth_visuals.gd")
+  var settled: int=growth_model.counts(_event,_facts.get("pending",[]),_stage.heart_unlocked).y
+  growth_model.hold(_stage,settled)
+ _expansion_route=null
  var sequence:=int(_event.sequence);_event={};restore_visuals();restore_interface();curtain.hide();root_mesh.hide();glow.hide()
  for key in ["garden_growth_camera","garden_growth_phase","garden_growth_hidden_zones"]:_stage.remove_meta(key)
  if acknowledge:
@@ -176,7 +202,7 @@ func _process(delta: float) -> void:
  if not _event.is_empty():
   if not safe or _source_context!=context():finish(false);return
   animate(_elapsed+delta)
-  if _elapsed>=DURATION:finish(true)
+  if _elapsed>=(EXPANSION_DURATION if _expansion_route!=null else DURATION):finish(true)
   return
  if not safe or pending.is_empty():
   restore_visuals();_stage.remove_meta("garden_growth_phase");_stage.remove_meta("garden_growth_hidden_zones");preload("res://heart_growth_visuals.gd").clear(_stage);return
@@ -185,9 +211,12 @@ func _process(delta: float) -> void:
   if _retry<=0:_retry=ACK_RETRY_SECONDS;requested.emit("garden_action",{"action":"growth_ack:"+str(_waiting_sequence)})
   return
  _waiting_sequence=-1
- if bool(_facts.get("skip_playback",false)):
+ if pending[0].has("technology") or bool(_facts.get("skip_playback",false)):
   requested.emit("research_audio",pending[0].duplicate(true))
   _waiting_sequence=int(pending[0].sequence);_retry=ACK_RETRY_SECONDS;requested.emit("garden_action",{"action":"growth_ack:"+str(_waiting_sequence)});return
+ if pending[0].get("kind")=="expansion":
+  if bool(_facts.get("can_start",false)):begin(pending[0])
+  return
  preload("res://heart_growth_visuals.gd").hold(_stage,preload("res://heart_growth_visuals.gd").counts(pending[0],pending,_stage.heart_unlocked).x)
  _stage.set_meta("garden_growth_phase",int(pending[0].get("from_phase",0)));conceal(pending)
  if bool(_facts.get("can_start",false)):begin(pending[0])

@@ -245,13 +245,9 @@ static func _test_unlock(game: Node, id: String, details: Dictionary) -> String:
 	if progress.heart.has(id) or not collect_path(progress.heart,id,path) or path.is_empty():
 		return "Choose an available Garden technology."
 	var before: Dictionary = progress.heart.capture(progress)
-	var old_discoveries: Array = progress.discoveries.duplicate()
-	var old_veilcap: bool = progress.veilcap_discovered
 	var old_growth: Dictionary = progress.garden_interactions.duplicate(true)
 	for tech in path:
 		var node := Catalog.get_node(tech)
-		if node.get("fact","") == "veilcap":
-			progress.discover(progress.VEILCAP)
 		progress.knowledge = maxi(progress.knowledge,int(node.knowledge))
 		if tech == id:
 			# Treat the prerequisite path as the starting Garden for this reveal.
@@ -261,8 +257,6 @@ static func _test_unlock(game: Node, id: String, details: Dictionary) -> String:
 		progress.heart.complete(progress,tech)
 	if not preload("res://save_batch.gd").guarded_active() and progress.save_garden() != OK:
 		progress.heart.rollback(progress,before)
-		progress.discoveries.assign(old_discoveries)
-		progress.veilcap_discovered = old_veilcap
 		progress.garden_interactions = old_growth
 		return "Could not save the developer unlock."
 	details.merge({"tech":id,"prerequisites":path.slice(0,-1)})

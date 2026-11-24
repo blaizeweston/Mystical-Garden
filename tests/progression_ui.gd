@@ -27,7 +27,7 @@ func facts_for(profile: Dictionary, class_id: int = 0) -> Dictionary:
 	return {"class_id":class_id,"profile":ViewFacts.progression_profile(profile),
 		"known_seeds":known,"seed_stock":Seeds.counts(),"shared_parts":parts,
 		"heart":{"unlocked":["heart"],"insight":4,"paid":[],"active":"flowering","material_choice":""},
-		"knowledge":4,"veilcap":false,"memories":[0,0,0],"finale_available":false,
+		"knowledge":4,"memories":[0,0,0],"finale_available":false,
 		"at_altar":true,"may_learn":true,"may_respec":true,"is_host":true,
 		"may_start_research":true,"may_offer":true,"research_refusal":"",
 		"offering":Heart.plan_materials(parts,"",Heart.OFFER_PARTS),"stories":{},"notice":""}

@@ -20,6 +20,10 @@ func run():
  var p: Dictionary=game.players[1]
  check((["heart","plot_4","plot_5","plot_6","plot_7","plot_8","plot_9","perfect_recollection"]+Catalog.required_core()).all(func(id):return not Catalog.get_node(id).is_empty()),"historical stable technology IDs remain available")
  var seen: Array=[]
+ var new_state: Dictionary=h.serialize()
+ check(Catalog.get_node("rift_hook").is_empty() and not Catalog.enabled("rift_hook") and h.start(g,"rift_hook")=="Unknown memory.","retired research cannot be selected")
+ h.complete(g,"rift_hook")
+ check(h.serialize()==new_state,"a stale completion cannot restore a retired node or spend Knowledge")
  for n in Catalog.DEFINITIONS:
   check(not seen.has(n.id),"unique id "+n.id)
   for parent in n.parents: check(not Catalog.get_node(parent).is_empty(),"valid parent")
@@ -92,13 +96,19 @@ func run():
  g.save_garden()
  var reload=Progress.new();reload.path=g.path
  check(reload.load_garden()==OK and reload.heart.serialize()==h.serialize(),"Heart state round-trips across saves")
+ check_rift_retirement(g.path)
  # Legacy earned restoration remains available and receives a recovery backup.
  var legacy_file=ConfigFile.new();legacy_file.load(g.path);legacy_file.erase_section("heart")
+ legacy_file.set_value("garden","rift_hook_discovered",true) # Actual pre-tree restoration requirement.
  var legacy_path: String=g.path+".legacy";legacy_file.save(legacy_path)
  var migrated=Progress.new();migrated.path=legacy_path;migrated.load_garden()
  check(migrated.heart.has("perfect_recollection") and migrated.plots.size()==9,"earned legacy ending and plots migrate")
  migrated.save_garden()
  check(FileAccess.file_exists(legacy_path+".pre-heart-v1.bak"),"legacy Heart recovery backup")
+ legacy_file.erase_section_key("garden","rift_hook_discovered")
+ migrated.path=legacy_path+".unfinished"
+ check(legacy_file.save(migrated.path)==OK and migrated.load_garden()==OK and not migrated.heart.has("perfect_recollection"),
+  "retiring the research cannot retroactively award an unfinished legacy ending")
  # Reclamation consumes matching parts and returns a known species to its owner's reserve.
  ExpeditionCase.set_membership(game, p, false);check(preload("res://tests/support/terrain_case.gd").place_structure(game,"archive") and preload("res://tests/support/terrain_case.gd").place_structure(game,"study"),"current Heart stations are constructed");p.pos=game.stage.station_position("seed_archive")
  g.discoveries[0]=true;p.reclaim_choice=0
@@ -152,4 +162,47 @@ func run():
  game.free()
  if not failed: print("PASS: Heart catalog, costs, research, infusion, rollback, save persistence, six 3D forms, stations and deferred recollection")
  quit(1 if failed else 0)
+
+func check_rift_retirement(source: String) -> void:
+ var starter:=Progress.new()
+ starter.path=source+".starter"
+ check(starter.save_garden()==OK,"create independent starter Garden for migration cases")
+ for scenario in ["researching","completed","inherited","free_discovery"]:
+  var file:=ConfigFile.new()
+  check(file.load(starter.path)==OK,"read disposable migration fixture")
+  var state: Dictionary=file.get_value("heart","state")
+  state.unlocked=["heart","rift_hook"] if scenario!="researching" else ["heart"]
+  state.paid=["plot_4"] if scenario=="free_discovery" else ["plot_4","rift_hook"]
+  state.spent=8 if scenario in ["researching","completed"] else 2
+  state.active="rift_hook" if scenario=="researching" else "plot_4"
+  for field in ["progress","natural","infused","work"]:
+   state[field]={"rift_hook":1,"plot_4":0}
+  state.work.plot_4=20.0
+  file.set_value("heart","state",state)
+  file.set_value("garden","knowledge",40)
+  file.set_value("garden","studying_rift_hook",scenario=="researching")
+  file.set_value("garden","rift_research_points",2)
+  file.set_value("garden","rift_hook_discovered",scenario!="researching")
+  var history: Dictionary=file.get_value("garden_interactions","state")
+  history.growth.events=[{"sequence":4,"technology":"rift_hook"},{"sequence":5,"kind":"expansion","expansion":1}]
+  history.growth.sequence=5
+  history.growth.seen={"viewer":3}
+  history.growth.baseline.tech=["heart","rift_hook"]
+  file.set_value("garden_interactions","state",history)
+  var migrated:=Progress.new()
+  migrated.path=source+"."+scenario
+  check(file.save(migrated.path)==OK and migrated.load_garden()==OK,"load old Garden with "+scenario+" Rift Hook")
+  var heart=migrated.heart
+  check(heart.available_insight(migrated)==38 and heart.spent==2 and migrated.knowledge==40,"refund only paid Rift Knowledge, keep lifetime total: "+scenario)
+  check(heart.paid==["plot_4"] and not heart.has("rift_hook") and heart.active==("" if scenario=="researching" else "plot_4")
+   and heart.work.plot_4==20.0,"retain unrelated research and its payment: "+scenario)
+  for field in ["work","natural","infused","progress"]:check(not heart.get(field).has("rift_hook"),"retire saved "+field)
+  var growth: Dictionary=migrated.garden_interactions.growth
+  check(growth.events.size()==1 and growth.events[0].sequence==5 and growth.seen.viewer==3 and growth.sequence==5
+   and not growth.baseline.tech.has("rift_hook"),"retire obsolete notices without renumbering surviving scenes")
+  check(migrated.save_garden()==OK and migrated.load_garden()==OK and heart.spent==2 and migrated.knowledge==40,"saving and reloading cannot repeat the refund")
+  var written:=ConfigFile.new()
+  check(written.load(migrated.path)==OK and not written.has_section_key("garden","rift_hook_discovered")
+   and not written.has_section_key("garden","studying_rift_hook") and not written.has_section_key("garden","rift_research_points"),
+   "new saves omit retired top-level fields")
 
