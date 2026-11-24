@@ -13,12 +13,13 @@ extends RefCounted
 ## - Dodging a player's hit: a smaller one.
 ## - Landing an ability (attacks 1 to 3) on a player who was not dodging: a small reward, so abilities that
 ##   deal no damage (roots, pulls, slows) also pay.
-## - Seeing its current target: a small trickle, capped per decision so mobs gain little by standing in the open.
+## - Seeing its current target: a trickle per second, capped per decision, so a mob that keeps out of sight (camping
+##   in cover) earns less than one that keeps pressure on, while a brief duck into cover costs little.
 ## - A support ally alive and casting (winding up or channeling): a small trickle per second, for the mob's allies.
 ## - Health the mob loses: -own_hp_lost per health bar of its own.
 ## - Losing a support: -support_lost times the support's value, to each of the support's allies.
 ## - Its own death: -own_death times its value. A party wipe: +party_wipe to every mob alive.
-## - Changing intent: a small cost, to smooth decisions.
+## - Changing intent: an optional cost (intent_change, now 0: behaviour holds already stop thrashing).
 ## A share of every reward (squad mix) goes to the mob's nearest allies, so mobs also value their squad's success.
 
 const Clock = preload("res://mob_sim/mob_clock.gd")

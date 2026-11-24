@@ -115,7 +115,7 @@ func test_healing_death_and_intent() -> void:
 	check(is_equal_approx(rewards.take(slot), 0.15), "healing a quarter of a mob's health earns 0.15")
 	sim.events.push(Events.Kind.INTENT, sim.clock.tick, slot, sim.pool.generation[slot], 2, 1)
 	step(sim, rewards)
-	check(is_equal_approx(rewards.take(slot), -0.002), "changing intent costs a little")
+	check(is_zero_approx(rewards.take(slot)), "changing intent costs nothing (holds already prevent thrashing)")
 	var other := add_mob(sim, "rootbound", Vector2(10, 0))
 	step(sim, rewards)
 	rewards.take(other)
@@ -155,7 +155,10 @@ func test_sight_cap() -> void:
 	rewards.take(slot)
 	step(sim, rewards, 600)
 	var earned := rewards.take(slot)
-	check(earned > 0.0 and earned <= 0.005 + 1e-6, "sight of the target earns at most 0.005 between decisions (%.4f)" % earned)
+	check(earned > 0.0 and earned <= 0.015 + 1e-6, "sight of the target earns at most 0.015 between decisions (%.4f)" % earned)
+	step(sim, rewards, 30)
+	var half_second := rewards.take(slot)
+	check(is_equal_approx(half_second, 0.015), "sight of the target earns 0.03 a second (%.4f in half a second)" % half_second)
 
 
 func test_first_sight() -> void:
