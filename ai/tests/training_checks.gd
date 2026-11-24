@@ -3,6 +3,7 @@ extends SceneTree
 ## starts, game-scale mobs, clean resets between episodes on one floor, and well-formed records and shards.
 ## Uses ai/training/out/policy.bin, which ai/training/check_model.py writes (run_checks.ps1 runs it first).
 
+const Choice = preload("res://ai/choice_test.gd")
 const Env = preload("res://ai/training_env.gd")
 const NavWorld = preload("res://mob_sim/mob_nav_world.gd")
 const Recorder = preload("res://ai/rollout_recorder.gd")
@@ -26,6 +27,7 @@ func _initialize() -> void:
 	settings = JSON.parse_string(FileAccess.get_file_as_string("res://ai/training/training.json")).episodes
 	test_starts()
 	test_episodes()
+	test_choice_replay()
 	print("TRAINING_REPORT ", JSON.stringify(report))
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)
@@ -141,3 +143,43 @@ func test_episodes() -> void:
 	check(data.slice(0, 4).get_string_from_ascii() == "MOBR" and Recorder.sha256(body) == data.slice(data.size() - 32),
 		"a shard starts with its tag and ends with the SHA-256 of the rest")
 	env.close()
+
+
+## The choice test (ai/choice_test.gd) replays a seeded fight to the same state, forces one behaviour there, and
+## with the same continuation seed plays the rest the same way again.
+func test_choice_replay() -> void:
+	var weights := FileAccess.get_file_as_bytes(POLICY)
+	var recorder := Choice.ChoiceRecorder.new(schema)
+	recorder.max_rows = 8
+	var play := func(setup: Callable) -> Choice.ChoiceBrain:
+		var env := Choice.ChoiceEnv.new(schema, recorder, settings.duplicate(true), 21)
+		env.set_policy(weights, 1)
+		var report: Dictionary = env.play(setup)
+		var brain: Choice.ChoiceBrain = env.brain
+		env.close()
+		return brain if not report.is_empty() else null
+	var scout: Choice.ChoiceBrain = play.call(func(brain: Choice.ChoiceBrain) -> void:
+		brain.scouting = true
+		brain.picker.seed = 5)
+	check(scout != null and not scout.picked.is_empty() and scout.picked.options.size() >= 2, "the choice test finds a free decision of an aware mob")
+	if scout == null or scout.picked.is_empty():
+		return
+	var moment: Dictionary = scout.picked
+	recorder.clear()
+	var streams := []
+	var same := true
+	var legal := true
+	for option: int in [moment.options[0], moment.options[1], moment.options[1]]:
+		recorder.start_branch()
+		var brain: Choice.ChoiceBrain = play.call(func(choice: Choice.ChoiceBrain) -> void:
+			choice.force_tick = int(moment.tick)
+			choice.force_slot = int(moment.slot)
+			choice.force_option = option
+			choice.continuation_seed = 77
+			choice.party_seed = 78)
+		same = same and brain != null and brain.forced and brain.fingerprint == moment.fingerprint
+		legal = legal and brain != null and brain.forced_legal
+		streams.append(recorder.stream.duplicate())
+	check(same, "every replay reaches the scouted state at the moment")
+	check(legal and recorder.lives == 3 and recorder.rows <= 24, "each branch forces a legal behaviour and keeps at most its first rows")
+	check(streams[1] == streams[2] and not streams[1].is_empty(), "the same behaviour and continuation seed replay the same rewards")

@@ -241,6 +241,49 @@ def test_evaluation(schema: MobSchema, folder: Path) -> None:
           "the report compares every brain with the first one")
 
 
+def test_choice_test(schema: MobSchema, folder: Path) -> None:
+    """choice_test.py's returns, critic advantages and summaries, on made-up replays."""
+    import choice_test as C
+    from mob_net import MobCritic, MobPolicy
+    check(abs(C.discounted([1.0, 0.0, 2.0], 0.5) - 1.5) < 1e-12, "the discounted return weighs later rewards down")
+    values = np.array([1.0, 2.0, 0.5])
+    whole = C.critic_advantage([1.0, 0.0, 2.0], values, 0.5, 1.0)
+    check(abs(whole - (C.discounted([1.0, 0.0, 2.0], 0.5) - 1.0)) < 1e-12, "with lambda 1 and the whole life kept, the advantage is return minus value")
+    cut = C.critic_advantage([1.0, 0.0, 2.0, 5.0], values, 0.5, 1.0)
+    check(abs(cut - (1.0 + 0.5 * 0.0 + 0.25 * 0.5 - 1.0)) < 1e-12, "a life longer than the kept decisions is bootstrapped by the critic")
+    options, continuations, rows = [1, 2, 5], 4, 3
+    lives = [rows] * (len(options) * continuations)
+    shard = folder / "choice" / "moment.shard"
+    shard.parent.mkdir()
+    R.write_shard(shard, schema, synthetic(schema, lives, seed=4), 1)
+    rng = np.random.default_rng(2)
+    branches = []
+    for index, option in enumerate(options):
+        for c in range(continuations):
+            luck = 0.01 * rng.normal()
+            branches.append({"option": option, "continuation": c, "forced": True, "legal": True, "same_state": True,
+                             "life": index * continuations + c, "kept": rows, "end": 1,
+                             "rewards": [0.0, 0.0, (2.0 if option == 2 else 0.0) + luck],
+                             "report": {"squad_after": 1.0 + luck, "outcome": "wipe" if option == 2 else "timeout", "party_damage_after": 10.0}})
+    branches.append(dict(branches[0], same_state=False, life=-1))
+    moment = {"fight_seed": 9, "moment": {"tick": 5, "slot": 1, "options": options, "seconds": 3.0},
+              "scout": {"mode": "engaged", "mobs": 6}, "branches": branches}
+    torch.manual_seed(1)
+    behaviour = next((o, s) for n, o, s in __import__("evaluate").head_slices(schema) if n == "behaviour")
+    result = C.analyse_moment(moment, shard, MobPolicy(schema), MobCritic(schema), schema, 0.999, 0.98, behaviour)
+    check(result["bad_replays"] == 1 and sorted(result["options"]) == ["1", "2", "5"] and
+          all(len(o["returns"]) == continuations for o in result["options"].values()),
+          "a moment's analysis keeps only replays that reached the scouted state")
+    names = [f"b{i}" for i in range(16)]
+    summary = C.summarise([result, {"skipped": "none"}], names)
+    check(summary["used"] == 1 and summary["skipped"] == 1 and summary["choice_share"] > 0.99,
+          f"a choice that decides the return has a choice share near 1 ({summary['choice_share']:.3f})")
+    check(summary["behaviours"]["b2"]["best_share"] == 1.0 and summary["behaviours"]["b2"]["true_edge"] > 1.0 and summary["wipe_spread"] == 1.0,
+          "the per-behaviour table finds the option that pays")
+    text = C.report(summary, "v1", type("Args", (), {"continuations": continuations}))
+    check("Does the critic know?" in text and "| b2 |" in text, "the choice report has every section")
+
+
 def test_message_warm_start(folder: Path) -> None:
     """Turning messages on keeps the network's choices and makes it ignore mates' symbols until it learns them."""
     import json
@@ -346,6 +389,7 @@ def main() -> int:
         test_trainer(schema, folder)
         test_replace_waits_for_open_file(folder)
         test_evaluation(schema, folder)
+        test_choice_test(schema, folder)
         test_message_warm_start(folder)
         test_dashboard_eras()
     print("PASSED" if not failures else f"FAILED: {len(failures)} check(s)")

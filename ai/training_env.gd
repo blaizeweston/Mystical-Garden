@@ -39,6 +39,8 @@ var weights := PackedByteArray()
 var policy_version := 0
 var squad_mix := 0.2
 var error := ""
+## The brain each new floor gets: ai/training_brain.gd or a script extending it (the choice test forces choices).
+var brain_script: GDScript = TrainingBrain
 
 var field: RefCounted
 var sim: Sim
@@ -165,7 +167,7 @@ func _new_map() -> bool:
 		error = "The floor could not be baked."
 		return false
 	sim.abilities.resolve_hits = true
-	brain = TrainingBrain.new(schema, weights, sim.locomotion.world, sim.events, capacity, rng.randi())
+	brain = brain_script.new(schema, weights, sim.locomotion.world, sim.events, capacity, rng.randi())
 	if not brain.error.is_empty():
 		error = brain.error
 		return false
