@@ -90,7 +90,7 @@ const CHARTS = [
   {key: "damage_to_party", title: "Damage to the party", hint: "Health taken by the party per episode (a player has about 100). Should rise.", better: 1},
   {key: "life_return", title: "Mob reward per life", hint: "Total reward a mob earns over its life. The main score; should rise. Reward changes shift its level.", better: 1},
   {key: "outcomes", title: "How fights end", hint: "Green: mobs wiped the party. Red: the party cleared the mobs. Grey: time limit.", stack: ["wipe", "cleared", "timeout"], pct: true, better: 0},
-  {key: "entropy", title: "Entropy (variety of choices)", hint: "Falls slowly as mobs settle on good choices. A fast drop toward 1, or a steady climb, is a warning.", better: 0},
+  {key: "entropy", title: "Entropy (variety of choices)", hint: "How random the mobs' choices are. Blue: fighting choices (behaviour, targets, manoeuvre), which fall slowly as mobs settle on good ones; a fast drop toward 0.5 is a warning. Orange: the two message choices, which start fully random and fall as messages gain meaning. Grey: the total, the only line logged before the split.", lines: [["entropy_fight", "--accent"], ["entropy_messages", "--second"], ["entropy", "--restart"]], better: 0},
   {key: "approx_kl", title: "Policy change per update (KL)", hint: "How much each update changes the mobs' choices. Should stay below 0.015 (dashed).", target: 0.015, digits: 4, better: 0},
   {key: "learning_rate", title: "Learning rate", hint: "Lowered automatically if the KL goes above its limit.", digits: 5, better: 0},
   {key: "clip_fraction", title: "Clip fraction", hint: "Share of choices PPO held back from changing too far. Under 0.2 is healthy.", digits: 3, better: 0},
@@ -201,7 +201,7 @@ function draw(chart) {
   const g = canvas.getContext("2d");
   g.scale(ratio, ratio);
   g.clearRect(0, 0, width, height);
-  const keys = spec.stack || [spec.key];
+  const keys = spec.stack || (spec.lines ? spec.lines.map(l => l[0]) : [spec.key]);
   const x = xs(points);
   const series = keys.map(k => points.map(p => (p[k] === undefined ? null : p[k])));
   const marks = changeMarks();
@@ -285,6 +285,12 @@ function draw(chart) {
         g.closePath(); g.fill(); g.globalAlpha = 1;
         base = top;
       });
+    } else if (spec.lines) {
+      spec.lines.forEach(([_key, colour], i) => {
+        g.globalAlpha = grey ? 0.1 : 0.15; path(series[i], grey ? css("--restart") : css(colour), 1);
+        g.globalAlpha = grey ? 0.6 : 1; path(smoothed[i], grey ? css("--restart") : css(colour), i === spec.lines.length - 1 ? 1.25 : 2);
+        g.globalAlpha = 1;
+      });
     } else {
       path(series[0], grey ? "rgba(128, 136, 150, 0.18)" : css("--raw"), 1);
       path(smoothed[0], grey ? css("--restart") : css("--accent"), 2);
@@ -305,11 +311,11 @@ function draw(chart) {
     g.strokeStyle = css("--muted"); g.setLineDash([3, 3]);
     g.beginPath(); g.moveTo(X(x[index]), pad.t); g.lineTo(X(x[index]), height - pad.b); g.stroke(); g.setLineDash([]);
     smoothed.forEach((s, i) => { if (s[index] === null) return; const stackBase = spec.stack ? smoothed.slice(0, i).reduce((a, t) => a + (t[index] || 0), 0) : 0;
-      g.fillStyle = spec.stack ? css(["--wipe", "--cleared", "--timeout"][i]) : css("--accent"); g.beginPath(); g.arc(X(x[index]), Y(stackBase + s[index]), 3.5, 0, Math.PI * 2); g.fill(); });
+      g.fillStyle = spec.stack ? css(["--wipe", "--cleared", "--timeout"][i]) : spec.lines ? css(spec.lines[i][1]) : css("--accent"); g.beginPath(); g.arc(X(x[index]), Y(stackBase + s[index]), 3.5, 0, Math.PI * 2); g.fill(); });
   }
   const value = smoothed.map(s => s[index]);
   let trend = "";
-  if (hoverX === null && !spec.stack) {
+  if (hoverX === null && !spec.stack && !spec.lines) {
     const sm = smoothed[0].filter((v, j) => v !== null && recent[j]);
     const earlier = sm[Math.max(0, Math.floor(sm.length * 0.75) - 1)], last = sm[sm.length - 1];
     if (sm.length > 4) {
@@ -319,7 +325,8 @@ function draw(chart) {
       trend = `<span class="${cls}">${arrow}</span> `;
     }
   }
-  chart.now.innerHTML = trend + (spec.stack ? value.map(v => fmt(spec, v)).join(" / ") : fmt(spec, value[0]));
+  chart.now.innerHTML = trend + (spec.stack ? value.map(v => fmt(spec, v)).join(" / ") :
+    spec.lines ? spec.lines.map(([_key, colour], i) => `<span style="color:${css(colour)}">${fmt(spec, value[i])}</span>`).join(" / ") : fmt(spec, value[0]));
   chart.layout = {X, x, index, pad, width, points};
 }
 

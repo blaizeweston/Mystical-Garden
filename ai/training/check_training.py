@@ -127,6 +127,10 @@ def test_trainer(schema: MobSchema, folder: Path) -> None:
     check(len(metrics) == 1 and '"replay_gap"' in metrics[0], "each update writes a metrics line")
     explained = __import__("json").loads(metrics[0]).get("explained_variance")
     check(isinstance(explained, float) and explained <= 1.0, "each update logs the critic's explained variance")
+    line = __import__("json").loads(metrics[0])
+    check(line["entropy_messages"] > 0.0 and line["entropy_fight"] > 0.0 and
+          abs(line["entropy_fight"] + line["entropy_messages"] - line["entropy"]) < 1e-3,
+          "each update splits its entropy into fighting and message choices")
     for index in range(3):
         trainer.checkpoint()
         trainer.version += 1

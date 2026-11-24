@@ -81,16 +81,21 @@ def keep_awake(enabled: bool) -> None:
         ctypes.windll.kernel32.SetThreadExecutionState(flags)
 
 
-def masked_terms(logits: torch.Tensor, masks: torch.Tensor, actions: torch.Tensor, slices: list[tuple[int, int]]) -> tuple[torch.Tensor, torch.Tensor]:
+def masked_terms(logits: torch.Tensor, masks: torch.Tensor, actions: torch.Tensor, slices: list[tuple[int, int]],
+                 heads: list[torch.Tensor] | None = None) -> tuple[torch.Tensor, torch.Tensor]:
     """Summed log-probability of the chosen options and summed entropy, each head limited to its legal options,
-    exactly as ai/training_brain.gd sampled them. A head with one legal option adds nothing."""
+    exactly as ai/training_brain.gd sampled them. A head with one legal option adds nothing. When heads is a list,
+    each head's own entropy is appended to it, in head order."""
     log_prob = torch.zeros(logits.shape[:-1], device=logits.device)
     entropy = torch.zeros(logits.shape[:-1], device=logits.device)
     for head, (offset, size) in enumerate(slices):
         legal = masks[..., offset:offset + size]
         logp = torch.log_softmax(logits[..., offset:offset + size].masked_fill(~legal, -1e9), dim=-1)
         log_prob = log_prob + logp.gather(-1, actions[..., head:head + 1]).squeeze(-1)
-        entropy = entropy - (logp.exp() * logp).masked_fill(~legal, 0.0).sum(-1)
+        own = -(logp.exp() * logp).masked_fill(~legal, 0.0).sum(-1)
+        entropy = entropy + own
+        if heads is not None:
+            heads.append(own)
     return log_prob, entropy
 
 
@@ -279,7 +284,8 @@ class Trainer:
         index = window_t.clamp(min=0)
         start_memory = memory[index[:, 0]]
         stats = {"replay_gap": self._replay_gap(batch, obs, masks, actions, old_log_prob, index, valid, start_memory)}
-        totals = {"policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0, "approx_kl": 0.0, "clip_fraction": 0.0}
+        totals = {"policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0, "entropy_messages": 0.0, "approx_kl": 0.0, "clip_fraction": 0.0}
+        message_heads = [i for i, name in enumerate(HEAD_NAMES) if name.startswith("message")]
         steps = 0
         # KL is reported from the final pass: by then the policy has moved as far as this update moves it. An
         # average over every step would include the first, which barely move it, and read about half as high.
@@ -294,7 +300,8 @@ class Trainer:
                 rows = index[chosen]
                 keep = valid[chosen]
                 logits = self.unroll(obs, rows, start_memory[chosen])
-                log_prob, entropy = masked_terms(logits, masks[rows], actions[rows], self.slices)
+                heads: list[torch.Tensor] = []
+                log_prob, entropy = masked_terms(logits, masks[rows], actions[rows], self.slices, heads)
                 log_ratio = (log_prob - old_log_prob[rows])[keep]
                 ratio = log_ratio.exp()
                 gain = advantage_t[rows][keep]
@@ -314,6 +321,7 @@ class Trainer:
                     totals["policy_loss"] += policy_loss.item()
                     totals["value_loss"] += value_loss.item()
                     totals["entropy"] += entropy_mean.item()
+                    totals["entropy_messages"] += sum(heads[i] for i in message_heads)[keep].mean().item()
                     kl = ((ratio - 1) - log_ratio).mean().item()
                     totals["approx_kl"] += kl
                     if epoch == epochs - 1:
@@ -322,6 +330,8 @@ class Trainer:
                     totals["clip_fraction"] += ((ratio - 1).abs() > clip).float().mean().item()
                 steps += 1
         stats.update({key: round(value / max(1, steps), 5) for key, value in totals.items()})
+        # Entropy split into the fighting choices (behaviour, targets, manoeuvre) and the two message choices.
+        stats["entropy_fight"] = round(stats["entropy"] - stats["entropy_messages"], 5)
         stats["mean_kl"] = stats["approx_kl"]
         stats["approx_kl"] = round(final_kl / max(1, final_steps), 5)
         stats["value_mean"] = round(values.mean().item(), 4)
