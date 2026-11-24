@@ -8,7 +8,9 @@ extends RefCounted
 ##   while the party patrols the floor. Mobs must search, and the first sight of a player earns a small reward.
 ## Every mob decides through the training brain, awake or not, so searching is learned too.
 ##
-## An episode ends when the party is wiped or every mob is dead (terminal), or at its time limit (truncated).
+## An episode ends when the party is wiped or every mob is dead, or at its time limit. With time_limit_terminal
+## (the default) the time limit is a true end, worth nothing more: bootstrapping it from the critic (truncated)
+## let mobs that hid until time ran out collect the critic's own unchecked estimate, which taught them to camp.
 ## A floor is reused for map_episodes episodes, then a new one is generated.
 
 const Balance = preload("res://enemy_balance.gd")
@@ -101,7 +103,7 @@ func run_episode() -> Dictionary:
 	var began := sim.clock.tick
 	var first_found := -1
 	var decisions_before := brain.decisions
-	var end := Recorder.End.TRUNCATED
+	var end := Recorder.End.TERMINAL if bool(settings.get("time_limit_terminal", true)) else Recorder.End.TRUNCATED
 	var outcome := "timeout"
 	for step in limit:
 		party.before_tick()

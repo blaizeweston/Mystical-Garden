@@ -4,7 +4,8 @@ extends RefCounted
 ##
 ## A life is one mob from spawn to death or the end of its episode. Each decision earns the reward its mob
 ## collected until its next decision (or the end of the life), taken from ai/mob_rewards.gd. A life ends as
-## terminal (death, a wipe, every mob dead) or truncated (time limit), which the trainer bootstraps.
+## terminal (death, a wipe, every mob dead, or the time limit when time_limit_terminal is on) or truncated (the time
+## limit otherwise), which the trainer bootstraps.
 ##
 ## Shards are written atomically: to a .tmp file first, then renamed, and they end with a SHA-256 of all that
 ## comes before it, so a shard cut short by a power loss is detected and discarded rather than trained on.

@@ -111,7 +111,7 @@ func run_episode() -> Dictionary:
 	var cursor := sim.events.head
 	var began := sim.clock.tick
 	var first_found := -1
-	var end := Recorder.End.TRUNCATED
+	var end := Recorder.End.TERMINAL if bool(settings.get("time_limit_terminal", true)) else Recorder.End.TRUNCATED
 	var outcome := "timeout"
 	var time := {"mob_seconds": 0.0, "aware": 0.0, "sees": 0.0}
 	for name in BAND_NAMES:

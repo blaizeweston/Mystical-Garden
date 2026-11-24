@@ -131,6 +131,11 @@ func test_episodes() -> void:
 	for row in recorder.rows:
 		terminal += int(ends[row] == Recorder.End.TERMINAL)
 	check(terminal > 0, "deaths and finished fights end lives as terminal (%d)" % terminal)
+	var truncated := 0
+	for row in recorder.rows:
+		truncated += int(ends[row] == Recorder.End.TRUNCATED)
+	check(bool(env.settings.get("time_limit_terminal", true)) and truncated == 0,
+		"the time limit ends lives as terminal too, so no life is bootstrapped from the critic")
 	var data := recorder.to_bytes(3)
 	var body := data.slice(0, data.size() - 32)
 	check(data.slice(0, 4).get_string_from_ascii() == "MOBR" and Recorder.sha256(body) == data.slice(data.size() - 32),
