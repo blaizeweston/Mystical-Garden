@@ -97,11 +97,13 @@ func test_downs_and_wipes() -> void:
 	rewards.take(bystander)
 	sim.party.set_player(0, Vector2(0, 6), Vector2.ZERO, 0.0, 100.0)
 	step(sim, rewards)
-	check(is_equal_approx(rewards.take(hitter), 3.75), "the mob that hit a downed player earns 3.75")
+	check(is_equal_approx(rewards.take(hitter), 4.0), "the mob that downed a player earns 3 for the down and 1 for the killing blow")
 	check(is_zero_approx(rewards.take(bystander)), "a mob that never hit the player earns nothing for the down")
 	sim.party.set_player(1, Vector2(0, -6), Vector2.ZERO, 0.0, 100.0)
 	step(sim, rewards)
-	check(is_equal_approx(rewards.take(bystander), 8.5), "every mob alive earns 8.5 when the party is wiped")
+	check(is_equal_approx(rewards.take(hitter), 6.5), "a mob that hit a player in the last 10 s earns 6.5 when the party is wiped")
+	check(is_zero_approx(rewards.take(bystander)), "a mob that kept out of the fight earns nothing for the wipe")
+	check(rewards.totals.killing_blows == 1 and rewards.totals.wipes == 1, "the report counts killing blows and wipes")
 
 
 func test_healing_death_and_intent() -> void:
@@ -216,3 +218,12 @@ func test_squad_mix() -> void:
 	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 100.0)
 	step(sim, rewards)
 	check(is_equal_approx(rewards.take(hitter), 1.6) and is_equal_approx(rewards.take(mate), 0.4), "an ally receives the squad's share")
+	# A second player stays up, so this down does not also wipe the party.
+	sim.party.set_player(1, Vector2(0, -6), Vector2.ZERO, 100.0, 100.0)
+	step(sim, rewards)
+	rewards.take(hitter)
+	rewards.take(mate)
+	sim.party.set_player(0, Vector2(0, 6), Vector2.ZERO, 0.0, 100.0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(hitter), 2.4 + 1.0) and is_equal_approx(rewards.take(mate), 0.6),
+		"the killing blow is kept whole while the down is shared with the squad")

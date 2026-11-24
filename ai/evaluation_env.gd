@@ -29,6 +29,11 @@ class TallyRewards extends "res://ai/mob_rewards.gd":
 			values[kind] = float(values.get(kind, 0.0)) + value
 		super(slot, value, kind)
 
+	func _keep(slot: int, value: float, kind: String) -> void:
+		if value != 0.0 and slot >= 0 and slot < pending.size():
+			values[kind] = float(values.get(kind, 0.0)) + value
+		super(slot, value, kind)
+
 
 ## Passes decisions to another brain and counts the behaviours it chose.
 class CountingBrain extends "res://mob_sim/mob_brain.gd":

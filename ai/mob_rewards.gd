@@ -6,7 +6,8 @@ extends RefCounted
 ## Unit: one player's full health bar is 1.0.
 ## - Damage a mob deals: +damage per health bar of the player hit.
 ## - Healing a mob does: +healing per health bar of the mob healed.
-## - Downing a player: +player_downed for every mob that hit them within the assist window.
+## - Downing a player: +player_downed for every mob that hit them within the assist window, and
+##   +player_killing_blow, kept whole (no squad share), for the mob whose hit downed them.
 ## - Finding the party: a small one-off reward the first time a mob sees any player in its life, so mobs that
 ##   start far away learn to search the floor.
 ## - Making a player dodge its attack: a small reward, since the player spends its dodge.
@@ -18,7 +19,9 @@ extends RefCounted
 ## - A support ally alive and casting (winding up or channeling): a small trickle per second, for the mob's allies.
 ## - Health the mob loses: -own_hp_lost per health bar of its own.
 ## - Losing a support: -support_lost times the support's value, to each of the support's allies.
-## - Its own death: -own_death times its value. A party wipe: +party_wipe to every mob alive.
+## - Its own death: -own_death times its value.
+## - A party wipe: +party_wipe to every mob alive that hit a player within the wipe assist window. Mobs that kept out
+##   of the fight earn nothing for it, so hiding until the others finish the party no longer pays.
 ## - Changing intent: an optional cost (intent_change, now 0: behaviour holds already stop thrashing).
 ## A share of every reward (squad mix) goes to the mob's nearest allies, so mobs also value their squad's success.
 
@@ -37,7 +40,7 @@ var weights: Dictionary = {}
 var squad_mix := 0.0
 ## Reward earned since each slot's last take().
 var pending := PackedFloat32Array()
-## Totals since the last reset, for reports: damage, healing, downs, wipes, found, evaded, dodged, landed, sight, support,
+## Totals since the last reset, for reports: damage, healing, downs, killing_blows, wipes, found, evaded, dodged, landed, sight, support,
 ## hp_lost, support_lost, deaths, intent.
 var totals := {}
 var _cursor := 0
@@ -50,6 +53,7 @@ var _released := PackedInt32Array()
 var _last_hit := PackedInt32Array()
 var _generation := PackedInt32Array()
 var _assist_ticks := 0
+var _wipe_assist_ticks := 0
 
 
 func _init(simulation: RefCounted, path: String = PATH) -> void:
@@ -74,12 +78,13 @@ func _init(simulation: RefCounted, path: String = PATH) -> void:
 	_was_alive.resize(players)
 	_was_alive.fill(0)
 	_assist_ticks = Clock.from_ms(float(weights.get("assist_window_seconds", 5.0)) * 1000.0)
+	_wipe_assist_ticks = Clock.from_ms(float(weights.get("wipe_assist_window_seconds", 10.0)) * 1000.0)
 	_cursor = sim.events.head
 	reset_totals()
 
 
 func reset_totals() -> void:
-	totals = {"damage": 0.0, "healing": 0.0, "downs": 0, "wipes": 0, "found": 0, "evaded": 0, "dodged": 0, "landed": 0, "sight": 0.0, "support": 0.0, "hp_lost": 0.0,
+	totals = {"damage": 0.0, "healing": 0.0, "downs": 0, "killing_blows": 0, "wipes": 0, "found": 0, "evaded": 0, "dodged": 0, "landed": 0, "sight": 0.0, "support": 0.0, "hp_lost": 0.0,
 		"support_lost": 0.0, "deaths": 0, "intent": 0.0}
 
 
@@ -159,13 +164,25 @@ func _party(now: int) -> void:
 		anyone_left = anyone_left or alive
 		anyone_was = anyone_was or _was_alive[player] != 0
 		if _was_alive[player] != 0 and not alive and party.present[player] != 0:
+			var finisher := -1
+			var latest := -1000000
 			for slot in sim.pool.active:
-				if now - _last_hit[slot * players + player] <= _assist_ticks:
+				var hit := _last_hit[slot * players + player]
+				if now - hit <= _assist_ticks:
 					_give(slot, float(weights.get("player_downed", 3.0)), "downs")
+					if hit > latest:
+						latest = hit
+						finisher = slot
+			if finisher >= 0:
+				_keep(finisher, float(weights.get("player_killing_blow", 0.0)), "killing_blows")
 		_was_alive[player] = int(alive)
 	if anyone_was and not anyone_left:
 		for slot in sim.pool.active:
-			_give(slot, float(weights.get("party_wipe", 5.0)), "wipes")
+			var helped := false
+			for player in players:
+				helped = helped or now - _last_hit[slot * players + player] <= _wipe_assist_ticks
+			if helped:
+				_give(slot, float(weights.get("party_wipe", 5.0)), "wipes")
 
 
 func _trickles() -> void:
@@ -192,6 +209,14 @@ func _trickles() -> void:
 				(pool.windup_until[slot] > 0 or now < pool.channel_until[slot]):
 			for other in _allies(slot):
 				_give(other, support, "support")
+
+
+## Adds a reward the mob keeps whole, with no squad share.
+func _keep(slot: int, value: float, kind: String) -> void:
+	if value == 0.0 or slot < 0 or slot >= pending.size():
+		return
+	totals[kind] = totals.get(kind, 0) + 1
+	pending[slot] += value
 
 
 ## Adds a reward, keeping (1 - squad_mix) for the mob and sharing the rest among its allies.
