@@ -1,7 +1,7 @@
 extends MeshInstance3D
 ## Visuals are rebuilt from placed structure poses. One branched mesh and one animated spray batch.
-const Wood = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
-const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
+const HeartRoots = preload("res://assets/terrain_m02/garden_heart_roots.gd")
+const Bark = preload("res://assets/terrain_m02/heart_bark.gdshader")
 const Water = preload("res://garden_water.gd")
 const Irrigation = preload("res://garden_irrigation.gd")
 
@@ -9,76 +9,111 @@ var paths := {} # stable structure ID -> ground path, for inspection
 var spray := MeshInstance3D.new()
 var _sites := {}
 var _terrain_revision := -1
+var _stage := -1
 var _water: Array = []
+var _growth: Tween
+var _bark := ShaderMaterial.new()
+var _growing_bark := ShaderMaterial.new()
 
-# Purchases and refunds can change inventory without changing anything in the world.
-func sync_layout(records: Dictionary, heart: Vector2, water: Array, territory: int, supplied: bool) -> void:
+func sync_layout(records: Dictionary, garden, stage: int, frontiers: Array[Dictionary], supplied: bool, live: bool) -> void:
 	var sites := {}
-	for id: int in records: sites[id] = records[id].at
-	if territory == _terrain_revision and is_same(water,_water) and sites == _sites: return
+	var new_limbs := {}
+	for id: int in records:
+		var at: Vector2 = records[id].at
+		sites[id] = Vector3(at.x, at.y, records[id].yaw)
+		if live and _stage >= 0 and (not _sites.has(id) or Vector2(_sites[id].x, _sites[id].y) != at):
+			new_limbs[id] = true
+	if stage == _stage and garden.revision == _terrain_revision and is_same(garden.layout.water, _water) and sites == _sites:
+		return
 	_sites = sites
-	_water = water
-	_terrain_revision = territory
-	rebuild(records,heart,water,supplied)
+	_stage = stage
+	_terrain_revision = garden.revision
+	_water = garden.layout.water
+	rebuild(records, garden, stage, frontiers, supplied, new_limbs)
 
 func _init() -> void:
 	name = "HeartInfrastructure"
-	var bark := StandardMaterial3D.new()
-	bark.vertex_color_use_as_albedo = true
-	material_override = bark
+	_bark.shader = Bark
+	_growing_bark.shader = Bark
+	_growing_bark.set_shader_parameter("growing_root", true)
 	add_child(spray)
 	var moisture := ShaderMaterial.new()
 	moisture.shader = preload("res://assets/shaders/garden_sprinkler.gdshader")
 	spray.material_override = moisture
 	spray.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
-func rebuild(records: Dictionary, heart: Vector2, water: Array, supplied: bool) -> void:
+func rebuild(records: Dictionary, garden, stage: int, frontiers: Array[Dictionary], supplied: bool, new_limbs := {}) -> void:
 	paths.clear()
-	var knots: Array[Vector2] = [heart]
-	var tool := SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	if _growth != null:
+		_growth.kill()
+		_growth = null
+	var settled := SurfaceTool.new()
+	settled.begin(Mesh.PRIMITIVE_TRIANGLES)
+	settled.set_material(_bark)
+	var growing := SurfaceTool.new()
+	growing.begin(Mesh.PRIMITIVE_TRIANGLES)
+	growing.set_material(_growing_bark)
 	var drops := SurfaceTool.new()
 	drops.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var spraying := false
+	var settled_vertices := 0
+	var growing_vertices := 0
+	var network: Array[Dictionary] = frontiers.duplicate()
 	var ids := records.keys()
 	ids.sort()
 	for id: int in ids:
 		var entry: Dictionary = records[id]
 		var target: Vector2 = entry.at
-		var join := heart
-		var shortest := INF
-		for knot in knots:
-			var cost := knot.distance_squared_to(target)
-			if cost < shortest:
-				shortest = cost
-				join = knot
-		var direction := target - join
-		if direction.is_zero_approx(): continue
-		var side := direction.orthogonal().normalized()
-		var path: Array = []
-		var widths: Array = []
-		var steps := maxi(4,ceili(direction.length()/0.55))
-		for step in steps + 1:
-			var t := float(step)/steps
-			var at := join.lerp(target,t) + side * sin(PI*t)*sin(id*1.73+t*3.1)*minf(0.46,direction.length()*0.14)
-			# The Garden floor is level. Dip underground through ponds instead of bridging their surface.
-			var height := -0.30 if Shape.in_any(water,at) else 0.047
-			path.append(Vector3(at.x,height,at.y))
-			widths.append(lerpf(0.16 if join==heart else 0.09,0.046,t))
-			if step>0 and (step==steps or step*2 in [steps,steps-1]) and height>0: knots.append(at)
-		paths[id] = PackedVector3Array(path)
-		Wood._tube(tool,path,widths,Color("#70513d"))
+		var route := _route(target, id)
+		# Only physical footprints can bury a branch. A door's walkable approach stays visible.
+		var corridor := Rect2(Vector2.ZERO, Vector2.ZERO).expand(target).grow(3.5)
+		var footprints: Array = []
+		for other: Dictionary in records.values():
+			if corridor.intersects(other.footprint.bounds):
+				footprints.append(other.footprint)
+		var plan := HeartRoots.plan(route, stage, garden, network, true, footprints)
+		var main: Array[Vector3] = plan.main
+		paths[id] = PackedVector3Array(main)
+		network.append(plan)
+		var is_growing := new_limbs.has(id)
+		var surface := growing if is_growing else settled
+		var next := HeartRoots.append_root(surface, plan, growing_vertices if is_growing else settled_vertices)
 		if entry.kind=="intake":
-			var shore := Water.intake_shore(water,target)
+			var shore := Water.intake_shore(garden.layout.water,target)
 			if shore.is_finite():
 				var tip := shore + (shore-target).normalized()*0.26
 				var mid := target.lerp(shore,0.54)
-				Wood._tube(tool,[path.back()+Vector3.UP*0.22,Vector3(mid.x,0.20,mid.y),Vector3(tip.x,0.018,tip.y)],[0.11,0.082,0.045],Color("#496b61"))
+				var inlet: Array[Vector3] = [Vector3(target.x,0.23,target.y),Vector3(mid.x,0.13,mid.y),Vector3(shore.x,0.06,shore.y),Vector3(tip.x,-0.02,tip.y)]
+				next = HeartRoots.append_root(surface,{"main":inlet,"radius":0.15,"branches":[]},next)
 		elif entry.kind=="sprinkler" and supplied:
 			_spray(drops,target,id)
 			spraying = true
-	mesh = tool.commit() if not paths.is_empty() else null
+		if is_growing:
+			growing_vertices = next
+		else:
+			settled_vertices = next
+	var batch := ArrayMesh.new()
+	if settled_vertices > 0:
+		settled.commit(batch)
+	if growing_vertices > 0:
+		growing.commit(batch)
+		_growing_bark.set_shader_parameter("root_progress", 0.0)
+		_growth = create_tween()
+		_growth.tween_property(_growing_bark, "shader_parameter/root_progress", 1.0, 0.85)
+	mesh = batch if not records.is_empty() else null
 	spray.mesh = drops.commit() if spraying else null
+
+## A short route to the structure supplies the same socket and branch planner used by reclamation.
+static func _route(target: Vector2, id: int) -> PackedVector2Array:
+	var route := PackedVector2Array()
+	var side := target.normalized().orthogonal()
+	var steps := maxi(7,ceili(target.length()/0.38))
+	for step in steps+1:
+		var t := float(step)/steps
+		var curve := sin(PI*t)*sin(id*1.73+t*3.1)*minf(0.65,target.length()*0.14)
+		route.append(target*t+side*curve)
+	route[-1] = target
+	return route
 
 static func _spray(tool: SurfaceTool, at: Vector2, id: int) -> void:
 	for arm in 5:

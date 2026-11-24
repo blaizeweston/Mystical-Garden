@@ -110,7 +110,7 @@ static func develop(garden: Node, target: int, profile := false) -> bool:
 				return false
 			var validation_us := Time.get_ticks_usec()-started
 			started=Time.get_ticks_usec()
-			garden.infrastructure.rebuild(garden.construction.records,garden.planar(garden.landmark("heart")),garden.state.layout.water,garden.game.progress.irrigation.supplied)
+			garden.infrastructure.rebuild(garden.construction.records,garden.state,garden.heart.stage,garden.network,garden.game.progress.irrigation.supplied)
 			var roots_us:=Time.get_ticks_usec()-started
 			var index:=preload("res://garden_irrigation.gd").new()
 			started=Time.get_ticks_usec()

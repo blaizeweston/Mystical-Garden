@@ -47,8 +47,8 @@ func equivalent(a: Variant, b: Variant) -> bool:
 	if a is Vector2 or a is Vector3: return typeof(a) == typeof(b) and a.is_equal_approx(b)
 	if a is Dictionary:
 		return b is Dictionary and a.size() == b.size() and a.keys().all(func(key): return b.has(key) and equivalent(a[key], b[key]))
-	if a is Array or a is PackedVector2Array:
-		if not (b is Array or b is PackedVector2Array) or a.size() != b.size(): return false
+	if a is Array or a is PackedVector2Array or a is PackedVector3Array:
+		if not (b is Array or b is PackedVector2Array or b is PackedVector3Array) or a.size() != b.size(): return false
 		for index in a.size():
 			if not equivalent(a[index], b[index]): return false
 		return true

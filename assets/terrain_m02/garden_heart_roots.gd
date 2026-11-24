@@ -12,7 +12,7 @@ const SOCKETS := [
 	[Vector3(0.36, 0.12, -1.89), Vector3(0.61, -0.10, -2.57), 0.21],
 ]
 
-static func plan(path: PackedVector2Array, stage: int, garden, network: Array[Dictionary] = []) -> Dictionary:
+static func plan(path: PackedVector2Array, stage: int, garden, network: Array[Dictionary] = [], structure_link := false, footprints: Array = []) -> Dictionary:
 	var aim := path[mini(11, path.size() - 1)].normalized()
 	var socket := 0
 	var alignment := -INF
@@ -31,15 +31,24 @@ static func plan(path: PackedVector2Array, stage: int, garden, network: Array[Di
 	var junction := mini(path.size() - 3, 10 + stage)
 	var meet := Vector3(path[junction].x, -0.04, path[junction].y)
 	var arrival := (path[junction + 1] - path[junction]).normalized()
+	# Frontier roots duck beneath access reservations. Links to buildings stay visible
+	# over walkable ground and pass underground at the water's edge.
+	var exclusions: Array = garden.layout.water if structure_link else garden.root_exclusions + garden.occupied + garden.layout.water + garden.construction_clearance
+	if structure_link:
+		meet.y = 0.10
 	var points: Array[Vector3] = [start]
 	for i in range(1, 13):
 		var t := i / 12.0
 		var at := start.bezier_interpolate(handle, meet - Vector3(arrival.x, 0, arrival.y) * 0.72, meet, t)
-		points.append(_bury(at, garden, root_radius * lerpf(1.20, 0.64, t)))
+		points.append(_bury(at, exclusions, root_radius * lerpf(1.20, 0.64, t), footprints))
 	for i in range(junction + 1, path.size()):
 		var t := float(i) / (path.size() - 1)
 		var depth := -0.045 + 0.15 * sin(i * 0.71) - 0.24 * pow(maxf(0, sin(i * 0.32)), 5)
-		points.append(Vector3(path[i].x, depth if t < 0.97 else -0.03, path[i].y))
+		var point := Vector3(path[i].x, depth if t < 0.97 else -0.03, path[i].y)
+		if structure_link:
+			point.y = lerpf(0.12 + 0.06 * sin(i * 0.71), 0.015, smoothstep(0.82, 1.0, t))
+			point = _bury(point, exclusions, root_radius, footprints)
+		points.append(point)
 	var connection := _connection(points, socket, network)
 	if not connection.is_empty():
 		var parent: Dictionary = network[connection.parent]
@@ -58,7 +67,7 @@ static func plan(path: PackedVector2Array, stage: int, garden, network: Array[Di
 		var steps := maxi(9, ceili(from.distance_to(to) / 0.25))
 		for sample in range(1, steps):
 			var at := from.bezier_interpolate(from + heading * lead, to - arrival_tangent * lead, to, float(sample) / steps)
-			splice.append(_bury(at, garden, root_radius))
+			splice.append(_bury(at, exclusions, root_radius, footprints))
 		splice.append_array(points.slice(resume))
 		points = splice
 		junction = 3
@@ -72,12 +81,12 @@ static func plan(path: PackedVector2Array, stage: int, garden, network: Array[Di
 			var t := j / 6.0
 			var at := origin + tangent * (0.86 * t) + side * (t * t * (0.68 + stage * 0.11))
 			at.y = lerpf(origin.y, -0.15, t) + 0.12 * sin(t * PI)
-			branch.append(_bury(at, garden, 0.16))
+			branch.append(_bury(at, exclusions, 0.16, footprints))
 		var fork: Array[Vector3] = [branch[3]]
 		for j in range(1, 5):
 			var at := branch[3] + tangent * (0.21 * j) + side * (0.10 * j)
 			at.y -= 0.034 * j
-			fork.append(_bury(at, garden, 0.12))
+			fork.append(_bury(at, exclusions, 0.12, footprints))
 		branches.append({"points": branch, "join": i, "radius": root_radius * 0.33})
 		branches.append({"points": fork, "join": i + 4, "radius": root_radius * 0.15})
 	return {"socket": socket, "main": points, "branches": branches, "radius": root_radius,
@@ -87,27 +96,33 @@ static func _connection(incoming: Array[Vector3], socket: int, network: Array[Di
 	var result := {}
 	var best := -INF
 	var aim := Vector2(incoming[-1].x, incoming[-1].z).normalized()
+	var search_bounds := Rect2(Vector2(incoming[5].x, incoming[5].z), Vector2.ZERO)
+	for resume in range(6, incoming.size() - 2):
+		search_bounds = search_bounds.expand(Vector2(incoming[resume].x, incoming[resume].z))
+	search_bounds = search_bounds.grow(2.66)
 	for parent_index in network.size():
 		var root := network[parent_index]
 		var path: Array[Vector3] = root.main
 		for i in range(2, path.size() - 1):
 			var at := path[i]
 			var along := Vector2(at.x, at.z)
-			if along.dot(aim) < 1.35:
+			if not search_bounds.has_point(along) or along.dot(aim) < 1.35:
 				continue
+			var segment := Vector2(at.x - path[i - 1].x, at.z - path[i - 1].z).normalized()
+			var along_score := along.length() * 0.19
 			for resume in range(5, incoming.size() - 2):
 				var to := incoming[resume]
-				var distance := along.distance_to(Vector2(to.x, to.z))
-				# Join near the point where routes diverge, keeping only the new branch.
-				if distance < 0.48 or distance > 2.65:
-					continue
 				var forward := Vector2(to.x, to.z) - along
+				var distance_sq := forward.length_squared()
+				# Join near the point where routes diverge, keeping only the new branch.
+				if distance_sq < 0.48 * 0.48 or distance_sq > 2.65 * 2.65:
+					continue
 				if forward.dot(aim) < 0.15:
 					continue
-				var segment := Vector2(path[i].x - path[i - 1].x, path[i].z - path[i - 1].z).normalized()
-				if forward.normalized().dot(segment) > 0.94 and i < path.size() - 4:
+				var distance := sqrt(distance_sq)
+				if forward.dot(segment) > 0.94 * distance and i < path.size() - 4:
 					continue
-				var score := resume * 0.24 + along.length() * 0.19 - absf(distance - 1.25)
+				var score := resume * 0.24 + along_score - absf(distance - 1.25)
 				if score > best:
 					best = score
 					result = {"parent": parent_index, "index": i, "resume": resume}
@@ -121,13 +136,18 @@ static func _connection(incoming: Array[Vector3], socket: int, network: Array[Di
 			return {"parent": parent_index, "index": 2, "resume": 6}
 	return {}
 
-static func _bury(at: Vector3, garden, width: float) -> Vector3:
+static func _bury(at: Vector3, exclusions: Array, width: float, footprints: Array) -> Vector3:
 	var ground := Vector2(at.x, at.z)
 	var separation := width + 0.68
-	for feature: Dictionary in garden.root_exclusions + garden.occupied + garden.layout.water + garden.construction_clearance:
+	for feature: Dictionary in exclusions:
 		if (feature.bounds as Rect2).grow(width + 0.68).has_point(ground):
 			separation = minf(separation, Shape.signed_distance(feature, ground))
 	var blend := smoothstep(width * 0.75, width + 0.61, separation)
+	# Let wood reach the visible edge before sinking into a bed or station.
+	for footprint: Dictionary in footprints:
+		if (footprint.bounds as Rect2).has_point(ground):
+			var inside := Shape.signed_distance(footprint, ground)
+			blend = minf(blend, smoothstep(-0.38, -0.06, inside))
 	at.y = lerpf(minf(at.y, -width * 1.43), at.y, blend)
 	return at
 
@@ -135,43 +155,47 @@ static func mesh(root_plan: Dictionary) -> ArrayMesh:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_smooth_group(0)
-	var main: Array[Vector3] = root_plan.main
-	_sweep(tool, main, root_plan.radius, 0.0, 0.89, 15)
-	for branch: Dictionary in root_plan.branches:
-		var start: float = branch.join * 0.89 / (main.size() - 1)
-		_sweep(tool, branch.points, branch.radius, start, minf(start + 0.095, 1.0), 8)
+	append_root(tool, root_plan)
 	return tool.commit()
 
-static func _sweep(tool: SurfaceTool, path: Array[Vector3], width: float, from: float, to: float, sides: int) -> void:
+## The growth shader reads longitudinal bark UVs and per-vertex reveal progress.
+static func append_root(tool: SurfaceTool, root_plan: Dictionary, first_vertex := 0) -> int:
+	var main: Array[Vector3] = root_plan.main
+	var next := _sweep(tool, main, root_plan.radius, 0.0, 0.89, 15, first_vertex)
+	for branch: Dictionary in root_plan.branches:
+		var start: float = branch.join * 0.89 / (main.size() - 1)
+		next = _sweep(tool, branch.points, branch.radius, start, minf(start + 0.095, 1.0), 8, next)
+	return next
+
+static func _sweep(tool: SurfaceTool, path: Array[Vector3], width: float, from: float, to: float, sides: int, first_vertex: int) -> int:
 	var length := 0.0
-	var grain := PackedFloat32Array([0.0])
-	for i in range(1, path.size()):
-		length += path[i].distance_to(path[i - 1])
-		grain.append(length)
-	var rings: Array[PackedVector3Array] = []
+	var stride := sides + 1 # The bark UV wraps at this seam.
 	for i in path.size():
+		if i > 0:
+			length += path[i].distance_to(path[i - 1])
 		var t := float(i) / (path.size() - 1)
 		var tangent := (path[mini(i + 1, path.size() - 1)] - path[maxi(0, i - 1)]).normalized()
 		var side := tangent.cross(Vector3.UP).normalized()
 		var up := side.cross(tangent).normalized()
-		var ring := PackedVector3Array()
-		for j in sides:
-			var angle := TAU * j / sides
+		var taper := width * maxf(0.025, pow(1.0 - t, 0.86))
+		for j in stride:
+			var around := float(j) / sides
+			var angle := TAU * (j % sides) / sides
 			var rib := 1.0 + 0.14 * cos(angle * 5.0 + t * 8.0) + 0.06 * sin(angle * 7.0 - t * 5.0)
-			var radius := width * maxf(0.025, pow(1.0 - t, 0.86)) * rib
-			ring.append(path[i] + (side * cos(angle) + up * sin(angle) * 0.76) * radius)
-		rings.append(ring)
-	for i in path.size() - 1:
-		for j in sides:
-			for corner: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1),
-					Vector2i(0, 0), Vector2i(1, 1), Vector2i(0, 1)]:
-				var row := i + corner.y
-				var around := float(j + corner.x) / sides
-				var shade := 0.26 + 0.17 * sin(around * TAU * 5.0 + grain[row] * 0.9)
-				var pigment := Color("#382923").lerp(Color("#77543e"), shade).srgb_to_linear()
-				pigment.a = lerpf(from, to, float(row) / (path.size() - 1))
-				tool.set_color(pigment)
-				tool.set_uv(Vector2(around, grain[row]))
-				var vertex := rings[row][(j + corner.x) % sides]
-				tool.set_normal((vertex - path[row]).normalized())
-				tool.add_vertex(vertex)
+			var radial := side * cos(angle) + up * sin(angle) * 0.76
+			var shade := 0.26 + 0.17 * sin(around * TAU * 5.0 + length * 0.9)
+			var pigment := Color("#382923").lerp(Color("#77543e"), shade).srgb_to_linear()
+			pigment.a = lerpf(from, to, t)
+			tool.set_color(pigment)
+			tool.set_uv(Vector2(around, length))
+			tool.set_normal(radial.normalized())
+			tool.add_vertex(path[i] + radial * taper * rib)
+			if i > 0 and j < sides:
+				var prev := first_vertex + (i - 1) * stride + j
+				tool.add_index(prev)
+				tool.add_index(prev + 1)
+				tool.add_index(prev + stride + 1)
+				tool.add_index(prev)
+				tool.add_index(prev + stride + 1)
+				tool.add_index(prev + stride)
+	return first_vertex + path.size() * stride

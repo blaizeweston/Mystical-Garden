@@ -221,6 +221,7 @@ func show_heart_stage(index: int) -> void:
 	stage.heart_stations[id].visible=stage.heart_unlocked.has(id)
 	if heart.stage != mini(index, 4):
 		heart.show_stage(mini(index, 4))
+		_refresh_connections()
 
 func planar(at: Vector3) -> Vector2:
 	return Vector2(at.x, at.z)
@@ -969,7 +970,7 @@ func _irrigation() -> RefCounted:
 	return game.progress.irrigation if game.multiplayer.is_server() else remote_irrigation
 
 func _refresh_connections() -> void:
-	infrastructure.sync_layout(construction.records,planar(landmark("heart")),state.layout.water,state.revision,_irrigation().supplied)
+	infrastructure.sync_layout(construction.records,state,heart.stage,network,_irrigation().supplied,game.multiplayer.is_server() or remote_revision>=0)
 
 func _sprinkler_info(at: Vector2) -> String:
 	var irrigation := _irrigation()

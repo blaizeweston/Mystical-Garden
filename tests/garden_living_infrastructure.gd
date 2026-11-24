@@ -2,6 +2,20 @@ extends "res://tests/garden_layout_persistence.gd"
 const Growth = preload("res://cultivation_growth.gd")
 const Coverage = preload("res://garden_irrigation.gd")
 
+func check_root_attachment(garden: Node) -> void:
+	var view = garden.infrastructure
+	var first: int = view.paths.keys().min()
+	var start: Vector3 = view.paths[first][0]
+	var width: float = 0.77 + garden.heart.stage * 0.112
+	var attached := false
+	for socket: Array in view.HeartRoots.SOCKETS:
+		var a: Vector3 = socket[0]
+		var b: Vector3 = socket[1]
+		if start.is_equal_approx(a.lerp(b, 0.30) * Vector3(width, 1, width)):
+			attached = true
+	check(attached, "the first structure limb starts inside an authored Heart buttress")
+	check(view.mesh.get_surface_count() == 1 and view.mesh.surface_get_material(0).shader == garden.heart.sculpt_bark.shader, "established roots wear the Heart sculpt's bark")
+
 func run() -> void:
 	if not OS.get_user_data_dir().replace("\\","/").contains("/.godot/vd/"):
 		quit(1)
@@ -18,6 +32,7 @@ func run() -> void:
 	check(intake>0 and sprinkler>0 and g.structures.instances.size()==6 and g.structures.instances[intake].paid.is_empty() and g.structures.instances[sprinkler].paid.is_empty(),"irrigation grants exactly two free stored structures")
 	check(not garden.construct("intake",g.structures.revision) and not garden.retire_structure(intake,g.structures.revision,true),"intake is unique and unrefundable")
 	check(garden.infrastructure.paths.size()==4 and not g.irrigation.supplied,"every starting bed and the altar are already connected")
+	check_root_attachment(garden)
 	check(not garden.place("intake",Vector2.ZERO,0,intake),"inland intake rejected")
 	var bank: Vector2=garden.planar(Water.anchor(game.stage))
 	if Placement.deploy_irrigation(garden,"intake",bank)==0:
@@ -28,9 +43,16 @@ func run() -> void:
 		check(false,"sprinkler placed near starting bed");game.free();quit(1);return
 	var pos: Vector2=g.structures.instances[sprinkler].at
 	check(g.irrigation.watered_slots.has(0) and garden.infrastructure.paths.size()==6 and garden.infrastructure.spray.mesh!=null,"placed intake supplies the bed and visual spray")
+	var wood: ArrayMesh = garden.infrastructure.mesh
+	check(wood.get_surface_count() == 2, "a new limb grows separately from the established bark")
+	if wood.get_surface_count() == 2:
+		var bark: ShaderMaterial = wood.surface_get_material(1)
+		check(bark.shader == garden.heart.sculpt_bark.shader and bark.get_shader_parameter("growing_root") and is_zero_approx(bark.get_shader_parameter("root_progress")), "placement starts the frontier bark reveal")
+		garden.infrastructure._growth.custom_step(1.0)
+		check(is_equal_approx(bark.get_shader_parameter("root_progress"), 1.0), "the new limb finishes growing")
 	var mask: Dictionary=g.irrigation.watered_slots.duplicate()
 	var paths: Dictionary=garden.infrastructure.paths.duplicate(true)
-	garden.infrastructure.rebuild(garden.construction.records,garden.planar(garden.landmark("heart")),garden.state.layout.water,garden.game.progress.irrigation.supplied)
+	garden.infrastructure.rebuild(garden.construction.records,garden.state,garden.heart.stage,garden.network,garden.game.progress.irrigation.supplied)
 	check(paths==garden.infrastructure.paths and paths.values().any(func(path):return Vector2(path[0].x,path[0].z).length()>0.1),"deterministic branching paths")
 	check(garden.infrastructure.find_children("*","CollisionObject3D",true,false).is_empty(),"roots and spray add no collision")
 	var boundary := Coverage.new()
@@ -78,6 +100,8 @@ func run() -> void:
 	game.garden_action(1,"heart_start_nursery")
 	g.advance_growth(8,true)
 	check(is_equal_approx(bed.age,76),"Nursery 1.4x, Wilds 2x and watering 1.25x")
+	game.stage.update_heart_progress(game.heart_state())
+	var saved_stage: int = garden.heart.stage
 	var saved_paths: Dictionary=garden.infrastructure.paths.duplicate(true)
 	var old_path: String=g.path
 	check(g.save_garden()==OK,"save real structures")
@@ -85,6 +109,9 @@ func run() -> void:
 	game=await world(false)
 	if game==null:quit(1);return
 	g=game.progress;garden=game.stage.experimental_garden
+	game.stage.update_heart_progress(game.heart_state())
+	check(garden.infrastructure.mesh.get_surface_count() == 1, "reloaded branches are fully grown")
+	check(saved_stage == garden.heart.stage,"restore the rendered Heart stage")
 	check(equivalent(saved_paths,garden.infrastructure.paths) and g.irrigation.watered_slots==mask and Growth.watered(g.plots[0]),"reopen reconstructs roots and coverage, retaining manual care")
 	var legacy:=ConfigFile.new()
 	check(legacy.load(old_path)==OK,"read disposable pre-migration fixture")
