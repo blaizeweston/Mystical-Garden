@@ -73,11 +73,8 @@ func clearing_tier() -> int:
 	return _highest_unlocked("clearing", 0)
 
 func construction_requirements(kind: String) -> Array:
-	match kind:
-		"bed": return ["cultivation_grounds"]
-		"study": return ["monster_studies"]
-		"archive": return ["seed_archive"]
-	return []
+	var definition: Dictionary = preload("res://garden_structure_catalog.gd").DEFINITIONS.get(kind,{})
+	return [definition.research] if definition.has("research") else []
 
 func locked_reason(kind: String) -> String:
 	if sandbox:
@@ -92,7 +89,7 @@ func construction_refusal(kind: String, records: Dictionary) -> String:
 	var reason := locked_reason(kind)
 	if not reason.is_empty():
 		return reason
-	if kind in ["study","archive"]:
+	if kind in ["study","archive","intake"]:
 		for record: Dictionary in records.values():
 			if record.kind == kind:
 				return "This unique station is already built."

@@ -63,7 +63,7 @@ func run() -> void:
   if node.id!="living_conduit" and preload("res://heart_catalog.gd").enabled(node.id):old.heart.complete(old,node.id)
  old.stock[0]=13;old.parts[1]=17;old.garden_interactions.future_garden={"keep":true};old.save_garden()
  var advanced=game.Progress.new();advanced.path=old.path;advanced.load_garden()
- check(advanced.plots.size()==3 and advanced.structures.instances.size()==7 and advanced.stock[0]==13 and advanced.parts[1]==17 and advanced.garden_interactions.future_garden.keep and not advanced.heart.has("living_conduit"),"research grants stored structures and preserves starting crops, supplies and unknown data without a free new technology")
+ check(advanced.plots.size()==3 and advanced.structures.instances.size()==9 and advanced.structures.instances.values().filter(func(e):return e.kind in ["intake","sprinkler"] and not e.placed).size()==2 and advanced.stock[0]==13 and advanced.parts[1]==17 and advanced.garden_interactions.future_garden.keep and not advanced.heart.has("living_conduit"),"research grants stored structures and preserves starting crops, supplies and unknown data without a free new technology")
  game.queue_free();await process_frame
  if not failed:print("PASS: terrace layout/clue, real research, host-only next-cycle configuration, rollback, policy invariants and save compatibility")
  quit(1 if failed else 0)

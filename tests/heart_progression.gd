@@ -56,7 +56,7 @@ func run():
  h.purchase(g,"flowering")
  check(g.flowering_unlocked and h.spent==spent,"duplicate free research cannot spend Knowledge")
  h.purchase(g,"irrigation")
- check(h.has("irrigation") and is_equal_approx(h.growth_multiplier(),1.2),"irrigation has functional growth bonus")
+ check(h.has("irrigation") and is_equal_approx(h.growth_multiplier(),1.0),"irrigation grants structures without passive growth")
  for count in range(5,10):
   game.slot_claimed=true;p.pos=Vector3(0,0,1.5)
   check(garden.construct("bed",g.structures.revision) and preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"paid bed %d is placed" % count)

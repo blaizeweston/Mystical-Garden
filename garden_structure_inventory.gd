@@ -5,7 +5,7 @@ const Items = preload("res://item_catalog.gd")
 const OLD_PRICES := {"plot_4":2,"plot_5":3,"plot_6":4,"plot_7":5,"plot_8":6,"plot_9":7}
 
 static func new_garden(beds := 3) -> Dictionary:
-	var inventory := {"version":1,"revision":0,"next_id":1,"instances":{}, "legacy_clearing":false}
+	var inventory := {"version":2,"revision":0,"next_id":1,"instances":{}, "legacy_clearing":false}
 	for slot in beds:
 		var id := add(inventory,"bed",{})
 		var at: Vector3 = Catalog.ORIGINAL_BEDS[slot]
@@ -31,11 +31,10 @@ static func grant_research(inventory: Dictionary, research: String) -> void:
 	for kind: String in Catalog.DEFINITIONS:
 		var definition: Dictionary = Catalog.DEFINITIONS[kind]
 		if definition.get("research","") != research: continue
-		if not definition.get("repeatable",false):
-			for entry: Dictionary in inventory.instances.values():
-				if entry.kind == kind: return
+		# Free grants cannot be dismantled. A stored grant still counts as owned.
+		if inventory.instances.values().any(func(e): return e.kind == kind and e.paid.is_empty() and (kind != "bed" or e.slot not in [0,1,2])):
+			continue
 		add(inventory,kind,{})
-		return
 
 static func migrate(layout: Dictionary, crops: Array, research: Array, historical: Dictionary) -> Dictionary:
 	var inventory := new_garden(crops.size() if layout.is_empty() else 3)
@@ -53,6 +52,7 @@ static func migrate(layout: Dictionary, crops: Array, research: Array, historica
 	for kind in ["study","archive"]:
 		if Catalog.DEFINITIONS[kind].research in research and not inventory.instances.values().any(func(e):return e.kind==kind):
 			add(inventory,kind,{})
+	if "irrigation" in research: grant_research(inventory,"irrigation")
 	return inventory
 
 static func valid_payment(payment: Dictionary) -> bool:
@@ -64,13 +64,14 @@ static func valid_payment(payment: Dictionary) -> bool:
 	return payment.energy > 0 or not payment.materials.is_empty()
 
 static func valid(data: Variant, crops: Array) -> bool:
-	if not data is Dictionary or data.get("version")!=1 or not data.get("instances") is Dictionary:
+	if not data is Dictionary or data.get("version")!=2 or not data.get("instances") is Dictionary:
 		return false
 	if not data.get("next_id") is int or data.next_id < 1 or not data.get("revision") is int or data.revision < 0:
 		return false
 	if not data.get("legacy_clearing") is bool or crops.size()<3: return false
 	if not data.get("legacy_prop_beds",3) is int or data.get("legacy_prop_beds",3) not in range(3,10): return false
 	var slots := {}
+	var intakes := 0
 	var altars := 0
 	for id in data.instances:
 		var entry: Variant = data.instances[id]
@@ -81,6 +82,7 @@ static func valid(data: Variant, crops: Array) -> bool:
 		if not entry.paid.is_empty():
 			if not Catalog.DEFINITIONS[entry.kind].get("repeatable",false) or not valid_payment(entry.paid): return false
 		if entry.slot in [0,1,2] and not entry.paid.is_empty(): return false
+		if entry.kind=="intake": intakes += 1
 		if entry.kind=="altar": altars += 1
 		if entry.kind!="bed" and entry.slot!=-1: return false
 		if entry.slot == -1:
@@ -91,4 +93,4 @@ static func valid(data: Variant, crops: Array) -> bool:
 	for i in crops.size():
 		if i < 3 and not slots.has(i): return false
 		if crops[i].species >= 0 and not slots.get(i,false): return false
-	return altars == 1
+	return altars == 1 and intakes <= 1

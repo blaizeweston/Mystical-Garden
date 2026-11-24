@@ -60,6 +60,8 @@ func placement_issue(kind: String, at: Vector2, yaw: float, pawn: Vector2, movin
 			return _issue(refusal)
 	var area := footprint(kind, at, yaw)
 	var garden = forest.garden
+	if kind == "intake" and not preload("res://garden_water.gd").intake_shore(garden.layout.water, at).is_finite():
+		return _issue("Place the Water Intake on dry ground beside a natural water edge.")
 	if not _inside(area.outline, forest.visible_outline):
 		return _issue("Keep the full footprint inside the reclaimed forest edge.")
 	if Shape.signed_distance(area, pawn, WALK_RADIUS + 0.01) <= WALK_RADIUS:

@@ -42,6 +42,8 @@ var seed_history: Array = [-1, 0]
 var personal_parts := Parts.empty_counts()
 const Structures = preload("res://garden_structure_inventory.gd")
 var structures := Structures.new_garden()
+var irrigation := preload("res://garden_irrigation.gd").new()
+var needs_irrigation_backup := false
 var needs_construction_backup := false
 const GROWTH_TIMES := [0.0, 18.0, 45.0, 80.0]
 var needs_plot_backup := false
@@ -238,6 +240,7 @@ func _read_garden() -> Error:
 		garden_development.erase("queue")
 		garden_development.version = 2
 	needs_heart_backup=heart.load_state(file,self)
+	needs_irrigation_backup = false
 	needs_construction_backup = not file.has_section_key("construction","inventory")
 	if needs_construction_backup:
 		if plots.size() > Structures.Catalog.ORIGINAL_BEDS.size() or garden_development.get("version") == GardenDevelopment.VERSION:
@@ -250,9 +253,13 @@ func _read_garden() -> Error:
 			garden_development.version = GardenDevelopment.VERSION
 	else:
 		var inventory: Variant = file.get_value("construction","inventory")
+		needs_irrigation_backup = inventory is Dictionary and inventory.get("version") == 1
+		if needs_irrigation_backup: inventory.version = 2
 		if not Structures.valid(inventory,plots):
 			garden_development_error = "Invalid saved construction inventory."
 			return ERR_FILE_CORRUPT
+		if needs_irrigation_backup and heart.has("irrigation"):
+			Structures.grant_research(inventory,"irrigation")
 		structures = inventory
 	if not Structures.valid(structures,plots):
 		garden_development_error = "Historical structures and crop slots disagree."
@@ -285,11 +292,12 @@ func save_garden_guarded() -> Dictionary:
 	return outcome
 
 func migration_backup_paths() -> PackedStringArray:
-	return PackedStringArray([path + ".pre-construction-v1.bak", path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-immediate-heart-v3.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak"])
+	return PackedStringArray([path + ".pre-irrigation-v2.bak", path + ".pre-construction-v1.bak", path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-immediate-heart-v3.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak"])
 
 func confirm_migration(saved_path: String) -> void:
 	if path != saved_path:
 		return
+	needs_irrigation_backup = false
 	needs_construction_backup = false
 	needs_growth_backup = false
 	needs_research_backup = false
@@ -314,6 +322,9 @@ func _serialize_save(stage := Callable()) -> Error:
 		if not operations.authorizes_serializer(self, stage):
 			return SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, path)
 	ensure_storage()
+	if needs_irrigation_backup and FileAccess.file_exists(path):
+		var copied := _migration_backup(path + ".pre-irrigation-v2.bak", stage.is_valid())
+		if copied != OK: return copied
 	if needs_construction_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-construction-v1.bak", stage.is_valid())
 		if copied != OK: return copied
@@ -599,8 +610,10 @@ func sync_plot_flags() -> void:
 
 
 func advance_growth(seconds: float,in_wilds: bool=false) -> bool:
+	irrigation.resolve(structures)
 	var changed := false
-	for bed in plots:
+	for slot in plots.size():
+		var bed: Dictionary = plots[slot]
 		if bed.species < 0:
 			bed.stage = 0
 			continue
@@ -610,7 +623,7 @@ func advance_growth(seconds: float,in_wilds: bool=false) -> bool:
 		var base: float = Seeds.DEFINITIONS[int(bed.species)].grow_seconds
 		var duration: float = preload("res://garden_crop_state.gd").duration(bed,base)
 		var previous_age: float=bed.age
-		bed.age = minf(duration, float(bed.age) + maxf(0,seconds) * preload("res://cultivation_growth.gd").rate(self,bed,in_wilds))
+		bed.age = minf(duration, float(bed.age) + maxf(0,seconds) * preload("res://cultivation_growth.gd").rate(self,bed,in_wilds,irrigation.watered_slots.has(slot)))
 		changed=changed or not in_wilds and int(previous_age/preload("res://cultivation_growth.gd").SAVE_WORK_INTERVAL)!=int(bed.age/preload("res://cultivation_growth.gd").SAVE_WORK_INTERVAL)
 		var stage := 0
 		for i in range(1, 4):

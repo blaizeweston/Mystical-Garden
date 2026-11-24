@@ -129,8 +129,8 @@ func _process(_delta: float) -> void:
  outcome.text+="\nHarvest: 1 %s (shared). Rare %s: %d%% chance."%[Parts.part_name(int(definition.part)),Parts.part_name(Parts.rare_part(int(bed.species))),roundi(float(bed.chance)*100)]
  if bed.get("available",false):outcome.text+="\nPreserve: %s longer; rare-part chance rises from %d%% to %d%%."%[Growth.time_text(float(bed.extra_seconds)),roundi(float(bed.base_chance)*100),roundi(float(bed.preserve_chance)*100)]
  elif bed.get("preserved",false):outcome.text+="\nHarvesting seeds forfeits the rare-part bonus."
- if bed.get("watered",false):outcome.text+="\nWatered · 25% faster for this crop."
- elif not bed.get("spring_ready",false):outcome.text+="\nUnlock Garden water to water crops."
+ if bed.get("watered",false):outcome.text+="\nManually watered until harvest."
+ if bed.get("sprinkler",false):outcome.text+="\nActive sprinkler coverage (one watering bonus)."
  if bed.get("flower_enabled",false):outcome.text+="\nSeed harvest · 2 seeds instead of parts."
  var pending:=Time.get_ticks_msec()<waiting_until
  preserve.visible=bed.get("available",false);leave.visible=preserve.visible;preserve.disabled=pending;leave.disabled=pending

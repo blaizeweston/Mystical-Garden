@@ -68,7 +68,7 @@ func run() -> void:
 	check(progress.research("flowering") and progress.research("seed_archive")
 		and progress.research("monster_studies"), "existing altar prerequisites unlock lab structures")
 	_choose(panel, "irrigation")
-	check(panel.detail.text.contains("Fill your watering vessel at Garden water features")
+	check(panel.detail.text.contains("Grants a Water Intake and a Living Sprinkler")
 		and not panel.detail.text.contains("Watering basin in Build"),
 		"Knowledge details describe water access rather than retired construction")
 	check(progress.research("irrigation") and not model.CATALOG.has("spring"),

@@ -63,7 +63,7 @@ func host_run() -> void:
  if not await until(func():return game.players[id].get("spring_water",false)):check(false,"guest fills at the physical spring");return
  game.players[id].pos=game.Stage.PLOTS[0]
  if not await until(func():return marked("water_sent") and preload("res://cultivation_growth.gd").watered(g.plots[0])):check(false,"guest waters shared crop");return
- check(g.plots[0].care.revision==1 and is_equal_approx(preload("res://cultivation_growth.gd").rate(g,g.plots[0]),1.5),"repeated guest watering stacks neither revision nor speed")
+ check(g.plots[0].care.revision==1 and is_equal_approx(preload("res://cultivation_growth.gd").rate(g,g.plots[0]),1.25),"repeated guest watering stacks neither revision nor speed")
  g.heart.complete(g,"flowering");g.advance_growth(86400);g.save_garden()
  var seed_total: int=game.seed_reserve(game.players[1]).stock[0]+game.seed_reserve(game.players[id]).stock[0]
  var common_before: int=g.parts[0];rare_before=g.part_count(rare);request=View.request(bed(),"flower_crop");mark("seed_ready")

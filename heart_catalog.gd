@@ -78,7 +78,7 @@ const DEFINITIONS := [
 	},
 	{
 		"id": "irrigation",
-		"name": "Root Irrigation",
+		"name": "Living Sprinklers",
 		"parents": [
 			"flowering",
 			"clearing_1"
@@ -88,7 +88,7 @@ const DEFINITIONS := [
 			370,
 			775
 		],
-		"description": "Plants grow 20% faster. Fill your watering vessel at Garden water features; no basin construction is required."
+		"description": "Grants a Water Intake and a Living Sprinkler. Place the intake on a natural bank to supply sprinklers. Additional sprinklers can be constructed in Build."
 	},
 	{
 		"id": "nursery",

@@ -65,6 +65,12 @@ func run() -> void:
 	var old_price_revision: int = g.structures.revision
 	check(garden.retire_structure(historical,old_price_revision,true) and garden.funds.energy==10017 and g.part_count(game.Parts.THORN)==prior_parts+2,"refund the recorded payment including historical materials")
 	check(not garden.retire_structure(historical,old_price_revision,true) and g.part_count(game.Parts.THORN)==prior_parts+2,"retired identity cannot reclaim its receipt")
+	for tech in ["flowering","irrigation"]: game.garden_action(1,"heart_start_"+tech)
+	var bed_center: Vector2 = garden.planar(game.stage.bed_position(0))
+	check(Placement.deploy_irrigation(garden,"intake",garden.planar(Water.anchor(game.stage)))>0,"supply scale garden")
+	for copy in 3:
+		if copy>0: check(garden.construct("sprinkler",g.structures.revision),"pay for additional sprinkler")
+		check(Placement.deploy_irrigation(garden,"sprinkler",bed_center)>0,"place overlapping sprinklers")
 	check(Placement.develop(garden,60,true),"twelve, thirty and sixty actually placed beds with unique stations and water access")
 	var total: int=garden.bed_ids.size()
 	var inventory: Dictionary=g.structures.duplicate(true)

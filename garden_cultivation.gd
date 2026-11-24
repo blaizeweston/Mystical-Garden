@@ -84,5 +84,5 @@ static func bed_projection(slot: int, bed: Dictionary, familiarity: int, rates: 
 		"remaining":work/float(rates.current),"garden_remaining":work/float(rates.garden),"wild_remaining":work/float(rates.wild),"growth_rate":rates.current,
 		"base_chance":chance,"chance":Care.chance(bed,chance),"preserve_chance":minf(float(policy.get("rare_cap",1)),chance+float(policy.get("rare_bonus",0))),
 		"extra_seconds":base*float(policy.get("delay_fraction",0))/float(rates.current),"flower_enabled":flowering_unlocked,
-		"opportunity":care.get("opportunity","patient_bud"),"watered":Growth.watered(bed),
+		"opportunity":care.get("opportunity","patient_bud"),"watered":Growth.watered(bed),"sprinkler":rates.get("sprinkler",false),
 		"water_available":Growth.supported(bed) and Care.compatible(bed) and int(bed.stage)<3 and spring_ready and not Growth.watered(bed),"spring_ready":spring_ready}

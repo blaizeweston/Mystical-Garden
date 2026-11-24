@@ -453,7 +453,7 @@ func caller_effect_fault(phase: String, _path: String, outcome: String, attempts
 
 func caller_effects() -> void:
  var fresh := true
- for action in ["water","observation","purchase","contribution","construct","refund"]:
+ for action in ["irrigation_grant","water","observation","purchase","contribution","construct","refund","sprinkler_purchase","sprinkler_refund"]:
   for outcome in ["ABORTED_RESTORED","UNCERTAIN","COMMITTED_CLEANUP_PENDING"]:
    if not open_world(fresh): return
    fresh=false
@@ -468,7 +468,7 @@ func caller_effects() -> void:
    var prior_energy: int = garden.funds.energy
    var prior_instances := 0
    match action:
-    "construct","refund":
+    "construct","refund","sprinkler_purchase","sprinkler_refund":
      player.pos = world.Stage.HEART
      world.run_heart_save(func():
       world.progress.knowledge=80
@@ -476,20 +476,28 @@ func caller_effects() -> void:
       return "")
      garden.funds.energy=60
      world.garden_action(1,"heart_start_cultivation_grounds")
-     if action=="construct":
-      invoke=garden.construct.bind("bed",world.progress.structures.revision)
+     var kind := "sprinkler" if str(action).begins_with("sprinkler") else "bed"
+     if kind=="sprinkler":
+      for tech in ["flowering","clearing_1","irrigation"]: world.garden_action(1,"heart_start_"+tech)
+     if action in ["construct","sprinkler_purchase"]:
+      invoke=garden.construct.bind(kind,world.progress.structures.revision)
      else:
-      check(garden.construct("bed",world.progress.structures.revision),"prepare a refundable receipt")
+      check(garden.construct(kind,world.progress.structures.revision),"prepare a refundable receipt")
       invoke=garden.retire_structure.bind(world.progress.structures.next_id-1,world.progress.structures.revision,true)
      prior_energy=garden.funds.energy
      prior_instances=world.progress.structures.instances.size()
-    "purchase", "contribution":
+    "purchase", "contribution", "irrigation_grant":
      player.pos=world.Stage.HEART
      world.run_heart_save(func():
       world.progress.knowledge=40
       world.progress.parts[0]=20
       return "")
-     if action=="purchase":
+     if action=="irrigation_grant":
+      for tech in ["flowering","clearing_1"]: world.garden_action(1,"heart_start_"+tech)
+      prior_spent = world.progress.heart.spent
+      prior_instances = world.progress.structures.instances.size()
+      command="heart_start_irrigation"
+     elif action=="purchase":
       command="heart_start_cultivation_grounds"
      else:
       garden._refresh_parts()
@@ -541,11 +549,14 @@ func caller_effects() -> void:
      and ((notice==Tx.CLEANUP_NOTICE) if committed else notice.contains("uncertain"))),action+" "+outcome+" evidence")
    player=world.players[1]
    match action:
-    "construct","refund":
-     var delta := 1 if action=="construct" else -1
+    "irrigation_grant":
+     check(world.progress.heart.has("irrigation")==not aborted and world.progress.structures.instances.size()==prior_instances+(0 if aborted else 2) and world.progress.heart.spent==prior_spent+(0 if aborted else 4),"both free grants and their payment agree with "+outcome)
+    "construct","refund","sprinkler_purchase","sprinkler_refund":
+     var price := 24 if str(action).begins_with("sprinkler") else 12
+     var delta := 1 if action in ["construct","sprinkler_purchase"] else -1
      check(world.progress.structures.instances.size()==prior_instances+(0 if aborted else delta)
-      and world.progress.garden_development.energy==prior_energy-(0 if aborted else delta*12)
-      and garden.funds.energy==prior_energy-(delta*12 if committed else 0),"ownership, debit and published Energy match "+outcome)
+      and world.progress.garden_development.energy==prior_energy-(0 if aborted else delta*price)
+      and garden.funds.energy==prior_energy-(delta*price if committed else 0),"ownership, debit and published Energy match "+outcome)
     "purchase":
      check(world.progress.heart.has("cultivation_grounds")==not aborted and world.progress.heart.spent==prior_spent+(0 if aborted else 4) and world.progress.knowledge==40, "research accounting matches "+outcome)
     "contribution":

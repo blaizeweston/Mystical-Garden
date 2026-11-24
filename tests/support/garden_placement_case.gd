@@ -18,6 +18,20 @@ static func find(model: RefCounted, kind: String, preferred: Vector2, yaw: float
 		if model.validate(kind, at, yaw, pawn, moving).is_empty(): return at
 	return Vector2.INF
 
+static func stored_id(garden: Node, kind: String) -> int:
+	for id: int in garden.game.progress.structures.instances:
+		var entry: Dictionary = garden.game.progress.structures.instances[id]
+		if entry.kind==kind and not entry.placed: return id
+	return 0
+
+static func deploy_irrigation(garden: Node, kind: String, near: Vector2) -> int:
+	var id := stored_id(garden,kind)
+	var pawn: Vector2 = garden.planar(garden.game.players[1].pos)
+	if not id: return 0
+	var site := find(garden.construction,kind,near,0,pawn)
+	if not site.is_finite() or not garden.place(kind,site,0,id): return 0
+	return id
+
 ## Place real owned beds through their ordinary host commands. Sample a regular row spacing,
 ## then try a staggered row for awkward boundaries. Reclaim a legal frontier when needed.
 static func develop(garden: Node, target: int, profile := false) -> bool:
@@ -95,6 +109,19 @@ static func develop(garden: Node, target: int, profile := false) -> bool:
 				printerr("FAIL HG02 layout no longer admits its last placed bed: ",refusal)
 				return false
 			var validation_us := Time.get_ticks_usec()-started
+			started=Time.get_ticks_usec()
+			garden.infrastructure.rebuild(garden.construction.records,garden.planar(garden.landmark("heart")),garden.state.layout.water,garden.game.progress.irrigation.supplied)
+			var roots_us:=Time.get_ticks_usec()-started
+			var index:=preload("res://garden_irrigation.gd").new()
+			started=Time.get_ticks_usec()
+			index.resolve(game.progress.structures)
+			var coverage_us:=Time.get_ticks_usec()-started
+			started=Time.get_ticks_usec()
+			for sample in 20:
+				var aim := placed_bed.at as Vector2
+				garden.infrastructure.preview(aim,index.bed_centers,index.beds_in_range(aim))
+			var overlay_us:=(Time.get_ticks_usec()-started)/20.0
+			print("HG03_SCALE roots_us=",roots_us," root_vertices=",garden.infrastructure.mesh.surface_get_array_len(0)," coverage_us=",coverage_us," overlay_us=",overlay_us," active_beds=",index.watered_slots.size())
 			print("HG02_SCALE beds=",garden.bed_ids.size()," growth_us=",growth_us," render_updates_us=",full_us," one_crop_update_us=",single_us," placement_us=",validation_us," garden_projection_bytes=",packet)
 			game.progress.plots.assign(plots)
 			game.progress.sync_plot_flags()

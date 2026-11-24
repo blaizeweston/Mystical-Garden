@@ -35,9 +35,10 @@ func run():
 	var bank:=Water.anchor(game.stage)
 	check(bank.is_finite() and garden.barrier.walkable(Vector2(bank.x,bank.z)),"visible Garden water has a dry accessible bank before research")
 	p.pos=bank
-	check(not game.cultivation.spring_ready() and not game.cultivation.fill_water(1) and not p.get("spring_water",false),"unresearched water cannot fill a vessel")
+	check(game.cultivation.spring_ready() and game.garden_commands.interact(1) and p.get("spring_water",false),"ordinary interaction fills from natural water before research")
 	game.progress.heart.complete(game.progress,"clearing_1");game._process(.016)
-	check(not game.cultivation.fill_water(1),"Reaching Roots alone is insufficient")
+	check(game.cultivation.fill_water(1),"manual fill is independent of research")
+	p.spring_water=false
 	game.progress.heart.complete(game.progress,"flowering");game.progress.heart.complete(game.progress,"irrigation")
 	game._process(.016)
 	bank=Water.anchor(game.stage);p.pos=bank
@@ -71,5 +72,5 @@ func run():
 	var restored=game.Progress.new();restored.path=game.progress.path
 	check(restored.load_garden()==OK and restored.heart.has("irrigation") and restored.garden_interactions.observations.has("sheltered_water"),"research and historical observation survive reload without a basin record")
 	game.queue_free();await process_frame
-	if not failed:print("PASS: Knowledge-gated Garden water banks, fixture removal, ordinary interaction, one vessel, dry reach, duplicate refusal, unchanged rewards and saved observations")
+	if not failed:print("PASS: starting Garden water banks, fixture removal, ordinary interaction, one vessel, dry reach, duplicate refusal, unchanged rewards and saved observations")
 	quit(1 if failed else 0)

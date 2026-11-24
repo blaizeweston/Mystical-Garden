@@ -2,7 +2,7 @@
 
 The host can purchase research at the Heart between expeditions. Select a technology to see its benefit, prerequisites and purchase price. Available Knowledge equals lifetime Knowledge earned minus the amount spent. Purchasing an eligible node unlocks it immediately for the whole Garden. Flowering is free and requires an explicit selection.
 
-Three universal beds start placed. Cultivation Grounds costs four available Knowledge, grants one stored bed and unlocks further beds at 12 Growth Energy each. The host manages them in Build. Reaching Roots opens frontier expansion. Root Irrigation lets players fill a vessel at terrain water and improves crop growth by 20%. Symbiotic Nursery raises the growth bonus to 40%. Crop growth, watering and Patient Bud keep their own timing. The other technologies retain their station, cargo, conduit and guardian-memory benefits. The Living Archive still requires its other prerequisites and recorded guardian victories still determine its three Remembrances.
+Three universal beds start placed. Cultivation Grounds costs four available Knowledge, grants one stored bed and unlocks further beds at 12 Growth Energy each. The host manages them in Build. Reaching Roots opens frontier expansion. Living Sprinklers grants an intake and a sprinkler. A supplied sprinkler waters beds within 3.5 m. All players can fill vessels at a natural bank from the start. Symbiotic Nursery retains its separate 40% growth bonus. Crop growth, watering and Patient Bud keep their own timing. The other technologies retain their station, cargo, conduit and guardian-memory benefits. The Living Archive still requires its other prerequisites and recorded guardian victories still determine its three Remembrances.
 
 ## Material contributions
 

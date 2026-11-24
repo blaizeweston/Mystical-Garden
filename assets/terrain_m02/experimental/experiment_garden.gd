@@ -43,6 +43,10 @@ var roots: Node3D
 var network: Array[Dictionary] = []
 var material: ShaderMaterial
 var base_rim: PackedFloat32Array
+var infrastructure := preload("res://garden_infrastructure_view.gd").new()
+var remote_irrigation := preload("res://garden_irrigation.gd").new()
+var coverage_preview := MeshInstance3D.new()
+var placed_info := Label.new()
 var construction: Build
 var bed_ids := {}
 var bed_mesh: ArrayMesh
@@ -192,6 +196,12 @@ func configure(world_node: Node, presentation: Node3D) -> void:
 	colors.vertex_color_use_as_albedo = true
 	gate.material_override = colors
 	stage.build_gate_swirl(self, landmark("wilds_entrance"))
+	add_child(infrastructure)
+	add_child(coverage_preview)
+	var coverage_tint := StandardMaterial3D.new()
+	coverage_tint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	coverage_tint.no_depth_test = true
+	coverage_preview.material_override = coverage_tint
 	_initialize_controls()
 	if not game.progress.garden_development.is_empty():
 		_restore_development(game.progress.garden_development)
@@ -367,6 +377,7 @@ func expand(sector: int) -> bool:
 		return false
 	Journal.event("interaction", "garden_expanded", {"sector": sector, "revision": state.revision, "energy_spent": cost})
 	plans.clear()
+	_refresh_connections()
 	_animate_expansion(outline, _add_root(network[-1]))
 	return true
 
@@ -469,7 +480,9 @@ func _refresh_guest_review() -> void:
 		lines.append("Inventory" if stored else "Placed")
 		for id: int in remote_development.get("layout",{}).get("inventory",{}).get("instances",{}):
 			var entry: Dictionary = remote_development.layout.inventory.instances[id]
-			if entry.placed != stored: lines.append("%s #%d" % [Build.CATALOG[entry.kind].name,id])
+			if entry.placed != stored:
+				lines.append("%s #%d" % [Build.CATALOG[entry.kind].name,id])
+				if entry.placed and entry.kind=="sprinkler": lines.append(_sprinkler_info(entry.at))
 	guest_review.text = "\n".join(lines)
 
 func _placement_refusal(kind: String, id: int) -> String:
@@ -513,8 +526,10 @@ func _project_inventory(inventory: Dictionary) -> void:
 		construction.records[id] = {"id":id,"kind":entry.kind,"at":entry.at,"yaw":entry.yaw,
 			"footprint":construction.footprint(entry.kind,entry.at,entry.yaw)}
 		if entry.kind=="bed": bed_ids[entry.slot]=id
-		else: station_ids[STATIONS[entry.kind]]=id
+		elif STATIONS.has(entry.kind): station_ids[STATIONS[entry.kind]]=id
 	construction._sync_obstacles()
+	if game.multiplayer.is_server(): game.progress.irrigation.resolve(inventory)
+	else: remote_irrigation.resolve(inventory)
 	inventory_revision = inventory.revision
 
 func _commit_structure(expected: int, change: Callable) -> bool:
@@ -661,6 +676,9 @@ func _initialize_controls() -> void:
 	var placed_tab := _tab("Placed")
 	building_picker = OptionButton.new()
 	placed_tab.add_child(building_picker)
+	placed_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	placed_tab.add_child(placed_info)
+	building_picker.item_selected.connect(func(_index): _show_placed_info())
 	_button(placed_tab,"Relocate for free",func(): _place_selected(building_picker))
 	store_button = _button(placed_tab,"Store for free",func():
 		if retire_structure(building_picker.get_selected_id(),menu_revision,false): _refresh_build_choices())
@@ -733,7 +751,7 @@ func _show_cost(buy: Button) -> void:
 	if buy.disabled:
 		preview_model.mesh = null
 		preview_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
-		construct_info.text = "Research Cultivation Grounds at the Heart to construct more beds."
+		construct_info.text = "Research Cultivation Grounds for beds or Living Sprinklers for irrigation."
 		return
 	var kind: String = construction_kind.get_selected_metadata()
 	preview_model.mesh = Stations.build(Build.CATALOG[kind].art,false)
@@ -741,6 +759,7 @@ func _show_cost(buy: Button) -> void:
 	var cost: Dictionary = Build.CATALOG[kind].cost
 	buy.disabled = not _affordable(cost)
 	construct_info.text = "Cost: %s · Held: %d Growth Energy\nPlace on reclaimed dry ground with a clear approach." % [_price(cost),funds.energy]
+	if kind == "sprinkler": construct_info.text += "\nOne watering bonus within %.1f m when supplied by a placed Water Intake." % _irrigation().RADIUS_M
 
 func _refresh_build_choices() -> void:
 	sync_inventory()
@@ -759,6 +778,7 @@ func _refresh_build_choices() -> void:
 			construction_kind.add_item(def.name)
 			construction_kind.set_item_metadata(construction_kind.item_count-1,kind)
 	_show_cost(construct_button)
+	_show_placed_info()
 
 func open_development() -> void:
 	if not game.multiplayer.is_server():
@@ -880,9 +900,15 @@ func _show_ghost() -> void:
 	var refusal := _build_refusal(build_kind, build_target, build_yaw, build_moving)
 	ghost.material_override.albedo_color = Color("#74e2b299") if refusal.is_empty() else Color("#ec8a78bb")
 	var instruction := "Click or Accept to place · Q/E or bumpers rotate" if refusal.is_empty() else refusal
+	if build_kind == "sprinkler":
+		var irrigation := _irrigation()
+		coverage_preview.mesh = infrastructure.preview(build_target,irrigation.bed_centers,irrigation.beds_in_range(build_target))
+		coverage_preview.material_override.albedo_color = Color("#8edfd3") if refusal.is_empty() and irrigation.supplied else Color("#c39c72")
+		instruction += " | " + _sprinkler_info(build_target)
 	game.tell(game.HOST, instruction + " · Esc or right-click cancels.")
 
 func _cancel_placement() -> void:
+	coverage_preview.mesh = null
 	build_kind = ""
 	build_moving = 0
 	build_target = Vector2.INF
@@ -939,7 +965,25 @@ func _commit_development(change: Callable, progress_change := Callable()) -> boo
 		Journal.event("persistence", "garden_development_save_refused", {"revision": before.layout_revision})
 	return accepted
 
+func _irrigation() -> RefCounted:
+	return game.progress.irrigation if game.multiplayer.is_server() else remote_irrigation
+
+func _refresh_connections() -> void:
+	infrastructure.sync_layout(construction.records,planar(landmark("heart")),state.layout.water,state.revision,_irrigation().supplied)
+
+func _sprinkler_info(at: Vector2) -> String:
+	var irrigation := _irrigation()
+	var labels := PackedStringArray()
+	for slot: int in irrigation.beds_in_range(at): labels.append(str(slot+1))
+	return "Watering x%.2f within %.1f m | %s | Beds: %s" % [preload("res://cultivation_growth.gd").WATER_RATE,irrigation.RADIUS_M,
+		"Water supplied" if irrigation.supplied else "Inactive: place a Water Intake", ", ".join(labels) if not labels.is_empty() else "none"]
+
+func _show_placed_info() -> void:
+	var entry: Dictionary = game.progress.structures.instances.get(building_picker.get_selected_id(),{})
+	placed_info.text = _sprinkler_info(entry.at) if entry.get("kind")=="sprinkler" else ""
+
 func _refresh_structure_views() -> void:
+	_refresh_connections()
 	var present := {}
 	for id: int in construction.records:
 		var record: Dictionary = construction.records[id]

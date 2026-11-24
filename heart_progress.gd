@@ -109,7 +109,7 @@ func clearing_bonus() -> int:
 	return result
 
 func growth_multiplier() -> float:
-	return 1.4 if has("nursery") else 1.2 if has("irrigation") else 1.0
+	return 1.4 if has("nursery") else 1.0
 
 # Recollection milestones use whole completed memories.
 @warning_ignore_start("integer_division")

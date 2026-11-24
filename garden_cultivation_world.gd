@@ -45,7 +45,7 @@ func fill_water(id: int) -> bool:
 	var player: Dictionary=world.players[id]
 	var source:=Water.nearby(world.stage,player.pos)
 	if not world.participation.travel_kind().is_empty() or not spring_ready() or source.is_empty():
-		world.tell(id,"After Root Irrigation is researched, approach a clear Garden water bank to fill your watering vessel.")
+		world.tell(id,"Approach a clear Garden water bank to fill your watering vessel.")
 		return false
 	if player.get("spring_water",false):return true
 	player.spring_water=true
@@ -56,7 +56,7 @@ func fill_water(id: int) -> bool:
 func spring_ready() -> bool:
 	var world:=_current_world()
 	if world==null:return false
-	return Growth.spring_ready(world.progress) and Water.available(world.stage)
+	return Water.available(world.stage)
 ## A scalar inspection must not build every crop's growth/yield projection.
 func water_carried(id: int) -> bool:
 	var world:=_current_world()
@@ -71,11 +71,13 @@ func projection(id: int) -> Dictionary:
 	var beds: Array=[];var player: Dictionary=world.players.get(id,{})
 	if player.is_empty() or Participation.is_wild(player):return {"version":2,"catalog":Catalog.signature,"beds":[],"focus":{}}
 	var watering_available:=spring_ready()
+	world.progress.irrigation.resolve(world.progress.structures)
 	for index in world.progress.plots.size():
 		var bed: Dictionary=world.progress.plots[index];var species: int=int(bed.species)
 		if species<0:continue
 		var familiarity: int=int(player.get("character",{}).get("plants",[])[species])
-		var rates: Dictionary={"current":Growth.rate(world.progress,bed,world.participation.active()),"garden":Growth.rate(world.progress,bed),"wild":Growth.rate(world.progress,bed,true)}
+		var automatic: bool = world.progress.irrigation.watered_slots.has(index) and State.compatible(bed) and Growth.supported(bed) and bed.stage<3
+		var rates: Dictionary={"current":Growth.rate(world.progress,bed,world.participation.active(),automatic),"garden":Growth.rate(world.progress,bed,false,automatic),"wild":Growth.rate(world.progress,bed,true,automatic),"sprinkler":automatic}
 		beds.append(Rules.bed_projection(index,bed.duplicate(true),familiarity,rates,watering_available,world.progress.flowering_unlocked))
 	return {"version":2,"catalog":Catalog.signature,"beds":beds,"spring_water":player.get("spring_water",false),"focus":player.get("garden_crop_focus",{}).duplicate(true)}
 func harvest_seeds(id: int,slot: int) -> Dictionary:

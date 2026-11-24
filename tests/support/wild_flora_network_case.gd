@@ -115,13 +115,33 @@ func host(menu: Node) -> void:
 	var tenth: int = garden.bed_ids[9]
 	var site := preload("res://tests/support/garden_placement_case.gd").find(garden.construction,"bed",garden.construction.records[tenth].at,0.2,Vector2(0,1.5),tenth)
 	if not check(garden.place("bed",site,0.2,tenth) and garden.construct("bed",game.progress.structures.revision),"relocate tenth and buy one stored bed"): return
+	for tech in ["flowering","irrigation"]: game.garden_action(1,"heart_start_"+tech)
+	var placement = preload("res://tests/support/garden_placement_case.gd")
+	if not check(placement.deploy_irrigation(garden,"intake",garden.planar(preload("res://garden_water.gd").anchor(game.stage)))>0,"deploy shoreline intake"): return
+	var sprinkler: int=placement.deploy_irrigation(garden,"sprinkler",site)
+	if not check(sprinkler>0 and game.progress.irrigation.watered_slots.has(9),"host waters relocated tenth bed"): return
 	game.players[1].pos = game.stage.bed_position(9)
 	game.players[1].seed_choice = 0
 	game.seed_reserve(game.players[1]).stock[0] += 1
 	if not check(game.cultivation.plant_seed(1,9),"plant a real crop in the tenth bed"): return
+	mark("root-shape",var_to_bytes(garden.infrastructure.paths).hex_encode().sha256_text())
 	mark("bed-position",var_to_str(site))
 	mark("built",str(garden.funds.energy))
 	if not await until(func():return peers.all(func(peer):return read("built-"+str(peer))=="yes"),"all guests see placed and stored beds"): return
+	game.players[1].pos=Vector3(0,0,1.5)
+	var original: Vector2=garden.construction.records[sprinkler].at
+	var distant := Vector2.INF
+	for x in range(-20,21):
+		for y in range(-20,21):
+			var candidate := Vector2(x,y)*0.5
+			if candidate.distance_to(site)>garden.game.progress.irrigation.RADIUS_M and garden._build_refusal("sprinkler",candidate,0,sprinkler).is_empty():
+				distant=candidate
+				break
+		if distant.is_finite(): break
+	if not check(distant.is_finite() and garden.place("sprinkler",distant,0,sprinkler),"move sprinkler to an accessible uncovered site clear of every peer: "+game.status): return
+	mark("sprinkler-moved",var_to_str(distant))
+	if not await until(func():return peers.all(func(peer):return read("dry-"+str(peer))=="yes"),"each guest observes loss of coverage"): return
+	if not check(garden.place("sprinkler",original,0,sprinkler) and game.progress.irrigation.watered_slots.has(9),"restore the same sprinkler"): return
 	# Each participant identifies concealed boss stock and combines at the shared altar.
 	for index in game.players.size():
 		var actor: Dictionary=game.players[game.players.keys()[index]]
@@ -205,7 +225,12 @@ func guest(menu: Node) -> void:
 	var inventory: Dictionary=garden.remote_development.layout.inventory
 	check(inventory.instances.values().filter(func(e): return not e.placed and e.kind=="bed").size()==1 and game.Progress.decode_plots(game.guest_replication.garden_progress()[12]).size()==10 and garden.construction.records[garden.bed_ids[9]].at.is_equal_approx(str_to_var(read("bed-position"))),"read-only inventory, extended crops and exact moved position")
 	check(not garden.construct("bed",inventory.revision) and not garden.retire_structure(garden.bed_ids[9],inventory.revision,true),"guest cannot buy or refund")
+	if not await until(func(): return game.cultivation.projection(peer).get("beds",[]).any(func(b):return b.slot==9 and b.sprinkler and not b.watered and is_equal_approx(b.growth_rate,1.25)), "host watering result received for the newly planted tenth bed"): return
+	check(garden.remote_irrigation.watered_slots.has(9) and garden.infrastructure.paths.size()==garden.construction.records.size(),"host and guest reproduce the infrastructure")
+	check(var_to_bytes(garden.infrastructure.paths).hex_encode().sha256_text()==read("root-shape"),"guest derived identical root paths")
 	mark("built-"+str(peer))
+	if not await until(func():return not read("sprinkler-moved").is_empty() and not garden.remote_irrigation.watered_slots.has(9) and game.cultivation.projection(peer).get("beds",[]).any(func(b):return b.slot==9 and not b.sprinkler and is_equal_approx(b.growth_rate,1.0)), "relocated sprinkler and dry crop agree on guest"): return
+	mark("dry-"+str(peer))
 	if not await until(func():return read("altar")=="yes" and game.players[peer].pos.distance_to(game.stage.altar_position())<1.65,"guest reached altar"): return
 	await submit_altar(game)
 	if not await until(func():return game.guest_replication.inventory().size()>6 and game.guest_replication.inventory()[6][16]==1 and game.players[peer].get("recorded_seed_recipes",[]).has(16),"identified stock and tested recipe arrive"): return
@@ -249,6 +274,7 @@ func guest(menu: Node) -> void:
 		check(game.guest_character.identity==character and game.wild_flora_view(game.local_player_id()).is_empty(),"reconnected character does not recover stale flora")
 		game.request_wild_flora.rpc_id(1,plant.identity,stamp)
 		if not await until(func(): return game.heart_state().unlocked.has("cultivation_grounds") and game.stage.experimental_garden.remote_development.get("energy")==int(read("built")) and game.stage.experimental_garden.bed_ids.size()==10, "rejoined client receives committed Heart and Energy"): return
+		if not await until(func(): return game.stage.experimental_garden.remote_irrigation.watered_slots.has(9) and game.cultivation.projection(game.local_player_id()).get("beds",[]).any(func(b):return b.slot==9 and b.sprinkler),"rejoined guest recovers authoritative watering"): return
 		mark("rejoined")
 	else:
 		if not await until(func():return game.wild_flora_view(peer).is_empty() and game.participation.floor()==1,"discard old flora after wipe"): return

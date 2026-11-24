@@ -36,14 +36,18 @@ func nearest(id: int, view_projection: Dictionary) -> String:
  if world==null or not world.players.has(id):return ""
  var player: Dictionary=world.players[id]
  if Participation.is_wild(player) or view_projection.get("version",0)!=State.VERSION:return ""
+ var available: Array = view_projection.get("available",[])
+ if not available.has("spring_water") and not world.cultivation.water_carried(id):
+  available = available.duplicate()
+  available.append("spring_water")
  var positions: Dictionary={}
  for point in Catalog.POINTS:
-  if not view_projection.get("available",[]).has(point.id):continue
+  if not available.has(point.id):continue
   if point.id=="spring_water":
    var source:=Water.nearby(world.stage,player.pos)
    if not source.is_empty():positions[point.id]=source.position
   else:positions[point.id]=point_position(point)
- return Rules.nearest(player.pos,view_projection.get("available",[]),positions,[world.Stage.HEART,world.stage.altar_position(),world.stage.gate_position()]+world.stage.bed_positions())
+ return Rules.nearest(player.pos,available,positions,[world.Stage.HEART,world.stage.altar_position(),world.stage.gate_position()]+world.stage.bed_positions())
 
 func point_position(point: Dictionary,viewer: Vector3=Vector3.INF) -> Vector3:
  var world:=_current()

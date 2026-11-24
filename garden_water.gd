@@ -65,14 +65,31 @@ func _anchor_for(stage: Node3D) -> Vector3:
 			break
 	return _bank_hint
 
+## Nearest shore within the intake's physical reach. Placement validates its dry footprint separately.
+static func intake_shore(water: Array, at: Vector2) -> Vector2:
+	var reach: float = preload("res://garden_structure_catalog.gd").DEFINITIONS.intake.bank_reach_m
+	var closest := Vector2.INF
+	var best := reach * reach
+	for feature: Dictionary in water:
+		if not feature.bounds.grow(reach).has_point(at): continue
+		var boundary := Shape.boundary(feature)
+		for i in boundary.size():
+			var shore := Geometry2D.get_closest_point_to_segment(at,boundary[i],boundary[(i+1)%boundary.size()])
+			var distance := shore.distance_squared_to(at)
+			if distance <= best:
+				best = distance
+				closest = shore
+	return closest
+
 static func nearby(stage: Node3D, position: Vector3) -> Dictionary:
 	if not position.is_finite() or absf(position.y)>.2:return {}
 	var features:=_features(stage)
 	if features.is_empty():return {}
 	var at:=Vector2(position.x,position.z)
-	if not _valid_bank(stage,features,at):return {}
 	var reach:=float(Catalog.point("spring_water").range)
-	for candidate in _candidates(features,at,reach):
+	var candidates := _candidates(features,at,reach)
+	if candidates.is_empty() or not _valid_bank(stage,features,at):return {}
+	for candidate in candidates:
 		if not _valid_bank(stage,features,candidate.bank):continue
 		# Fill from the same dry, unobstructed approach an actor can occupy.
 		var arrived: Vector2=stage.experimental_garden.barrier.move(at,candidate.bank-at)

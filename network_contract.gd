@@ -23,7 +23,7 @@ const CAPABILITIES := {
 	"wild_flora_harvest": 1,
 	"botanical_acquisition": 2,
 	"immediate_heart_research": 1,
-	"structure_inventory": 1,
+	"structure_inventory": 2,
 }
 
 ## Authored sender, transport/channel, ordered argument types and optional count.

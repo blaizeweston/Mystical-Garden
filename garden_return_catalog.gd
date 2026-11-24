@@ -4,7 +4,7 @@ const DEFINITIONS: Array=[{
  "id":"lantern_homecoming","species":"lantern_moss","point":"heart_root_scar",
  "name":"A lantern brought home",
  "description":"A Lantern Moss seed carried home from the Wilds has been identified. Pale lights now gather beside the old root scar. The Heart answers them, a little out of rhythm.",
- "hint":"Inspect the old root scar south of the Heart. After Root Irrigation is learned, watch how the Garden water answers the roots.",
+ "hint":"Inspect the old root scar south of the Heart. After Living Sprinklers is learned, watch how the Garden water answers the roots.",
  "color":"#c3d5a1"
 }]
 static var signature: String=var_to_str(DEFINITIONS).sha256_text()

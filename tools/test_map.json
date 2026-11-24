@@ -27,7 +27,10 @@
           "garden_structure_inventory.gd",
           "garden_structure_inventory.gd.uid",
           "garden_structure_catalog.gd",
-          "garden_structure_catalog.gd.uid"
+          "garden_structure_catalog.gd.uid",
+          "garden_irrigation.gd", "garden_irrigation.gd.uid",
+          "garden_infrastructure_view.gd", "garden_infrastructure_view.gd.uid",
+          "assets/shaders/garden_sprinkler.gdshader", "assets/shaders/garden_sprinkler.gdshader.uid"
         ]
       },
     "garden_heart_view": {"label": "Imported-only Garden Heart, authored stages and research growth", "files": ["assets/terrain_m02/terrain_heart_preview.gd", "assets/terrain_m02/terrain_heart_preview.gd.uid"]},
@@ -1548,6 +1551,7 @@
         ],
         "package": true
       },
+      "garden_living_infrastructure": {"kind":"unit","systems":["garden_development","garden","cultivation_growth","knowledge","persistence_operations","actor_collision"],"package":true},
       "garden_construction_inventory": {"kind":"unit","systems":["garden_development","garden","knowledge","cultivation_growth","persistence_operations","actor_collision"],"package":true},
       "garden_layout_persistence": {
         "kind": "unit",
@@ -5816,6 +5820,15 @@
         },"rounded_join_import": {"systems": ["garden_canopy"]}, "rounded_join_proposal": {"systems": ["garden_canopy"]}}},
     "affinity_cards.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "assets/terrain_m02/experimental/experiment_garden.gd": {"newline": "lf", "regions": {
+        "hg03__commit_development_10": {"systems": ["garden_development", "cultivation_growth", "garden", "world_snapshot"]},
+        "hg03__refresh_build_choices_8": {"systems": ["garden_development", "cultivation_growth", "garden", "world_snapshot"]},
+        "hg03__show_cost_7": {"systems": ["garden_development", "cultivation_growth", "garden", "world_snapshot"]},
+        "hg03__show_cost_6": {"systems": ["garden_development", "cultivation_growth", "garden", "world_snapshot"]},
+        "hg03__initialize_controls_5": {"systems": ["garden_development", "cultivation_growth", "garden", "world_snapshot"]},
+        "hg03__project_inventory_4": {"systems": ["garden_development", "cultivation_growth", "garden", "world_snapshot"]},
+        "hg03__refresh_guest_review_3": {"systems": ["garden_development", "cultivation_growth", "garden", "world_snapshot"]},
+        "hg03_expand_2": {"systems": ["garden_development", "cultivation_growth", "garden", "world_snapshot"]},
+        "hg03_configure_1": {"systems": ["garden_development", "cultivation_growth", "garden", "world_snapshot"]},
         "hg02__refresh_structure_views_20": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
         "hg02__commit_development_19": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
         "hg02__restore_development_18": {"systems": ["garden_development", "knowledge", "persistence_operations", "terrain", "world_snapshot"]},
@@ -6190,6 +6203,11 @@
     "progress.gd": {
       "newline": "lf",
       "regions": {
+        "hg03_advance_growth_6": {"systems": ["garden_development", "cultivation_growth", "garden", "persistence_operations"]},
+        "hg03_sync_plot_flags_5": {"systems": ["garden_development", "cultivation_growth", "garden", "persistence_operations"]},
+        "hg03__serialize_save_4": {"systems": ["garden_development", "cultivation_growth", "garden", "persistence_operations"]},
+        "hg03__read_garden_2": {"systems": ["garden_development", "cultivation_growth", "garden", "persistence_operations"]},
+        "hg03__read_garden_1": {"systems": ["garden_development", "cultivation_growth", "garden", "persistence_operations"]},
         "hg02__serialize_save_8": {"systems": ["garden_development", "knowledge", "persistence_operations"]},
         "hg02__serialize_save_7": {"systems": ["garden_development", "knowledge", "persistence_operations"]},
         "hg02__migration_backup_6": {"systems": ["garden_development", "knowledge", "persistence_operations"]},

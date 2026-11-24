@@ -20,6 +20,15 @@ static func build(id: String, decorative_bed_shoots := true) -> ArrayMesh:
 	match id:
 		"starter_bed":
 			_bed(tool, decorative_bed_shoots)
+		"intake", "sprinkler":
+			var intake := id == "intake"
+			for i in 5:
+				var angle := i * TAU / 5.0
+				var outward := Vector3(cos(angle),0,sin(angle))
+				Wood._tube(tool,[outward*0.38+Vector3.UP*0.035,outward*0.18+Vector3.UP*0.16,Vector3.UP*0.32],[0.045,0.08,0.09],BARK)
+				var height := 0.52 if intake else 0.83
+				Wood._tube(tool,[Vector3.UP*0.23,outward*0.08+Vector3.UP*(height-0.18),outward*0.28+Vector3.UP*height],[0.095,0.073,0.028],OLIVE)
+			Wood._crown(tool, _fixed_random(), Vector3.UP*(0.36 if intake else 0.61),Vector3(0.14,0.16,0.14),Color("#61958d"))
 		"altar":
 			_basin(tool, 0.86, 0.77, STONE, GARNET)
 			Wood._tube(tool, [Vector3(-0.41, 0.08, 0.42), Vector3(-0.42, 0.46, 0.19),
@@ -28,6 +37,11 @@ static func build(id: String, decorative_bed_shoots := true) -> ArrayMesh:
 		_:
 			_archive(tool, id)
 	return tool.commit()
+
+static func _fixed_random() -> RandomNumberGenerator:
+	var random := RandomNumberGenerator.new()
+	random.seed = 117
+	return random
 
 static func _bed(tool: SurfaceTool, decorative_shoots: bool) -> void:
 	var rim := PackedVector3Array()

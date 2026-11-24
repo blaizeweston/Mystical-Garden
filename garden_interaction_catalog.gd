@@ -22,8 +22,8 @@ const POINTS: Array=[{
  "blocks_construction":false,
  "requires":[],"action":"observe","cue":"quiet_pulse","visual":"spring",
  "description":"Clear water gathers where the roots have loosened their hold. Small pale moths skim the banks. Beside the nearby beds, the water carries a faint warmth.",
- "recorded":"Root Irrigation lets the Garden share its water. The nearby planting beds remain open to any species.",
- "hint":"After Reaching Roots and Root Irrigation, approach a Garden pond to fill your watering vessel. No basin needs to be built."
+ "recorded":"Living roots draw from the same natural water used to fill your vessel. The nearby planting beds remain open to any species.",
+ "hint":"Approach a clear pond bank to fill your watering vessel."
 },{
  "id":"spring_weave","parent":"sheltered_spring","observation":"moss_whisper_resonance",
  "name":"A quiet resonance","position":Vector3(4.1,0,.45),"range":1.35,

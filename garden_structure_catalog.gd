@@ -2,6 +2,8 @@ extends RefCounted
 ## Footprint half-extents are metres. The starting altar is relocatable, not purchasable.
 const DEFINITIONS := {
 	"bed": {"name": "Cultivation bed", "art": "starter_bed", "research":"cultivation_grounds", "repeatable":true, "cost":{"energy":12,"materials":{}}, "half": Vector2(1.00, 0.73), "buildable": true},
+	"intake": {"name":"Water Intake", "art":"intake", "research":"irrigation", "repeatable":false, "bank_reach_m":1.65, "half":Vector2(0.40,0.40), "buildable":true},
+	"sprinkler": {"name":"Living Sprinkler", "art":"sprinkler", "research":"irrigation", "repeatable":true, "cost":{"energy":24,"materials":{}}, "effect":"watering", "radius_m":3.5, "half":Vector2(0.41,0.41), "buildable":true},
 	"altar": {"name": "Garden Altar", "art": "altar", "half": Vector2(0.88, 0.88), "buildable": false},
 	"study": {"name": "Field study", "art": "monster_studies", "research":"monster_studies", "repeatable":false, "half": Vector2(0.97, 0.98), "buildable": true},
 	"archive": {"name": "Seed cache", "art": "seed_archive", "research":"seed_archive", "repeatable":false, "half": Vector2(0.97, 0.98), "buildable": true},

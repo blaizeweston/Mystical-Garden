@@ -4,7 +4,7 @@ G-07 proves a second location and a practical Garden tool through the existing b
 
 **Verdant Refuge** (`clearing_2`) reveals a ruined cultivation terrace northwest of the Heart. The registered location includes existing **Bed 4**; it does not add, move or restrict a planting bed. Recording its root pattern supplies an existing Whispervine refinement clue. Sacrifice, discovery and rewards still happen at the Altar.
 
-Research **Living Water Conduit** for six available Knowledge after Verdant Refuge, Root Irrigation and Cultivation Grounds. Its policy follows the historical fourth crop slot when the bed is relocated.
+Research **Living Water Conduit** for six available Knowledge after Verdant Refuge, Living Sprinklers and Cultivation Grounds. Its policy follows the historical fourth crop slot when the bed is relocated.
 
 At the terrace, the host can redirect the living channels:
 
