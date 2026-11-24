@@ -684,6 +684,9 @@ def build(args):
         (output / "TESTED_INPUTS.sha256").write_text(manifest, encoding="utf-8", newline="\n")
         inputs = sha(output / "TESTED_INPUTS.sha256")
         env = {key: value for key, value in os.environ.items() if not key.upper().startswith(("MYSTICAL_", "GIT_"))}
+        roaming = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming"))
+        env["MYSTICAL_GODOT_TEMPLATE_DIR"] = os.environ.get(
+            "MYSTICAL_GODOT_TEMPLATE_DIR", str(roaming / "Godot/export_templates/4.7.2.stable"))
         for key, leaf in (("APPDATA", "app"), ("LOCALAPPDATA", "local"), ("TEMP", "tmp"), ("TMP", "tmp"), ("XDG_DATA_HOME", "app")):
             path = work / leaf
             path.mkdir(exist_ok=True)
@@ -717,7 +720,7 @@ def build(args):
         run(release_args, project, env, output / "verifyonly.log")
         package = evidence.read_json(project / ".godot/validation/last-package.json")
         pack = Path(package["path"])
-        metadata = evidence.read_json(project / "assets/content/build_manifest.json")
+        metadata = evidence.read_json(pack.with_name("export-build.json"))
         source_dll = project / evidence.LOCK_RESOURCE
         if bool(metadata.get("terrain_mode")) != experimental_terrain:
             raise ValueError("Staged build terrain mode does not match the request.")
@@ -737,7 +740,6 @@ def build(args):
         shutil.copyfile(pack.with_name("export-project.godot"), output / "export-project.godot")
         shutil.copyfile(export_root / "export.log", output / "export.log")
         evidence.write_json(output / "export-build.json", metadata)
-        git("-c", "core.autocrlf=true", "restore", "--worktree", "--", "export_presets.cfg", "assets/content/build_manifest.json", repo=project)
         if input_manifest(project, names) != manifest or git("status", "--porcelain=v1", repo=project):
             raise ValueError("Build inputs differ from the committed source.")
         print("Checking the actual retail executable in disposable Windows profiles.", flush=True)

@@ -32,7 +32,7 @@ The EXE path is an example: always discover the highest numbered revision before
 
 Connected is the default. Focused runs eligible unit suites; it cannot certify missing co-op coverage. The export gate checks current evidence for **every registered suite**, including successful results reused from unchanged inputs. It no longer requires rerunning a fixed number of suites. A partial pass cannot authorize a release.
 
-Candidate persistence acceptance is registered in the source planner. Each Windows package must also run the candidate release suites with fresh per-peer verdicts, including the real title-based solo and party fixtures. Cached candidate verdicts cannot satisfy package commit. Catalog/exclusion and supplied network smoke remain independent checks. The release executable keeps normal cutover disabled. Candidate fixtures run externally through the Godot editor and the packaged resources in a disposable headless data root.
+Candidate persistence acceptance is registered in the source planner. Each Windows package must also run the candidate release suites with fresh per-peer verdicts, including the real title-based solo and party fixtures. Cached candidate verdicts cannot satisfy package commit. Catalog/exclusion and supplied network smoke remain independent checks. Fresh release saves use guarded storage. Migration of older save roots remains disabled. Candidate fixtures run externally through the Godot editor and the packaged resources in a disposable headless data root.
 
 A focused candidate checkpoint provides current evidence for the affected acceptance routes only. A full release also requires complete current source evidence for every registered suite and a successful package commit. Manual desktop visual checks and separate-PC co-op are tracked separately.
 
@@ -104,6 +104,10 @@ Asset ownership uses the first matching `asset_rules` pattern after exact file o
 
 Scope checks use the same normalization order as fingerprinting. A zero-match scope blocks validation and reports its token. If the anchor exists in the original file, the diagnostic identifies that an earlier scope consumed it. Correct the anchor or retire it with evidence that its implementation has moved or been removed. Record planned features in design documentation until they have code to anchor.
 
+`json_regions` in `tools/test_map.json` assigns parsed fields of the weapon profiles, weapon template and enemy catalog to their consumers. Enemy rows are selected by stable ID. Indentation and line breaks do not affect these source keys. String contents, key and array order, field values and resource references remain significant. Missing fields, overlapping declarations and duplicate IDs block planning. Raw file hashes continue to guard against mid-run edits. Switching from historical text anchors to named fields changes the affected keys once.
+
+`script_functions` assigns whole GDScript method bodies to their consumers by name. A method's signature remains part of the file's shared fingerprint. Use it for a self-contained method such as Stage's Heart update; its body can change without editing a second copy in the matching-data file. Missing named methods stop planning.
+
 ## Adding content or tests
 
 Import new scripts/resources with Godot before source validation so generated `.uid` files are included in the baseline. Classify new runtime scripts and their generated resource IDs in the dependency map; an ID first generated during export invalidates its consumers’ prior evidence.
@@ -138,7 +142,7 @@ These are machine-local generated files. Deleting the cache is safe; it requires
 
 The old validation/release scripts were preserved under `docs/change-backups/20261109-selective-validation` for comparison and recovery.
 
-Network process checks use PowerShell 7 (the bundled runtime is supported). The older Windows PowerShell process wrapper can lose peer exit codes; the planner deliberately refuses to treat missing exit codes as passes. A changed release export template also forces fresh packaged checks.
+Network process checks use PowerShell 7 (the bundled runtime is supported). The older Windows PowerShell process wrapper can lose peer exit codes. Packaging resolves the installed Windows release template before redirecting application data to disposable storage. For a custom installation, set `MYSTICAL_GODOT_TEMPLATE_DIR` to the folder containing `windows_release_x86_64.exe`. The package plan records the actual path and hash. A different template binary forces fresh packaged checks. Export metadata is retained beside the staged executable in `export-build.json`. The release script restores the source manifest and preset after export, including when export fails.
 
 
 Keep validation caches local to this development computer; do not copy them into another developer's project. Godot's console launcher and its paired engine binary are fingerprinted together.

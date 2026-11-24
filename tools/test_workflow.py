@@ -53,6 +53,40 @@ def write_json(path,value):
  temporary=path.with_name(path.name+'.tmp');temporary.write_text(json.dumps(value,indent=2)+'\n',encoding='utf-8');os.replace(temporary,path)
 def utc():return dt.datetime.now(dt.timezone.utc).isoformat()
 
+def json_scope_snapshot(text, regions, path):
+ """Split parsed JSON fields by owner. Keep key/array order, string contents and raw mid-run evidence."""
+ def unique(pairs):
+  result={}
+  for key,value in pairs:
+   if key in result:raise ValueError(f'Duplicate JSON field in {path}: {key}')
+   result[key]=value
+  return result
+ def encoded(value):
+  return json.dumps(value,ensure_ascii=False,allow_nan=False,separators=(',',':'))
+ document=json.loads(text,object_pairs_hook=unique)
+ rows={}
+ if isinstance(document,list):
+  for row in document:
+   if not isinstance(row,dict) or not isinstance(row.get('id'),str) or row['id'] in rows:
+    raise ValueError('Missing or duplicate JSON record ID in '+path)
+   rows[row['id']]=row
+ owned={};claimed=set()
+ for name,rule in regions.items():
+  record=rule.get('id')
+  row=document if record is None else rows.get(record)
+  fields=rule['fields']
+  if not isinstance(row,dict) or not isinstance(fields,list) or not fields:
+   raise ValueError(f'Missing JSON record/fields: {path}::#{name}')
+  values={}
+  for field in fields:
+   if field not in row or (record,field) in claimed:
+    raise ValueError(f'Missing or overlapping JSON field: {path}::#{name} {field}')
+   claimed.add((record,field))
+   values[field]=row[field]
+   row[field]=None
+  owned[name]=encoded(values)
+ return encoded(document),owned
+
 def split_game(text):
  """Only top-level function bodies can be scoped; declarations/RPC layout form a global contract."""
  lines=text.splitlines(keepends=True);starts=[];signatures=[];body_lines=set()
@@ -69,6 +103,33 @@ def split_game(text):
  tokens={'$contract':hashed({'declarations':declarations,'signatures':signatures})}
  for begin,end,name in starts:tokens[name]=digest(''.join(lines[begin:end]).strip().encode())
  return tokens
+
+def scope_functions(text, methods, path, include=()):
+ """Keep every signature in the shared file. Give selected method bodies their own tokens."""
+ lines=text.splitlines(keepends=True);values={}
+ signature_end=re.compile(r'\)\s*(?:->\s*[\w.\[\], ]+)?\s*:(.*)$')
+ for start,line in enumerate(lines):
+  match=re.match(r'^(?:static )?func (\w+)\(',line)
+  if not match or match[1] not in methods:continue
+  name=match[1]
+  if name in values:raise ValueError(f'Duplicate scoped method: {path}::{name}')
+  for i in range(start,len(lines)):
+   if i>start and re.match(r'^(?:static )?func ',lines[i]):raise ValueError(f'Unterminated scoped signature: {path}::{name}')
+   closing=signature_end.search(lines[i])
+   if closing:
+    if closing[1].partition('#')[0].strip():raise ValueError(f'Inline scoped body is unsupported: {path}::{name}')
+    body=i+1
+    break
+  else:raise ValueError(f'Cannot locate scoped method body: {path}::{name}')
+  end=body
+  while end<len(lines) and (not lines[end].strip() or lines[end].startswith((' ','\t','#'))):end+=1
+  values[name]=''.join(lines[body:end])
+  if name not in include:
+   for i in range(body,end):lines[i]=''
+   if body<end:lines[body]='\tpass\n'
+ missing=set(methods)-values.keys()
+ if missing:raise ValueError('Missing scoped method in '+path+': '+', '.join(sorted(missing)))
+ return ''.join(lines),values
 
 class Workflow:
  def __init__(self,project,engine):
@@ -191,9 +252,24 @@ class Workflow:
  def snapshot(self):
   tokens={};domains={};raw={}
   file_regions=self.map.get('file_regions',{})
-  unchecked=set(file_regions)
+  json_regions=self.map.get('json_regions',{})
+  method_files=self.map.get('script_functions',{})
+  self.json_dependencies={}
+  unchecked=set(file_regions)|set(json_regions)|set(method_files)
   for file in self.runtime_files():
    path=file.relative_to(self.project).as_posix();data=file.read_bytes();raw[path]=digest(data)
+   if path in json_regions:
+    unchecked.remove(path)
+    if path in file_regions or file.suffix!='.json':raise ValueError('Invalid JSON scope: '+path)
+    base,values=json_scope_snapshot(data.decode('utf-8-sig'),json_regions[path],path)
+    tokens[path]=digest(base.encode());domains[path]=self.owners(path)
+    self.json_dependencies[path]=[(None,RES.findall(base))]
+    for region,value in values.items():
+     token=path+'::#'+region;rule=json_regions[path][region]
+     if not rule['systems'] or not set(rule['systems'])<=self.map['systems'].keys():raise ValueError('Unknown JSON ownership: '+token)
+     tokens[token]=hashed([rule,value]);domains[token]=rule['systems']
+     self.json_dependencies[path].append((rule['systems'],RES.findall(value)))
+    continue
    if path in self.map.get('binary_regions',{}):
     # Same idea as a scoped source adapter: retain the verified pre-scope
     # dependency identity for consumers that do not inspect presentation.
@@ -213,11 +289,11 @@ class Workflow:
      domains[token]=['foundation'] if name=='$contract' else self.map['game_functions'].get(name,['foundation'])
      if name!='$contract' and name not in self.map['game_functions']:self.warnings.append('Unmapped game function: '+name)
    else:
-    if path in file_regions:
+    if path in file_regions or path in method_files:
      unchecked.remove(path)
      original=data.decode('utf-8-sig').replace('\r\n','\n')
      normalized=original
-     specification=file_regions[path]
+     specification=file_regions.get(path,{'regions':{}})
      for region,rule in specification['regions'].items():
       token=path+'::#'+region
       occurrences=[{'line':normalized.count('\n',0,match.start()),'column':match.start()-normalized.rfind('\n',0,match.start())-1} for match in re.finditer(re.escape(rule['match']),normalized)]
@@ -227,6 +303,12 @@ class Workflow:
       normalized=normalized.replace(rule['match'],rule['baseline'])
       tokens[token]=hashed({'rule':rule,'occurrences':occurrences});domains[token]=rule['systems']
      normalized=normalized.replace('\r\n','\n')
+     if path in method_files:
+      normalized,values=scope_functions(normalized,method_files[path],path)
+      for name,value in values.items():
+       token=path+'::#'+name;owners=method_files[path][name]
+       if token in tokens or not owners or not set(owners)<=self.map['systems'].keys():raise ValueError('Invalid method ownership: '+token)
+       tokens[token]=hashed([owners,value]);domains[token]=owners
      if specification.get('newline')=='crlf':
       # Recreate the prior byte layout for scoped files with mixed line endings.
       lf_lines=set(specification.get('lf_lines',[]))
@@ -237,7 +319,7 @@ class Workflow:
     if path not in self.owner and not any(fnmatch.fnmatchcase(path,p) for p in self.map['asset_rules']) and not path.endswith('.uid'):
      self.warnings.append('Unmapped runtime file: '+path)
   for path in sorted(unchecked):
-   for region in file_regions[path]['regions']:
+   for region in set(json_regions.get(path,{}))|set(method_files.get(path,{}))|set(file_regions.get(path,{}).get('regions',{})):
     self.warnings.append('Unmatched scope: '+path+'::#'+region+' (file is missing or excluded from the text snapshot)')
   if 'game.gd' not in raw:
    for function,regions in self.map.get('game_regions',{}).items():
@@ -270,11 +352,19 @@ class Workflow:
    if path in visited or path=='assets/content/build_manifest.json' or path.startswith('.godot/') or '..' in Path(path).parts:continue
    visited.add(path);file=self.project/path
    if path=='game.gd':continue
+   if path in self.json_dependencies:
+    for owners,paths in self.json_dependencies[path]:
+     if owners is None or systems is None or systems.intersection(owners):pending.extend(paths)
+    continue
    if file.is_file() and file.suffix in TEXT_EXT:
     text=file.read_text(encoding='utf-8-sig',errors='replace')
     if systems is not None:
      for rule in self.map.get('file_regions',{}).get(path,{}).get('regions',{}).values():
       if not systems.intersection(rule['systems']):text=text.replace(rule['match'],rule['baseline'])
+     methods=self.map.get('script_functions',{}).get(path,{})
+     if methods:
+      include={name for name,owners in methods.items() if systems.intersection(owners)}
+      text,_=scope_functions(text,methods,path,include)
     pending.extend(RES.findall(text))
   return visited
 
@@ -304,7 +394,7 @@ class Workflow:
     inputs.update({token:self.tokens[token] for token in tokens})
   for path in dependencies-{'game.gd'}:
    file=self.project/path
-   if file.is_file():inputs['resource:'+path]=self.tokens[path] if path in self.map.get('file_regions',{}) or path in self.map.get('binary_regions',{}) else digest(file.read_bytes())
+   if file.is_file():inputs['resource:'+path]=self.tokens[path] if path in self.map.get('file_regions',{}) or path in self.map.get('binary_regions',{}) or path in self.json_dependencies or path in self.map.get('script_functions',{}) else digest(file.read_bytes())
   inputs.update(self.harness_inputs['shared'])
   if suite['kind']=='smoke':inputs.update(self.harness_inputs['smoke'])
   inputs['suite:'+name]=hashed(suite)
@@ -359,8 +449,8 @@ class Workflow:
    elif token in self.tokens or token in self.known_inputs or literal in self.known_inputs:
     inputs.add(token)
     if literal in self.known_inputs:inputs.add(literal)
-    regions=self.map.get('file_regions',{}).get(token,{}).get('regions',{})
-    if regions:
+    regions=self.map.get('json_regions',{}).get(token) or self.map.get('file_regions',{}).get(token,{}).get('regions',{})
+    if regions or token in self.map.get('script_functions',{}):
      notes.append(token+' previews its base fingerprint. Include any affected path::#region tokens for a scoped or compound edit.')
     if token.startswith('game.gd::') and token.removeprefix('game.gd::') in self.map.get('game_regions',{}):
      notes.append(token+' previews its body fingerprint. Include affected dispatcher region tokens if the edit also changes them.')
@@ -535,15 +625,23 @@ class Workflow:
   write_json(self.project/'.godot/stabilization/release-checks.json',[{'test':n,'passed':True,'key':self.keys[n],'evidence':self.cache[n]['logs']} for n in sorted(self.suites)])
   return evidence
 
- def template_signature(self):
+ def release_template(self):
   preset=self.project/'export_presets.cfg'
-  if not preset.is_file():return self.engine_hash
-  match=re.search(r'custom_template/release="([^"]+)"',preset.read_text(encoding='utf-8-sig'))
-  if not match:return self.engine_hash
-  template=Path(match.group(1))
-  if not template.is_absolute():template=self.project/template
+  if not preset.is_file():return None
+  matches=re.findall(r'(?m)^custom_template/release="([^"]*)"\s*$',preset.read_text(encoding='utf-8-sig'))
+  if len(matches)!=1:raise ValueError('Expected one Windows release template setting in '+str(preset))
+  if matches[0]:
+   template=(self.project/matches[0]).resolve()
+  else:
+   roaming=Path(os.environ.get('APPDATA',Path.home()/'AppData/Roaming'))
+   directory=Path(os.environ.get('MYSTICAL_GODOT_TEMPLATE_DIR',roaming/'Godot/export_templates/4.7.2.stable'))
+   template=(directory/'windows_release_x86_64.exe').resolve()
   if not template.is_file():raise ValueError('Release export template is missing: '+str(template))
-  return digest(template.read_bytes())
+  return template
+
+ def template_signature(self):
+  template=self.release_template()
+  return digest(template.read_bytes()) if template else self.engine_hash
 
  def package_plan(self,full=False):
   self.verify();cache=read_json(self.root/'package-cache.json',{}) or {};last=read_json(self.root/'latest-report.json',{}) or {}
@@ -558,6 +656,8 @@ class Workflow:
   # Every new package exercises startup/catalogs separately, plus real peer connection.
   if 'supplied_network_smoke' not in selected['smoke']:selected['smoke'].append('supplied_network_smoke');reused=[n for n in reused if n!='supplied_network_smoke']
   plan={'schema':SCHEMA,'run_id':uuid.uuid4().hex,'full':full,'template':template,'source':hashed(self.tokens),'engine':self.engine_hash,'infrastructure':self.infrastructure,'keys':{n:self.package_key(n) for n in self.suites if self.suites[n]['package']},'selected':selected,'reused':reused}
+  resolved=self.release_template()
+  if resolved:plan['release_template']=str(resolved)
   write_json(self.root/'package-plan.json',plan);return plan
 
  def commit_package(self,pack):
@@ -610,6 +710,10 @@ class Workflow:
    for name,rule in regions.items():lines.append('| `game.gd::'+function+'` | '+name+' | '+', '.join(rule['systems'])+' |')
   for file,specification in self.map.get('file_regions',{}).items():
    for name,rule in specification['regions'].items():lines.append('| `'+file+'` | '+name+' | '+', '.join(rule['systems'])+' |')
+  for file,regions in self.map.get('json_regions',{}).items():
+   for name,rule in regions.items():lines.append('| `'+file+'` | '+name+' ('+(rule['id']+'.' if 'id' in rule else '')+', '.join(rule['fields'])+') | '+', '.join(rule['systems'])+' |')
+  for file,methods in self.map.get('script_functions',{}).items():
+   for name,owners in methods.items():lines.append('| `'+file+'` | '+name+' (method body) | '+', '.join(owners)+' |')
   lines+=['','## Scoped visual assets','','The base identity is the verified pre-scope asset hash, preserved for unrelated mechanics that incidentally import the world. The visual token, raw release fingerprint and broad smoke retain actual current bytes. Bone/morph/action/skin contracts are checked by the declared character/weapon suites. A contract change must broaden ownership.','','| Asset | Visual consumers | Contract |','|---|---|---|']
   for file,rule in self.map.get('binary_regions',{}).items():lines.append('| `'+file+'` | '+', '.join(rule['systems'])+' | '+rule['contract']+' |')
   path=self.project/'docs/MECHANICS_TEST_MAP.md';path.write_text('\n'.join(lines)+'\n',encoding='utf-8');return path

@@ -1,6 +1,8 @@
 import json
 import os
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -12,6 +14,79 @@ import playtest_release as release
 
 
 class PlaytestReleaseTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "Windows release overlay")
+    def test_verifyonly_restores_exact_inputs_on_success_and_export_error(self):
+        shell = shutil.which("pwsh") or shutil.which("powershell")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            def put(name, contents):
+                path = project / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(contents.encode())
+                return path
+
+            script = put("tools/release_latest.ps1", (release.REPO / "tools/release_latest.ps1").read_text(encoding="utf-8-sig"))
+            put("tools/validation_python.ps1", f"function Find-ValidationPython {{ return '{sys.executable}' }}")
+            put("tools/runtime_fingerprint.ps1", "param($Project)\n'fixture'")
+            put("tools/validation_execution.py", "# Fixture executor stub")
+            put("tools/test_workflow.py", """
+import sys, json, pathlib, hashlib
+root = pathlib.Path(__file__).resolve().parents[1]
+if sys.argv[1] == 'package-plan':
+    template = root / 'template.exe'
+    plan = dict(run_id='test', release_template=str(template), template=hashlib.sha256(template.read_bytes()).hexdigest(),
+                selected=dict(unit=[],party=[],pair=[],smoke=[]),reused=[])
+    (root / '.godot/validation/package-plan.json').write_text(json.dumps(plan))
+""")
+            put("test/run_net_test.ps1", "param($Godot,$Pack,$Clients,$Port,$RunId,$LogRoot,[switch]$ReturnResult)\n"
+                "[pscustomobject]@{passed=$true;run_id=$RunId;fixture='supplied_network_smoke'}")
+            put(".godot/stabilization/validated-source.sha256", "fixture")
+            put(".godot/stabilization/release-checks.json", "[]")
+            (project / ".godot/validation/package-runs/test").mkdir(parents=True)
+            template = put("template.exe", "fixture template, never executed")
+            put("assets/native/persistence_lock/b0_native_lock.dll", "fixture")
+            put("combat_ruleset.gd", 'const ID := "modern-gameplay-1"\n')
+            originals = [
+                put("export_presets.cfg", 'export_path="./custom.exe"\r\ncustom_template/release=""\r\n'),
+                put("assets/content/build_manifest.json", ' { "local": true }\r\n'),
+                put("project.godot", '[application]\r\nconfig/custom_user_dir_name="Mystical Garden Prototype"\r\n'
+                    'config/custom_user_dir_name.template_release="Mystical Garden Guarded 1"\r\n[debug]\r\n'),
+                put("assets/sprite.png.import", '[importer]\r\na=1\r\n')]
+            before = [f.read_bytes() for f in originals]
+            engine = put("fake-export.ps1", r"""
+$staged=$args[-1]
+if((Get-Content -Raw export_presets.cfg) -notmatch 'template\.exe'){throw 'template not installed'}
+$manifest=Get-Content -Raw assets/content/build_manifest.json | ConvertFrom-Json
+if($manifest.combat_ruleset -ne 'modern-gameplay-1'){throw 'metadata not installed'}
+[IO.File]::WriteAllText((Resolve-Path assets/sprite.png.import).Path,"[importer]`na=1`n")
+if($env:FAKE_EXPORT_FAILURE){exit 37}
+[IO.File]::WriteAllText($staged,'fixture')
+Copy-Item assets/native/persistence_lock/b0_native_lock.dll (Split-Path -Parent $staged)
+exit 0
+""")
+            arguments = [shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script),
+                         "-VerifyOnly", "-PlaytestVersion", "0.0.1-playtest.1", "-PlaytestCommit", "1" * 40,
+                         "-InputManifestSha256", "2" * 64, "-Engine", str(engine)]
+            env = dict(os.environ, APPDATA=str(project / "fake-profile"), MYSTICAL_GODOT_TEMPLATE_DIR=str(template.parent))
+            for fail in [True, False]:
+                with self.subTest(fail=fail):
+                    result = subprocess.run(arguments, cwd=project, env=dict(env, FAKE_EXPORT_FAILURE="yes" if fail else ""),
+                                            capture_output=True, text=True, timeout=30)
+                    self.assertEqual(result.returncode == 0, not fail, result.stdout + result.stderr)
+                    self.assertEqual([f.read_bytes() for f in originals], before)
+                    if fail:
+                        self.assertIn("Export failed", result.stderr)
+                    else:
+                        self.assertIn("VERIFIED ONLY", result.stdout)
+                        self.assertTrue(any(json.loads(p.read_bytes())["git_commit"] == "1" * 40
+                                            for p in (project / ".godot/release").glob("*/export-build.json")))
+            target = put("Mystical Garden v0.0.1.exe", "existing executable, never executed")
+            ordinary = arguments[:arguments.index("-PlaytestVersion")] + ["-TargetPath", str(target), "-Engine", str(engine)]
+            result = subprocess.run(ordinary, cwd=project, env=env, capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual([f.read_bytes() for f in originals], before)
+            self.assertEqual(target.read_text(), "existing executable, never executed")
+
     def test_version_is_canonical_and_path_safe(self):
         self.assertEqual(release.version_name("0.1.0"), "0.1.0-playtest.1")
         self.assertEqual(release.version_name("0.1.0-playtest.2"), "0.1.0-playtest.2")

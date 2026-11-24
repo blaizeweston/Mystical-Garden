@@ -9,6 +9,10 @@ if($PlaytestVersion){
   throw 'Playtest export requires VerifyOnly and an exact version, commit and input digest.'
  }
 }
+# Remember the installed template location before isolating the game's profile.
+if(-not $env:MYSTICAL_GODOT_TEMPLATE_DIR){
+ $env:MYSTICAL_GODOT_TEMPLATE_DIR=Join-Path $env:APPDATA 'Godot/export_templates/4.7.2.stable'
+}
 $env:APPDATA=Join-Path $project '.godot/stabilization-appdata'
 $env:LOCALAPPDATA=Join-Path $project '.godot/stabilization-localappdata'
 $build=Join-Path $project '.godot/release'
@@ -89,17 +93,10 @@ if($PlaytestVersion){
  }
  $env:MYSTICAL_VALIDATION_DATA_DIR=$metadata.save_root
 }
-$metadata | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $project 'assets/content/build_manifest.json')
-$templates=Join-Path $env:USERPROFILE 'AppData/Roaming/Godot/export_templates/4.7.2.stable'
+$manifest=Join-Path $project 'assets/content/build_manifest.json'
 $preset=Join-Path $project 'export_presets.cfg'
-$text=Get-Content -LiteralPath $preset -Raw
-$text=[regex]::Replace($text,'export_path="[^"]+"',('export_path="./'+$target.Name+'"'))
-foreach($mode in @('debug','release')) {
- $template=(Join-Path $templates ('windows_'+$mode+'_x86_64.exe')).Replace('\','/')
- if(-not (Test-Path -LiteralPath $template)){throw ('Missing export template: '+$template)}
- $text=[regex]::Replace($text,('custom_template/'+$mode+'="[^"]*"'),('custom_template/'+$mode+'="'+$template+'"'))
-}
-[IO.File]::WriteAllText($preset,$text,[Text.UTF8Encoding]::new($false))
+$template=$packagePlan.release_template
+if(-not $template -or (Get-FileHash -LiteralPath $template).Hash -ne $packagePlan.template){throw 'The Windows template differs from the package plan.'}
 $stageDirectory=Join-Path $build ([Guid]::NewGuid().ToString('N').Substring(0,12))
 New-Item -ItemType Directory -Path $stageDirectory | Out-Null
 $staged=Join-Path $stageDirectory $(if($PlaytestVersion){'Mystical Garden.exe'}else{'Mystical Garden-staged.exe'})
@@ -109,13 +106,20 @@ $installedLock=Join-Path $targetDirectory 'b0_native_lock.dll'
 $log=Join-Path $build 'export.log'
 $settings=Join-Path $project 'project.godot'
 $originalSettings=[IO.File]::ReadAllBytes($settings)
+$originalPreset=[IO.File]::ReadAllBytes($preset)
+$originalManifest=[IO.File]::ReadAllBytes($manifest)
 $importSettings=@{}
-if($PlaytestVersion){
+if($VerifyOnly){
  Get-ChildItem -LiteralPath (Join-Path $project 'assets') -Recurse -File -Filter '*.import' | ForEach-Object {
   $importSettings[$_.FullName]=[IO.File]::ReadAllBytes($_.FullName)
  }
 }
 try {
+ $metadata | ConvertTo-Json | Set-Content -Encoding utf8 $manifest
+ Copy-Item -LiteralPath $manifest -Destination (Join-Path $stageDirectory 'export-build.json')
+ $text=Get-Content -LiteralPath $preset -Raw
+ $text=$text.Replace(([regex]::Match($text,'(?m)^custom_template/release="[^"]*"')).Value,('custom_template/release="'+$template.Replace('\','/')+'"'))
+ [IO.File]::WriteAllText($preset,$text,[Text.UTF8Encoding]::new($false))
  if($PlaytestVersion){
   $configuration=[IO.File]::ReadAllText($settings)
   $pattern='(?m)^config/custom_user_dir_name="Mystical Garden Prototype"\r?$'
@@ -137,20 +141,36 @@ try {
  $exportExit=$LASTEXITCODE
 }finally {
  if($PlaytestVersion){[IO.File]::WriteAllBytes($settings,$originalSettings)}
+ [IO.File]::WriteAllBytes($preset,$originalPreset)
+ [IO.File]::WriteAllBytes($manifest,$originalManifest)
+ if($VerifyOnly){
+  $problems=@()
+  $currentImports=@(Get-ChildItem -LiteralPath (Join-Path $project 'assets') -Recurse -File -Filter '*.import')
+  foreach($file in $currentImports){
+   if(-not $importSettings.ContainsKey($file.FullName)){$problems+=("Unexpected import sidecar: "+$file.FullName)}
+  }
+  foreach($path in $importSettings.Keys){
+   $original=$importSettings[$path]
+   if(-not (Test-Path -LiteralPath $path)){
+    $problems+=("Missing import sidecar: "+$path)
+    [IO.File]::WriteAllBytes($path,$original)
+    continue
+   }
+   $current=[IO.File]::ReadAllBytes($path)
+   if([Convert]::ToBase64String($original) -cne [Convert]::ToBase64String($current)){
+    if([Text.Encoding]::UTF8.GetString($original).Replace("`r`n","`n") -cne [Text.Encoding]::UTF8.GetString($current).Replace("`r`n","`n")){
+     $problems+=("Export changed import settings: "+$path)
+    }
+    [IO.File]::WriteAllBytes($path,$original)
+   }
+  }
+  if($problems.Count){throw ($problems -join "`n")}
+ }
 }
 if($exportExit -ne 0 -or -not (Test-Path -LiteralPath $staged)){throw 'Export failed; current EXE remains intact.'}
 if($PlaytestVersion){
  if(Select-String -LiteralPath $log -Pattern '^\s*(?:(?:USER )?ERROR:|SCRIPT ERROR:|Parse Error:)' -Quiet){
   throw 'Godot reported an error while exporting the playtest. See the staged export log.'
- }
- $currentImports=@(Get-ChildItem -LiteralPath (Join-Path $project 'assets') -Recurse -File -Filter '*.import')
- if($currentImports.Count -ne $importSettings.Count){throw 'Export changed the set of committed import sidecars.'}
- foreach($file in $currentImports){
-  if(-not $importSettings.ContainsKey($file.FullName)){throw ('Unexpected import sidecar: '+$file.FullName)}
-  $before=[Text.Encoding]::UTF8.GetString($importSettings[$file.FullName])
-  $after=[IO.File]::ReadAllText($file.FullName)
-  if($before.Replace("`r`n","`n") -cne $after.Replace("`r`n","`n")){throw ('Export changed committed import settings: '+$file.FullName)}
-  if($before -cne $after){[IO.File]::WriteAllBytes($file.FullName,$importSettings[$file.FullName])}
  }
 }
 if(-not (Test-Path -LiteralPath $stagedLock -PathType Leaf) -or (Get-FileHash -LiteralPath $stagedLock).Hash -ne (Get-FileHash -LiteralPath $sourceLock).Hash){throw 'Missing or mismatched exported persistence lock.'}

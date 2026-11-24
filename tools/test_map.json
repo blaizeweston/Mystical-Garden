@@ -227,7 +227,7 @@
     },
     "garden": {
       "label": "Garden beds, care, scenery and Heart appearance",
-      "files": ["garden_visuals.gd", "heart_visuals.gd", "tests/support/garden_case.gd"]
+      "files": ["heart_visuals.gd", "tests/support/garden_case.gd"]
     },
     "knowledge": {
       "label": "Knowledge research and Garden unlocks",
@@ -396,9 +396,7 @@
       "label": "Per-technology Heart growth, sapling/tree model and local cinematic interpolation",
       "files": [
         "heart_growth_visuals.gd",
-        "heart_growth_visuals.gd.uid",
-        "assets/shaders/heart_foliage.gdshader",
-        "assets/shaders/heart_foliage.gdshader.uid"
+        "heart_growth_visuals.gd.uid"
       ]
     },
     "garden_stations": {
@@ -998,7 +996,6 @@
       "items"
     ],
     "refresh_feedback": ["persistence_operations", "presentation"],
-    "deferred_save_available": ["persistence_operations"],
     "guarded_growth_tick": ["persistence_operations"],
     "record_character": ["persistence_operations"],
     "run_altar_save": ["persistence_operations"],
@@ -1037,17 +1034,9 @@
     "request_garden_action": [
       "foundation"
     ],
-    "garden_action": [
-      "foundation"
-    ],
+    "garden_action": ["ability_aim", "core_combat", "cultivation_growth", "foundation", "persistence_operations"],
     "_garden_action": ["foundation", "affinity_cards"],
-    "awaken_heart": [
-      "knowledge"
-    ],
     "cycle_destination": [
-      "expeditions"
-    ],
-    "route_rooms": [
       "expeditions"
     ],
     "enemy_name": [
@@ -1124,9 +1113,6 @@
     "use_heart_research": [
       "knowledge"
     ],
-    "infuse_study": [
-      "knowledge"
-    ],
     "request_action": [
       "foundation"
     ],
@@ -1155,14 +1141,7 @@
     "nearest_wild_player": [
       "foundation"
     ],
-    "make_scout": [
-      "enemies",
-      "enemy_attack_plan",
-      "encounter_roster"
-    ],
-    "scout_radius": [
-      "enemies"
-    ],
+    "make_scout": ["combat_balance_preview", "encounter_roster", "enemies", "enemy_attack_plan", "enemy_balance"],
     "can_vault": [
       "terrain"
     ],
@@ -1206,12 +1185,6 @@
     "wild_entry": [
       "expeditions"
     ],
-    "complete_finale": [
-      "expeditions"
-    ],
-    "ending_message": [
-      "expeditions"
-    ],
     "seed_reserve": [
       "seeds"
     ],
@@ -1230,9 +1203,7 @@
     "milestone_message": [
       "expeditions"
     ],
-    "encounter_health": [
-      "expeditions"
-    ],
+    "encounter_health": ["combat_balance_preview", "enemy_balance", "expeditions"],
     "start_encounter": [
       "expeditions"
     ],
@@ -1243,9 +1214,6 @@
     ],
     "clear_spawn": [
       "terrain"
-    ],
-    "identify_seed": [
-      "seeds"
     ],
     "selected_seed": [
       "seeds"
@@ -1342,9 +1310,6 @@
     "reclamation_cost": [
       "seeds"
     ],
-    "cycle_reclamation": [
-      "seeds"
-    ],
     "reclaim_seed": [
       "seeds",
       "garden_stations"
@@ -1367,9 +1332,6 @@
     ],
     "bank_checkpoint_item": [
       "items"
-    ],
-    "consider_recollection": [
-      "knowledge"
     ],
     "at_weapon_gate": [
       "foundation"
@@ -1491,10 +1453,7 @@
       "presentation"
     ],
 
-    "attack_hints_snapshot": [
-      "presentation",
-      "enemy_attack_plan"
-    ],
+    "attack_hints_snapshot": ["boss_lair_fights", "combat_affinity_contracts", "core_combat", "enemy_attack_execution", "enemy_attack_plan", "expedition_pressure", "glasscap_feints", "presentation", "thorn_affinity", "warden_progression", "world_snapshot"],
     "show_planting_picker": [
       "seeds"
     ],
@@ -1541,9 +1500,7 @@
     "submit_combat": [
       "foundation"
     ],
-    "_act": [
-      "foundation"
-    ],
+    "_act": ["foundation", "garden", "gate_access", "hex_terrain", "loot", "persistence_operations", "terrain"],
     "submit_movement": [
       "foundation"
     ]
@@ -5192,49 +5149,6 @@
           "gate_access"
         ]
       }},
-    "_act": {
-      "experimental_seed_rewards_1": {
-        "systems": [
-          "hex_terrain",
-          "loot",
-          "terrain"
-        ],
-        "additive": true
-      },
-      "experimental_terrain_1": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-      "experimental_terrain_3": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-
-
-      "prefer_nearest_gate": {
-        "systems": [
-          "gate_access"
-        ],
-        "additive": true
-      },
-
-
-      "gate_range": {
-        "systems": [
-          "gate_access"
-        ]
-      }
-    },
     "_process": {  "ar08_lifecycle_3": {"systems": ["player_lifecycle"], "additive": true}, "ar07_vitals_1": {"systems": ["player_vitals"], "additive": true},  "ar07_vitals_3": {"systems": ["player_vitals"], "additive": true}, "ar06_cooldown_1": {"systems": ["player_cooldowns"], "additive": true},  "ar06_cooldown_3": {"systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_4": {"systems": ["player_cooldowns"], "additive": true},      "ct01_1": {
         "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
         "additive": true
@@ -5419,31 +5333,6 @@
         ],
         "additive": true
       }},
-
-
-
-    "garden_action": {
-
-
-      "class_aim_command": {
-        "additive": true,
-        "systems": [
-          "ability_aim"
-        ]
-      },
-      "core_cast": {
-        "additive": true,
-        "systems": [
-          "core_combat"
-        ]
-      },
-      "growth_balance": {
-        "systems": [
-          "cultivation_growth"
-        ],
-        "additive": true
-      }
-    },
     "bank_checkpoint_item": {
       "guarded_garden_actions": {
         "systems": [
@@ -5473,65 +5362,8 @@
         "additive": true
       }
     },
-    "identify_seed": {
-      "garden_returns": {
-        "systems": [
-          "garden_returns"
-        ],
-        "additive": true
-      }
-    },
     "update_pressure": {
       "reinforcement_service": {
-        "systems": [
-          "expedition_pressure"
-        ],
-        "additive": true
-      }
-    },
-    "attack_hints_snapshot": {
-      "ar11_scout_hint_projection": {"systems": ["enemy_attack_execution", "enemy_attack_plan", "world_snapshot"], "additive": true},
-      "thorn_fields": {
-        "systems": ["thorn_affinity", "combat_affinity_contracts"],
-        "additive": true
-      },
-      "publish_glasscap_formation": {
-        "systems": [
-          "glasscap_feints"
-        ],
-        "additive": true
-      },
-      "warden_anchor_ground_marker": {
-        "additive": true,
-        "systems": [
-          "warden_progression"
-        ]
-      },
-      "core_terrain_projection": {
-        "additive": true,
-        "systems": [
-          "core_combat"
-        ]
-      },
-      "boss_lair_fights": {
-        "systems": [
-          "boss_lair_fights"
-        ],
-        "additive": true
-      },
-      "heavy_and_support": {
-        "additive": true,
-        "systems": [
-          "enemy_attack_plan"
-        ]
-      },
-      "enemy_attack_plan": {
-        "systems": [
-          "enemy_attack_plan"
-        ],
-        "additive": true
-      },
-      "reinforcement_hints": {
         "systems": [
           "expedition_pressure"
         ],
@@ -5641,27 +5473,6 @@
     },
     "current_mutations": {
       "enemy_attack_plan": {
-        "systems": [
-          "enemy_attack_plan"
-        ],
-        "additive": true
-      }
-    },
-    "make_scout": {
-      "cb06_12": {"systems": ["enemy_balance"], "additive": true},
-      "preview_juvenile_hp": {
-        "systems": [
-          "combat_balance_preview"
-        ],
-        "additive": true
-      },
-      "heavy_and_support": {
-        "additive": true,
-        "systems": [
-          "enemy_attack_plan"
-        ]
-      },
-      "species_variants": {
         "systems": [
           "enemy_attack_plan"
         ],
@@ -5875,15 +5686,6 @@
     "close_run_flow_panel": {
 
     },
-    "encounter_health": {
-      "cb06_4": {"systems": ["enemy_balance"], "additive": true},
-      "preview_guest_enemy_hp": {
-        "systems": [
-          "combat_balance_preview"
-        ],
-        "additive": true
-      }
-    },
     "restore_class_loadout": {"ar07_vitals_1": {"systems": ["player_vitals"], "additive": true}},
     "_init": {
       "preview_guest_storage": {
@@ -5893,6 +5695,47 @@
         "additive": true
       }
     }},
+  "script_functions": {"stage.gd": {"update_heart_progress": ["garden", "garden_cinematics", "garden_development", "garden_heart_view", "heart_growth_visual", "hex_terrain", "persistence_operations", "terrain"], "update_plots": ["garden", "garden_cinematics", "garden_development"]}},
+  "json_regions": {
+    "assets/characters/weapon_actions.json": {
+      "fan_release_profile": {"fields": ["fan"], "systems": ["ranged_release", "ability_aim"]},
+      "censer_release_profile": {"fields": ["censer"], "systems": ["avatar_motion_view", "ranged_release"]},
+      "orb_release_profile": {"fields": ["orb"], "systems": ["ranged_release", "avatar_motion_view", "core_combat"]}
+    },
+    "assets/enemies/catalog.json": {
+      "cb06_0": {"id": "nameless", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_1": {"id": "matriarch", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_2": {"id": "drowned", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_3": {"id": "orchard", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_4": {"id": "root_choir", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_5": {"id": "glasscap", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_6": {"id": "ashen_hart", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_7": {"id": "graft_thief", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_8": {"id": "pallbearer", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_9": {"id": "spore_widow", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_10": {"id": "seamroot", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_11": {"id": "lantern_lure", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_12": {"id": "hollowback", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_13": {"id": "root_shepherd", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_14": {"id": "broodmother", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_15": {"id": "wasp", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_16": {"id": "colossus", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_17": {"id": "orchid", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_18": {"id": "willow", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_19": {"id": "thornmaw", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_20": {"id": "bellcap", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_21": {"id": "gallhorn", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_22": {"id": "nightbloom", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "cb06_23": {"id": "rootbound", "fields": ["preview_hp", "preview_hit_hp"], "systems": ["enemy_balance"]},
+      "species_variants_1": {"id": "seamroot", "fields": ["description"], "systems": ["enemy_attack_plan"]},
+      "species_variants_0": {"id": "orchid", "fields": ["description"], "systems": ["enemy_attack_plan"]},
+      "enemy_attack_plan_0": {"id": "colossus", "fields": ["description"], "systems": ["enemy_attack_plan"]},
+      "choir_copy": {"id": "root_choir", "fields": ["description"], "systems": ["enemy_attack_plan"]}
+    },
+    "assets/data/weapon_template.json": {
+      "cb03_template_roll_spread": {"fields": ["roll_spread_hp"], "systems": ["weapon_balance"]}
+    }
+  },
   "file_regions": {
       "garden_presentation_world.gd": {
         "newline": "lf",
@@ -6382,12 +6225,6 @@
     "progress.gd": {
       "newline": "lf",
       "regions": {
-        "retired_research_discovery": {
-          "systems": [
-            "knowledge",
-            "expeditions"
-          ]
-        },
         "retired_research_fields": {
           "systems": [
             "knowledge",
@@ -6446,7 +6283,7 @@
             "persistence_operations"
           ]
         },
-        "guest_projection": {"systems": ["persistence_operations", "connection_flow", "characters", "expeditions", "garden"]},
+        "profile_origin_field": {"systems": ["persistence_operations", "connection_flow", "characters", "expeditions", "garden"]}, "profile_origin_read": {"systems": ["persistence_operations", "connection_flow", "characters", "expeditions", "garden"]}, "ordinary_save_lease": {"systems": ["persistence_operations", "connection_flow", "characters", "expeditions", "garden"]}, "profile_origin_write": {"systems": ["persistence_operations", "connection_flow", "characters", "expeditions", "garden"]},
         "serializer_commit_integrity": {
           "systems": [
             "foundation",
@@ -6628,32 +6465,6 @@
         }
       }
     },
-    "garden_visuals.gd": {
-      "newline": "crlf",
-      "regions": {
-        "meadow_paths_and_flowers": {
-          "systems": [
-            "garden_life"
-          ]
-        },
-        "accents_growth": {
-          "systems": [
-            "garden_cinematics"
-          ]
-        },
-        "accents_adapter": {
-          "systems": [
-            "garden_zones",
-            "garden_life"
-          ]
-        },
-        "observation_anchors": {
-          "systems": [
-            "garden_observations"
-          ]
-        }
-      }
-    },
     "stage.gd": {
       "newline": "lf",
       "regions": {
@@ -6666,15 +6477,7 @@
           "systems": [
             "garden_development"
           ]
-        },
-        "saved_garden_layout_3": {
-          "systems": [
-            "garden_development"
-          ]
-        },
-        "imported_heart_setup": {"systems": ["garden_heart_view"]},
-        "imported_heart_visibility": {"systems": ["garden_heart_view"]},
-        "imported_heart_growth": {"systems": ["garden_heart_view", "heart_growth_visual"]},     "experimental_seed_rewards_1": {
+        },     "experimental_seed_rewards_1": {
           "systems": [
             "hex_terrain",
             "loot",
@@ -6688,13 +6491,6 @@
             "persistence_operations"
           ]
         }, "experimental_terrain_11": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        },          "experimental_terrain_31": {
           "systems": [
             "hex_terrain",
             "terrain",
@@ -6817,19 +6613,7 @@
           "systems": [
             "enemy_attack_plan"
           ]
-        }, "heart_growth_sync": {
-          "systems": [
-            "heart_growth_visual"
-          ]
-        },     "update_plots_growth": {
-          "systems": [
-            "garden_cinematics"
-          ]
         }, "build_garden_plot_growth": {
-          "systems": [
-            "garden_cinematics"
-          ]
-        }, "update_heart_progress_growth": {
           "systems": [
             "garden_cinematics"
           ]
@@ -6840,10 +6624,6 @@
         }, "focus_growth": {
           "systems": [
             "garden_cinematics"
-          ]
-        },    "garden_pond_positions_adapter": {
-          "systems": [
-            "garden_zones"
           ]
         }
       }
@@ -7718,16 +7498,6 @@
         }
       }
     },
-    "heart_visuals.gd": {
-      "newline": "crlf",
-      "regions": {
-        "tree_attach": {
-          "systems": [
-            "heart_growth_visual"
-          ]
-        }
-      }
-    },
 
     "cultivation_growth.gd": {
       "newline": "lf",
@@ -8036,151 +7806,6 @@
             "class_balance"
           ]
         }}
-    },
-    "assets/enemies/catalog.json": {
-      "newline": "crlf",
-      "regions": {
-        "cb06_0": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_1": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_2": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_3": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_4": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_5": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_6": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_7": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_8": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_9": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_10": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_11": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_12": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_13": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_14": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_15": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_16": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_17": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_18": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_19": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_20": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_21": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_22": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "cb06_23": {
-          "systems": [
-            "enemy_balance"
-          ]
-        },
-        "species_variants_1": {
-          "systems": [
-            "enemy_attack_plan"
-          ]
-        },
-        "species_variants_0": {
-          "systems": [
-            "enemy_attack_plan"
-          ]
-        },
-        "enemy_attack_plan_0": {
-          "systems": [
-            "enemy_attack_plan"
-          ]
-        },
-        "choir_copy": {
-          "systems": [
-            "enemy_attack_plan"
-          ]
-        }
-      }
     },
     "elite_enemy.gd": {
       "newline": "crlf",
@@ -9845,33 +9470,6 @@
         }
       }
     },
-    "assets/characters/weapon_actions.json": {
-      "newline": "crlf",
-      "regions": {
-        "fan_release_profile": {
-          "systems": [
-            "ranged_release",
-            "combat_readability",
-            "ability_aim"
-          ]
-        },
-        "censer_release_profile": {
-          "systems": [
-            "combat_readability",
-            "avatar_motion_view",
-            "ranged_release"
-          ]
-        },
-        "orb_release_profile": {
-          "systems": [
-            "ranged_release",
-            "avatar_motion_view",
-            "core_combat",
-            "combat_readability"
-          ]
-        }
-      }
-    },
     "field_traveller.gd": {
       "newline": "crlf",
       "regions": {
@@ -9888,14 +9486,6 @@
       "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]}, "ar07_vitals_3": {"systems": ["player_vitals"]}, "ar07_vitals_4": {"systems": ["player_vitals"]}, "cb06_0": {"systems": ["enemy_balance"]}, "cb06_1": {
           "systems": [
             "enemy_balance"
-          ]
-        }, "cb02_combat_director_1_2": {
-          "systems": [
-            "combat_balance_preview"
-          ]
-        }, "vitals_enemy_capacity": {
-          "systems": [
-            "combat_vitals"
           ]
         }, "dream_lure_pursuit": {
           "systems": [
@@ -10191,16 +9781,6 @@
       }
     },
 
-    "assets/data/weapon_template.json": {
-      "newline": "crlf",
-      "regions": {
-        "cb03_template_roll_spread": {
-          "systems": [
-            "weapon_balance"
-          ]
-        }
-      }
-    },
     "combat_balance_preview.gd": {
       "newline": "crlf",
       "regions": {"ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]}, "ar07_vitals_3": {"systems": ["player_vitals"]}, "ar01_native_health": {"systems": ["expedition_grafts", "life"]}, "ec01_speed_rate_label": {"systems": ["affinity_cards", "expedition_summary", "weapons"]}, "cb07_0": {

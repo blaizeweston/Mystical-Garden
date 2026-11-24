@@ -57,6 +57,68 @@ class WorkflowTests(unittest.TestCase):
 
  def test_no_change_reuses_without_execution(self):
   f=self.new();plan=f.plan();self.assertEqual(plan['run_count'],0);self.assertTrue(f.release_ready())
+ def test_json_catalog_fields_are_semantic_and_resource_traversal_stays_scoped(self):
+  path='assets/weapons.json'
+  value={'fan':{'damage':3,'clips':['a','b'],'effect':'res://fan.gd'},'staff':{'damage':2}}
+  self.m['systems']['settings']['files'].append(path)
+  self.m['systems']['seeds']['files'].append('fan.gd')
+  self.m['json_regions']={path:{'fan_motion':{'fields':['fan'],'systems':['weapons']}}}
+  self.save_map();self.put('fan.gd','extends RefCounted')
+  for name in ['settings','weapons']:
+   self.put('tests/'+name+'.gd','extends SceneTree\nconst CATALOG="res://'+path+'"')
+  self.put(path,json.dumps(value,indent=4));baseline=self.new()
+  self.put(path,json.dumps(value,separators=(',',':')));compact=self.new()
+  self.assertEqual(baseline.keys,compact.keys)
+  self.assertNotEqual(baseline.raw[path],compact.raw[path])
+  self.assertIn('resource:fan.gd',compact.input_keys['weapons'])
+  self.assertNotIn('resource:fan.gd',compact.input_keys['settings'])
+  value['fan']['clips'].reverse();self.put(path,json.dumps(value))
+  changed=self.new()
+  self.assertNotEqual(changed.keys['weapons'],baseline.keys['weapons'])
+  self.assertEqual(changed.keys['settings'],baseline.keys['settings'])
+  self.assertEqual(changed.tokens[path],baseline.tokens[path])
+  value['staff']['damage']=8;self.put(path,json.dumps(value))
+  self.assertNotEqual(self.new().keys['settings'],baseline.keys['settings'])
+
+ def test_json_records_reject_missing_overlapping_or_ambiguous_fields(self):
+  rules={'hp':{'id':'scout','fields':['health']}}
+  for text in ['[{"id":"other","health":2}]','[{"id":"scout"}]',
+               '[{"id":"scout","health":2,"health":3}]','[{"id":"scout"},{"id":"scout"}]']:
+   with self.subTest(text=text),self.assertRaises(ValueError):w.json_scope_snapshot(text,rules,'catalog.json')
+  with self.assertRaisesRegex(ValueError,'overlapping'):
+   w.json_scope_snapshot('[{"id":"scout","health":4}]',dict(rules,also=rules['hp']),'catalog.json')
+
+ def test_named_method_scopes_preserve_signatures_and_select_only_body_consumers(self):
+  source='extends Node\nfunc draw(\n value: int\n) -> int:\n return value + 2\n\nfunc other():\n return 1\n'
+  self.put('settings.gd',source);self.m['script_functions']={'settings.gd':{'draw':['seeds']}}
+  self.put('tests/settings.gd','extends SceneTree\nconst S=preload("res://settings.gd")')
+  self.save_map();baseline=self.new()
+  self.put('settings.gd',source.replace('value + 2','value + 9'));edited=self.new()
+  self.assertNotEqual(baseline.keys['seeds'],edited.keys['seeds'])
+  self.assertEqual(baseline.keys['settings'],edited.keys['settings'])
+  self.put('settings.gd',source.replace('value: int','value: float'))
+  self.assertNotEqual(baseline.keys['settings'],self.new().keys['settings'])
+  self.put('settings.gd',source.replace('func draw','func renamed'))
+  with self.assertRaisesRegex(ValueError,'Missing scoped method'):self.new()
+  self.put('settings.gd','extends Node\nfunc draw(): return 1\nfunc next():\n return 2\n')
+  with self.assertRaisesRegex(ValueError,'Inline scoped body'):self.new()
+
+ def test_packaged_plan_resolves_and_hashes_the_template_actually_exported(self):
+  root=self.p/'portable templates'
+  root.mkdir();template=root/'windows_release_x86_64.exe';template.write_bytes(b'template A')
+  self.put('export_presets.cfg','custom_template/release=""\n')
+  self.m['systems']['foundation']['files'].append('export_presets.cfg');self.save_map()
+  with patch.dict(os.environ,MYSTICAL_GODOT_TEMPLATE_DIR=str(root)):
+   self.flow=self.new();self.seed_passes();flow=self.new()
+   plan=flow.package_plan()
+   self.assertEqual(Path(plan['release_template']),template)
+   self.assertEqual(plan['template'],w.digest(template.read_bytes()))
+   template.write_bytes(b'template B')
+   self.assertNotEqual(flow.template_signature(),plan['template'])
+   self.put('export_presets.cfg','custom_template/release="alternate.exe"\n')
+   with self.assertRaisesRegex(ValueError,'missing'):flow.template_signature()
+   self.put('alternate.exe','custom override')
+   self.assertEqual(flow.template_signature(),w.digest((self.p/'alternate.exe').read_bytes()))
  def test_seed_change_includes_weapon_consumers_not_settings(self):
   self.put('seeds.gd','extends RefCounted\nconst NEW=2\n');f=self.new();plan=f.plan()
   self.assertEqual({n for n,r in plan['selected'].items() if not r['cached']},{'seeds','weapons'});self.assertEqual(plan['effective'],'connected');self.assertFalse(f.release_ready())
