@@ -77,7 +77,8 @@ func host() -> void:
 func guest() -> void:
 	if not check(await until(func(): return marked("host")),"host ready"): return
 	var current := Contract.signature(game.get_script().get_script_method_list())
-	game.network_compatibility.signature = "session-0/obsolete-contract"
+	# Signature captured from main immediately before Garden expansion was versioned.
+	game.network_compatibility.signature = "session-1/41f7abdb2d096c9174ef975a4cab7541bc952b0c36bbafb1404d05a92d595b91"
 	if not check(game.session_world.join("127.0.0.1") == OK,"incompatible transport connection attempted"): return
 	var failed_attempt: String = game.network_session.session_identity()
 	var compatibility_refusal: String = game.Network.join_failure("compatibility","127.0.0.1",game.network_session.port(),false)

@@ -1,5 +1,7 @@
 extends RefCounted
 const Catalog=preload("res://garden_growth_catalog.gd")
+## Replicated event kinds and acknowledgements. Version 2 adds frontier expansion playback.
+const NETWORK_VERSION := 2
 const LIMIT:=64
 static func snapshot(owner: RefCounted) -> Dictionary:
  return {"tech":owner.heart.unlocked.duplicate(),"phase":owner.heart.phase(owner),"level":Catalog.level(owner.knowledge,int(owner.flowering_unlocked)+int(owner.veilcap_discovered)+owner.heart.clearing_bonus())}

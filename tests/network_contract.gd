@@ -17,6 +17,7 @@ func run() -> void:
 	var script: Script = load("res://game.gd")
 	var methods: Array = script.get_script_method_list()
 	var signature := Contract.signature(methods)
+	check(Contract.CAPABILITIES.get("garden_growth_events") == 2,"peers negotiate Garden expansion playback and acknowledgement")
 	check(not signature.is_empty() and signature.begins_with("session-1/"),"actual Game satisfies explicit versioned contract")
 	check(Settings.PROTOCOL == 41 and Snapshot.PAYLOAD_BUDGET == 1200,"snapshot transport remains protocol 41 with its existing payload budget")
 	check(Contract.CAPABILITIES.get("terrain_actor_motion") == preload("res://assets/terrain_m02/terrain_actor_motion.gd").VERSION,

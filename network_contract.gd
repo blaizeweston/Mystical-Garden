@@ -10,6 +10,7 @@ const ActorMotion = preload("res://assets/terrain_m02/terrain_actor_motion.gd")
 const VERSION := 1
 const RPC_NODE := "MysticalGarden"
 const CAPABILITIES := {
+	"garden_growth_events": preload("res://garden_growth_state.gd").NETWORK_VERSION,
 	"character_appearance": preload("res://character_appearance.gd").VERSION,
 	"terrain_actor_motion": ActorMotion.VERSION,
 	"session_admission": 1,
