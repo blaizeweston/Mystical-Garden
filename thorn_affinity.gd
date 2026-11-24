@@ -1,14 +1,16 @@
 extends RefCounted
+const Effects = preload("res://enemy_affinity_effects.gd")
+const OutgoingHits = preload("res://outgoing_hits.gd")
 
 const Sources = preload("res://affinity_status_source.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
-const Actors = preload("res://frost_combat.gd")
 const Clock = preload("res://affinity_time.gd")
 const Footprint = preload("res://core_footprint.gd")
 const Journal = preload("res://diagnostic_journal.gd")
 const Catalog = preload("res://affinity_card_catalog.gd")
 const MOMENTUM := "thorn_card_momentum"
 const STREAK := "thorn_card_streak"
+const CARD_FIELDS := [MOMENTUM, STREAK]
 const FIELDS := &"affinity_thorn_fields"
 const BLEED := "affinity_bleed"
 const SLOW := "affinity_thorn_slow"
@@ -82,6 +84,13 @@ static func potency_units(status: Dictionary) -> int:
 	for contributor in status.get("contributors",{}).values(): total+=int(contributor.amount)
 	return total
 
+## Current buildup available to Bloodletting, without exposing the enemy record.
+static func current_bleed_units(game: Node, target: int) -> int:
+	var wound: Dictionary = Effects.read(game, target).get(BLEED, {})
+	if wound.is_empty() or not Sources.target_current(game, target, wound): return 0
+	prune(game, wound, Clock.now(game))
+	return potency_units(wound)
+
 static func cap_units(status: Dictionary) -> int:
 	var total:=0
 	for contributor in status.get("contributors",{}).values(): total+=int(contributor.cap)
@@ -139,12 +148,12 @@ static func contribute(game: Node, _target: int, status: Dictionary, source: Dic
 
 
 static func direct_application(game: Node, event: RefCounted, target: int) -> void:
-	if not Actors.valid_target(game,target): return
+	if not game.encounter.alive(target): return
 	var q: Dictionary=event.potency()
 	if int(q.get("direct_bleed_percent",0))+int(q.get("opening_bleed_percent",0))+int(q.get("streak_bleed_percent",0))==0: return
 	if not event.take_response("thorn_direct/"+str(game.encounter.spawn_identity(target))): return
 	var elapsed:=Clock.now(game)
-	var actor:=Actors.body(game,target)
+	var actor:=Effects.edit(game,target)
 	var status: Dictionary=actor.get(BLEED,{})
 	if status.is_empty():
 		status={"epoch":event.epoch,"token":game.encounter.spawn_identity(target),"contributors":{},"applications":{},"next":elapsed+TICK_MS,"remainder":0}
@@ -181,7 +190,7 @@ static func ordinary_bonus(event: RefCounted, stats: Dictionary) -> int:
 
 static func on_death(game: Node, target: int, now: int, secondary := false) -> void:
 	if secondary: return
-	var status: Dictionary=Actors.body(game,target).get(BLEED,{})
+	var status: Dictionary=Effects.read(game,target).get(BLEED,{})
 	if status.is_empty() or status.get("ruptured",false): return
 	if int(status.get("epoch",-1))!=game.participation.epoch() or int(status.get("token",-1))!=game.encounter.spawn_identity(target): return
 	prune(game,status,Clock.now(game))
@@ -215,7 +224,7 @@ static func advance(game: Node, target: int, actor: Dictionary, elapsed: int, no
 		if status.contributors.is_empty(): break
 		var owner := Sources.dominant(status.contributors,"amount")
 		var hp := Sources.whole_tick(status,potency_units(status))
-		if hp>0: Actors.damage(game,int(owner.actor),target,hp,now,COLOR,false,{"stat_affinity":"Bleed","stat_weights":Sources.damage_weights(game,status.contributors.values(),"amount")})
+		if hp>0: OutgoingHits.affinity_and_clear(game,int(owner.actor),target,hp,now,COLOR,false,{"stat_affinity":"Bleed","stat_weights":Sources.damage_weights(game,status.contributors.values(),"amount")})
 		if game.persistence_session.is_blocked() or not Sources.target_current(game,target,status): return
 	prune(game,status,elapsed)
 	if status.contributors.is_empty(): actor.erase(BLEED)
@@ -227,13 +236,13 @@ static func tick(game: Node, elapsed: int, now: int) -> void:
 	var wounds_remain:=false
 	for target in range(-1,game.encounter.scout_count()):
 		if game.participation.epoch()!=epoch or game.persistence_session.is_blocked(): return
-		var actor: Dictionary=Actors.body(game,target)
-		if not Actors.valid_target(game,target):
+		var actor := Effects.read(game,target) if fields.is_empty() else Effects.edit(game,target)
+		if not game.encounter.alive(target):
 			actor.erase(SLOW);actor.erase(BLEED)
 			continue
 		advance(game,target,actor,elapsed,now)
 		if game.participation.epoch()!=epoch or game.persistence_session.is_blocked(): return
-		if not Actors.valid_target(game,target): continue
+		if not game.encounter.alive(target): continue
 		apply_occupancy(game,target,actor,fields,elapsed)
 		wounds_remain=wounds_remain or actor.has(BLEED)
 	if fields.is_empty() and not wounds_remain:

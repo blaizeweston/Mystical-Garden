@@ -18,8 +18,6 @@ const Sim = preload("res://mob_sim/mob_sim.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
 
 const MS_PER_TICK := 1000.0 / 60.0
-const MOBILITY_SPEED := 1.18
-const JUVENILE_SPEED := 1.15
 const NO_HITTER := -1
 
 var game: Node
@@ -204,8 +202,8 @@ func _adopt(slot: int, token: int) -> bool:
 func _speed(scout: Dictionary, now: int) -> float:
 	var definition: Dictionary = game.Enemies.get_kind(int(scout.kind))
 	var mask := int(scout.get("mutations", 0))
-	return game.Director.speed(game, float(definition.speed)) * Frost.motion_scale(scout, now) \
-		* (MOBILITY_SPEED if mask & Catalog.MOBILITY else 1.0) * (JUVENILE_SPEED if mask & Catalog.JUVENILE else 1.0)
+	var base: float = game.Director.speed(game, float(definition.speed)) * Frost.motion_scale(scout, now)
+	return Catalog.movement_speed(base, mask)
 
 
 func _ticks_until(deadline: int, now: int) -> int:

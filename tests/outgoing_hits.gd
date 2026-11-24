@@ -131,6 +131,7 @@ func arena_observer() -> void:
 	arena.headless_driver = true
 	root.add_child(arena)
 	arena.begin_session()
+	check_arena_movement(arena, config)
 	if arena.bridge != null:
 		var now := preload("res://combat_clock.gd").now()
 		arena.bridge.tick(now)
@@ -156,3 +157,19 @@ func arena_observer() -> void:
 		print("LIMIT: native Arena simulation unavailable; observer wiring verified without mob_sim/bin/mob_nav.dll")
 	arena.free()
 	await process_frame
+
+## The speed adapter and simulation spawn table are testable without native nav.
+func check_arena_movement(arena: Node, config: RefCounted) -> void:
+	var catalog = preload("res://enemy_catalog.gd")
+	var pool_script = preload("res://mob_sim/mob_pool.gd")
+	var species = preload("res://mob_sim/mob_species.gd").new()
+	var pool = pool_script.new(1, species.ATTACKS)
+	var request = pool_script.Spawn.new()
+	request.mutations = catalog.MOBILITY | catalog.JUVENILE
+	check(pool.spawn_at(0,request,species,0,1)==0, "real simulation spawn uses the mutated ordinary species")
+	check(is_equal_approx(pool.speed[0],species.speed[0]*1.18*1.15), "simulated spawn applies both permanent speed mutations once")
+	var bridge := ArenaBridge.new(arena,config)
+	var sample := {"kind":0,"mutations":request.mutations,"haste_until":1001}
+	var base: float = arena.Director.speed(arena,float(catalog.get_kind(0).speed))
+	check(is_equal_approx(bridge._speed(sample,1000),base*1.18*1.15), "arena mirrors permanent speed and leaves temporary haste to its simulation clock")
+	check(is_equal_approx(catalog.movement_speed(base,request.mutations,true),base*1.18*1.22*1.15), "ordinary scout updates apply supported haste exactly once")

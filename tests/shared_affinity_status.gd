@@ -1,4 +1,5 @@
 extends SceneTree
+const Effects = preload("res://enemy_affinity_effects.gd")
 ## Shared-status contracts use actual family handlers, event admission and HP.
 const Events = preload("res://combat_action_events.gd")
 const Build = preload("res://affinity_build.gd")
@@ -118,7 +119,7 @@ func verify_frost() -> void:
 	Frost.apply(game,first,-1,1,now)
 	game.players[1][Life.STATE]=Life.start_life()
 	Frost.tick(game,now+1)
-	check(not game.tactics.memory.has(Frost.BRITTLE),"previous-life stack cannot join a later rupture")
+	check(not Effects.read(game,-1).has(Frost.BRITTLE),"previous-life stack cannot join a later rupture")
 	Frost.apply(game,first,-1,3,now+2)
 	check(game.enemy_health()==9979,"a stale source cannot reapply stacks")
 
@@ -128,7 +129,7 @@ func verify_bleed() -> void:
 	var at: Vector3=game.tactics.position
 	for slot in ["core","form","catalyst"]:
 		Thorn.patch(game,event(1,slot,"part_1"),at,1.0,now)
-	var status: Dictionary=game.tactics.memory[Thorn.BLEED]
+	var status: Dictionary=Effects.read(game,-1)[Thorn.BLEED]
 	check(status.contributors.size()==1 and Thorn.cap_units(status)==12000,
 		"Core/Form/Catalyst share one player cap, counted once")
 	check(Thorn.potency_units(status)==7200,"slot applications add 25%, 10% and 25% to one buildup")
@@ -145,7 +146,7 @@ func verify_bleed() -> void:
 	reset()
 	for peer in [1,2,3,4]: Thorn.patch(game,event(peer,"core","part_1"),at,1.0,now)
 	for index in 4: Thorn.tick(game,Clock.advance(game,1.01),now)
-	status=game.tactics.memory[Thorn.BLEED]
+	status=Effects.read(game,-1)[Thorn.BLEED]
 	check(status.contributors.size()==4 and Thorn.cap_units(status)==48000 and Thorn.potency_units(status)==48000,
 		"four players build one effect to the sum of their four caps")
 	var key := Sources.key(Sources.capture(event(4,"core","part_1")))
@@ -154,7 +155,7 @@ func verify_bleed() -> void:
 	check(not status.contributors.has(key) and Thorn.cap_units(status)==36000,
 		"disconnect removes that contributor without transferring its cap")
 	Thorn.tick(game,Clock.advance(game,15.0),now)
-	check(not game.tactics.memory.has(Thorn.BLEED) and not game.has_meta(Thorn.FIELDS),
+	check(not Effects.read(game,-1).has(Thorn.BLEED) and not game.has_meta(Thorn.FIELDS),
 		"expired fields and all accumulated contributions retire")
 	var link = game.network_session.admit_peer(4,Time.get_ticks_msec())
 	game.players[4][preload("res://network_session.gd").STATE]=link
@@ -167,7 +168,7 @@ func verify_burning() -> void:
 	for peer in [1,2,3,4]:
 		var fire := event(peer,"form","part_6")
 		fire.publish(game,"weapon_contact","hit","leader",now,{"enemy":-1})
-	var status: Dictionary=game.tactics.memory[Fire.BURNING]
+	var status: Dictionary=Effects.read(game,-1)[Fire.BURNING]
 	check(status.contributors.size()==4 and Fire.count(status)==32,"four players add to one shared Burning intensity")
 	check(game.enemy_health()==9999,"only the first admission starts the shared immediate tick")
 	Fire.tick(game,Clock.advance(game,.25),now)
@@ -178,14 +179,14 @@ func verify_burning() -> void:
 	Fire.tick(game,Clock.advance(game,.25),now)
 	check(Fire.count(status)==24 and game.enemy_health()==hp-3,"eight stacks decay before the same-time tick")
 	Fire.tick(game,Clock.advance(game,3.5),now)
-	check(not game.tactics.memory.has(Fire.BURNING),"unmaintained intensity expires and removes its contributors")
+	check(not Effects.read(game,-1).has(Fire.BURNING),"unmaintained intensity expires and removes its contributors")
 	reset()
 	var boost := event(1,"form","part_6",{"stack_bonus":100})
 	Fire.ignite(game,boost,-1,now)
-	check(Fire.count(game.tactics.memory[Fire.BURNING])==108,"a valid application exceeds the former 96-stack ceiling without clipping")
+	check(Fire.count(Effects.read(game,-1)[Fire.BURNING])==108,"a valid application exceeds the former 96-stack ceiling without clipping")
 	game.players[1][Life.STATE]=Life.start_life()
 	Fire.tick(game,0,now)
-	check(not game.tactics.memory.has(Fire.BURNING),"revival rejects Burning from the previous source life")
+	check(not Effects.read(game,-1).has(Fire.BURNING),"revival rejects Burning from the previous source life")
 
 func verify_water() -> void:
 	reset()
@@ -199,7 +200,7 @@ func verify_water() -> void:
 	Water.drench(game,water,-1)
 	Water.drench(game,other,-1)
 	Water.drench(game,other,-1)
-	var status: Dictionary=game.tactics.memory[Water.DRENCHED]
+	var status: Dictionary=Effects.read(game,-1)[Water.DRENCHED]
 	drain_water()
 	check(status.saturation==0 and game.enemy_health()==9994,"40 + 30 + 30 pressure funds one weighted six-damage Tidal Return")
 	check(ally[Conditions.STATE].slow_until_ms()==0 and ally[Vitals.STATE].hp()==before_hp+6,"returning shares cleanse ordinary Slow and total six healing")
@@ -209,7 +210,7 @@ func verify_water() -> void:
 	drain_water()
 	check(status.saturation==20 and game.enemy_health()==9982,"220 Saturation resolves two more Surges and preserves 20 overflow")
 	check(game.effect_timeline.native_count()==0,"completed weighted wave events retire; secondary hits add no pressure")
-	check(is_equal_approx(Water.reduction(game.tactics.memory,0),.18),"several Water sources do not add defensive reductions")
+	check(is_equal_approx(Water.reduction(Effects.read(game,-1).get(Water.DRENCHED,{}),0),.18),"several Water sources do not add defensive reductions")
 	var display := preload("res://combat_status.gd")
 	var display_now:=Time.get_ticks_msec()
 	display.sync(game,display_now)
@@ -226,11 +227,11 @@ func verify_water() -> void:
 	Water.drench(game,event(1,"form","plant_part_rare_dewcap"),-1)
 	Clock.advance(game,2.0)
 	Water.drench(game,event(1,"form","part_8"),-1)
-	check(is_equal_approx(Water.reduction(game.tactics.memory,2000),.30),"a weaker application in the same slot cannot overwrite the stronger one")
+	check(is_equal_approx(Water.reduction(Effects.read(game,-1).get(Water.DRENCHED,{}),2000),.30),"a weaker application in the same slot cannot overwrite the stronger one")
 	Water.tick(game,Clock.advance(game,2.3))
-	check(is_equal_approx(Water.reduction(game.tactics.memory,4300),.18),"weaker duration survives without prolonging stronger protection")
+	check(is_equal_approx(Water.reduction(Effects.read(game,-1).get(Water.DRENCHED,{}),4300),.18),"weaker duration survives without prolonging stronger protection")
 	Water.tick(game,Clock.advance(game,3.0))
-	check(not game.tactics.memory.has(Water.DRENCHED),"Saturation retires when Drenched has no remaining valid source")
+	check(not Effects.read(game,-1).has(Water.DRENCHED),"Saturation retires when Drenched has no remaining valid source")
 
 
 func verify_wood() -> void:
@@ -315,6 +316,24 @@ func verify_roster_attachment() -> void:
 	Frost.apply(game,event(2,"form","plant_part_plant_frostbell",{"max_shatter_hp":12}),-1,1,now)
 	check(game.encounter.spawn_identity(-1)==token and game.enemy_health()==9990,
 		"late tactical-body attachment keeps two accepted stacks for the same enemy's mixed 10 HP rupture")
+
+	var slot: int = game.encounter.register_scout(game.make_scout(0,Vector3.ONE,0))
+	var scout: Dictionary = game.encounter.scout(slot)
+	check(Effects.read(game,slot).is_empty() and not scout.has(Effects.STATE), "observing a fresh enemy does not install effects")
+	Frost.apply(game,event(1,"form","plant_part_plant_frostbell"),slot,1,now)
+	var effects := Effects.read(game,slot)
+	check(effects.has(Frost.BRITTLE) and not effects.has("pos") and not scout.has(Frost.BRITTLE),
+		"the family owns one status inside the enemy without access to its movement record")
+	var checkpoint: Dictionary = game.encounter.savepoint()
+	game.encounter.register_scout(game.make_scout(0,Vector3.ZERO,0),slot)
+	check(Effects.read(game,slot).is_empty(), "replacement occupants inherit no previous status")
+	game.encounter.restore_savepoint(checkpoint)
+	check(Frost.state(game.encounter.scout(slot),now).get("stacks",[]).size()==1,
+		"restoring the roster restores the original enemy's status once")
+	game.tactics.resolve_attack_from(-1,func():
+		game.tactics.resolve_attack_from(slot,func(): check(game.tactics.attacking_slot()==slot, "nested contact identifies the scout"))
+		check(game.tactics.attacking_slot()==-1, "nested contact returns attribution to the leader"))
+	check(game.tactics.attacking_slot()==-2, "later hazards have no residual direct attacker")
 
 
 func verify_materials() -> void:

@@ -1,60 +1,44 @@
-extends RefCounted
+extends "res://frost_balance.gd"
+const Effects = preload("res://enemy_affinity_effects.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 
 const Catalog = preload("res://affinity_card_catalog.gd")
 const CREDIT := "frost_card_credit"
 const RHYTHM := "frost_card_rhythm"
+const CARD_FIELDS := [CREDIT, RHYTHM]
 const CARD_GRANTS := {"avalanche_unlock":{"method":"rupture_effects","capability":{"producer":"card","id":"avalanche","recipient":"enemy"}}}
-const Balance = preload("res://frost_balance.gd")
 const Sources = preload("res://affinity_status_source.gd")
 const BRITTLE := "affinity_brittle"
 const RESPONSE := "frost_response"
-const ATTACKER := &"frost_attacker"
 const COLOR := Color("#97dfff")
 
 
-static func valid_target(game: Node, target: int) -> bool:
-	return game.encounter.alive(target)
-
-
-static func body(game: Node, target: int) -> Dictionary:
-	return game.tactics.memory if target == -1 else game.encounter.scout(target)
-
-
-static func target_token(game: Node, target: int) -> String:
-	return "leader" if target == -1 else str(game.encounter.token(target))
-
-
 static func state(actor: Dictionary, now: int) -> Dictionary:
-	var status: Dictionary = actor.get(BRITTLE, {})
+	return active_brittle(Effects.from_body(actor), now)
+
+
+static func active_brittle(effects: Dictionary, now: int) -> Dictionary:
+	var status: Dictionary = effects.get(BRITTLE, {})
 	return status if int(status.get("expires", 0)) > now else {}
 
 
 static func rooted(actor: Dictionary, now: int) -> bool:
-	return int(actor.get("frost_root_until", 0)) > now
+	return int(Effects.from_body(actor).get("frost_root_until", 0)) > now
 
 
 static func motion_scale(actor: Dictionary, now: int, boss := false) -> float:
-	if rooted(actor, now):
+	var effects := Effects.from_body(actor)
+	if int(effects.get("frost_root_until", 0)) > now:
 		return 0.0
-	var frost := float(state(actor, now).get("slow", 0.0)) * (Balance.BOSS_SLOW_SCALE if boss else 1.0)
-	return 1.0 - maxf(frost,float(actor.get("affinity_thorn_slow",0.0)))
-
-
-static func damage(game: Node, actor: int, target: int, hp: int, now: int, color := COLOR, card_secondary := false, attribution := {}) -> void:
-	# Use the same native damage, death, drops and encounter settlement path.
-	# An affinity hit contributes no legacy on-hit traits or attack delay.
-	# A previously granted effect keeps its author even after disconnect.
-	OutgoingHits.affinity_world(game, actor, target, hp, now, color, card_secondary, attribution)
-	if game.encounter_cleared():
-		game.finish_combat(actor if game.players.has(actor) else game.HOST, game.enemy_position(target))
+	var frost := float(active_brittle(effects, now).get("slow", 0.0)) * (BOSS_SLOW_SCALE if boss else 1.0)
+	return 1.0 - maxf(frost,float(effects.get("affinity_thorn_slow",0.0)))
 
 
 ## Capture the maximum as a numerator, with a shared denominator of 3,000.
 ## No per-stack rounding: round the complete rupture once, half upward.
 static func clean(game: Node, target: int, now: int) -> Dictionary:
-	var actor := body(game,target)
-	var status := state(actor,now)
+	var actor := Effects.read(game, target)
+	var status := active_brittle(actor, now)
 	if status.is_empty() or not Sources.target_current(game,target,status):
 		actor.erase(BRITTLE)
 		return {}
@@ -69,7 +53,7 @@ static func clean(game: Node, target: int, now: int) -> Dictionary:
 static func tick(game: Node, now: int) -> void:
 	if not game.multiplayer.is_server(): return
 	for target in range(-1,game.encounter.scout_count()):
-		if body(game,target).has(BRITTLE): clean(game,target,now)
+		if Effects.read(game,target).has(BRITTLE): clean(game,target,now)
 
 static func ordinary_bonus(game: Node, event: RefCounted, target: int, now: int) -> int:
 	if event.source!="form" or event.affinity!="frost": return 0
@@ -78,7 +62,7 @@ static func ordinary_bonus(game: Node, event: RefCounted, target: int, now: int)
 
 static func apply(game: Node, event: RefCounted, target: int, count: int, now: int) -> void:
 	var source:=Sources.capture(event)
-	if not game.multiplayer.is_server() or not Sources.current(game,source) or not valid_target(game,target): return
+	if not game.multiplayer.is_server() or not Sources.current(game,source) or not game.encounter.alive(target): return
 	var q: Dictionary=event.potency()
 	if event.source=="catalyst" and event.native_slot in [0,1] and event.take_response("frost_rhythm_capture"):
 		var p: Dictionary=game.players[event.actor]
@@ -108,8 +92,8 @@ static func apply(game: Node, event: RefCounted, target: int, count: int, now: i
 ## One group of three frozen numerators, regardless of which owner completes it.
 static func resolve_stacks(game: Node, source: Dictionary, maximum_units: int, slow: float,
 		effects: Dictionary, target: int, count: int, now: int, secondary := false) -> int:
-	if not Sources.current(game,source) or not valid_target(game,target): return 0
-	var actor:=body(game,target)
+	if not Sources.current(game,source) or not game.encounter.alive(target): return 0
+	var actor:=Effects.edit(game,target)
 	var current:=clean(game,target,now)
 	var stacks: Array=current.get("stacks",[])
 	for index in count:
@@ -117,27 +101,27 @@ static func resolve_stacks(game: Node, source: Dictionary, maximum_units: int, s
 		contribution.merge({"slow":slow,"numerator":maximum_units,"effects":effects.duplicate(true)})
 		stacks.append(contribution)
 	var bursts: Array=[]
-	while stacks.size()>=Balance.STACKS_TO_RUPTURE:
-		bursts.append(stacks.slice(0,Balance.STACKS_TO_RUPTURE))
-		stacks=stacks.slice(Balance.STACKS_TO_RUPTURE)
+	while stacks.size()>=STACKS_TO_RUPTURE:
+		bursts.append(stacks.slice(0,STACKS_TO_RUPTURE))
+		stacks=stacks.slice(STACKS_TO_RUPTURE)
 	if stacks.is_empty(): actor.erase(BRITTLE)
 	else:
 		var combined:=0.0
 		for stack in stacks: combined+=float(stack.slow)
-		actor[BRITTLE]={"epoch":source.epoch,"token":game.encounter.spawn_identity(target),"expires":now+Balance.BRITTLE_MS,"stacks":stacks,"slow":combined}
+		actor[BRITTLE]={"epoch":source.epoch,"token":game.encounter.spawn_identity(target),"expires":now+BRITTLE_MS,"stacks":stacks,"slow":combined}
 	for spent in bursts:
 		var numerator:=0
 		for stack in spent: numerator+=int(stack.numerator)
-		var hp:=roundi(float(numerator)/(Balance.STACKS_TO_RUPTURE*Sources.UNITS_PER_HP))
+		var hp:=roundi(float(numerator)/(STACKS_TO_RUPTURE*Sources.UNITS_PER_HP))
 		var point: Vector3=game.enemy_position(target)
 		game.emit_combat_event("ability","frost_rupture",point,point,.55,COLOR,1.2,int(source.actor),{"label":"Brittle rupture"})
 		var record: Callable=game.get_meta(&"frost_rupture_witness",Callable())
 		if record.is_valid(): record.call(spent.duplicate(true),hp)
 		var attribution := {"stat_affinity":"Brittle rupture","stat_weights":Sources.damage_weights(game,spent,"numerator")}
 		if secondary: OutgoingHits.affinity_world(game,int(source.actor),target,hp,now,COLOR,true,attribution)
-		else: damage(game,int(source.actor),target,hp,now,COLOR,false,attribution)
+		else: OutgoingHits.affinity_and_clear(game,int(source.actor),target,hp,now,COLOR,false,attribution)
 		if Sources.current(game,source): rupture_effects(game,target,point,spent,hp,now,secondary)
-		if not valid_target(game,target): break
+		if not game.encounter.alive(target): break
 	return bursts.size()
 
 
@@ -155,8 +139,8 @@ static func effect_owner(stacks: Array, parameter: String) -> Dictionary:
 
 static func rupture_effects(game: Node, target: int, point: Vector3, spent: Array, hp: int, now: int, propagated := false) -> void:
 	var root:=effect_owner(spent,"rupture_root_ms")
-	if not root.is_empty() and Sources.current(game,root) and valid_target(game,target):
-		var actor:=body(game,target)
+	if not root.is_empty() and Sources.current(game,root) and game.encounter.alive(target):
+		var actor:=Effects.edit(game,target)
 		actor.frost_root_until=maxi(int(actor.get("frost_root_until",0)),now+int(root.strength))
 	var wave:=effect_owner(spent,"shatterwave_percent")
 	if not wave.is_empty() and Sources.current(game,wave):
@@ -178,7 +162,7 @@ static func rupture_effects(game: Node, target: int, point: Vector3, spent: Arra
 static func bloom(game: Node, cast: Dictionary, now: int) -> bool:
 	if not cast.grown:
 		cast.grown = true
-		cast.closes_at = now + Balance.BLOOM_DELAY_MS
+		cast.closes_at = now + BLOOM_DELAY_MS
 		cast.ends_at = int(cast.closes_at)
 		bloom_phase(game, cast, "open", 2, now)
 		return false
@@ -192,11 +176,11 @@ static func bloom_phase(game: Node, cast: Dictionary, phase: String, count: int,
 	var center: Vector3 = cast.center
 	var color := COLOR if phase == "open" else Color("#d9f6ff")
 	game.emit_combat_event("ability", "frost_" + phase, center, center,
-		float(Balance.BLOOM_DELAY_MS) / 1000.0 if phase == "open" else .42, color, Balance.BLOOM_RADIUS, cast.owner,
+		float(BLOOM_DELAY_MS) / 1000.0 if phase == "open" else .42, color, BLOOM_RADIUS, cast.owner,
 		{"label":"Opening petals" if phase=="open" else "Closing petals"})
-	for target in game.skill_area_targets(center, Balance.BLOOM_RADIUS, center):
-		cast.affinity_action.publish(game, "core_action", phase, target_token(game, target), now,
-			{"enemy": target, "stacks": count+int(cast.affinity_action.potency().get("closing_stacks",0)) if phase=="close" else count, "opening_hp": Balance.BLOOM_OPEN_HP + int(cast.affinity_action.potency().get("opening_bonus_hp",0)) if phase == "open" else 0})
+	for target in game.skill_area_targets(center, BLOOM_RADIUS, center):
+		cast.affinity_action.publish(game, "core_action", phase, game.encounter.contact_key(target), now,
+			{"enemy": target, "stacks": count+int(cast.affinity_action.potency().get("closing_stacks",0)) if phase=="close" else count, "opening_hp": BLOOM_OPEN_HP + int(cast.affinity_action.potency().get("opening_bonus_hp",0)) if phase == "open" else 0})
 
 
 static func on_event(game: Node, event: RefCounted, kind: String, details: Dictionary, now: int) -> void:
@@ -204,7 +188,7 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 		"core_action":
 			var enemy: int = details.enemy
 			if int(details.opening_hp) > 0:
-				damage(game, event.actor, enemy, int(details.opening_hp), now)
+				OutgoingHits.affinity_and_clear(game, event.actor, enemy, int(details.opening_hp), now, COLOR)
 			apply(game, event, enemy, int(details.stacks), now)
 		"weapon_contact":
 			var extra:=0
@@ -222,8 +206,8 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 			apply(game, event, int(details.enemy), 1, now)
 		"actual_block":
 			var center: Vector3 = details.center
-			game.emit_combat_event("ability", "frost_guard", center, center, .55, COLOR, Balance.WARD_RADIUS, details.recipient, {"label":"Frost Ward"})
-			for enemy in game.skill_area_targets(center, Balance.WARD_RADIUS, center):
+			game.emit_combat_event("ability", "frost_guard", center, center, .55, COLOR, WARD_RADIUS, details.recipient, {"label":"Frost Ward"})
+			for enemy in game.skill_area_targets(center, WARD_RADIUS, center):
 				apply(game, event, enemy, 1, now)
 		"class_action":
 			var response: String = details.get("response", "")
@@ -231,20 +215,13 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 				var recipients: Array = [event.actor] if response == "self_frost_response" else details.recipients
 				for id in recipients:
 					if game.players.has(id) and game.Life.alive(game.players[id]):
-						game.players[id][RESPONSE] = {"event": event, "until": now + Balance.RESPONSE_MS}
+						game.players[id][RESPONSE] = {"event": event, "until": now + RESPONSE_MS}
 			elif response == "brittle":
 				var enemies: Array = details.enemies
 				if details.get("target_scope") == "designated_area":
 					enemies = game.skill_area_targets(details.center, details.radius, details.center)
 				for enemy in enemies:
 					apply(game, event, enemy, 1, now)
-
-
-static func with_attacker(game: Node, attacker: int, attack: Callable) -> void:
-	var previous: int = game.get_meta(ATTACKER, -2)
-	game.set_meta(ATTACKER, attacker)
-	attack.call()
-	game.set_meta(ATTACKER, previous)
 
 
 static func incoming(game: Node, recipient: Dictionary, id: int, now: int) -> void:
@@ -254,21 +231,8 @@ static func incoming(game: Node, recipient: Dictionary, id: int, now: int) -> vo
 	if now >= int(response.until):
 		recipient.erase(RESPONSE)
 		return
-	var target: int = game.get_meta(ATTACKER, -2)
-	if not valid_target(game, target):
+	var target: int = game.tactics.attacking_slot()
+	if not game.encounter.alive(target):
 		return
 	recipient.erase(RESPONSE)
-	response.event.publish(game, "incoming_hit", str(id), target_token(game, target), now, {"enemy": target})
-
-
-static func stock_test_garden(game: Node) -> String:
-	var ruleset = load("res://combat_ruleset.gd")
-	if not preload("res://assets/terrain_m02/experimental/experiment_mode.gd").verified() or not game.multiplayer.is_server() or game.participation.active() or not game.persistence_session.is_guarded():
-		return "Affinity supplies are available to the host in the isolated affinity Garden."
-	return game.run_heart_save(func():
-		for part in game.Parts.DEFINITIONS.size():
-			var material := preload("res://plant_affinities.gd").for_part(part)
-			if not ruleset.FAMILIES.has(material.get("primary_affinity", "")):
-				continue
-			game.progress.add_parts(part, maxi(0, 12 - game.progress.part_count(part)))
-		return "Test Garden stocked with supported ordinary and refined affinity materials.")
+	response.event.publish(game, "incoming_hit", str(id), game.encounter.contact_key(target), now, {"enemy": target})

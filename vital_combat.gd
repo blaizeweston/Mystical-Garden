@@ -7,6 +7,7 @@ const Clock = preload("res://affinity_time.gd")
 const Catalog=preload("res://affinity_card_catalog.gd")
 const BLOOM_ATTACK := "vital_card_bloom"
 const VIGOR := "vital_card_vigor"
+const CARD_FIELDS := [BLOOM_ATTACK, VIGOR]
 const SOURCES := "affinity_vital_sources"
 const NEXT := "affinity_vital_tick"
 const COLOR := Color("#abd785")

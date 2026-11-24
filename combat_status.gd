@@ -1,4 +1,5 @@
 extends RefCounted
+const Effects = preload("res://enemy_affinity_effects.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -99,14 +100,14 @@ static func sync(game: Node,now: int) -> void:
    add(desired,game,Ranger.PREY,target,true,int(prey.get("until",0)),1,now)
   var root_until: int = game.tactics.rooted_until if target==-1 else int(game.encounter.scout(target).get("rooted_until",0))
   var frost = preload("res://frost_combat.gd")
-  var body := frost.body(game,target)
-  var brittle := frost.state(body,now)
+  var body := Effects.read(game,target)
+  var brittle := frost.active_brittle(body,now)
   add(desired,game,"brittle",target,true,int(brittle.get("expires",0)),brittle.get("stacks",[]).size(),now)
   if not body.get("affinity_burning",{}).is_empty():add(desired,game,"burning",target,true,now+60000,Fire.count(body[Fire.BURNING]),now)
   if not body.get("affinity_bleed",{}).is_empty():add(desired,game,"bleeding",target,true,now+60000,1,now)
   if body.has("affinity_thorn_slow"):add(desired,game,"thorn_slow",target,true,now+60000,1,now)
   var elapsed: int=preload("res://affinity_time.gd").now(game)
-  if Water.reduction(body,elapsed)>0.0:add(desired,game,"drenched",target,true,now+60000,int(body[Water.DRENCHED].saturation),now)
+  if Water.reduction(body.get(Water.DRENCHED,{}),elapsed)>0.0:add(desired,game,"drenched",target,true,now+60000,int(body[Water.DRENCHED].saturation),now)
   root_until=maxi(root_until,int(body.get("frost_root_until",0)))
   add(desired,game,"rooted",target,true,root_until,1,now)
   add(desired,game,"staggered",target,true,game.tactics.stagger_until if target==-1 else int(game.encounter.scout(target).get("stagger_until",0)),1,now)

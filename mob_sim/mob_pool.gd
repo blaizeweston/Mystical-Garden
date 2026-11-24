@@ -8,8 +8,6 @@ const Species = preload("res://mob_sim/mob_species.gd")
 const FLAG_LEADER := 1
 const FLAG_ELITE := 2
 const NO_PLAYER := 255
-const MOBILITY_SPEED := 1.18
-const JUVENILE_SPEED := 1.15
 const REACH_BONUS := 0.65
 const NEVER_SENSED := -1000000
 
@@ -129,9 +127,7 @@ func spawn_at(slot: int, request: Spawn, table: Species, tick: int, interval: in
 	spawn_z[slot] = request.at.y
 	hp[slot] = request.hp
 	max_hp[slot] = request.hp
-	speed[slot] = table.speed[request.species] * request.speed_scale \
-		* (MOBILITY_SPEED if request.mutations & Catalog.MOBILITY else 1.0) \
-		* (JUVENILE_SPEED if request.mutations & Catalog.JUVENILE else 1.0)
+	speed[slot] = Catalog.movement_speed(table.speed[request.species] * request.speed_scale, request.mutations)
 	damage[slot] = request.damage
 	reach_bonus[slot] = REACH_BONUS if request.mutations & Catalog.REACH else 0.0
 	windup_scale[slot] = request.windup_scale

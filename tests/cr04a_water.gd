@@ -1,4 +1,5 @@
 extends SceneTree
+const Effects = preload("res://enemy_affinity_effects.gd")
 const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
@@ -91,8 +92,8 @@ func run() -> void:
 		p[Conditions.STATE] = p[Conditions.STATE].with_slow_until(now+5000)
 		ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+5000)
 		ally.frost_root_until=now+3000
-		game.tactics.memory[Frost.BRITTLE]={"stacks":[],"expires":now+10000,"slow":.2}
-		game.tactics.memory.frost_root_until=now+600
+		Effects.edit(game,-1)[Frost.BRITTLE]={"stacks":[],"expires":now+10000,"slow":.2}
+		Effects.edit(game,-1).frost_root_until=now+600
 		p.weapon=part
 		p.secondary=0
 		p.catalyst=0
@@ -107,7 +108,7 @@ func run() -> void:
 			check(p[Conditions.STATE].slow_until_ms()==0 and ally[Conditions.STATE].slow_until_ms()>now and p[PlayerVitals.STATE].hp()==70+q.direct_heal_hp,"formation cleanses and restores the caster once")
 			Clock.advance(game,.4)
 			Core.tick(game,int(cast.armed)+400)
-			check(ally[Conditions.STATE].slow_until_ms()==0 and ally.frost_root_until>now and ally[PlayerVitals.STATE].hp()==60+q.direct_heal_hp and game.enemy_health()==500-q.impact_hp and game.tactics.memory.has(Frost.BRITTLE) and game.tactics.memory.frost_root_until==now+600,
+			check(ally[Conditions.STATE].slow_until_ms()==0 and ally.frost_root_until>now and ally[PlayerVitals.STATE].hp()==60+q.direct_heal_hp and game.enemy_health()==500-q.impact_hp and Effects.read(game,-1).has(Frost.BRITTLE) and Effects.read(game,-1).frost_root_until==now+600,
 				"swept wave cleanses actual ally, damages once, preserves other status and health")
 			ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+10000)
 			Clock.advance(game,.12)
@@ -124,13 +125,13 @@ func run() -> void:
 		WeaponCase.start(game,1,p.pos)
 		var shot: Dictionary=game.weapon_attacks.views().front()
 		WeaponCase.advance(game,int(shot.due)+1)
-		check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"real Form contact gives exact quality reduction")
+		check(is_equal_approx(Water.reduction(Effects.read(game,-1).get(Water.DRENCHED,{}),Clock.now(game)),q.reduction),"real Form contact gives exact quality reduction")
 		p.secondary=0
 		p.catalyst=part
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 		ClassActions.cast_world(game, 1, 1)
-		check(game.tactics.memory.get(Water.DRENCHED,{}).get("sources",{}).size()==2,"native class contact contributes a second source to one Drenched status")
-		check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"same potency is not multiplied")
+		check(Effects.read(game,-1).get(Water.DRENCHED,{}).get("sources",{}).size()==2,"native class contact contributes a second source to one Drenched status")
+		check(is_equal_approx(Water.reduction(Effects.read(game,-1).get(Water.DRENCHED,{}),Clock.now(game)),q.reduction),"same potency is not multiplied")
 		reset()
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		p[Protection.STATE] = p[Protection.STATE].clear_expedition()
@@ -139,7 +140,7 @@ func run() -> void:
 		ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+6000)
 		ClassActions.cast_world(game, 1, 0)
 		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1.0, 0, game.tactics.position)
-		check(p[Conditions.STATE].slow_until_ms()==0 and ally[Conditions.STATE].slow_until_ms()==0 and p[PlayerVitals.STATE].hp()==70+q.direct_heal_hp and is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"Ward wash Drenches enemies and cleanses protected allies")
+		check(p[Conditions.STATE].slow_until_ms()==0 and ally[Conditions.STATE].slow_until_ms()==0 and p[PlayerVitals.STATE].hp()==70+q.direct_heal_hp and is_equal_approx(Water.reduction(Effects.read(game,-1).get(Water.DRENCHED,{}),Clock.now(game)),q.reduction),"Ward wash Drenches enemies and cleanses protected allies")
 
 	reset()
 	var now:=Time.get_ticks_msec()
@@ -159,7 +160,7 @@ func run() -> void:
 	Clock.advance(game,2.0)
 	var weak := event(2,"form","part_8","weapon_contact",now)
 	weak.publish(game,"weapon_contact","new","scout",now,{"enemy":0})
-	check(is_equal_approx(Water.reduction(scout,Clock.now(game)),.30),"weaker application cannot override stronger")
+	check(is_equal_approx(Water.reduction(Effects.from_body(scout).get(Water.DRENCHED,{}),Clock.now(game)),.30),"weaker application cannot override stronger")
 	attack.lock(game,scout,"volley",p.pos,now+4400)
 	Clock.advance(game,2.3)
 	p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
@@ -187,9 +188,9 @@ func run() -> void:
 	Events.grant_ward(game,p,now+1000,1,fire,adapter,now)
 	Events.grant_ward(game,p,now+2000,2,water,adapter,now)
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now+1, 1.0, 0, game.tactics.position)
-	check(game.tactics.memory.get(Fire.BURNING,{}).get("contributors",{}).values().any(func(row):return int(row.actor)==1) and Water.reduction(game.tactics.memory,Clock.now(game))==0.0,"earliest mixed Ward selects ordinary Fire")
+	check(Effects.read(game,-1).get(Fire.BURNING,{}).get("contributors",{}).values().any(func(row):return int(row.actor)==1) and Water.reduction(Effects.read(game,-1).get(Water.DRENCHED,{}),Clock.now(game))==0.0,"earliest mixed Ward selects ordinary Fire")
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now+2, 1.0, 0, game.tactics.position)
-	check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),.30) and p[Protection.STATE].charge_count()==0,"next actual block is refined Water without removing Fire")
+	check(is_equal_approx(Water.reduction(Effects.read(game,-1).get(Water.DRENCHED,{}),Clock.now(game)),.30) and p[Protection.STATE].charge_count()==0,"next actual block is refined Water without removing Fire")
 	game.queue_free()
 	await process_frame
 	if not failed: print("PASS: Water Core, Form, class wash, mixed Ward claims, direct damage and ranged timing")

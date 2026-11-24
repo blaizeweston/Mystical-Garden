@@ -90,8 +90,10 @@ static func facts(build: Dictionary, card_counts: Variant = null) -> Dictionary:
 		for id: String in counts:
 			if int(counts[id]) <= 0 or not Catalog.DEFINITIONS.has(id): continue
 			var definition: Dictionary = Catalog.DEFINITIONS[id]
-			if not Requirements.refusal(definition.requires, result, schema()).is_empty(): continue
-			for cap: Dictionary in verified_grants(definition).get("capabilities", []):
+			if not definition.has("grants") or not catalog_refusal(id).is_empty(): continue
+			var grants: Array = verified_grants(definition).get("capabilities", [])
+			if grants.is_empty() or not Requirements.refusal_for_validated(definition.requires, result).is_empty(): continue
+			for cap: Dictionary in grants:
 				if not result.capabilities.has(cap): result.capabilities.append(cap); changed = true
 		if not changed: break
 	return _freeze(result)
@@ -101,6 +103,14 @@ static func requirement(definition: Dictionary, build: Dictionary, card_counts: 
 	var grant := verified_grants(definition)
 	if not grant.get("error", "").is_empty(): return grant.error
 	return Requirements.refusal(definition.get("requires"), facts(build, card_counts), schema())
+
+
+## Catalog validation already checked the consumer, grant and predicate schema.
+## Offer generation can reuse one detached build across every candidate.
+static func catalog_requirement(id: String, build_facts: Dictionary) -> String:
+	var error := catalog_refusal(id)
+	if not error.is_empty(): return error
+	return Requirements.refusal_for_validated(Catalog.DEFINITIONS[id].requires, build_facts)
 
 
 ## The real effect consumer advertises the parameter it reads and capability
@@ -162,6 +172,7 @@ static func catalog_errors(definitions: Dictionary = Catalog.DEFINITIONS) -> Dic
 
 
 static func catalog_refusal(id: String) -> String:
+	if not Catalog.DEFINITIONS.has(id): return "Unknown card: " + id
 	if not _checked_catalog:
 		_catalog_issues = catalog_errors()
 		_checked_catalog = true

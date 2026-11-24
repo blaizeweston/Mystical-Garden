@@ -1,8 +1,8 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
-const Actors = preload("res://frost_combat.gd")
 const Hurt = preload("res://enemy_hurtbox.gd")
 const Contact = preload("res://weapon_contact.gd")
 const Clock = preload("res://affinity_time.gd")
@@ -11,6 +11,7 @@ const Sources=preload("res://affinity_status_source.gd")
 const Catalog=preload("res://affinity_card_catalog.gd")
 const TEMPO := "storm_card_tempo"
 const PREP := "storm_card_discharge"
+const CARD_FIELDS := [TEMPO, PREP]
 const CARD_GRANTS := {"conductor_unlock":{"method":"discharge","capability":{"producer":"card","id":"conductor","slot":"core","recipient":"enemy"}}}
 const COLOR := Color("#e3d184")
 const JUMP_RANGE := 3.0
@@ -41,7 +42,7 @@ static func nearest(game: Node, center: Vector3, radius: float, visited: Diction
 	var distance := INF
 	var pool: Array = candidates if not candidates.is_empty() else range(-1,game.encounter.scout_count())
 	for target in pool:
-		if not Actors.valid_target(game,target) or visited.has(Contact.token(game,target)):
+		if not game.encounter.alive(target) or visited.has(Contact.token(game,target)):
 			continue
 		var edge := Hurt.contact(game,target,center,true)
 		var reach := center.distance_to(edge)
@@ -94,7 +95,7 @@ static func discharge(game: Node, actor: int, first: int, origin: Vector3, impac
 		game.emit_combat_event("link","storm_arc",row.origin,row.point,.25,COLOR,0.0,actor)
 		if not game.encounter.alive(row.target,row.token):continue
 		var before: int=game.encounter.hp(row.target)
-		Actors.damage(game,actor,row.target,int(row.hp),now,COLOR,bool(row.secondary))
+		OutgoingHits.affinity_and_clear(game,actor,row.target,int(row.hp),now,COLOR,bool(row.secondary))
 		damaged=damaged or game.encounter.hp(row.target)<before
 	if damaged and int(potency.get("tempo_percent",0))>0 and not source.is_empty() and Sources.current(game,source):
 		owner[TEMPO]={"source":source,"until":now+int(Catalog.DEFINITIONS.ionized_rhythm.tuning.duration_ms),"percent":int(potency.tempo_percent)}
@@ -113,7 +114,7 @@ static func burst(game: Node, event: RefCounted, center: Vector3, now: int) -> v
 	game.emit_combat_event("ability","storm_burst",center,center,.42,COLOR,BURST_RADIUS,event.actor,{"label":"Storm burst"})
 	for target in game.skill_area_targets(center,BURST_RADIUS,center):
 		if game.persistence_session.is_blocked(): break
-		Actors.damage(game,event.actor,target,event.potency().burst+int(event.potency().get("catalyst_damage_hp",0)),now,COLOR)
+		OutgoingHits.affinity_and_clear(game,event.actor,target,event.potency().burst+int(event.potency().get("catalyst_damage_hp",0)),now,COLOR)
 
 
 static func grant(game: Node, event: RefCounted, id: int) -> void:

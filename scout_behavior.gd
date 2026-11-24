@@ -31,7 +31,7 @@ static func tick(game: Node, delta: float, now: int) -> void:
 			if now >= int(scout.windup):
 				var pending: Dictionary = scout.get("attack", {})
 				var due := int(scout.windup)
-				preload("res://frost_combat.gd").with_attacker(game,slot,release.bind(game, scout, definition, now, pending, due))
+				game.tactics.resolve_attack_from(slot,release.bind(game, scout, definition, now, pending, due))
 				if not game.participation.active():
 					game.expedition_transitions.finish_if_empty()
 					return
@@ -56,11 +56,8 @@ static func tick(game: Node, delta: float, now: int) -> void:
 			continue
 		if not scout.get("alerted",false) and distance<=float(Director.config().aggro_radius): Director.alert(game,position);scout.alerted=true
 		scout.engaged = true
-		var speed := Director.speed(game,float(definition.speed))*frost_motion * (1.18 if mask & Enemies.MOBILITY else 1.0)
-		if now < int(scout.get("haste_until", 0)):
-			speed *= 1.22
-		if mask & Enemies.JUVENILE:
-			speed *= 1.15
+		var speed := Enemies.movement_speed(Director.speed(game,float(definition.speed))*frost_motion,
+			mask, now < int(scout.get("haste_until", 0)))
 		if Enemies.is_support(int(scout.kind)):
 			if not allies.is_empty():
 				Formation.follow_support(game, scout, allies, definition, speed, delta, now)
@@ -201,7 +198,7 @@ static func release(game: Node, scout: Dictionary, definition: Dictionary, now: 
 		return
 	if mode in ["charge","pounce","vault"]:
 		var frost = preload("res://frost_combat.gd")
-		var frost_body: Dictionary = game.tactics.memory if game.get_meta(frost.ATTACKER,-2)==-1 else scout
+		var frost_body: Dictionary = game.tactics.memory if game.tactics.attacking_slot()==-1 else scout
 		if frost.rooted(frost_body,now):
 			target_point = scout.pos
 			attack.to = target_point

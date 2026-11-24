@@ -23,7 +23,7 @@ func _ready() -> void:
 	hint = settings.label(self,"")
 	if context != null:
 		settings.button(self,"Stock affinity materials in isolated Garden",func():
-			settings.notice.text = preload("res://frost_combat.gd").stock_test_garden(context))
+			settings.notice.text = stock_test_garden(context))
 	tools = VBoxContainer.new()
 	tools.add_theme_constant_override("separation",8)
 	add_child(tools)
@@ -155,3 +155,16 @@ func run_tool(action: String) -> void:
 		context.tell(context.HOST,result)
 		settings.cancel()
 		context.ui.close_panels()
+
+
+static func stock_test_garden(game: Node) -> String:
+	var ruleset = load("res://combat_ruleset.gd")
+	if not preload("res://assets/terrain_m02/experimental/experiment_mode.gd").verified() or not game.multiplayer.is_server() or game.participation.active() or not game.persistence_session.is_guarded():
+		return "Affinity supplies are available to the host in the isolated affinity Garden."
+	return game.run_heart_save(func():
+		for part in game.Parts.DEFINITIONS.size():
+			var material := preload("res://plant_affinities.gd").for_part(part)
+			if not ruleset.FAMILIES.has(material.get("primary_affinity", "")):
+				continue
+			game.progress.add_parts(part, maxi(0, 12 - game.progress.part_count(part)))
+		return "Test Garden stocked with supported ordinary and refined affinity materials.")

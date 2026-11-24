@@ -7,7 +7,6 @@ const Ruleset = preload("res://combat_ruleset.gd")
 
 const RECORD = &"cr02_record_combat_event"
 const CONTEXT = "cr02_action"
-const Frost = preload("res://frost_combat.gd")
 const CHANNELS := ["weapon_contact", "core_action", "class_action", "class_contact",
 	"actual_block", "armor_break", "periodic", "secondary", "incoming_hit", "class_field_contact"]
 
@@ -94,16 +93,8 @@ func publish(game: Node, channel: String, contact_id: String, target: String, no
 		if channel=="weapon_contact":load("res://spirit_replicas.gd").form_contact(game,self,details,now)
 		return true
 	if source in ["core", "form", "catalyst"]:
-		match affinity:
-			"frost": Frost.on_event(game, self, channel, details, now)
-			"fire": Ruleset.Fire.on_event(game, self, channel, details, now)
-			"water": Ruleset.Water.on_event(game, self, channel, details, now)
-			"vital": Ruleset.Vital.on_event(game, self, channel, details, now)
-			"thorn": Ruleset.Thorn.on_event(game, self, channel, details, now)
-			"wood": Ruleset.Wood.on_event(game, self, channel, details, now)
-			"storm": Ruleset.Storm.on_event(game, self, channel, details, now)
-			"spirit": Ruleset.Spirit.on_event(game, self, channel, details, now)
-			"void": Ruleset.Void.on_event(game, self, channel, details, now)
+		var family: Script = Ruleset.FAMILIES.get(affinity)
+		if family != null: family.on_event(game, self, channel, details, now)
 	return true
 
 
@@ -134,7 +125,7 @@ static func contact(game: Node, stats: Dictionary, target: int, now: int, second
 	if event == null:
 		return
 	var channel := "secondary" if secondary else "class_contact" if event.source in ["native_class", "catalyst"] else "weapon_contact"
-	var token := "leader" if target == -1 else str(game.encounter.token(target))
+	var token: String = game.encounter.contact_key(target)
 	var details := {"enemy":target,"origin":stats.get("spirit_origin",game.players.get(event.actor,{}).get("pos",point)),"native_displacement":float(stats.get("pull",0.0))>0.0 or float(stats.get("knockback",0.0))>0.0}
 	if point.is_finite():
 		details.point = point

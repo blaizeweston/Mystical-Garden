@@ -225,7 +225,7 @@ func momentum() -> void:
 	Ranger.track(game,8,ally,-1,78,at)
 	before=game.enemy_health()
 	var roll := fire_melee()
-	check(before-game.enemy_health()==roll+20 and not player.has(Reaper.MOMENTUM) and Frost.state(Frost.body(game,-1),at).stacks.size()==1
+	check(before-game.enemy_health()==roll+20 and not player.has(Reaper.MOMENTUM) and Frost.state(game.tactics.memory,at).stacks.size()==1
 		and not game.enemy_traits.has(Ranger.PREY),"ordinary contact spends Momentum and Tracked Prey while preserving an independent Frost status")
 	prepare(["veilwalker"],Vector3.ZERO,Vector3(2.7,0,0))
 	cast(0)
@@ -457,7 +457,7 @@ func charges_and_void() -> void:
 	check(game.encounter.hp_for(summon)==0 and Grafts.grave_count(player)==0,"summoned enemy deaths do not generate class charges (HP %s, charges %s)" % [game.encounter.hp_for(summon),Grafts.grave_count(player)])
 	var victim := scout(Vector3(6,0,0),1)
 	player.grave_charges=1
-	preload("res://frost_combat.gd").damage(game,1,1,10,Time.get_ticks_msec())
+	OutgoingHits.affinity_and_clear(game,1,1,10,Time.get_ticks_msec(),Frost.COLOR)
 	check(game.encounter.hp_for(victim)==0 and player.grave_charges==1,"Core and affinity secondary damage cannot spend or award native charges")
 
 	prepare(["blood_harvester"])

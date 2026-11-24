@@ -119,18 +119,18 @@ func run_core(p: Dictionary, part: int) -> void:
 	Core.tick(game,at)
 	Core.tick(game,at+1)
 	var quality: String = "refined" if part==refined else "ordinary"
-	var potency: Dictionary = Frost.Balance.QUALITY[quality]
+	var potency: Dictionary = Frost.QUALITY[quality]
 	var open := Frost.state(game.tactics.memory,at)
-	check(game.enemy_health()==150-Frost.Balance.BLOOM_OPEN_HP and open.get("stacks",[]).size()==2,"opening damage and two stacks once")
+	check(game.enemy_health()==150-Frost.BLOOM_OPEN_HP and open.get("stacks",[]).size()==2,"opening damage and two stacks once")
 	check(is_equal_approx(Frost.motion_scale(game.tactics.memory,at),1-2*potency.move_slow),"two stacks alter movement immediately")
 	var ready: int = p.core_ready_at
 	game.garden_action(1,cast_key)
 	check(p.core_ready_at==ready,"repeated cast during its cooldown is refused")
-	Core.tick(game,at+Frost.Balance.BLOOM_DELAY_MS)
+	Core.tick(game,at+Frost.BLOOM_DELAY_MS)
 	check(bursts.size()==1 and bursts[0][1]==potency.max_shatter_hp
-		and Frost.motion_scale(game.tactics.memory,at+Frost.Balance.BLOOM_DELAY_MS)==1.0 and Frost.state(game.tactics.memory,at+Frost.Balance.BLOOM_DELAY_MS).is_empty(),
+		and Frost.motion_scale(game.tactics.memory,at+Frost.BLOOM_DELAY_MS)==1.0 and Frost.state(game.tactics.memory,at+Frost.BLOOM_DELAY_MS).is_empty(),
 		"Core alone ruptures and clears spent stacks without adding roots")
-	check(Frost.motion_scale(game.tactics.memory,at+Frost.Balance.BLOOM_DELAY_MS+650)==1.0,"baseline rupture leaves movement unrestricted")
+	check(Frost.motion_scale(game.tactics.memory,at+Frost.BLOOM_DELAY_MS+650)==1.0,"baseline rupture leaves movement unrestricted")
 
 
 func run_form(p: Dictionary, part: int, frame := 0, weapon_kind := 0) -> void:
@@ -159,7 +159,7 @@ func run_form(p: Dictionary, part: int, frame := 0, weapon_kind := 0) -> void:
 	Events.contact(game,replay_context,-1,at+1)
 	Events.contact(game,replay_context,-1,at+1,true)
 	check(Frost.state(game.tactics.memory,at+1).stacks.size()==1,"duplicate and secondary contacts cannot apply stacks")
-	check(Frost.motion_scale(game.tactics.memory,at+Frost.Balance.BRITTLE_MS)==1.0,"unrefreshed Brittle expires")
+	check(Frost.motion_scale(game.tactics.memory,at+Frost.BRITTLE_MS)==1.0,"unrefreshed Brittle expires")
 
 
 func run_catalyst(p: Dictionary, part: int) -> void:
@@ -190,7 +190,7 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	check(ally.has(Frost.RESPONSE),"Living Sanctuary opening heal prepares a response for the ally")
 	var now:=Time.get_ticks_msec()
 	var hp: float=ally[PlayerVitals.STATE].hp()
-	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 2, PlayerLifecycle.generation(ally), now, 1))
+	game.tactics.resolve_attack_from(-1,IncomingPlayerHit.resolve_world.bind(game, 2, PlayerLifecycle.generation(ally), now, 1))
 	check(ally[PlayerVitals.STATE].hp()<hp and not ally.has(Frost.RESPONSE),"fallback consumes after an actual survivable hit without blocking it")
 	check(ally[PlayerVitals.STATE].hp()==hp-10+6,"native Second Breath independently restores 6 HP after the survived direct hit")
 	var after := Frost.state(game.tactics.memory,now)
@@ -275,11 +275,11 @@ func run_mixed() -> void:
 	for player in game.players.values():
 		player.weapon=0;player.secondary=0;player.catalyst=0
 	var now:=Time.get_ticks_msec()
-	var first := Events.begin(game,1,"form",Builds.slot("form",ordinary),Frost.Balance.QUALITY.ordinary,["weapon_contact"],now+18000)
-	var second := Events.begin(game,2,"core",Builds.slot("core",refined),Frost.Balance.QUALITY.refined,["core_action"],now+18000)
+	var first := Events.begin(game,1,"form",Builds.slot("form",ordinary),Frost.QUALITY.ordinary,["weapon_contact"],now+18000)
+	var second := Events.begin(game,2,"core",Builds.slot("core",refined),Frost.QUALITY.refined,["core_action"],now+18000)
 	first.publish(game,"weapon_contact","contact","leader",now,{"enemy":-1})
 	check(is_equal_approx(Frost.motion_scale(game.tactics.memory,now),.92),"one ordinary stack gives its movement slow")
-	var later:=now+Frost.Balance.BRITTLE_MS-1
+	var later:=now+Frost.BRITTLE_MS-1
 	var saved_windup: int=game.tactics.strike_at
 	game.tactics.winding_up=true
 	second.publish(game,"core_action","open","leader",later,{"enemy":-1,"stacks":3,"opening_hp":0})

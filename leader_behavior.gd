@@ -28,7 +28,7 @@ static func tick(game: Node, delta: float, now: int) -> void:
 		return
 	if game.tactics.winding_up:
 		if now >= game.tactics.strike_at:
-			Frost.with_attacker(game, -1, resolve.bind(game, now))
+			game.tactics.resolve_attack_from(-1, resolve.bind(game, now))
 		return
 	if now < game.tactics.stagger_until:
 		return

@@ -55,11 +55,11 @@ func run():
  p[Conditions.STATE] = p[Conditions.STATE].with_slow_until(now+20);Status.sync(game,now+10);Status.sync(game,now+21)
  check(not Status.snapshot(game,now+21).any(func(e):return e.shape=="slow"),"timed expiry clears status independently of text")
  var material: Dictionary=Builds.slot("form",game.Items.get_item("plant_part_plant_frostbell").legacy_part)
- var frost_event: RefCounted=Events.begin(game,1,"form",material,Frost.Balance.QUALITY.ordinary,["weapon_contact"],now+5000)
+ var frost_event: RefCounted=Events.begin(game,1,"form",material,Frost.QUALITY.ordinary,["weapon_contact"],now+5000)
  Frost.apply(game,frost_event,-1,1,now+22);Status.sync(game,now+22)
  check(Status.snapshot(game,now+22).any(func(e):return e.shape=="brittle"),"a current Frost contribution displays Brittle")
  Frost.apply(game,frost_event,-1,2,now+23);Status.sync(game,now+23)
- check(Frost.state(Frost.body(game,-1),now+23).is_empty() and game.combat_events.any(func(e):return e.kind=="ability" and e.shape=="frost_rupture"),"three current Frost contributions rupture and consume the stacks visibly")
+ check(Frost.state(game.tactics.memory,now+23).is_empty() and game.combat_events.any(func(e):return e.kind=="ability" and e.shape=="frost_rupture"),"three current Frost contributions rupture and consume the stacks visibly")
  game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(1,0,1),0));game.encounter.set_hp(0, 80);game.encounter.scout(0).pos=Vector3(1,0,1);game.encounter.scout(0).engaged=false;game.effect_timeline.clear_native()
  var secondary: Dictionary={"damage":2,"reach":4.0}
  for kind in ["echo","link","chorus"]:

@@ -11,6 +11,7 @@ const Ledger = CardState.Ledger
 const Journal = preload("res://diagnostic_journal.gd")
 const Preview = preload("res://combat_balance_preview.gd")
 const Eligibility = preload("res://card_eligibility.gd")
+const Rules = preload("res://combat_ruleset.gd")
 const BLOOM_ECHO_PARAMETER := "bloom_echo_hp"
 const CARD_GRANTS := {BLOOM_ECHO_PARAMETER:{"method":"bloom_echo", "capability":{
 	"producer":"card", "id":"echoing_growth", "slot":"r", "recipient":"affected_enemies"}}}
@@ -23,7 +24,9 @@ const DODGE_MIN_MS := CardState.DODGE_MIN_MS
 
 static func clear(player: Dictionary) -> void:
 	player.erase(STATE)
-	for field in ["card_active_state","thorn_card_momentum","thorn_card_streak","frost_card_credit","frost_card_rhythm","fire_card_sequence","water_card_sequence","water_card_restoration","wood_card_retaliation","vital_card_bloom","vital_card_vigor","storm_card_tempo","storm_card_discharge","spirit_card_tempo","spirit_card_recovery","spirit_card_basic","spirit_card_evasion","spirit_card_echoes","spirit_card_shadows","void_card_compression"]: player.erase(field)
+	player.erase(load("res://card_active_actions.gd").STATE)
+	for family: Script in Rules.FAMILIES.values():
+		for field in family.CARD_FIELDS: player.erase(field)
 
 
 # Read adapter for existing actor consumers. The ledger owns the records.

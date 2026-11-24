@@ -240,7 +240,7 @@ func test_absorption(p: Dictionary, now: int) -> void:
 	mixture()
 	var drench:=event(2,"form","plant_part_rare_dewcap",["weapon_contact"])
 	Water.drench(game,drench,-1)
-	Frost.with_attacker(game,-1,hit.bind(p,1,50,now))
+	game.tactics.resolve_attack_from(-1,hit.bind(p,1,50,now))
 	check(p[PlayerVitals.STATE].hp()==229 and available(p)==34,"Drenched reduces the hostile hit before Bark absorption")
 	var paid: int=available(p)
 	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 10)

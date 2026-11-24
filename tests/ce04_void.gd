@@ -1,4 +1,5 @@
 extends SceneTree
+const Effects = preload("res://enemy_affinity_effects.gd")
 const Case=preload("res://tests/support/affinity_card_case.gd")
 const Void=preload("res://void_affinity.gd")
 const Core=preload("res://core_combat.gd")
@@ -20,7 +21,7 @@ func reset():
  for player in c.game.players.values():
   player.erase(Void.FORM_READY);player.erase(Void.PREP);player.core_ready_at=0;player.cast_until=0;player.core_cast_until=0
   player.pos=Vector3.ZERO;player.facing=Vector3.FORWARD
- for key in [Void.CONTROL,Void.SUSTAINED,Void.SHEAR,Void.ALLOWANCE_STATE]:c.game.tactics.memory.erase(key)
+ for key in [Void.CONTROL,Void.SUSTAINED,Void.SHEAR,Void.ALLOWANCE_STATE]:Effects.read(c.game,-1).erase(key)
 func advance(ms: int):
  var until:=Clock.now()+ms
  while Clock.now()<until:

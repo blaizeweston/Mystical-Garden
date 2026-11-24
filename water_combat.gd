@@ -1,9 +1,10 @@
 extends RefCounted
+const Effects = preload("res://enemy_affinity_effects.gd")
+const OutgoingHits = preload("res://outgoing_hits.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const Sources = preload("res://affinity_status_source.gd")
-const Actors = preload("res://frost_combat.gd")
 const Clock = preload("res://affinity_time.gd")
 const Footprint = preload("res://core_footprint.gd")
 const DRENCHED := "affinity_drenched"
@@ -21,6 +22,7 @@ const SURGE_HP := 6
 const SURGE_HEAL_HP := 6
 const SEQUENCE := "water_card_sequence"
 const REFRESH := "water_card_restoration"
+const CARD_FIELDS := [SEQUENCE, REFRESH]
 const REDUCTION_LIMIT := .30
 const SHELTER_WARD_PARAMETER := "shelter_ward_ms"
 # The same parameter is read by on_event below; eligibility does not invent it.
@@ -47,7 +49,7 @@ static func description(slot: String, quality: String, resolved: Dictionary = {}
 
 
 static func clean(game: Node, target: int, elapsed: int) -> Dictionary:
-	var actor := Actors.body(game,target)
+	var actor := Effects.read(game,target)
 	var status: Dictionary=actor.get(DRENCHED,{})
 	if status.is_empty(): return {}
 	if not Sources.target_current(game,target,status):
@@ -70,11 +72,11 @@ static func clean(game: Node, target: int, elapsed: int) -> Dictionary:
 static func tick(game: Node, elapsed: int) -> void:
 	if not game.multiplayer.is_server(): return
 	for target in range(-1,game.encounter.scout_count()):
-		if Actors.body(game,target).has(DRENCHED): clean(game,target,elapsed)
+		if Effects.read(game,target).has(DRENCHED): clean(game,target,elapsed)
 
 static func drench(game: Node, event: RefCounted, target: int) -> void:
 	var source := Sources.capture(event)
-	if not game.multiplayer.is_server() or not Sources.current(game,source) or not Actors.valid_target(game,target): return
+	if not game.multiplayer.is_server() or not Sources.current(game,source) or not game.encounter.alive(target): return
 	var elapsed := Clock.now(game)
 	var status := clean(game,target,elapsed)
 	if status.is_empty():
@@ -96,7 +98,7 @@ static func drench(game: Node, event: RefCounted, target: int) -> void:
 	status.sources[key]=source
 	status.saturation+=applied
 	status.pressure.append({"source":Sources.capture(event),"potency":potency,"amount":applied})
-	Actors.body(game,target)[DRENCHED]=status
+	Effects.edit(game,target)[DRENCHED]=status
 	while int(status.saturation)>=SATURATION_THRESHOLD:
 		if not load("res://water_tidal_return.gd").admit(game,target,status,preload("res://combat_clock.gd").now()):break
 		if not Sources.target_current(game,target,status) or game.persistence_session.is_blocked():break
@@ -120,9 +122,9 @@ static func ordinary_bonus(game: Node, event: RefCounted, target: int) -> int:
 	return bonus if bonus>0 and int(status.get("saturation",0))>=int(preload("res://affinity_card_catalog.gd").DEFINITIONS.pressure_point.tuning.threshold) and event.take_response("water_pressure_point") else 0
 
 
-static func reduction(actor: Dictionary, elapsed: int) -> float:
+static func reduction(status: Dictionary, elapsed: int) -> float:
 	var strongest:=0.0
-	for source in actor.get(DRENCHED,{}).get("sources",{}).values():
+	for source in status.get("sources",{}).values():
 		if int(source.until)>elapsed: strongest=maxf(strongest,float(source.reduction))
 	return minf(REDUCTION_LIMIT,strongest)
 
@@ -132,11 +134,11 @@ static func direct_damage(game: Node, hp: int) -> int:
 	# Native enemy strikes and ranged attacks deal their damage on the host
 	# at impact. Evaluate the attacker's current Drenched sources here.
 	# Delayed ground hazards and unrelated sources have no attack context.
-	var target: int = game.get_meta(Actors.ATTACKER, -2)
+	var target: int = game.tactics.attacking_slot()
 	if target < -1 or target >= game.encounter.scout_count():
 		return hp
-	clean(game,target,Clock.now(game))
-	return roundi(hp * (1.0 - reduction(Actors.body(game,target), Clock.now(game))))
+	var elapsed := Clock.now(game)
+	return roundi(hp * (1.0 - reduction(clean(game,target,elapsed),elapsed)))
 
 
 static func cleanse(player: Dictionary) -> void:
@@ -176,7 +178,7 @@ static func wave(game: Node, cast: Dictionary, player: Dictionary, now: int) -> 
 		if id != int(cast.owner) and Footprint.reaches(game.battlefield,shapes,game.players[id].pos,previous):
 			cast.affinity_action.publish(game,"core_action","cleanse",str(id),now,{"player":id})
 	for target in Footprint.targets(game,shapes,previous):
-		cast.affinity_action.publish(game,"core_action","impact",Actors.target_token(game,target),now,{"enemy":target})
+		cast.affinity_action.publish(game,"core_action","impact",game.encounter.contact_key(target),now,{"enemy":target})
 	cast.wave_center = point
 	return fraction >= 1.0
 
@@ -193,7 +195,7 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 					if ward_ms > 0:
 						game.players[id][Protection.STATE] = game.players[id][Protection.STATE].grant(now+ward_ms,1,Time.get_ticks_msec(),game.participation.epoch())
 			else:
-				Actors.damage(game,event.actor,int(details.enemy),int(event.potency().impact_hp),now,COLOR)
+				OutgoingHits.affinity_and_clear(game,event.actor,int(details.enemy),int(event.potency().impact_hp),now,COLOR)
 				drench(game,event,int(details.enemy))
 		"weapon_contact", "class_contact":
 			drench(game,event,int(details.enemy))

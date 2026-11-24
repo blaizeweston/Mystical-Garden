@@ -1,13 +1,14 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
 
 const Sources = preload("res://affinity_status_source.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
-const Actors = preload("res://frost_combat.gd")
 const Clock = preload("res://affinity_time.gd")
 const Journal = preload("res://diagnostic_journal.gd")
 const Contact = preload("res://weapon_contact.gd")
 const RETALIATION := "wood_card_retaliation"
+const CARD_FIELDS := [RETALIATION]
 const Catalog=preload("res://affinity_card_catalog.gd")
 const GRANTS := "affinity_bark_grants"
 const BURST_READY := "affinity_bark_burst_ready"
@@ -166,7 +167,7 @@ static func burst(game: Node, owner: int, center: Vector3, damage: int, now: int
 	game.emit_combat_event("ability","wood_burst",center,center,.55,COLOR,radius,owner,{"label":label})
 	for target in game.skill_area_targets(center,radius,center):
 		if game.persistence_session.is_blocked(): break
-		Actors.damage(game,owner,target,damage,now,COLOR,secondary)
+		OutgoingHits.affinity_and_clear(game,owner,target,damage,now,COLOR,secondary)
 
 
 static func splinters(game: Node, event: RefCounted, details: Dictionary, now: int) -> void:
@@ -183,7 +184,7 @@ static func splinters(game: Node, event: RefCounted, details: Dictionary, now: i
 	forward=forward.normalized()
 	var q: Dictionary=event.potency()
 	if not event.replica:player[FORM_READY]=elapsed+FORM_INTERVAL_MS
-	Actors.damage(game,event.actor,target,q.impact_hp+int(q.get("concentrated_hp",0)),now,COLOR)
+	OutgoingHits.affinity_and_clear(game,event.actor,target,q.impact_hp+int(q.get("concentrated_hp",0)),now,COLOR)
 	game.emit_combat_event("ability","wood_splinters",at,at+forward*FAN_RADIUS,.36,COLOR,FAN_RADIUS,event.actor,{"label":"Splintering strike"})
 	volley(game,Sources.capture(event),q,at,forward,FRAGMENT_LIMIT+int(q.get("extra_fragments",0)),now,target)
 
@@ -265,11 +266,11 @@ static func volley(game: Node, source: Dictionary, potency: Dictionary, origin: 
 			piercing.sort_custom(func(a,b):return a.fraction<b.fraction or (a.fraction==b.fraction and a.target<b.target))
 			for contact in piercing.slice(0,penetration):hits.append(int(contact.target))
 		for other: int in hits:
-			if used.has(other) or not Actors.valid_target(game,other):continue
+			if used.has(other) or not game.encounter.alive(other):continue
 			used[other]=true
 			var end: Vector3=game.enemy_position(other)
 			game.emit_combat_event("link","wood_fragment",origin,end,.32,COLOR,0.0,source.actor)
-			Actors.damage(game,int(source.actor),other,hp,now,COLOR,true)
+			OutgoingHits.affinity_and_clear(game,int(source.actor),other,hp,now,COLOR,true)
 
 static func offensive_volley(game: Node,event: RefCounted,center: Vector3,now: int) -> void:
 	var q: Dictionary=event.potency()
@@ -278,7 +279,7 @@ static func offensive_volley(game: Node,event: RefCounted,center: Vector3,now: i
 	volley(game,Sources.capture(event),q,center,game.players[event.actor].facing,count,now,-2,true)
 
 static func retaliate(game: Node,recipient: int,plan: Dictionary,now: int) -> void:
-	if int(game.get_meta(Actors.ATTACKER,-2))< -1:return
+	if int(game.tactics.attacking_slot())< -1:return
 	var owners:={}
 	for share: Dictionary in plan.shares:
 		var source: Dictionary=share.get("origin_source",{})

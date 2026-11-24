@@ -1,4 +1,5 @@
 extends RefCounted
+const Effects = preload("res://enemy_affinity_effects.gd")
 const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
@@ -135,7 +136,7 @@ func host(menu: Node) -> void:
 	menu.create_character("Frost Host",0,Appearance.DEFAULT)
 	if not check(await until(func():return SessionCase.role(tree.current_scene)=="Host"),"host through guarded title"): return
 	var game:=tree.current_scene
-	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Mode.ID and "stocked" in Frost.stock_test_garden(game),"guarded test supplies")
+	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Mode.ID and "stocked" in preload("res://developer_settings.gd").stock_test_garden(game),"guarded test supplies")
 	var ordinary: int=game.Items.get_item("plant_part_plant_frostbell").legacy_part
 	var refined: int=game.Items.get_item("plant_part_rare_frostbell").legacy_part
 	var local: Dictionary=game.players[1]
@@ -233,7 +234,7 @@ func host(menu: Node) -> void:
 	if party:
 		var contributing_actors: Array=ruptures[0][0].map(func(s):return s.actor) if ruptures.size()==1 else []
 		if shared_status_case: contributing_actors.sort()
-		if not check(ruptures.size()==1 and ruptures[0][1]==21 and contributing_actors==ids,"three distinct guests rupture once on four-player floor: ids=%s, ruptures=%s, remaining=%s" % [ids,ruptures,game.tactics.memory.get(Frost.BRITTLE,{})]):return
+		if not check(ruptures.size()==1 and ruptures[0][1]==21 and contributing_actors==ids,"three distinct guests rupture once on four-player floor: ids=%s, ruptures=%s, remaining=%s" % [ids,ruptures,Effects.read(game,-1).get(Frost.BRITTLE,{})]):return
 	local.core_ready_at=0
 	local.core_cast_until=0
 	local.cast_until=0
@@ -303,12 +304,12 @@ func host(menu: Node) -> void:
 				check((Vector3(visitor.pos)-departure).dot(aim)>=.28 and visitor.has("affinity_spirit_strides"),
 					"authorized guest step grants stride and moves along its chosen clear direction")
 			"fire":
-				check(game.tactics.memory.get("affinity_burning",{}).get("contributors",{}).values().any(func(row):return row.actor==source),"guest trail actually ignites leader")
+				check(Effects.read(game,-1).get("affinity_burning",{}).get("contributors",{}).values().any(func(row):return row.actor==source),"guest trail actually ignites leader")
 			"water":
-				check(await until(func():return local[Conditions.STATE].slow_until_ms()==0 and game.tactics.memory.get("affinity_drenched",{}).get("sources",{}).values().any(func(row):return row.actor==source and row.slot=="core")),
+				check(await until(func():return local[Conditions.STATE].slow_until_ms()==0 and Effects.read(game,-1).get("affinity_drenched",{}).get("sources",{}).values().any(func(row):return row.actor==source and row.slot=="core")),
 					"guest Dewfall cleanses host and actually Drenches leader")
 			"thorn":
-				check(await until(func():return game.tactics.memory.get("affinity_bleed",{}).get("contributors",{}).values().any(func(row):return row.actor==source)),
+				check(await until(func():return Effects.read(game,-1).get("affinity_bleed",{}).get("contributors",{}).values().any(func(row):return row.actor==source)),
 					"stationary guest Thorn Line slows and wounds a real enemy on the host")
 				mark("thorn-"+str(source))
 				check(await until(func():return read("thorn-seen-"+str(source))=="ok"),"guest receives the authoritative field geometry")
@@ -318,7 +319,7 @@ func host(menu: Node) -> void:
 					var grants: Array=local.get("affinity_bark_grants",[])
 					check(grants.any(func(grant):return grant.actor==ward_guest and grant.quality=="ordinary") and grants.any(func(grant):return grant.actor==source and grant.admitted==40),
 						"separate Wood sources coexist with the full refined grant")
-					var wounds: Dictionary=game.tactics.memory.get("affinity_bleed",{})
+					var wounds: Dictionary=Effects.read(game,-1).get("affinity_bleed",{})
 					check(wounds.get("contributors",{}).values().any(func(row):return row.actor==ids[0]) and wounds.get("contributors",{}).values().any(func(row):return row.actor==ids[1]),"two real Thorn contributors share one accumulated wound")
 				mark("bark-"+str(source))
 				check(await until(func():return read("bark-seen-"+str(source))=="ok"),"guest receives Bark presentation through authoritative details")
@@ -446,8 +447,8 @@ func host(menu: Node) -> void:
 		"party advances to next generated floor"):return
 	if shared_status_case:
 		check(game.players.values().all(func(p):return not p.has("affinity_vital_sources") and not p.has("affinity_bark_grants"))
-			and not game.tactics.memory.has("affinity_bleed") and not game.tactics.memory.has("affinity_burning")
-			and not game.tactics.memory.has("affinity_drenched"),"real floor transition clears shared encounter and temporary recipient effects")
+			and not Effects.read(game,-1).has("affinity_bleed") and not Effects.read(game,-1).has("affinity_burning")
+			and not Effects.read(game,-1).has("affinity_drenched"),"real floor transition clears shared encounter and temporary recipient effects")
 	if affinity_cards_case:
 		check(game.players.keys().all(func(id): return game.run_wallet(game.players[id]) == int(read("wallet-"+str(id)))),
 			"floor transition retains independently spent balances")
@@ -807,11 +808,11 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 	var before := int(PlayerVitals.current_hp(host_player))
 	var now := Time.get_ticks_msec()
 	host_player[Conditions.STATE] = host_player[Conditions.STATE].clear_grace()
-	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 1, PlayerLifecycle.generation(host_player), now, 1.0))
+	game.tactics.resolve_attack_from(-1,IncomingPlayerHit.resolve_world.bind(game, 1, PlayerLifecycle.generation(host_player), now, 1.0))
 	check(host_player[Protection.STATE].charge_count()==0 and PlayerVitals.current_hp(host_player)==before+6
 		and not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty(),"remote Oracle Ward blocks and heals without spending a conditional recovery")
 	host_player[Conditions.STATE] = host_player[Conditions.STATE].clear_grace()
-	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 1, PlayerLifecycle.generation(host_player), now+1, 1.0))
+	game.tactics.resolve_attack_from(-1,IncomingPlayerHit.resolve_world.bind(game, 1, PlayerLifecycle.generation(host_player), now+1, 1.0))
 	check(PlayerVitals.current_hp(host_player)==before+4 and Omens.strongest(game,host_player,Oracle.MERCY,now+1,id).is_empty()
 		and not Omens.strongest(game,host_player,Oracle.SECOND_BREATH,now+1,id).is_empty(),
 		"host takes one real hit and only the stronger remote recovery responds")

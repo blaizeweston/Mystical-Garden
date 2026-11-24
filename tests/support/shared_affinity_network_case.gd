@@ -1,4 +1,5 @@
 extends RefCounted
+const Effects = preload("res://enemy_affinity_effects.gd")
 ## Shared-status phases reuse the real title/Garden/Wilds and RPC fixture.
 ## Equipment changes below are explicit runtime fixture setup, never a new API.
 const Core = preload("res://core_combat.gd")
@@ -61,7 +62,7 @@ static func host(test: RefCounted, game: Node, guests: Array, events: Array, ent
 	var pulses := {}
 	var sample := {"peak_burning":0}
 	var observe := func():
-		sample.peak_burning=maxi(int(sample.peak_burning),Fire.count(game.tactics.memory.get(Fire.BURNING,{})))
+		sample.peak_burning=maxi(int(sample.peak_burning),Fire.count(Effects.read(game,-1).get(Fire.BURNING,{})))
 		# One threshold owns a timeline record containing weighted contributor
 		# waves. Counting wave visuals would incorrectly multiply Surge events.
 		for effect: Dictionary in game.effect_timeline.native_records():
@@ -70,39 +71,39 @@ static func host(test: RefCounted, game: Node, guests: Array, events: Array, ent
 	if not await cast_all(test,game,actors,events,"thorn",entry,target):
 		test.tree.process_frame.disconnect(observe);return false
 	var four_bleeds := func() -> bool:
-		return game.tactics.memory.get(Thorn.BLEED,{}).get("contributors",{}).size()==4
+		return Effects.read(game,-1).get(Thorn.BLEED,{}).get("contributors",{}).size()==4
 	if not test.check(await test.until(four_bleeds),"all four clients contribute to one enemy Bleed record"):
 		test.tree.process_frame.disconnect(observe);return false
-	var bleed: Dictionary=game.tactics.memory[Thorn.BLEED]
+	var bleed: Dictionary=Effects.read(game,-1)[Thorn.BLEED]
 	test.check(Thorn.cap_units(bleed)==60000 and Thorn.potency_units(bleed)>0,
 		"two ordinary and two refined players share exactly one 60 HP tick ceiling")
 	print("SHARED_BLEED ",JSON.stringify({"contributors":bleed.contributors.size(),"cap_hp":Thorn.cap_units(bleed)/1000.0,"potency_hp":Thorn.potency_units(bleed)/1000.0}))
 	# Isolate the subsequent live Burning cadence from prior accepted wounds.
 	Core.reset(game)
 	if game.has_meta(Thorn.FIELDS): game.remove_meta(Thorn.FIELDS)
-	game.tactics.memory.erase(Thorn.BLEED)
+	Effects.read(game,-1).erase(Thorn.BLEED)
 	if not await cast_all(test,game,actors,events,"fire",entry,target):
 		test.tree.process_frame.disconnect(observe);return false
-	if not test.check(await test.until(func():return game.tactics.memory.get(Fire.BURNING,{}).get("contributors",{}).size()==4),
+	if not test.check(await test.until(func():return Effects.read(game,-1).get(Fire.BURNING,{}).get("contributors",{}).size()==4),
 		"all four clients contribute to one Burning count"):
 		test.tree.process_frame.disconnect(observe);return false
-	var fire: Dictionary=game.tactics.memory[Fire.BURNING]
+	var fire: Dictionary=Effects.read(game,-1)[Fire.BURNING]
 	test.check(Fire.count(fire)>0 and fire.contributors.size()==4,"shared live Burning preserves all four contributions without a fixed ceiling")
 	print("SHARED_FIRE ",JSON.stringify({"contributors":fire.contributors.size(),"stacks":Fire.count(fire)}))
 	test.mark("shared-fire-present")
 	await test.sample_host_snapshots(game,guests)
 	test.check(int(sample.peak_burning)>96,"independent four-client Fire casts build beyond the former fixed ceiling")
 	print("SHARED_FIRE_PEAK ",sample.peak_burning)
-	game.tactics.memory.erase(Fire.BURNING)
+	Effects.read(game,-1).erase(Fire.BURNING)
 	for step: String in ["water-a","water-b"]:
 		if not await cast_all(test,game,actors,events,step,entry,target):
 			test.tree.process_frame.disconnect(observe);return false
 		if not test.check(await test.until(func():return game.effect_timeline.core_records().is_empty()),"Dewfall curtains finish their actual sweep"):
 			test.tree.process_frame.disconnect(observe);return false
-	var water: Dictionary=game.tactics.memory.get(Water.DRENCHED,{})
+	var water: Dictionary=Effects.read(game,-1).get(Water.DRENCHED,{})
 	test.check(pulses.size()==3 and int(water.get("saturation",-1))==60,
 		"two four-client Water applications trigger three Surges and retain 60 overflow without recursion")
-	test.check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),.30),"four providers retain one bounded Drenched reduction")
+	test.check(is_equal_approx(Water.reduction(Effects.read(game,-1).get(Water.DRENCHED,{}),Clock.now(game)),.30),"four providers retain one bounded Drenched reduction")
 	print("SHARED_WATER ",JSON.stringify({"surges":pulses.size(),"saturation":water.get("saturation",-1)}))
 	test.mark("shared-water-present")
 	if not test.check(await test.until(func():return guests.all(func(id):return test.read("shared-water-seen-"+str(id))=="ok")),

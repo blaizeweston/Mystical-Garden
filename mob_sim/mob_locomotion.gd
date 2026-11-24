@@ -19,7 +19,7 @@ const AT_OFFSET_Z := 6
 const AGENT_ROW := 10
 const CLEAR_BODY := 0.46
 const GOAL_CELL := 2.0
-const HASTE_SCALE := 1.22
+const Catalog = preload("res://enemy_catalog.gd")
 
 var world: RefCounted
 var pool: Pool
@@ -136,7 +136,7 @@ func _speed_scale(slot: int, tick: int) -> float:
 	if pool.windup_until[slot] > 0 or tick < pool.stun_until[slot] or tick < pool.root_until[slot]:
 		return 0.0
 	var scale := pool.slow_scale[slot] if tick < pool.slow_until[slot] else 1.0
-	return scale * HASTE_SCALE if tick < pool.haste_until[slot] else scale
+	return scale * Catalog.HASTE_SPEED_SCALE if tick < pool.haste_until[slot] else scale
 
 
 func _goal_field(x: float, z: float) -> int:

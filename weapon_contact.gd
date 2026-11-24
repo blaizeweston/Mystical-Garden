@@ -104,7 +104,7 @@ static func accepts(game: Node,target: int,origin: Vector3,aim: Vector3,form: St
  var direction: Vector3=(aim-origin).rotated(Vector3.UP,float(profile.yaw_offset))
  return Geometry.accepts_sector(origin,origin+direction,center,radius,float(profile.reach),float(profile.span))
 static func token(game: Node,target: int) -> String:
- return "leader" if target==-1 else str(game.encounter.token(target))
+ return game.encounter.contact_key(target)
 static func candidates(game: Node,origin: Vector3) -> Array:
  var result: Array=[]
  for target in range(-1,game.encounter.scout_count()):

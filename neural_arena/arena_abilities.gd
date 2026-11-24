@@ -5,7 +5,6 @@ extends "res://mob_sim/mob_abilities.gd"
 const Attacks = preload("res://enemy_attack.gd")
 const CombatClock = preload("res://combat_clock.gd")
 const EnemyBehaviors = preload("res://enemy_behaviors.gd")
-const Frost = preload("res://frost_combat.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const ScoutBehavior = preload("res://scout_behavior.gd")
 
@@ -81,7 +80,7 @@ func tick_windups(_tick: int) -> void:
 		var before: PackedFloat32Array = bridge.party_health()
 		var start: Vector3 = scout.pos
 		var definition: Dictionary = game.Enemies.get_kind(int(scout.kind))
-		Frost.with_attacker(game, slot, ScoutBehavior.release.bind(game, scout, definition, now, scout.get("attack", {}), int(scout.windup)))
+		game.tactics.resolve_attack_from(slot, ScoutBehavior.release.bind(game, scout, definition, now, scout.get("attack", {}), int(scout.windup)))
 		if not game.participation.active():
 			return
 		bridge.credit_hits(slot, before)

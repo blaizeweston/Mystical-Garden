@@ -1,4 +1,5 @@
 extends SceneTree
+const Effects = preload("res://enemy_affinity_effects.gd")
 const WeaponEventCase = preload("res://tests/support/weapon_event_case.gd")
 const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
@@ -113,15 +114,15 @@ func run() -> void:
 		check(not cast.is_empty(),"native B prepares Thorn Line")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
-			check(is_equal_approx(game.tactics.memory.get(Thorn.SLOW,0.0),q.slow) and game.enemy_health()==500,"existing occupant is immediately slowed with no separate impact damage")
+			check(is_equal_approx(Effects.read(game,-1).get(Thorn.SLOW,0.0),q.slow) and game.enemy_health()==500,"existing occupant is immediately slowed with no separate impact damage")
 			var original: Vector3=game.tactics.position
 			game.tactics.position=Vector3(0,0,-3.4)
 			Thorn.tick(game,Clock.advance(game,.5),now)
-			check(not game.tactics.memory.has(Thorn.SLOW) and game.tactics.memory.has(Thorn.BLEED),"exit removes field slow alone")
+			check(not Effects.read(game,-1).has(Thorn.SLOW) and Effects.read(game,-1).has(Thorn.BLEED),"exit removes field slow alone")
 			game.tactics.position=original
 			game.encounter.register_scout(game.make_scout(0,original+Vector3.RIGHT,0))
 			Thorn.tick(game,Clock.advance(game,.4),now)
-			check(game.enemy_health()==500-floori(q.tick_hp*.25) and game.encounter.scout(0).has(Thorn.BLEED),"re-entry maintains original tick and a later entrant receives its own wound")
+			check(game.enemy_health()==500-floori(q.tick_hp*.25) and Effects.read(game,0).has(Thorn.BLEED),"re-entry maintains original tick and a later entrant receives its own wound")
 			check(Thorn.hints(game).size()==1 and game.battlefield.clear_line(Vector3.ZERO,original),"replicated shape leaves ally/navigation routes open")
 		reset(p)
 		p.secondary=part
@@ -182,12 +183,12 @@ func run() -> void:
 	for key in ["first","second"]:
 		ordinary.publish(game,"actual_block","ward",key,now,{"center":point})
 	refined.publish(game,"actual_block","ward","other",now,{"center":point+Vector3.RIGHT*1.8})
-	check(game.tactics.memory.get(Thorn.BLEED,{}).get("contributors",{}).size()==2 and is_equal_approx(Frost.motion_scale(game.tactics.memory,now),.73),"overlap resolves strongest slow and one shared wound with two contributors")
+	check(Effects.read(game,-1).get(Thorn.BLEED,{}).get("contributors",{}).size()==2 and is_equal_approx(Frost.motion_scale(game.tactics.memory,now),.73),"overlap resolves strongest slow and one shared wound with two contributors")
 	var fire:=event(1,"form","part_6","weapon_contact",now)
 	fire.publish(game,"weapon_contact","hit","leader",now,{"enemy":-1})
-	game.tactics.memory[Frost.BRITTLE]={"expires":now+10000,"slow":.08}
+	Effects.edit(game,-1)[Frost.BRITTLE]={"expires":now+10000,"slow":.08}
 	Water.cleanse(p)
-	check(game.tactics.memory.has(Fire.BURNING) and game.tactics.memory.has(Frost.BRITTLE) and game.tactics.memory.has(Thorn.BLEED),"Fire, Frost, Thorn and ordinary Slow cleanse stay independent")
+	check(Effects.read(game,-1).has(Fire.BURNING) and Effects.read(game,-1).has(Frost.BRITTLE) and Effects.read(game,-1).has(Thorn.BLEED),"Fire, Frost, Thorn and ordinary Slow cleanse stay independent")
 	game.tactics.position=point+Vector3.LEFT
 	var before_bleed: int=game.enemy_health()
 	Thorn.tick(game,Clock.advance(game,.9),now)
@@ -215,7 +216,7 @@ func verify_bleed_lifecycle(player: Dictionary) -> void:
 	var elapsed := Clock.advance(game,.2)
 	var new_cast := event(1,"catalyst","part_1","class_contact",now)
 	new_cast.publish(game,"class_contact","hit","leader",now,{"enemy":-1,"point":game.tactics.position})
-	var wound: Dictionary = game.tactics.memory.get(Thorn.BLEED,{})
+	var wound: Dictionary = Effects.read(game,-1).get(Thorn.BLEED,{})
 	var contributor: Dictionary=wound.get("contributors",{}).values()[0]
 	check(int(wound.get("next",0))==elapsed+Thorn.TICK_MS
 		and PlayerLifecycle.matches(player,int(contributor.get("life",-1))),

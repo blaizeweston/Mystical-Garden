@@ -92,7 +92,7 @@ static func form_contact(game: Node,event: RefCounted,details: Dictionary,now: i
 			q.bonus_hp=roundi(float(q.bonus_hp)*amount);q.regen_per_second=roundi(float(q.regen_per_second)*amount)
 			load("res://vital_combat.gd").grant(game,event.replicated(game,q,now),event.actor,load("res://affinity_time.gd").now(game))
 		"void":
-			load("res://frost_combat.gd").damage(game,event.actor,target,maxi(1,roundi(float(q.form_hp)*amount)),now,load("res://void_affinity.gd").COLOR,true)
+			load("res://outgoing_hits.gd").affinity_and_clear(game,event.actor,target,maxi(1,roundi(float(q.form_hp)*amount)),now,load("res://void_affinity.gd").COLOR,true)
 			load("res://void_affinity.gd").queue_motion(game,event,target,details.get("origin",point),true,float(q.form_force)*amount)
 
 static func class_cast(game: Node,peer: int,skill: Dictionary,origin: Vector3,center: Vector3,radius: float,now: int,cast: Dictionary = {}) -> void:
@@ -125,7 +125,7 @@ static func class_cast(game: Node,peer: int,skill: Dictionary,origin: Vector3,ce
 		var hp:=maxi(0,roundi(Preview.effect_hp(Preview.authored_amount(float(skill.get("damage",0))))*strength))
 		for target in targets:
 			if game.persistence_session.is_blocked() or not Sources.current(game,shadow):break
-			if hp>0:load("res://frost_combat.gd").damage(game,peer,int(target),hp,now,Spirit.COLOR,true)
+			if hp>0:load("res://outgoing_hits.gd").affinity_and_clear(game,peer,int(target),hp,now,Spirit.COLOR,true)
 		var healing:=maxi(0,roundi(Preview.effect_hp(Balance.direct_heal(skill,native))*strength)) if mode=="subclass" and skill.has("heal") else 0
 		var protection: bool=mode in ["ward","guard","front_guard","counter_guard"] or bool(skill.get("ward",false))
 		var ward_ms:=roundi(Balance.protection_ms(skill,native)*strength) if mode!="subclass" else roundi(Balance.WARD_MS*strength)

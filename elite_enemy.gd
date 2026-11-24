@@ -110,7 +110,7 @@ static func resolve(game: Node,now: int) -> void:
  var epoch: int=game.participation.epoch()
  body.pos=game.tactics.position;body.blast=game.tactics.landing;body.mode=game.tactics.attack_mode;body.recovery=game.tactics.recovery_bonus
  body.rooted_until=game.tactics.rooted_until
- preload("res://frost_combat.gd").with_attacker(game,-1,preload("res://scout_behavior.gd").release.bind(game,body,definition,now))
+ game.tactics.resolve_attack_from(-1,preload("res://scout_behavior.gd").release.bind(game,body,definition,now))
  # Player damage can end the floor or restore the encounter during a save abort.
  if game.participation.epoch()!=epoch or not is_same(body,game.encounter.leader_tactics()):
   return

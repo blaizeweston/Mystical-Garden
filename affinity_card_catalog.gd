@@ -14,27 +14,189 @@ const PLAYTEST := {
 	],
 }
 
+## Reusable executable loadout requirements. A supporting tag alone cannot grant an action.
+const FROST_CORE := {"all": [
+	{"plant": {"slot": "core", "primary_affinity": "frost"}},
+	{"capability": {"producer": "core", "id": "rime_bloom", "slot": "core"}}
+]}
+const FIRE_CORE := {"all": [
+	{"plant": {"slot": "core", "primary_affinity": "fire"}},
+	{"capability": {"producer": "core", "id": "ember_wake", "slot": "core"}}
+]}
+const WATER_CORE := {"all": [
+	{"plant": {"slot": "core", "primary_affinity": "water"}},
+	{"capability": {"producer": "core", "id": "dewfall", "slot": "core"}}
+]}
+const VITAL_CORE := {"all": [
+	{"plant": {"slot": "core", "primary_affinity": "vital"}},
+	{"capability": {"producer": "core", "id": "vital_bloom", "slot": "core"}}
+]}
+const THORN_CORE := {"all": [
+	{"plant": {"slot": "core", "primary_affinity": "thorn"}},
+	{"capability": {"producer": "core", "id": "thorn_line", "slot": "core"}}
+]}
+const WOOD_CORE := {"all": [
+	{"plant": {"slot": "core", "primary_affinity": "wood"}},
+	{"capability": {"producer": "core", "id": "ironbark", "slot": "core"}}
+]}
+const STORM_CORE := {"all": [
+	{"plant": {"slot": "core", "primary_affinity": "storm"}},
+	{"capability": {"producer": "core", "id": "chain_spark", "slot": "core"}}
+]}
+const SPIRIT_CORE := {"all": [
+	{"plant": {"slot": "core", "primary_affinity": "spirit"}},
+	{"capability": {"producer": "core", "id": "phantom_step", "slot": "core"}}
+]}
+const VOID_CORE := {"all": [
+	{"plant": {"slot": "core", "primary_affinity": "void"}},
+	{"capability": {"producer": "core", "id": "gravity_well", "slot": "core"}}
+]}
+const FIRE_FORM := {"all": [
+	{"plant": {"slot": "form", "primary_affinity": "fire"}},
+	{"capability": {"producer": "form", "id": "burning_strikes", "slot": "form"}}
+]}
+const WOOD_FORM := {"all": [
+	{"plant": {"slot": "form", "primary_affinity": "wood"}},
+	{"capability": {"producer": "form", "id": "splintering_strikes", "slot": "form"}}
+]}
+const STORM_FORM := {"all": [
+	{"plant": {"slot": "form", "primary_affinity": "storm"}},
+	{"capability": {"producer": "form", "id": "arcing_strikes", "slot": "form"}}
+]}
+const VOID_FORM := {"all": [
+	{"plant": {"slot": "form", "primary_affinity": "void"}},
+	{"capability": {"producer": "form", "id": "drawing_strikes", "slot": "form"}}
+]}
+const THORN_FORM := {"all": [
+	{"plant": {"slot": "form", "primary_affinity": "thorn"}},
+	{"capability": {"producer": "form", "id": "barbed_strikes", "slot": "form"}}
+]}
+const FROST_FORM := {"all": [
+	{"plant": {"slot": "form", "primary_affinity": "frost"}},
+	{"capability": {"producer": "form", "id": "brittle_strikes", "slot": "form"}}
+]}
+const WATER_FORM := {"all": [
+	{"plant": {"slot": "form", "primary_affinity": "water"}},
+	{"capability": {"producer": "form", "id": "drenching_strikes", "slot": "form"}}
+]}
+const VITAL_FORM := {"all": [
+	{"plant": {"slot": "form", "primary_affinity": "vital"}},
+	{"capability": {"producer": "form", "id": "vital_strikes", "slot": "form"}}
+]}
+const SPIRIT_FORM := {"all": [
+	{"plant": {"slot": "form", "primary_affinity": "spirit"}},
+	{"capability": {"producer": "form", "id": "flowing_strikes", "slot": "form"}}
+]}
+const THORN_CATALYST := {"all": [
+	{"plant": {"slot": "catalyst", "primary_affinity": "thorn"}},
+	{"any": [
+		{"capability": {"producer": "catalyst", "id": "growth", "slot": "catalyst"}},
+		{"capability": {"producer": "catalyst", "id": "lingering_thicket", "slot": "catalyst"}},
+		{"capability": {"producer": "catalyst", "id": "protective_growth", "slot": "catalyst"}},
+		{"capability": {"producer": "catalyst", "id": "departure_growth", "slot": "catalyst"}}
+	]}
+]}
+const FROST_CATALYST := {"all": [
+	{"plant": {"slot": "catalyst", "primary_affinity": "frost"}},
+	{"any": [
+		{"capability": {"producer": "catalyst", "id": "brittle"}},
+		{"capability": {"producer": "catalyst", "id": "brittle_burst"}},
+		{"capability": {"producer": "catalyst", "id": "recipient_frost_response"}},
+		{"capability": {"producer": "catalyst", "id": "self_frost_response"}}
+	]}
+]}
+const FIRE_CATALYST := {"all": [
+	{"plant": {"slot": "catalyst", "primary_affinity": "fire"}},
+	{"any": [
+		{"capability": {"producer": "catalyst", "id": "burn"}},
+		{"capability": {"producer": "catalyst", "id": "ember_burst"}},
+		{"capability": {"producer": "catalyst", "id": "recipient_ember_response"}},
+		{"capability": {"producer": "catalyst", "id": "self_ember_response"}}
+	]}
+]}
+const WATER_CATALYST := {"all": [
+	{"plant": {"slot": "catalyst", "primary_affinity": "water"}},
+	{"any": [
+		{"capability": {"producer": "catalyst", "id": "drench"}},
+		{"capability": {"producer": "catalyst", "id": "radial_wash"}},
+		{"capability": {"producer": "catalyst", "id": "healing_wash"}},
+		{"capability": {"producer": "catalyst", "id": "landing_wash"}}
+	]}
+]}
+const WOOD_CATALYST := {"all": [
+	{"plant": {"slot": "catalyst", "primary_affinity": "wood"}},
+	{"any": [
+		{"capability": {"producer": "catalyst", "id": "self_bark"}},
+		{"capability": {"producer": "catalyst", "id": "radial_splinters_and_bark"}},
+		{"capability": {"producer": "catalyst", "id": "recipient_bark"}},
+		{"capability": {"producer": "catalyst", "id": "landing_bark"}}
+	]}
+]}
+const VITAL_CATALYST := {"all": [
+	{"plant": {"slot": "catalyst", "primary_affinity": "vital"}},
+	{"any": [
+		{"capability": {"producer": "catalyst", "id": "self_vitality"}},
+		{"capability": {"producer": "catalyst", "id": "radial_vitality"}},
+		{"capability": {"producer": "catalyst", "id": "recipient_vitality"}},
+		{"capability": {"producer": "catalyst", "id": "landing_vitality"}}
+	]}
+]}
+const STORM_CATALYST := {"all": [
+	{"plant": {"slot": "catalyst", "primary_affinity": "storm"}},
+	{"any": [
+		{"capability": {"producer": "catalyst", "id": "discharge"}},
+		{"capability": {"producer": "catalyst", "id": "radial_discharge"}},
+		{"capability": {"producer": "catalyst", "id": "recipient_charge"}},
+		{"capability": {"producer": "catalyst", "id": "landing_discharge"}}
+	]}
+]}
+const SPIRIT_CATALYST := {"all": [
+	{"plant": {"slot": "catalyst", "primary_affinity": "spirit"}},
+	{"any": [
+		{"capability": {"producer": "catalyst", "id": "self_stride"}},
+		{"capability": {"producer": "catalyst", "id": "radial_stride_and_trace"}},
+		{"capability": {"producer": "catalyst", "id": "recipient_stride"}},
+		{"capability": {"producer": "catalyst", "id": "departure_trace_and_landing_stride"}}
+	]}
+]}
+const VOID_CATALYST := {"all": [
+	{"plant": {"slot": "catalyst", "primary_affinity": "void"}},
+	{"any": [
+		{"capability": {"producer": "catalyst", "id": "compression"}},
+		{"capability": {"producer": "catalyst", "id": "radial_repulsion"}},
+		{"capability": {"producer": "catalyst", "id": "healing_repulsion"}},
+		{"capability": {"producer": "catalyst", "id": "landing_repulsion"}}
+	]}
+]}
+const ANY_BLEED_SOURCE := {"any": [THORN_CORE, THORN_FORM, THORN_CATALYST]}
+const ANY_BRITTLE_SOURCE := {"all": [{"plant": {"tags_all": ["frost"]}}, {"any": [FROST_CORE, FROST_FORM, FROST_CATALYST]}]}
+const ANY_BURNING_SOURCE := {"all": [{"plant": {"tags_all": ["fire"]}}, {"any": [FIRE_CORE, FIRE_FORM, FIRE_CATALYST]}]}
+const ANY_SATURATION_SOURCE := {"any": [WATER_CORE, WATER_FORM, WATER_CATALYST]}
+const ANY_BARK_SOURCE := {"any": [WOOD_CORE, WOOD_CATALYST]}
+const ANY_VITALITY_SOURCE := {"any": [VITAL_CORE, VITAL_FORM, VITAL_CATALYST]}
+const ANY_STORM_SOURCE := {"any": [
+	STORM_CORE,
+	STORM_FORM,
+	{"all": [
+		{"plant": {"slot": "catalyst", "primary_affinity": "storm"}},
+		{"any": [
+			{"capability": {"producer": "catalyst", "id": "discharge"}},
+			{"all": [
+				{"capability": {"producer": "catalyst", "id": "recipient_charge"}},
+				{"owned": {"kind": "card", "id": "relay_pulse"}}
+			]}
+		]}
+	]}
+]}
+const ANY_SPIRIT_SOURCE := {"any": [SPIRIT_CORE, SPIRIT_FORM, SPIRIT_CATALYST]}
+const ANY_VOID_SOURCE := {"any": [VOID_CORE, VOID_FORM, VOID_CATALYST]}
+const VOID_CONTROL_SOURCE := {"any": [VOID_CORE, VOID_CATALYST]}
+
 const DEFINITIONS := {
 	"rime_opening": {
 		"title": "Sharpened Petals", "scope": "core", "policy": "stackable",
 		"trigger": "Opening petal contact", "consumer": ["res://frost_combat.gd", "bloom_phase"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "core",
-		        "primary_affinity": "frost"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "core",
-		        "id": "rime_bloom",
-		        "slot": "core"
-		      }
-		    }
-		  ]
-		}, "parameter": "opening_bonus_hp",
+		"requires": FROST_CORE, "parameter": "opening_bonus_hp",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Rime Bloom's opening petals deal +%s damage.",
 		"detail": "Applies to each enemy hit by the opening petals. Closing petals and Brittle keep their usual effects.",
@@ -42,23 +204,7 @@ const DEFINITIONS := {
 	"ember_impact": {
 		"title": "Emberfront", "scope": "core", "policy": "stackable",
 		"trigger": "First Ember Wake contact per enemy", "consumer": ["res://fire_combat.gd", "on_event"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "core",
-		        "primary_affinity": "fire"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "core",
-		        "id": "ember_wake",
-		        "slot": "core"
-		      }
-		    }
-		  ]
-		}, "parameter": "impact_hp",
+		"requires": FIRE_CORE, "parameter": "impact_hp",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Ember Wake deals +%s damage on first contact with each enemy.",
 		"detail": "The bonus belongs to the trail's first impact on each enemy. Burning ticks keep their usual damage.",
@@ -66,23 +212,7 @@ const DEFINITIONS := {
 	"dewfall_impact": {
 		"title": "Driving Rain", "scope": "core", "policy": "stackable",
 		"trigger": "Dewfall curtain enemy contact", "consumer": ["res://water_combat.gd", "on_event"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "core",
-		        "primary_affinity": "water"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "core",
-		        "id": "dewfall",
-		        "slot": "core"
-		      }
-		    }
-		  ]
-		}, "parameter": "impact_hp",
+		"requires": WATER_CORE, "parameter": "impact_hp",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Dewfall deals +%s damage to each enemy its curtain hits.",
 		"detail": "The bonus applies to enemy contact. Drenched and Slow cleansing keep their usual effects.",
@@ -90,23 +220,7 @@ const DEFINITIONS := {
 	"vital_bloom_time": {
 		"title": "Lingering Blossom", "scope": "core", "policy": "stackable",
 		"trigger": "Vital Bloom grant", "consumer": ["res://vital_combat.gd", "grant"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "core",
-		        "primary_affinity": "vital"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "core",
-		        "id": "vital_bloom",
-		        "slot": "core"
-		      }
-		    }
-		  ]
-		}, "parameter": "duration_bonus_ms",
+		"requires": VITAL_CORE, "parameter": "duration_bonus_ms",
 		"values": [250, 400, 550, 700], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Vitality granted by Vital Bloom by %s seconds.",
 		"detail": "Vitality's Max HP and regeneration values stay the same. Each benefit uses its strongest active source.",
@@ -114,23 +228,7 @@ const DEFINITIONS := {
 	"thorn_line_bleed": {
 		"title": "Sawtooth Briars", "scope": "core", "policy": "stackable",
 		"trigger": "Thorn Line contributes to shared Bleed", "consumer": ["res://thorn_affinity.gd", "grow"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "core",
-		        "primary_affinity": "thorn"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "core",
-		        "id": "thorn_line",
-		        "slot": "core"
-		      }
-		    }
-		  ]
-		}, "parameter": "tick_hp",
+		"requires": THORN_CORE, "parameter": "tick_hp",
 		"values": [1, 2, 3, 4], "unit": "hp", "limit": 4,
 		"description": "Equipping Thorn Line raises your personal Bleed tick-damage cap by %s.",
 		"detail": "Core, Form and Catalyst add fractions of the same personal cap. Counts this acquired contribution once, while the matching Core is equipped. Tick interval, slow and lingering time stay the same.",
@@ -138,23 +236,7 @@ const DEFINITIONS := {
 	"ironbark_time": {
 		"title": "Seasoned Ironbark", "scope": "core", "policy": "stackable",
 		"trigger": "Ironbark armor grant", "consumer": ["res://wood_affinity.gd", "grant"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "core",
-		        "primary_affinity": "wood"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "core",
-		        "id": "ironbark",
-		        "slot": "core"
-		      }
-		    }
-		  ]
-		}, "parameter": "duration_bonus_ms",
+		"requires": WOOD_CORE, "parameter": "duration_bonus_ms",
 		"values": [250, 400, 550, 700], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Ironbark's Bark Armor by %s seconds while it has capacity.",
 		"detail": "Armor still ends when it is depleted. Absorption and armor capacity stay the same.",
@@ -162,23 +244,7 @@ const DEFINITIONS := {
 	"chain_spark_power": {
 		"title": "Gathered Thunder", "scope": "core", "policy": "stackable",
 		"trigger": "Chain Spark discharge on Core contact", "consumer": ["res://storm_affinity.gd", "on_event"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "core",
-		        "primary_affinity": "storm"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "core",
-		        "id": "chain_spark",
-		        "slot": "core"
-		      }
-		    }
-		  ]
-		}, "parameter": "initial",
+		"requires": STORM_CORE, "parameter": "initial",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Chain Spark starts with +%s damage. Later jumps use the increased damage with normal falloff.",
 		"detail": "Requires a valid first hit. The maximum number of jumps and their range stay the same.",
@@ -186,23 +252,7 @@ const DEFINITIONS := {
 	"phantom_stride_time": {
 		"title": "Lingering Footfall", "scope": "core", "policy": "stackable",
 		"trigger": "Phantom Step landing", "consumer": ["res://spirit_affinity.gd", "grant"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "core",
-		        "primary_affinity": "spirit"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "core",
-		        "id": "phantom_step",
-		        "slot": "core"
-		      }
-		    }
-		  ]
-		}, "parameter": "duration_bonus_ms",
+		"requires": SPIRIT_CORE, "parameter": "duration_bonus_ms",
 		"values": [250, 400, 550, 700], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Phantom Step's Spiritstride by %s seconds.",
 		"detail": "Granted after a successful step. Travel distance, speed bonus and trace duration stay the same.",
@@ -210,23 +260,7 @@ const DEFINITIONS := {
 	"gravity_collapse": {
 		"title": "Crushing Center", "scope": "core", "policy": "stackable",
 		"trigger": "Gravity Well collapse", "consumer": ["res://void_affinity.gd", "on_event"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "core",
-		        "primary_affinity": "void"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "core",
-		        "id": "gravity_well",
-		        "slot": "core"
-		      }
-		    }
-		  ]
-		}, "parameter": "collapse",
+		"requires": VOID_CORE, "parameter": "collapse",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Gravity Well's collapse deals +%s damage to each enemy still inside.",
 		"detail": "Applies to the single collapse following the gathering phase. Gathering strength stays the same.",
@@ -234,23 +268,7 @@ const DEFINITIONS := {
 	"burning_strikes_heat": {
 		"title": "Hotter Embers", "scope": "form", "policy": "stackable",
 		"trigger": "Burning Strikes weapon contact", "consumer": ["res://fire_combat.gd", "ignite"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "form",
-		        "primary_affinity": "fire"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "form",
-		        "id": "burning_strikes",
-		        "slot": "form"
-		      }
-		    }
-		  ]
-		}, "parameter": "stack_bonus",
+		"requires": FIRE_FORM, "parameter": "stack_bonus",
 		"values": [1, 2, 3, 4], "unit": "stacks", "limit": 4,
 		"description": "Burning Strikes applies %s additional shared Burning stacks.",
 		"detail": "Each qualifying direct basic attack contact adds the acquired stack contribution. Burning uses one shared tick/decay cadence; damage per stack and lifetime stay the same.",
@@ -258,23 +276,7 @@ const DEFINITIONS := {
 	"splinter_sharpness": {
 		"title": "Jagged Splinters", "scope": "form", "policy": "stackable",
 		"trigger": "Splintering Strikes fragment contact", "consumer": ["res://wood_affinity.gd", "splinters"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "form",
-		        "primary_affinity": "wood"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "form",
-		        "id": "splintering_strikes",
-		        "slot": "form"
-		      }
-		    }
-		  ]
-		}, "parameter": "fragment_hp",
+		"requires": WOOD_FORM, "parameter": "fragment_hp",
 		"values": [1, 2, 3, 4], "unit": "hp", "limit": 4,
 		"description": "Splintering Strikes fragments deal +%s damage to nearby secondary targets.",
 		"detail": "Fragments travel in a clear forward fan after a qualifying basic attack hit. The initial hit and trigger interval stay the same.",
@@ -282,23 +284,7 @@ const DEFINITIONS := {
 	"arc_recharge": {
 		"title": "Quick Conduction", "scope": "form", "policy": "stackable",
 		"trigger": "Arcing Strikes response on a weapon contact", "consumer": ["res://storm_affinity.gd", "on_event"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "form",
-		        "primary_affinity": "storm"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "form",
-		        "id": "arcing_strikes",
-		        "slot": "form"
-		      }
-		    }
-		  ]
-		}, "parameter": "interval_reduction_ms",
+		"requires": STORM_FORM, "parameter": "interval_reduction_ms",
 		"values": [80, 120, 160, 200], "unit": "ms", "limit": 4,
 		"description": "Arcing Strikes can trigger again %s seconds sooner after a qualifying hit.",
 		"detail": "The next eligible basic attack hit triggers the arc when it is ready. Misses spend no trigger.",
@@ -306,23 +292,7 @@ const DEFINITIONS := {
 	"drawing_pressure": {
 		"title": "Heavy Compression", "scope": "form", "policy": "stackable",
 		"trigger": "Drawing Strikes response on a weapon contact", "consumer": ["res://void_affinity.gd", "on_event"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "form",
-		        "primary_affinity": "void"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "form",
-		        "id": "drawing_strikes",
-		        "slot": "form"
-		      }
-		    }
-		  ]
-		}, "parameter": "form_hp",
+		"requires": VOID_FORM, "parameter": "form_hp",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Drawing Strikes deals +%s compression damage on its first qualifying basic attack hit.",
 		"detail": "Draw strength and the trigger interval stay the same. Valid damage still applies when the target resists movement.",
@@ -330,48 +300,15 @@ const DEFINITIONS := {
 	"catalyst_ember_heat": {
 		"title": "Heart of Cinders", "scope": "catalyst", "policy": "stackable",
 		"trigger": "Fire Catalyst response applies Burning", "consumer": ["res://fire_combat.gd", "ignite"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "catalyst",
-		        "primary_affinity": "fire"
-		      }
-		    },
-		    {
-		      "any": [
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "burn",
-		            "slot": "catalyst"
-		          }
-		        },
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "ember_burst",
-		            "slot": "catalyst"
-		          }
-		        },
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "recipient_ember_response",
-		            "slot": "catalyst"
-		          }
-		        },
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "self_ember_response",
-		            "slot": "catalyst"
-		          }
-		        }
-		      ]
-		    }
-		  ]
-		},
+		"requires": {"all": [
+			{"plant": {"slot": "catalyst", "primary_affinity": "fire"}},
+			{"any": [
+				{"capability": {"producer": "catalyst", "id": "burn", "slot": "catalyst"}},
+				{"capability": {"producer": "catalyst", "id": "ember_burst", "slot": "catalyst"}},
+				{"capability": {"producer": "catalyst", "id": "recipient_ember_response", "slot": "catalyst"}},
+				{"capability": {"producer": "catalyst", "id": "self_ember_response", "slot": "catalyst"}}
+			]}
+		]},
 		"parameter": "stack_bonus", "values": [1, 2, 3, 4], "unit": "stacks", "limit": 4,
 		"description": "Fire Catalyst applies %s additional shared Burning stacks per eligible application.",
 		"detail": "Applies only to the selected class response. The shared damage per stack, tick interval, decay and native burst damage stay the same.",
@@ -379,48 +316,15 @@ const DEFINITIONS := {
 	"catalyst_drench_time": {
 		"title": "Clinging Dew", "scope": "catalyst", "policy": "stackable",
 		"trigger": "Water Catalyst response applies Drenched", "consumer": ["res://water_combat.gd", "drench"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "catalyst",
-		        "primary_affinity": "water"
-		      }
-		    },
-		    {
-		      "any": [
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "drench",
-		            "slot": "catalyst"
-		          }
-		        },
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "radial_wash",
-		            "slot": "catalyst"
-		          }
-		        },
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "healing_wash",
-		            "slot": "catalyst"
-		          }
-		        },
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "landing_wash",
-		            "slot": "catalyst"
-		          }
-		        }
-		      ]
-		    }
-		  ]
-		},
+		"requires": {"all": [
+			{"plant": {"slot": "catalyst", "primary_affinity": "water"}},
+			{"any": [
+				{"capability": {"producer": "catalyst", "id": "drench", "slot": "catalyst"}},
+				{"capability": {"producer": "catalyst", "id": "radial_wash", "slot": "catalyst"}},
+				{"capability": {"producer": "catalyst", "id": "healing_wash", "slot": "catalyst"}},
+				{"capability": {"producer": "catalyst", "id": "landing_wash", "slot": "catalyst"}}
+			]}
+		]},
 		"parameter": "duration_bonus_ms", "values": [250, 400, 550, 700], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Drenched applied by your Water Catalyst by %s seconds.",
 		"detail": "Applies when your mapped class-ability response Drenches an enemy. The amount of attack damage reduction stays the same.",
@@ -428,48 +332,15 @@ const DEFINITIONS := {
 	"catalyst_vital_regen": {
 		"title": "Greening Chime", "scope": "catalyst", "policy": "stackable",
 		"trigger": "Vital Catalyst grants Vitality", "consumer": ["res://vital_combat.gd", "grant"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "catalyst",
-		        "primary_affinity": "vital"
-		      }
-		    },
-		    {
-		      "any": [
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "self_vitality",
-		            "slot": "catalyst"
-		          }
-		        },
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "radial_vitality",
-		            "slot": "catalyst"
-		          }
-		        },
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "recipient_vitality",
-		            "slot": "catalyst"
-		          }
-		        },
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "landing_vitality",
-		            "slot": "catalyst"
-		          }
-		        }
-		      ]
-		    }
-		  ]
-		},
+		"requires": {"all": [
+			{"plant": {"slot": "catalyst", "primary_affinity": "vital"}},
+			{"any": [
+				{"capability": {"producer": "catalyst", "id": "self_vitality", "slot": "catalyst"}},
+				{"capability": {"producer": "catalyst", "id": "radial_vitality", "slot": "catalyst"}},
+				{"capability": {"producer": "catalyst", "id": "recipient_vitality", "slot": "catalyst"}},
+				{"capability": {"producer": "catalyst", "id": "landing_vitality", "slot": "catalyst"}}
+			]}
+		]},
 		"parameter": "regen_per_second", "values": [1, 2, 3, 4], "unit": "hp", "limit": 4,
 		"description": "Vitality granted by your Vital Catalyst restores +%s HP per second.",
 		"detail": "The strongest active regeneration source applies. Max HP and Vitality's duration stay the same.",
@@ -477,48 +348,15 @@ const DEFINITIONS := {
 	"catalyst_bark_time": {
 		"title": "Enduring Bark", "scope": "catalyst", "policy": "stackable",
 		"trigger": "Wood Catalyst grants Bark Armor", "consumer": ["res://wood_affinity.gd", "grant"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "catalyst",
-		        "primary_affinity": "wood"
-		      }
-		    },
-		    {
-		      "any": [
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "self_bark",
-		            "slot": "catalyst"
-		          }
-		        },
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "radial_splinters_and_bark",
-		            "slot": "catalyst"
-		          }
-		        },
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "recipient_bark",
-		            "slot": "catalyst"
-		          }
-		        },
-		        {
-		          "capability": {
-		            "producer": "catalyst",
-		            "id": "landing_bark",
-		            "slot": "catalyst"
-		          }
-		        }
-		      ]
-		    }
-		  ]
-		},
+		"requires": {"all": [
+			{"plant": {"slot": "catalyst", "primary_affinity": "wood"}},
+			{"any": [
+				{"capability": {"producer": "catalyst", "id": "self_bark", "slot": "catalyst"}},
+				{"capability": {"producer": "catalyst", "id": "radial_splinters_and_bark", "slot": "catalyst"}},
+				{"capability": {"producer": "catalyst", "id": "recipient_bark", "slot": "catalyst"}},
+				{"capability": {"producer": "catalyst", "id": "landing_bark", "slot": "catalyst"}}
+			]}
+		]},
 		"parameter": "duration_bonus_ms", "values": [250, 400, 550, 700], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Bark Armor granted by your Wood Catalyst by %s seconds while it has capacity.",
 		"detail": "Armor still ends when depleted. Absorption and armor capacity stay the same.",
@@ -526,21 +364,10 @@ const DEFINITIONS := {
 	"quake_impact": {
 		"title": "Deep Fault", "scope": "class", "policy": "stackable",
 		"trigger": "Native Root Quake hit", "consumer": ["res://outgoing_hits.gd", "skill_targets"],
-		"requires": {
-		  "all": [
-		    {
-		      "class": "warden"
-		    },
-		    {
-		      "capability": {
-		        "producer": "class",
-		        "id": "Root Quake",
-		        "mode": "quake",
-		        "slot": "r"
-		      }
-		    }
-		  ]
-		}, "parameter": "damage",
+		"requires": {"all": [
+			{"class": "warden"},
+			{"capability": {"producer": "class", "id": "Root Quake", "mode": "quake", "slot": "r"}}
+		]}, "parameter": "damage",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Root Quake deals +%s damage per hit.",
 		"detail": "Applies to Root Quake's native hits. Aftershock and Catalyst damage stay the same.",
@@ -548,21 +375,10 @@ const DEFINITIONS := {
 	"nova_impact": {
 		"title": "Heavy Spores", "scope": "class", "policy": "stackable",
 		"trigger": "Native Spore Nova hit", "consumer": ["res://outgoing_hits.gd", "skill_targets"],
-		"requires": {
-		  "all": [
-		    {
-		      "class": "weaver"
-		    },
-		    {
-		      "capability": {
-		        "producer": "class",
-		        "id": "Spore Nova",
-		        "mode": "nova",
-		        "slot": "r"
-		      }
-		    }
-		  ]
-		}, "parameter": "damage",
+		"requires": {"all": [
+			{"class": "weaver"},
+			{"capability": {"producer": "class", "id": "Spore Nova", "mode": "nova", "slot": "r"}}
+		]}, "parameter": "damage",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Spore Nova deals +%s damage per hit.",
 		"detail": "Applies to Spore Nova's native hits, including valid hits in Symbiotic Nova's bonus area. Secondary bursts stay the same.",
@@ -570,21 +386,10 @@ const DEFINITIONS := {
 	"snare_root_time": {
 		"title": "Clinging Brambles", "scope": "class", "policy": "stackable",
 		"trigger": "Bramble Snare trap contact", "consumer": ["res://combat_traits.gd", "trip_snare"],
-		"requires": {
-		  "all": [
-		    {
-		      "class": "ranger"
-		    },
-		    {
-		      "capability": {
-		        "producer": "class",
-		        "id": "Bramble Snare",
-		        "mode": "snare",
-		        "slot": "r"
-		      }
-		    }
-		  ]
-		}, "parameter": "bind",
+		"requires": {"all": [
+			{"class": "ranger"},
+			{"capability": {"producer": "class", "id": "Bramble Snare", "mode": "snare", "slot": "r"}}
+		]}, "parameter": "bind",
 		"values": [150, 250, 350, 450], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Bramble Snare's roots by %s seconds.",
 		"detail": "The trap must catch an enemy that can be rooted. Trap lifetime and damage stay the same.",
@@ -592,21 +397,10 @@ const DEFINITIONS := {
 	"siphon_impact": {
 		"title": "Harvest Edge", "scope": "class", "policy": "stackable",
 		"trigger": "Native Siphon Cut primary hit", "consumer": ["res://outgoing_hits.gd", "skill_targets"],
-		"requires": {
-		  "all": [
-		    {
-		      "class": "reaper"
-		    },
-		    {
-		      "capability": {
-		        "producer": "class",
-		        "id": "Siphon Cut",
-		        "mode": "siphon",
-		        "slot": "r"
-		      }
-		    }
-		  ]
-		}, "parameter": "damage",
+		"requires": {"all": [
+			{"class": "reaper"},
+			{"capability": {"producer": "class", "id": "Siphon Cut", "mode": "siphon", "slot": "r"}}
+		]}, "parameter": "damage",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Siphon Cut's primary hit deals +%s damage.",
 		"detail": "Applies to the primary victim. Siphon Cut's native healing and secondary hits stay the same.",
@@ -614,21 +408,10 @@ const DEFINITIONS := {
 	"chime_ward_time": {
 		"title": "Lasting Resonance", "scope": "class", "policy": "stackable",
 		"trigger": "Warding Chime native Ward grant", "consumer": ["res://native_class_actions.gd", "cast"],
-		"requires": {
-		  "all": [
-		    {
-		      "class": "oracle"
-		    },
-		    {
-		      "capability": {
-		        "producer": "class",
-		        "id": "Warding Chime",
-		        "mode": "ward",
-		        "slot": "r"
-		      }
-		    }
-		  ]
-		}, "parameter": "ward_ms",
+		"requires": {"all": [
+			{"class": "oracle"},
+			{"capability": {"producer": "class", "id": "Warding Chime", "mode": "ward", "slot": "r"}}
+		]}, "parameter": "ward_ms",
 		"values": [100, 200, 300, 400], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Warding Chime's native Wards by %s seconds.",
 		"detail": "Applies to eligible recipients of Warding Chime. Ward charges and Catalyst responses stay the same.",
@@ -636,12 +419,7 @@ const DEFINITIONS := {
 	"ordinary_weapon_damage": {
 		"title": "Honed Strikes", "scope": "weapon", "policy": "stackable",
 		"trigger": "Ordinary attack damage roll", "consumer": ["res://weapon_attack_world.gd", "capture_attack"],
-		"requires": {
-		  "capability": {
-		    "producer": "weapon",
-		    "id": "strike"
-		  }
-		}, "parameter": "strike_damage",
+		"requires": {"capability": {"producer": "weapon", "id": "strike"}}, "parameter": "strike_damage",
 		"values": [1, 2, 3, 4], "unit": "hp", "limit": 4,
 		"description": "Basic attacks gain +%s damage.",
 		"detail": "Adds to the damage roll before attack delivery and mitigation. Applies to the weapon roll used by basic attacks.",
@@ -649,12 +427,7 @@ const DEFINITIONS := {
 	"ordinary_weapon_interval": {
 		"title": "Light Grip", "scope": "weapon", "policy": "stackable",
 		"trigger": "Ordinary attack interval begins", "consumer": ["res://weapon_attack_world.gd", "capture_attack"],
-		"requires": {
-		  "capability": {
-		    "producer": "weapon",
-		    "id": "strike"
-		  }
-		}, "parameter": "strike_interval",
+		"requires": {"capability": {"producer": "weapon", "id": "strike"}}, "parameter": "strike_interval",
 		"values": [20, 35, 50, 65], "unit": "ms", "limit": 4,
 		"description": "Increases basic attack speed.",
 		"detail": "Copies add their reductions to the time between basic attacks. The displayed attack speed comes from the resulting interval.",
@@ -662,41 +435,21 @@ const DEFINITIONS := {
 	"run_health": {
 		"title": "Hardy Frame", "scope": "general", "policy": "stackable",
 		"trigger": "Maximum health resolves for the current expedition", "consumer": ["res://expedition_life.gd", "native_maximum"],
-		"requires": {
-		  "all": []
-		}, "parameter": "max_hp", "values": [3, 5, 7, 9], "unit": "hp", "limit": 4,
+		"requires": {"all": []}, "parameter": "max_hp", "values": [3, 5, 7, 9], "unit": "hp", "limit": 4,
 		"description": "Gain %s Max HP for this expedition. Current health is unchanged on acquisition.",
 		"detail": "Adds to your expedition Max HP. This upgrade ends when you leave the expedition.",
 	},
 	"run_dodge_recovery": {
 		"title": "Quick Footing", "scope": "general", "policy": "stackable",
 		"trigger": "Dodge recovery begins", "consumer": ["res://game.gd", "dodge_player"],
-		"requires": {
-		  "all": []
-		}, "parameter": "dodge_interval", "values": [45, 70, 95, 120], "unit": "ms", "limit": 4,
+		"requires": {"all": []}, "parameter": "dodge_interval", "values": [45, 70, 95, 120], "unit": "ms", "limit": 4,
 		"description": "Reduces your dodge cooldown by %s seconds.",
 		"detail": "Shortens the cooldown assigned by a dodge. Dodge distance and movement rules stay the same.",
 	},
 	"dew_shelter": {
 		"title": "Dew Shelter", "scope": "core", "policy": "unique",
 		"trigger": "Living ally touched by Dewfall", "consumer": ["res://water_combat.gd", "on_event"],
-		"requires": {
-		  "all": [
-		    {
-		      "plant": {
-		        "slot": "core",
-		        "primary_affinity": "water"
-		      }
-		    },
-		    {
-		      "capability": {
-		        "producer": "core",
-		        "id": "dewfall",
-		        "slot": "core"
-		      }
-		    }
-		  ]
-		}, "grants": ["dew_shelter"],
+		"requires": WATER_CORE, "grants": ["dew_shelter"],
 		"parameter": "shelter_ward_ms",
 		"fixed": 1200, "unit": "ms", "limit": 1,
 		"description": "Dewfall gives living allies it touches a one-charge Ward for %s seconds.",
@@ -705,32 +458,12 @@ const DEFINITIONS := {
 	"echoing_growth": {
 		"title": "Echoing Growth", "scope": "class", "policy": "unique",
 		"trigger": "Native Spore Nova hits inside the owner’s active Cultivate Bloom", "consumer": ["res://affinity_cards.gd", "bloom_echo"],
-		"requires": {
-		  "all": [
-		    {
-		      "class": "weaver"
-		    },
-		    {
-		      "capability": {
-		        "producer": "class",
-		        "id": "Spore Nova",
-		        "mode": "nova",
-		        "slot": "r"
-		      }
-		    },
-		    {
-		      "focus": "bloomcaller"
-		    },
-		    {
-		      "capability": {
-		        "producer": "class",
-		        "id": "Cultivate Bloom",
-		        "slot": "q",
-		        "field": "growth"
-		      }
-		    }
-		  ]
-		},
+		"requires": {"all": [
+			{"class": "weaver"},
+			{"capability": {"producer": "class", "id": "Spore Nova", "mode": "nova", "slot": "r"}},
+			{"focus": "bloomcaller"},
+			{"capability": {"producer": "class", "id": "Cultivate Bloom", "slot": "q", "field": "growth"}}
+		]},
 		"grants": ["echoing_growth"],
 		"parameter": "bloom_echo_hp", "fixed": 10, "unit": "hp", "limit": 1,
 		"description": "When Spore Nova damages an enemy in your Cultivate Bloom, the bloom deals %s secondary damage to eligible enemies inside.",
@@ -747,23 +480,7 @@ const DEFINITIONS := {
 	    "res://thorn_affinity.gd",
 	    "apply_occupancy"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "thorn"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "thorn_line",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": THORN_CORE,
 	  "label": "Bleed buildup per application",
 	  "parameter": "buildup_percent",
 	  "unit": "percent",
@@ -787,23 +504,7 @@ const DEFINITIONS := {
 	    "res://thorn_affinity.gd",
 	    "release"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "thorn"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "thorn_line",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": THORN_CORE,
 	  "label": "Thorn Line extension per side",
 	  "parameter": "coverage_cm",
 	  "unit": "cm",
@@ -827,23 +528,7 @@ const DEFINITIONS := {
 	    "res://thorn_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "thorn"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "barbed_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": THORN_FORM,
 	  "label": "Extra Bleed per basic hit",
 	  "parameter": "direct_bleed_percent",
 	  "unit": "percent",
@@ -867,23 +552,7 @@ const DEFINITIONS := {
 	    "res://thorn_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "thorn"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "barbed_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": THORN_FORM,
 	  "label": "Buildup per successive hit",
 	  "parameter": "streak_bleed_percent",
 	  "unit": "percent",
@@ -910,23 +579,7 @@ const DEFINITIONS := {
 	    "res://thorn_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "thorn"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "barbed_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": THORN_FORM,
 	  "label": "Opening buildup",
 	  "parameter": "opening_bleed_percent",
 	  "unit": "percent",
@@ -950,48 +603,7 @@ const DEFINITIONS := {
 	    "res://thorn_affinity.gd",
 	    "apply_occupancy"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "thorn"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "growth",
-	              "slot": "catalyst"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "lingering_thicket",
-	              "slot": "catalyst"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "protective_growth",
-	              "slot": "catalyst"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "departure_growth",
-	              "slot": "catalyst"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": THORN_CATALYST,
 	  "label": "Bleed buildup per class application",
 	  "parameter": "buildup_percent",
 	  "unit": "percent",
@@ -1015,48 +627,7 @@ const DEFINITIONS := {
 	    "res://thorn_affinity.gd",
 	    "apply_occupancy"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "thorn"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "growth",
-	              "slot": "catalyst"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "lingering_thicket",
-	              "slot": "catalyst"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "protective_growth",
-	              "slot": "catalyst"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "departure_growth",
-	              "slot": "catalyst"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": THORN_CATALYST,
 	  "label": "Prepared direct damage",
 	  "parameter": "momentum_hp",
 	  "unit": "hp",
@@ -1083,86 +654,7 @@ const DEFINITIONS := {
 	    "res://thorn_affinity.gd",
 	    "apply_occupancy"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "thorn"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "thorn_line",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "thorn"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "barbed_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "thorn"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "growth",
-	                  "slot": "catalyst"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "lingering_thicket",
-	                  "slot": "catalyst"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "protective_growth",
-	                  "slot": "catalyst"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "departure_growth",
-	                  "slot": "catalyst"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BLEED_SOURCE,
 	  "label": "Personal Bleed tick cap bonus",
 	  "parameter": "shared_potency_hp",
 	  "unit": "hp",
@@ -1186,86 +678,7 @@ const DEFINITIONS := {
 	    "res://thorn_affinity.gd",
 	    "apply_occupancy"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "thorn"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "thorn_line",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "thorn"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "barbed_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "thorn"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "growth",
-	                  "slot": "catalyst"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "lingering_thicket",
-	                  "slot": "catalyst"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "protective_growth",
-	                  "slot": "catalyst"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "departure_growth",
-	                  "slot": "catalyst"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BLEED_SOURCE,
 	  "label": "Bleed retention duration",
 	  "parameter": "bleed_duration_ms",
 	  "unit": "ms",
@@ -1289,86 +702,7 @@ const DEFINITIONS := {
 	    "res://thorn_affinity.gd",
 	    "on_death"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "thorn"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "thorn_line",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "thorn"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "barbed_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "thorn"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "growth",
-	                  "slot": "catalyst"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "lingering_thicket",
-	                  "slot": "catalyst"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "protective_growth",
-	                  "slot": "catalyst"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "departure_growth",
-	                  "slot": "catalyst"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BLEED_SOURCE,
 	  "label": "Death burst damage scaling",
 	  "parameter": "death_burst_percent",
 	  "unit": "percent",
@@ -1396,86 +730,7 @@ const DEFINITIONS := {
 	    "res://card_active_actions.gd",
 	    "command"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "thorn"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "thorn_line",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "thorn"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "barbed_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "thorn"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "growth",
-	                  "slot": "catalyst"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "lingering_thicket",
-	                  "slot": "catalyst"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "protective_growth",
-	                  "slot": "catalyst"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "departure_growth",
-	                  "slot": "catalyst"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BLEED_SOURCE,
 	  "parameter": "bloodletting_unlock",
 	  "unit": "unlock",
 	  "limit": 1,
@@ -1504,23 +759,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "apply"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "frost"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "rime_bloom",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": FROST_CORE,
 	  "label": "Core shatter potency",
 	  "parameter": "source_shatter_hp",
 	  "unit": "hp",
@@ -1544,23 +783,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "bloom_phase"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "frost"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "rime_bloom",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": FROST_CORE,
 	  "label": "Additional closing stacks",
 	  "parameter": "closing_stacks",
 	  "unit": "stacks",
@@ -1584,23 +807,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "apply"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "frost"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "brittle_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": FROST_FORM,
 	  "label": "Basic-hit shatter potency",
 	  "parameter": "source_shatter_hp",
 	  "unit": "hp",
@@ -1624,23 +831,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "frost"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "brittle_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": FROST_FORM,
 	  "label": "Additional stack credit per hit",
 	  "parameter": "extra_stack_milli",
 	  "unit": "milli_stacks",
@@ -1664,23 +855,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "ordinary_bonus"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "frost"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "brittle_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": FROST_FORM,
 	  "label": "Direct damage per existing stack",
 	  "parameter": "precision_hp_per_stack",
 	  "unit": "hp",
@@ -1704,44 +879,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "apply"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "frost"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "brittle"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "brittle_burst"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_frost_response"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "self_frost_response"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": FROST_CATALYST,
 	  "label": "Class-action shatter potency",
 	  "parameter": "source_shatter_hp",
 	  "unit": "hp",
@@ -1765,44 +903,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "apply"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "frost"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "brittle"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "brittle_burst"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_frost_response"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "self_frost_response"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": FROST_CATALYST,
 	  "label": "Neighboring stack potency",
 	  "parameter": "side_shatter_percent",
 	  "unit": "percent",
@@ -1829,44 +930,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "apply"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "frost"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "brittle"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "brittle_burst"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_frost_response"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "self_frost_response"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": FROST_CATALYST,
 	  "label": "Prepared shatter potency",
 	  "parameter": "rhythm_shatter_hp",
 	  "unit": "hp",
@@ -1893,93 +957,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "apply"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "tags_all": [
-	            "frost"
-	          ]
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "rime_bloom",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "brittle_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "brittle"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "brittle_burst"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_frost_response"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "self_frost_response"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BRITTLE_SOURCE,
 	  "label": "Personal shatter potency bonus",
 	  "parameter": "shared_potency_hp",
 	  "unit": "hp",
@@ -2003,93 +981,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "apply"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "tags_all": [
-	            "frost"
-	          ]
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "rime_bloom",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "brittle_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "brittle"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "brittle_burst"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_frost_response"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "self_frost_response"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BRITTLE_SOURCE,
 	  "label": "Slow per Brittle stack",
 	  "parameter": "slow_bonus_percent",
 	  "unit": "percent",
@@ -2113,93 +1005,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "rupture_effects"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "tags_all": [
-	            "frost"
-	          ]
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "rime_bloom",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "brittle_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "brittle"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "brittle_burst"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_frost_response"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "self_frost_response"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BRITTLE_SOURCE,
 	  "label": "Rupture root duration",
 	  "parameter": "rupture_root_ms",
 	  "unit": "ms",
@@ -2223,93 +1029,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "rupture_effects"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "tags_all": [
-	            "frost"
-	          ]
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "rime_bloom",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "brittle_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "brittle"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "brittle_burst"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_frost_response"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "self_frost_response"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BRITTLE_SOURCE,
 	  "label": "Area damage per rupture",
 	  "parameter": "shatterwave_percent",
 	  "unit": "percent",
@@ -2336,93 +1056,7 @@ const DEFINITIONS := {
 	    "res://frost_combat.gd",
 	    "rupture_effects"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "tags_all": [
-	            "frost"
-	          ]
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "rime_bloom",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "brittle_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "frost"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "brittle"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "brittle_burst"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_frost_response"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "self_frost_response"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BRITTLE_SOURCE,
 	  "parameter": "avalanche_unlock",
 	  "unit": "unlock",
 	  "limit": 1,
@@ -2447,23 +1081,7 @@ const DEFINITIONS := {
 	    "res://fire_combat.gd",
 	    "ignite"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "fire"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "ember_wake",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": FIRE_CORE,
 	  "label": "Burning stacks per Core application",
 	  "parameter": "stack_bonus",
 	  "unit": "stacks",
@@ -2487,23 +1105,7 @@ const DEFINITIONS := {
 	    "res://fire_combat.gd",
 	    "field"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "fire"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "ember_wake",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": FIRE_CORE,
 	  "label": "Trail duration bonus",
 	  "parameter": "field_duration_ms",
 	  "unit": "ms",
@@ -2527,23 +1129,7 @@ const DEFINITIONS := {
 	    "res://fire_combat.gd",
 	    "ignite"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "fire"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "burning_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": FIRE_FORM,
 	  "label": "Extra stacks per successive attack",
 	  "parameter": "stoking_stacks",
 	  "unit": "stacks",
@@ -2570,23 +1156,7 @@ const DEFINITIONS := {
 	    "res://fire_combat.gd",
 	    "tempo_percent"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "fire"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "burning_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": FIRE_FORM,
 	  "label": "Attack speed per sequence step",
 	  "parameter": "tempo_percent",
 	  "unit": "percent",
@@ -2613,44 +1183,7 @@ const DEFINITIONS := {
 	    "res://fire_combat.gd",
 	    "ignite"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "fire"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "burn"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "ember_burst"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_ember_response"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "self_ember_response"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": FIRE_CATALYST,
 	  "label": "Extra stacks against Burning enemies",
 	  "parameter": "burning_target_stacks",
 	  "unit": "stacks",
@@ -2674,44 +1207,7 @@ const DEFINITIONS := {
 	    "res://fire_combat.gd",
 	    "ignite"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "fire"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "burn"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "ember_burst"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_ember_response"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "self_ember_response"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": FIRE_CATALYST,
 	  "label": "Nearby stack application strength",
 	  "parameter": "resonance_percent",
 	  "unit": "percent",
@@ -2738,93 +1234,7 @@ const DEFINITIONS := {
 	    "res://fire_combat.gd",
 	    "advance"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "tags_all": [
-	            "fire"
-	          ]
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "fire"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "ember_wake",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "fire"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "burning_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "fire"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "burn"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "ember_burst"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_ember_response"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "self_ember_response"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BURNING_SOURCE,
 	  "label": "Decay efficiency",
 	  "parameter": "retention_rating",
 	  "unit": "percent",
@@ -2848,93 +1258,7 @@ const DEFINITIONS := {
 	    "res://fire_combat.gd",
 	    "ignite"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "tags_all": [
-	            "fire"
-	          ]
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "fire"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "ember_wake",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "fire"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "burning_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "fire"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "burn"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "ember_burst"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_ember_response"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "self_ember_response"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BURNING_SOURCE,
 	  "label": "Burning stacks per application",
 	  "parameter": "stack_bonus",
 	  "unit": "stacks",
@@ -2958,93 +1282,7 @@ const DEFINITIONS := {
 	    "res://fire_combat.gd",
 	    "flashover"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "tags_all": [
-	            "fire"
-	          ]
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "fire"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "ember_wake",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "fire"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "burning_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "fire"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "burn"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "ember_burst"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_ember_response"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "self_ember_response"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BURNING_SOURCE,
 	  "label": "Damage per consumed Burning stack",
 	  "parameter": "flashover_percent",
 	  "unit": "percent",
@@ -3075,93 +1313,7 @@ const DEFINITIONS := {
 	    "res://fire_combat.gd",
 	    "spread"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "tags_all": [
-	            "fire"
-	          ]
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "fire"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "ember_wake",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "fire"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "burning_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "fire"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "burn"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "ember_burst"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_ember_response"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "self_ember_response"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BURNING_SOURCE,
 	  "parameter": "wildfire_unlock",
 	  "unit": "unlock",
 	  "limit": 1,
@@ -3189,23 +1341,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "water"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "dewfall",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WATER_CORE,
 	  "parameter": "saturation_bonus",
 	  "label": "Gathering Clouds contribution",
 	  "unit": "pressure",
@@ -3230,23 +1366,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "water"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "dewfall",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WATER_CORE,
 	  "parameter": "width_cm",
 	  "label": "Widening Curtain contribution",
 	  "unit": "cm",
@@ -3271,23 +1391,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "water"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "dewfall",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WATER_CORE,
 	  "parameter": "direct_heal_hp",
 	  "label": "Restorative Rain contribution",
 	  "unit": "healing_hp",
@@ -3312,23 +1416,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "water"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "drenching_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WATER_FORM,
 	  "parameter": "saturation_bonus",
 	  "label": "Saturating Strikes contribution",
 	  "unit": "pressure",
@@ -3353,23 +1441,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "water"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "drenching_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WATER_FORM,
 	  "parameter": "sequence_saturation",
 	  "label": "Rolling Current contribution",
 	  "unit": "pressure",
@@ -3396,23 +1468,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "ordinary_bonus"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "water"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "drenching_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WATER_FORM,
 	  "parameter": "pressure_hit_hp",
 	  "label": "Pressure Point contribution",
 	  "unit": "hp",
@@ -3439,23 +1495,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "water"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "drenching_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WATER_FORM,
 	  "parameter": "prepared_heal_hp",
 	  "label": "Refreshing Strikes contribution",
 	  "unit": "healing_hp",
@@ -3482,44 +1522,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "water"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "drench"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "radial_wash"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "healing_wash"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "landing_wash"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": WATER_CATALYST,
 	  "parameter": "saturation_bonus",
 	  "label": "Tidal Resonance contribution",
 	  "unit": "pressure",
@@ -3544,38 +1547,14 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "water"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "radial_wash"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "healing_wash"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "landing_wash"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": {"all": [
+			{"plant": {"slot": "catalyst", "primary_affinity": "water"}},
+			{"any": [
+				{"capability": {"producer": "catalyst", "id": "radial_wash"}},
+				{"capability": {"producer": "catalyst", "id": "healing_wash"}},
+				{"capability": {"producer": "catalyst", "id": "landing_wash"}}
+			]}
+		]},
 	  "parameter": "cleanse_radius_cm",
 	  "label": "Cleansing Response contribution",
 	  "unit": "cm",
@@ -3600,82 +1579,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "dewfall",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "drenching_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "drench"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "healing_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_wash"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_SATURATION_SOURCE,
 	  "parameter": "surge_hp",
 	  "label": "Crushing Surf contribution",
 	  "unit": "hp",
@@ -3700,82 +1604,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "dewfall",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "drenching_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "drench"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "healing_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_wash"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_SATURATION_SOURCE,
 	  "parameter": "surge_heal_hp",
 	  "label": "Restorative Surge contribution",
 	  "unit": "healing_hp",
@@ -3800,82 +1629,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "dewfall",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "drenching_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "drench"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "healing_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_wash"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_SATURATION_SOURCE,
 	  "parameter": "surge_width_cm",
 	  "label": "Wide Wake contribution",
 	  "unit": "cm",
@@ -3900,82 +1654,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "dewfall",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "drenching_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "drench"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "healing_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_wash"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_SATURATION_SOURCE,
 	  "parameter": "surge_ward_ms",
 	  "label": "Breakwater contribution",
 	  "unit": "ms",
@@ -4000,82 +1679,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "dewfall",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "drenching_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "drench"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "healing_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_wash"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_SATURATION_SOURCE,
 	  "parameter": "focus_percent",
 	  "label": "Focused Current contribution",
 	  "unit": "percent",
@@ -4100,82 +1704,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "dewfall",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "drenching_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "drench"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "healing_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_wash"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_SATURATION_SOURCE,
 	  "parameter": "surge_push_cm",
 	  "label": "Undertow contribution",
 	  "unit": "cm",
@@ -4200,82 +1729,7 @@ const DEFINITIONS := {
 	    "res://water_combat.gd",
 	    "drench"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "dewfall",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "drenching_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "water"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "drench"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "healing_wash"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_wash"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_SATURATION_SOURCE,
 	  "parameter": "monsoon_unlock",
 	  "label": "Monsoon contribution",
 	  "unit": "unlock",
@@ -4305,23 +1759,7 @@ const DEFINITIONS := {
 	    "res://wood_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "wood"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "ironbark",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WOOD_CORE,
 	  "parameter": "core_capacity",
 	  "label": "Thickened Growth contribution",
 	  "unit": "bark",
@@ -4346,23 +1784,7 @@ const DEFINITIONS := {
 	    "res://wood_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "wood"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "ironbark",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WOOD_CORE,
 	  "parameter": "guard_fragments",
 	  "label": "Splinterguard contribution",
 	  "unit": "fragments",
@@ -4389,23 +1811,7 @@ const DEFINITIONS := {
 	    "res://wood_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "wood"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "ironbark",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WOOD_CORE,
 	  "parameter": "activation_fragments",
 	  "label": "Bursting Canopy contribution",
 	  "unit": "fragments",
@@ -4430,23 +1836,7 @@ const DEFINITIONS := {
 	    "res://wood_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "wood"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "splintering_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WOOD_FORM,
 	  "parameter": "extra_fragments",
 	  "label": "Splinter Volley contribution",
 	  "unit": "fragments",
@@ -4471,23 +1861,7 @@ const DEFINITIONS := {
 	    "res://wood_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "wood"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "splintering_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WOOD_FORM,
 	  "parameter": "fragment_penetrations",
 	  "label": "Hardwood Tips contribution",
 	  "unit": "penetrations",
@@ -4515,23 +1889,7 @@ const DEFINITIONS := {
 	    "res://wood_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "wood"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "splintering_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": WOOD_FORM,
 	  "parameter": "concentrated_hp",
 	  "label": "Concentrated Grain contribution",
 	  "unit": "hp",
@@ -4556,22 +1914,10 @@ const DEFINITIONS := {
 	    "res://wood_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "wood"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "catalyst",
-	          "id": "self_bark"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": {"all": [
+			{"plant": {"slot": "catalyst", "primary_affinity": "wood"}},
+			{"capability": {"producer": "catalyst", "id": "self_bark"}}
+		]},
 	  "parameter": "offense_fragments",
 	  "label": "Shattering Canopy contribution",
 	  "unit": "fragments",
@@ -4596,44 +1942,7 @@ const DEFINITIONS := {
 	    "res://wood_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "wood"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "self_bark"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "radial_splinters_and_bark"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_bark"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "landing_bark"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": WOOD_CATALYST,
 	  "parameter": "catalyst_capacity",
 	  "label": "Reinforced Growth contribution",
 	  "unit": "bark",
@@ -4658,114 +1967,16 @@ const DEFINITIONS := {
 	    "res://wood_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "wood"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "ironbark",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "wood"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "self_bark"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "radial_splinters_and_bark"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_bark"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "landing_bark"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      },
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "wood"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "splintering_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "owned": {
-	              "kind": "card",
-	              "id": "splinterguard"
-	            }
-	          },
-	          {
-	            "owned": {
-	              "kind": "card",
-	              "id": "bursting_canopy"
-	            }
-	          },
-	          {
-	            "owned": {
-	              "kind": "card",
-	              "id": "shattering_canopy"
-	            }
-	          },
-	          {
-	            "owned": {
-	              "kind": "card",
-	              "id": "splinterback"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": {"all": [
+			ANY_BARK_SOURCE,
+			{"any": [
+				WOOD_FORM,
+				{"owned": {"kind": "card", "id": "splinterguard"}},
+				{"owned": {"kind": "card", "id": "bursting_canopy"}},
+				{"owned": {"kind": "card", "id": "shattering_canopy"}},
+				{"owned": {"kind": "card", "id": "splinterback"}}
+			]}
+		]},
 	  "parameter": "held_bark_percent",
 	  "label": "Heartwood Pressure contribution",
 	  "unit": "percent",
@@ -4790,65 +2001,7 @@ const DEFINITIONS := {
 	    "res://wood_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "wood"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "ironbark",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "wood"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "self_bark"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_splinters_and_bark"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "recipient_bark"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_bark"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BARK_SOURCE,
 	  "parameter": "retaliation_fragments",
 	  "label": "Splinterback contribution",
 	  "unit": "fragments",
@@ -4875,65 +2028,7 @@ const DEFINITIONS := {
 	    "res://card_active_actions.gd",
 	    "command"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "wood"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "ironbark",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "wood"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "self_bark"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_splinters_and_bark"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "recipient_bark"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_bark"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_BARK_SOURCE,
 	  "parameter": "splinterburst_unlock",
 	  "label": "Splinterburst contribution",
 	  "unit": "unlock",
@@ -4964,23 +2059,7 @@ const DEFINITIONS := {
 	    "res://vital_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "vital"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "vital_bloom",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": VITAL_CORE,
 	  "parameter": "growth_hp",
 	  "label": "Verdant Reserve contribution",
 	  "unit": "capacity_hp",
@@ -5006,23 +2085,7 @@ const DEFINITIONS := {
 	    "res://vital_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "vital"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "vital_bloom",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": VITAL_CORE,
 	  "parameter": "renewal_hp_s",
 	  "label": "Deep Renewal contribution",
 	  "unit": "regen_hp",
@@ -5047,23 +2110,7 @@ const DEFINITIONS := {
 	    "res://vital_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "vital"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "vital_bloom",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": VITAL_CORE,
 	  "parameter": "bloom_attack_hp",
 	  "label": "Blooming Strength contribution",
 	  "unit": "hp",
@@ -5089,23 +2136,7 @@ const DEFINITIONS := {
 	    "res://vital_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "vital"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "vital_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": VITAL_FORM,
 	  "parameter": "growth_hp",
 	  "label": "Growing Edge contribution",
 	  "unit": "capacity_hp",
@@ -5131,23 +2162,7 @@ const DEFINITIONS := {
 	    "res://vital_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "vital"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "vital_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": VITAL_FORM,
 	  "parameter": "renewal_hp_s",
 	  "label": "Sustaining Strikes contribution",
 	  "unit": "regen_hp",
@@ -5172,23 +2187,7 @@ const DEFINITIONS := {
 	    "res://vital_combat.gd",
 	    "ordinary_bonus"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "vital"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "vital_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": VITAL_FORM,
 	  "parameter": "max_hp_basis_points",
 	  "label": "Flourishing Assault contribution",
 	  "unit": "basis_points",
@@ -5213,23 +2212,7 @@ const DEFINITIONS := {
 	    "res://vital_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "vital"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "vital_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": VITAL_FORM,
 	  "parameter": "duration_bonus_ms",
 	  "label": "Persistent Growth contribution",
 	  "unit": "ms",
@@ -5255,44 +2238,7 @@ const DEFINITIONS := {
 	    "res://vital_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "vital"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "self_vitality"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "radial_vitality"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_vitality"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "landing_vitality"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": VITAL_CATALYST,
 	  "parameter": "growth_hp",
 	  "label": "Verdant Conduit contribution",
 	  "unit": "capacity_hp",
@@ -5317,44 +2263,7 @@ const DEFINITIONS := {
 	    "res://vital_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "vital"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "self_vitality"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "radial_vitality"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_vitality"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "landing_vitality"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": VITAL_CATALYST,
 	  "parameter": "vigor_attack_hp",
 	  "label": "Renewed Vigor contribution",
 	  "unit": "hp",
@@ -5381,82 +2290,7 @@ const DEFINITIONS := {
 	    "res://vital_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "vital"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "vital_bloom",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "vital"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "vital_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "vital"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "self_vitality"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_vitality"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "recipient_vitality"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_vitality"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_VITALITY_SOURCE,
 	  "parameter": "growth_all_hp",
 	  "label": "Living Reserves contribution",
 	  "unit": "capacity_hp",
@@ -5481,82 +2315,7 @@ const DEFINITIONS := {
 	    "res://vital_combat.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "vital"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "vital_bloom",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "vital"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "vital_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "vital"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "self_vitality"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_vitality"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "recipient_vitality"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_vitality"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_VITALITY_SOURCE,
 	  "parameter": "persistence_ms",
 	  "label": "Unyielding Growth contribution",
 	  "unit": "ms",
@@ -5581,82 +2340,7 @@ const DEFINITIONS := {
 	    "res://card_active_actions.gd",
 	    "command"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "vital"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "vital_bloom",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "vital"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "vital_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "vital"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "self_vitality"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_vitality"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "recipient_vitality"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_vitality"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_VITALITY_SOURCE,
 	  "parameter": "harvest_unlock",
 	  "label": "Harvest contribution",
 	  "unit": "unlock",
@@ -5686,23 +2370,7 @@ const DEFINITIONS := {
 	    "res://storm_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "storm"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "chain_spark",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": STORM_CORE,
 	  "parameter": "extra_jumps",
 	  "label": "Extended Circuit contribution",
 	  "unit": "targets",
@@ -5727,23 +2395,7 @@ const DEFINITIONS := {
 	    "res://storm_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "storm"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "chain_spark",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": STORM_CORE,
 	  "parameter": "jump_range_cm",
 	  "label": "Long Arc contribution",
 	  "unit": "cm",
@@ -5768,23 +2420,7 @@ const DEFINITIONS := {
 	    "res://storm_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "storm"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "arcing_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": STORM_FORM,
 	  "parameter": "arc",
 	  "label": "Live Wire contribution",
 	  "unit": "hp",
@@ -5809,23 +2445,7 @@ const DEFINITIONS := {
 	    "res://storm_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "storm"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "arcing_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": STORM_FORM,
 	  "parameter": "tempo_percent",
 	  "label": "Ionized Rhythm contribution",
 	  "unit": "percent",
@@ -5853,44 +2473,7 @@ const DEFINITIONS := {
 	    "res://storm_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "storm"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "discharge"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "radial_discharge"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_charge"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "landing_discharge"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": STORM_CATALYST,
 	  "parameter": "catalyst_damage_hp",
 	  "label": "Charged Casting contribution",
 	  "unit": "hp",
@@ -5915,32 +2498,13 @@ const DEFINITIONS := {
 	    "res://storm_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "storm"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "discharge"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_charge"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": {"all": [
+			{"plant": {"slot": "catalyst", "primary_affinity": "storm"}},
+			{"any": [
+				{"capability": {"producer": "catalyst", "id": "discharge"}},
+				{"capability": {"producer": "catalyst", "id": "recipient_charge"}}
+			]}
+		]},
 	  "parameter": "extra_jumps",
 	  "label": "Relay Pulse contribution",
 	  "unit": "targets",
@@ -5965,44 +2529,7 @@ const DEFINITIONS := {
 	    "res://storm_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "storm"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "discharge"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "radial_discharge"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_charge"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "landing_discharge"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": STORM_CATALYST,
 	  "parameter": "prepared_discharge_hp",
 	  "label": "Spellcharge contribution",
 	  "unit": "hp",
@@ -6029,80 +2556,7 @@ const DEFINITIONS := {
 	    "res://storm_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "storm"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "chain_spark",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "storm"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "arcing_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "storm"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "discharge"
-	                }
-	              },
-	              {
-	                "all": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_charge"
-	                    }
-	                  },
-	                  {
-	                    "owned": {
-	                      "kind": "card",
-	                      "id": "relay_pulse"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_STORM_SOURCE,
 	  "parameter": "unused_percent",
 	  "label": "Grounded Current contribution",
 	  "unit": "percent",
@@ -6127,80 +2581,7 @@ const DEFINITIONS := {
 	    "res://storm_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "storm"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "chain_spark",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "storm"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "arcing_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "storm"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "discharge"
-	                }
-	              },
-	              {
-	                "all": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_charge"
-	                    }
-	                  },
-	                  {
-	                    "owned": {
-	                      "kind": "card",
-	                      "id": "relay_pulse"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_STORM_SOURCE,
 	  "parameter": "jump_range_cm",
 	  "label": "Conductive Reach contribution",
 	  "unit": "cm",
@@ -6225,23 +2606,7 @@ const DEFINITIONS := {
 	    "res://storm_affinity.gd",
 	    "discharge"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "storm"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "chain_spark",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": STORM_CORE,
 	  "parameter": "conductor_unlock",
 	  "label": "Conductor contribution",
 	  "unit": "unlock",
@@ -6270,23 +2635,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "spirit"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "phantom_step",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": SPIRIT_CORE,
 	  "parameter": "travel_cm",
 	  "label": "Far Step contribution",
 	  "unit": "cm",
@@ -6311,23 +2660,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "spirit"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "phantom_step",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": SPIRIT_CORE,
 	  "parameter": "trace_bonus_ms",
 	  "label": "Persistent Traces contribution",
 	  "unit": "ms",
@@ -6352,23 +2685,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "spirit"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "flowing_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": SPIRIT_FORM,
 	  "parameter": "follow_hp",
 	  "label": "Ghostcut contribution",
 	  "unit": "hp",
@@ -6393,23 +2710,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "spirit"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "flowing_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": SPIRIT_FORM,
 	  "parameter": "stride_extend_ms",
 	  "label": "Flowing Edge contribution",
 	  "unit": "ms",
@@ -6434,23 +2735,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "spirit"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "flowing_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": SPIRIT_FORM,
 	  "parameter": "tempo_percent",
 	  "label": "Spectral Tempo contribution",
 	  "unit": "percent",
@@ -6478,44 +2763,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "spirit"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "self_stride"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "radial_stride_and_trace"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_stride"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "departure_trace_and_landing_stride"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": SPIRIT_CATALYST,
 	  "parameter": "stride_speed_percent",
 	  "label": "Veiled Casting contribution",
 	  "unit": "percent",
@@ -6540,44 +2788,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "spirit"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "self_stride"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "radial_stride_and_trace"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "recipient_stride"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "departure_trace_and_landing_stride"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": SPIRIT_CATALYST,
 	  "parameter": "invocation_efficiency",
 	  "label": "Flowing Invocation contribution",
 	  "unit": "percent",
@@ -6604,22 +2815,10 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "spirit"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "catalyst",
-	          "id": "self_stride"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": {"all": [
+			{"plant": {"slot": "catalyst", "primary_affinity": "spirit"}},
+			{"capability": {"producer": "catalyst", "id": "self_stride"}}
+		]},
 	  "parameter": "prepared_basic_hp",
 	  "label": "Wraith’s Followthrough contribution",
 	  "unit": "hp",
@@ -6646,82 +2845,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "phantom_step",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "flowing_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "self_stride"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_stride_and_trace"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "recipient_stride"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "departure_trace_and_landing_stride"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_SPIRIT_SOURCE,
 	  "parameter": "movement_duration_ms",
 	  "label": "Untethered Motion contribution",
 	  "unit": "ms",
@@ -6746,82 +2870,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "phantom_step",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "flowing_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "self_stride"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_stride_and_trace"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "recipient_stride"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "departure_trace_and_landing_stride"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_SPIRIT_SOURCE,
 	  "parameter": "mitigation_efficiency",
 	  "label": "Evasive Spirit contribution",
 	  "unit": "percent",
@@ -6848,82 +2897,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "phantom_step",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "flowing_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "self_stride"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_stride_and_trace"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "recipient_stride"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "departure_trace_and_landing_stride"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_SPIRIT_SOURCE,
 	  "parameter": "extra_dodge_charges",
 	  "label": "Stored Momentum contribution",
 	  "unit": "charges",
@@ -6948,82 +2922,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "phantom_step",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "flowing_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "self_stride"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_stride_and_trace"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "recipient_stride"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "departure_trace_and_landing_stride"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_SPIRIT_SOURCE,
 	  "parameter": "dodge_efficiency",
 	  "label": "Fleet Recovery contribution",
 	  "unit": "percent",
@@ -7048,102 +2947,10 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "spirit"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "phantom_step",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "spirit"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "flowing_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "spirit"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "self_stride"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "radial_stride_and_trace"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_stride"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "departure_trace_and_landing_stride"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      },
-	      {
-	        "any": [
-	          {
-	            "owned": {
-	              "kind": "card",
-	              "id": "mirrorstep"
-	            }
-	          },
-	          {
-	            "owned": {
-	              "kind": "card",
-	              "id": "wraithcast"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": {"all": [
+			ANY_SPIRIT_SOURCE,
+			{"any": [{"owned": {"kind": "card", "id": "mirrorstep"}}, {"owned": {"kind": "card", "id": "wraithcast"}}]}
+		]},
 	  "parameter": "echo_duration_ms",
 	  "label": "Lingering Echoes contribution",
 	  "unit": "ms",
@@ -7168,82 +2975,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "voluntary"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "phantom_step",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "flowing_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "spirit"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "self_stride"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_stride_and_trace"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "recipient_stride"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "departure_trace_and_landing_stride"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_SPIRIT_SOURCE,
 	  "parameter": "mirrorstep_unlock",
 	  "label": "Mirrorstep contribution",
 	  "unit": "unlock",
@@ -7270,92 +3002,7 @@ const DEFINITIONS := {
 	    "res://spirit_affinity.gd",
 	    "voluntary"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "spirit"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "phantom_step",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "spirit"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "flowing_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "spirit"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "self_stride"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "radial_stride_and_trace"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "recipient_stride"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "departure_trace_and_landing_stride"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      },
-	      {
-	        "capability": {
-	          "producer": "replica",
-	          "id": "wraithcast_skill"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": {"all": [ANY_SPIRIT_SOURCE, {"capability": {"producer": "replica", "id": "wraithcast_skill"}}]},
 	  "parameter": "wraithcast_unlock",
 	  "label": "Wraithcast contribution",
 	  "unit": "unlock",
@@ -7383,23 +3030,7 @@ const DEFINITIONS := {
 	    "res://void_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "void"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "gravity_well",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": VOID_CORE,
 	  "parameter": "well_radius_cm",
 	  "label": "Widening Well contribution",
 	  "unit": "cm",
@@ -7424,23 +3055,7 @@ const DEFINITIONS := {
 	    "res://void_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "void"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "gravity_well",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": VOID_CORE,
 	  "parameter": "gather_strength_percent",
 	  "label": "Deepening Gravity contribution",
 	  "unit": "percent",
@@ -7465,23 +3080,7 @@ const DEFINITIONS := {
 	    "res://void_affinity.gd",
 	    "ordinary_bonus"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "void"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "drawing_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": VOID_FORM,
 	  "parameter": "controlled_hit_hp",
 	  "label": "Condensed Edge contribution",
 	  "unit": "hp",
@@ -7506,23 +3105,7 @@ const DEFINITIONS := {
 	    "res://void_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "form",
-	          "primary_affinity": "void"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "form",
-	          "id": "drawing_strikes",
-	          "slot": "form"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": VOID_FORM,
 	  "parameter": "interval_reduction_ms",
 	  "label": "Compression Rhythm contribution",
 	  "unit": "ms",
@@ -7547,22 +3130,10 @@ const DEFINITIONS := {
 	    "res://void_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "void"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "catalyst",
-	          "id": "unopposed_compression"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": {"all": [
+			{"plant": {"slot": "catalyst", "primary_affinity": "void"}},
+			{"capability": {"producer": "catalyst", "id": "unopposed_compression"}}
+		]},
 	  "parameter": "class_pull_cm",
 	  "label": "Grasping Invocation contribution",
 	  "unit": "cm",
@@ -7587,44 +3158,7 @@ const DEFINITIONS := {
 	    "res://void_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "void"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "compression"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "radial_repulsion"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "healing_repulsion"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "landing_repulsion"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": VOID_CATALYST,
 	  "parameter": "catalyst_damage_hp",
 	  "label": "Dense Casting contribution",
 	  "unit": "hp",
@@ -7649,44 +3183,7 @@ const DEFINITIONS := {
 	    "res://void_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "catalyst",
-	          "primary_affinity": "void"
-	        }
-	      },
-	      {
-	        "any": [
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "compression"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "radial_repulsion"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "healing_repulsion"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "catalyst",
-	              "id": "landing_repulsion"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": VOID_CATALYST,
 	  "parameter": "prepared_compression_hp",
 	  "label": "Dark Echo contribution",
 	  "unit": "hp",
@@ -7713,65 +3210,7 @@ const DEFINITIONS := {
 	    "res://void_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "void"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "gravity_well",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "void"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "compression"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_repulsion"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "healing_repulsion"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_repulsion"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": VOID_CONTROL_SOURCE,
 	  "parameter": "control_radius_cm",
 	  "label": "Event Horizon contribution",
 	  "unit": "cm",
@@ -7796,113 +3235,7 @@ const DEFINITIONS := {
 	    "res://void_affinity.gd",
 	    "on_event"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "void"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "gravity_well",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "form",
-	                  "primary_affinity": "void"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "form",
-	                  "id": "drawing_strikes",
-	                  "slot": "form"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "catalyst",
-	                  "primary_affinity": "void"
-	                }
-	              },
-	              {
-	                "any": [
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "compression"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "radial_repulsion"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "healing_repulsion"
-	                    }
-	                  },
-	                  {
-	                    "capability": {
-	                      "producer": "catalyst",
-	                      "id": "landing_repulsion"
-	                    }
-	                  }
-	                ]
-	              }
-	            ]
-	          }
-	        ]
-	      },
-	      {
-	        "any": [
-	          {
-	            "all": [
-	              {
-	                "plant": {
-	                  "slot": "core",
-	                  "primary_affinity": "void"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "core",
-	                  "id": "gravity_well",
-	                  "slot": "core"
-	                }
-	              }
-	            ]
-	          },
-	          {
-	            "owned": {
-	              "kind": "card",
-	              "id": "singularity"
-	            }
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": {"all": [ANY_VOID_SOURCE, {"any": [VOID_CORE, {"owned": {"kind": "card", "id": "singularity"}}]}]},
 	  "parameter": "sustained_hp",
 	  "label": "Crushing Pressure contribution",
 	  "unit": "hp",
@@ -7929,23 +3262,7 @@ const DEFINITIONS := {
 	    "res://void_affinity.gd",
 	    "admit_core"
 	  ],
-	  "requires": {
-	    "all": [
-	      {
-	        "plant": {
-	          "slot": "core",
-	          "primary_affinity": "void"
-	        }
-	      },
-	      {
-	        "capability": {
-	          "producer": "core",
-	          "id": "gravity_well",
-	          "slot": "core"
-	        }
-	      }
-	    ]
-	  },
+	  "requires": VOID_CORE,
 	  "parameter": "shear_hp",
 	  "label": "Rift Shear contribution",
 	  "unit": "hp",
@@ -7974,82 +3291,7 @@ const DEFINITIONS := {
 	    "res://card_active_actions.gd",
 	    "command"
 	  ],
-	  "requires": {
-	    "any": [
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "core",
-	              "primary_affinity": "void"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "core",
-	              "id": "gravity_well",
-	              "slot": "core"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "form",
-	              "primary_affinity": "void"
-	            }
-	          },
-	          {
-	            "capability": {
-	              "producer": "form",
-	              "id": "drawing_strikes",
-	              "slot": "form"
-	            }
-	          }
-	        ]
-	      },
-	      {
-	        "all": [
-	          {
-	            "plant": {
-	              "slot": "catalyst",
-	              "primary_affinity": "void"
-	            }
-	          },
-	          {
-	            "any": [
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "compression"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_repulsion"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "healing_repulsion"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_repulsion"
-	                }
-	              }
-	            ]
-	          }
-	        ]
-	      }
-	    ]
-	  },
+	  "requires": ANY_VOID_SOURCE,
 	  "parameter": "singularity_unlock",
 	  "label": "Singularity contribution",
 	  "unit": "unlock",

@@ -1,4 +1,5 @@
 extends SceneTree
+const Effects = preload("res://enemy_affinity_effects.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -84,7 +85,7 @@ func run() -> void:
 	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 
 	game.tactics.position=Vector3(1.8,0,0)
-	game.tactics.memory.erase(Void.ALLOWANCE_STATE)
+	Effects.read(game,-1).erase(Void.ALLOWANCE_STATE)
 	p.pos=Vector3(-2,0,0)
 	p.weapon=refined
 	var escaped: Dictionary=game.make_scout(0,Vector3(1,0,1.4),1)
@@ -136,7 +137,7 @@ func run() -> void:
 	var thorns:=action(game,1,"core",thorn_part,["core_action"])
 	var floor_ms:=Clock.now(game)
 	game.tactics.position=Vector3(1.4,0,0)
-	game.tactics.memory.erase(Void.ALLOWANCE_STATE)
+	Effects.read(game,-1).erase(Void.ALLOWANCE_STATE)
 	check(thorn.grow(game,thorns,point,[shape],now),"real Thorn contact area created")
 	var trail: Dictionary={"grown":true,"field_until":floor_ms+3000,"next_maintain":floor_ms,"center":point,
 		"shapes":[shape],"stack_ready":{},"affinity_action":flames}
@@ -145,7 +146,7 @@ func run() -> void:
 	thorn.tick(game,floor_ms,now)
 	fire.field(game,trail,now)
 	var after_entry: int=game.enemy_health()
-	check(game.tactics.memory.has(thorn.SLOW) and game.tactics.memory.has(fire.BURNING) and after_entry<179,
+	check(Effects.read(game,-1).has(thorn.SLOW) and Effects.read(game,-1).has(fire.BURNING) and after_entry<179,
 		"Void displacement into real effect geometry applies Thorn occupancy and Fire entry")
 	Clock.advance(game,.09)
 	thorn.tick(game,Clock.now(game),now)
@@ -153,11 +154,11 @@ func run() -> void:
 	check(game.enemy_health()==after_entry,"no duplicate entry damage while remaining inside")
 	game.tactics.position=Vector3(3,0,0)
 	thorn.tick(game,Clock.now(game),now)
-	check(not game.tactics.memory.has(thorn.SLOW) and game.tactics.memory.has(thorn.BLEED),"leaving restores normal movement and keeps scheduled Bleed")
+	check(not Effects.read(game,-1).has(thorn.SLOW) and Effects.read(game,-1).has(thorn.BLEED),"leaving restores normal movement and keeps scheduled Bleed")
 
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(100);ally.pos=Vector3.ZERO
 	game.encounter.set_hp(-1, 200);game.tactics.position=Vector3.RIGHT
-	game.tactics.memory.erase(Void.ALLOWANCE_STATE)
+	Effects.read(game,-1).erase(Void.ALLOWANCE_STATE)
 	var earlier:=action(game,1,"catalyst",part,["actual_block"])
 	var storm_part: int=game.Items.get_item("plant_part_rare_storm_reed").legacy_part
 	var later:=action(game,2,"catalyst",storm_part,["actual_block"])

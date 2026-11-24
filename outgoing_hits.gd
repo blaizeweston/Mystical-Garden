@@ -35,6 +35,16 @@ static func affinity_world(world: Node, source_peer: int, target: int, hp: int,
 		"knockback":-NATIVE_PUSH_METRES, "trait_secondary":true, "core_hit":true, "card_secondary":card_secondary}.merged(attribution), now)
 
 
+## A standalone affinity contact also settles a newly cleared encounter. Effects
+## inside larger batches use affinity_world and let their caller settle the batch.
+static func affinity_and_clear(world: Node, source_peer: int, target: int, hp: int,
+		now: int, color: Color, card_secondary := false, attribution := {}) -> void:
+	affinity_world(world, source_peer, target, hp, now, color, card_secondary, attribution)
+	if world.encounter_cleared():
+		var recipient: int = source_peer if world.players.has(source_peer) else world.HOST
+		world.finish_combat(recipient, world.enemy_position(target))
+
+
 static func hit(source: Context, target: int, origin: Vector3, stats: Dictionary,
 		now: int, expected_token: int = -1) -> Dictionary:
 	if not source.is_current() or not source.permits_contact(stats): return {}

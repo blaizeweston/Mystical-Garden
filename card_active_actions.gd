@@ -94,23 +94,21 @@ static func command(game: Node, peer: int, player: Dictionary, action: String) -
  var forward:=Vector3(aim.x,0,aim.y).normalized()
  var target:=-2
  var best:=-INF
+ var bleed_units := 0
  for victim in range(-1,game.encounter.scout_count()):
   if not game.encounter.alive(victim):continue
   var target_point: Vector3=game.enemy_position(victim)
   var offset: Vector3=target_point-player.pos
   if offset.length()>float(tuning.range_m) or not game.battlefield.combat_sight(player.pos,target_point):continue
-  var body: Dictionary=load("res://frost_combat.gd").body(game,victim)
-  var bleed_status: Dictionary=body.get(thorn.BLEED,{})
-  if bleed_status.is_empty() or not thorn.Sources.target_current(game,victim,bleed_status):continue
-  thorn.prune(game,bleed_status,load("res://affinity_time.gd").now(game))
-  if thorn.potency_units(bleed_status)<=0:continue
+  var potency: int = thorn.current_bleed_units(game,victim)
+  if potency<=0:continue
   var dot:=offset.normalized().dot(forward) if offset.length()>.001 else 1.0
   if dot<float(tuning.min_aim_dot):continue
   var score:=dot*100.0-offset.length()
-  if score>best:best=score;target=victim
+  if score>best:
+   best=score;target=victim;bleed_units=potency
  if target== -2:return
- var bleed: Dictionary=load("res://frost_combat.gd").body(game,target)[thorn.BLEED]
- var hp:=roundi(float(thorn.potency_units(bleed))*float(tuning.damage_percent)/(100.0*thorn.Sources.UNITS_PER_HP))
+ var hp:=roundi(float(bleed_units)*float(tuning.damage_percent)/(100.0*thorn.Sources.UNITS_PER_HP))
  if hp<=0:return
  state.actions[id]={"sequence":sequence,"ready":now+int(tuning.cooldown_ms)}
  player[STATE]=state # Claim before damage/death callbacks; rollback snapshots this dictionary.

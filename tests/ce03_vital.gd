@@ -1,4 +1,5 @@
 extends SceneTree
+const Effects = preload("res://enemy_affinity_effects.gd")
 const Case=preload("res://tests/support/affinity_card_case.gd")
 const Vital=preload("res://vital_combat.gd")
 const Vitals=preload("res://player_vitals.gd")
@@ -121,7 +122,7 @@ func run():
  Active.command(g,1,p,Active.request(g,p,"bloodletting",Vector2.UP,198))
  Active.command(g,1,p,Active.request(g,p,"splinterburst",Vector2.UP,199))
  Active.command(g,1,p,Active.request(g,p,"harvest",Vector2.UP,200))
- check(p[Active.STATE].actions.size()==3 and wood.capacity(wood.live_grants(p,0))==0 and g.tactics.memory.has(thorn.BLEED) and Active.owner_state(g,p).filter(func(row):return row.id=="harvest")[0].active,"all three active transformations execute with independent state, preserving shared Bleed and using actual Bark")
+ check(p[Active.STATE].actions.size()==3 and wood.capacity(wood.live_grants(p,0))==0 and Effects.read(g,-1).has(thorn.BLEED) and Active.owner_state(g,p).filter(func(row):return row.id=="harvest")[0].active,"all three active transformations execute with independent state, preserving shared Bleed and using actual Bark")
  p[Lifecycle.STATE]=p[Lifecycle.STATE].fall()
  var stale: Dictionary=p.get(Active.STATE,{}).duplicate(true)
  Active.command(g,1,p,Active.request(g,p,"harvest",Vector2.UP,201))

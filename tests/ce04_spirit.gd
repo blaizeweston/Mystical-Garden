@@ -1,4 +1,5 @@
 extends SceneTree
+const Effects = preload("res://enemy_affinity_effects.gd")
 const Case=preload("res://tests/support/affinity_card_case.gd")
 const Spirit=preload("res://spirit_affinity.gd")
 const Replica=preload("res://spirit_replicas.gd")
@@ -165,7 +166,7 @@ func run():
  var water_q: Dictionary=water_event.potency();water_q.replica_scale=.4
  var water_copy: RefCounted=water_event.replicated(g,water_q,now)
  water_copy.publish(g,"weapon_contact","echo","leader",now,{"enemy":-1,"point":g.tactics.position,"origin":Vector3.ZERO})
- check(not p.has(water.SEQUENCE) and not p.has(water.REFRESH) and int(g.tactics.memory[water.DRENCHED].saturation)==6,"phantom applies six real Saturation without advancing ordinary hit sequences or preparing restoration")
+ check(not p.has(water.SEQUENCE) and not p.has(water.REFRESH) and int(Effects.read(g,-1)[water.DRENCHED].saturation)==6,"phantom applies six real Saturation without advancing ordinary hit sequences or preparing restoration")
  # The real queue keeps each class weapon's radial/sweep/projectile pattern.
  for frame in 5:
   for weapon in g.Classes.DEFINITIONS[frame].weapons.size():

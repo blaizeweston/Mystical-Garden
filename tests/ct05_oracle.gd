@@ -206,7 +206,7 @@ func cast(slot: int) -> void:
 func enemy_hit(id: int, now: int, slow := 0, direct := true) -> void:
 	var player: Dictionary = game.players[id]
 	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
-	preload("res://frost_combat.gd").with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, id, PlayerLifecycle.generation(player), now, 1.0, slow, Vector3.INF, direct))
+	game.tactics.resolve_attack_from(-1,IncomingPlayerHit.resolve_world.bind(game, id, PlayerLifecycle.generation(player), now, 1.0, slow, Vector3.INF, direct))
 
 
 func record(body: Dictionary, key: String, now: int, source := 0) -> Dictionary:

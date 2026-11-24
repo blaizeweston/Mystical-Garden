@@ -3,6 +3,7 @@ extends RefCounted
 ## On a guest, accepted frames update the presentation fields through project().
 ## Times are absolute host milliseconds unless the caller is drawing a guest view.
 
+var _attacking_slot := -2 # -1 is the leader, -2 means no direct enemy attack.
 var position: Vector3
 var engaged := false
 var attack_mode := ""
@@ -28,6 +29,19 @@ var memory: Dictionary = {}
 
 func _init(spawn: Vector3 = Vector3.ZERO) -> void:
 	position = spawn
+
+
+## Reaction callbacks observe the attacker only during synchronous resolution.
+## Preserve the outer attacker when a specialist invokes a nested contact.
+func resolve_attack_from(slot: int, action: Callable) -> void:
+	var previous := _attacking_slot
+	_attacking_slot = slot
+	action.call()
+	_attacking_slot = previous
+
+
+func attacking_slot() -> int:
+	return _attacking_slot
 
 
 func reset_approach() -> void:

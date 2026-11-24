@@ -92,7 +92,7 @@
         "affinity_build.gd", "affinity_build.gd.uid",
         "catalyst_adapters.gd", "catalyst_adapters.gd.uid",
         "combat_action_events.gd", "combat_action_events.gd.uid",
-        "affinity_status_source.gd", "affinity_status_source.gd.uid",
+        "affinity_status_source.gd", "affinity_status_source.gd.uid", "enemy_affinity_effects.gd", "enemy_affinity_effects.gd.uid",
         "combat_ruleset.gd", "combat_ruleset.gd.uid",
         "native_grafts.gd", "native_grafts.gd.uid",
         "leader_behavior.gd",

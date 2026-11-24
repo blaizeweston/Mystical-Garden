@@ -145,12 +145,12 @@ func tracked_and_offense() -> void:
 		return
 	var now := int(prey.until)-Progression.PREY_MS
 	apply_frost(-1,now)
-	check(not Ranger.track(game,game.HOST,ranger,-1,100,now+1) and Frost.state(Frost.body(game,-1),now).stacks.size()==1,
+	check(not Ranger.track(game,game.HOST,ranger,-1,100,now+1) and Frost.state(game.tactics.memory,now).stacks.size()==1,
 		"another preparation cannot overwrite Tracked Prey or an independent botanical status")
 	OutgoingHits.hit_world(game, HitSession.peer_for(ally), -1, ally.pos, {"damage":0.0,"affinity_hp":3,"knockback":-.35,"core_hit":true,"trait_secondary":true}, now)
-	check(game.enemy_traits.has(Ranger.PREY) and Frost.state(Frost.body(game,-1),now).stacks.size()==1,"secondary damage cannot consume Tracked Prey or the independent Frost status")
+	check(game.enemy_traits.has(Ranger.PREY) and Frost.state(game.tactics.memory,now).stacks.size()==1,"secondary damage cannot consume Tracked Prey or the independent Frost status")
 	OutgoingHits.hit_world(game, HitSession.peer_for(ally), -1, ally.pos, {"damage":1.0,"knockback":-.35,"ranger_direct_hit":true}, now+2)
-	check(game.enemy_health()==247 and not game.enemy_traits.has(Ranger.PREY) and Frost.state(Frost.body(game,-1),now).stacks.size()==1,
+	check(game.enemy_health()==247 and not game.enemy_traits.has(Ranger.PREY) and Frost.state(game.tactics.memory,now).stacks.size()==1,
 		"one ally direct hit consumes Tracked Prey without consuming the independent Frost status")
 	OutgoingHits.hit_world(game, HitSession.peer_for(ally), -1, ally.pos, {"damage":1.0,"knockback":-.35,"ranger_direct_hit":true}, now+3)
 	check(game.enemy_health()==237,"the consumed prey adds damage only once")

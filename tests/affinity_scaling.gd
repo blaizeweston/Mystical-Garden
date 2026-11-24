@@ -1,4 +1,5 @@
 extends SceneTree
+const Effects = preload("res://enemy_affinity_effects.gd")
 ## Actual definitions/handlers; future-potency fixtures are labelled separately
 ## from attainable 12-card/six-graft builds. No invented card definitions.
 const Events = preload("res://combat_action_events.gd")
@@ -109,7 +110,7 @@ func verify_thorn() -> void:
 	equip(p,"part_1")
 	var now := Time.get_ticks_msec()
 	Thorn.patch(game,action(1,"core"),game.tactics.position,1.0,now)
-	var wound: Dictionary=game.tactics.memory[Thorn.BLEED]
+	var wound: Dictionary=Effects.read(game,-1)[Thorn.BLEED]
 	check(Thorn.cap_units(wound)==12000 and Thorn.potency_units(wound)==3000,"solo baseline is a build-derived 12 cap with 25 percent initial buildup")
 	copies(p,["thorn_line_bleed","ordinary_weapon_damage","ordinary_weapon_interval"])
 	var resolved: Resolved.Snapshot=game.combat_build(p)
@@ -146,7 +147,7 @@ func verify_thorn() -> void:
 		copies(game.players[id],["thorn_line_bleed","ordinary_weapon_damage","ordinary_weapon_interval"])
 		Thorn.patch(game,action(id,"core"),game.tactics.position,1.0,now)
 	for _step in 4: Thorn.tick(game,Clock.advance(game,1.001),now)
-	wound=game.tactics.memory[Thorn.BLEED]
+	wound=Effects.read(game,-1)[Thorn.BLEED]
 	check(Thorn.cap_units(wound)==136000 and Thorn.potency_units(wound)==136000,"four current specialized players build one 136-damage shared tick")
 	game.players[4][Life.STATE]=Life.start_life()
 	Thorn.tick(game,Clock.now(game),now)
@@ -162,9 +163,9 @@ func verify_frost() -> void:
 	var now := Time.get_ticks_msec()
 	Frost.apply(game,action(1,"form",{"max_shatter_hp":90}),-1,1,now)
 	Frost.apply(game,action(2,"form",{"max_shatter_hp":120}),-1,1,now)
-	check(game.tactics.memory[Frost.BRITTLE].stacks[0].numerator==90000,"future-potency fixture freezes the earlier stack's exact numerator")
+	check(Effects.read(game,-1)[Frost.BRITTLE].stacks[0].numerator==90000,"future-potency fixture freezes the earlier stack's exact numerator")
 	Frost.apply(game,action(1,"form",{"max_shatter_hp":300}),-1,1,now)
-	check(game.enemy_health()==10000000-170 and not game.tactics.memory.has(Frost.BRITTLE)
+	check(game.enemy_health()==10000000-170 and not Effects.read(game,-1).has(Frost.BRITTLE)
 		and not Frost.rooted(game.tactics.memory,now),"90/3 + 120/3 + 300/3 ruptures for 170 once, with no baseline root or fixed shatter ceiling")
 	print("SCALING_FROST current_refined_max=21 future_input_max=300 mixed_rupture=170 threshold=3")
 
@@ -186,13 +187,13 @@ func fire_sample(heavy: bool, party: int) -> Dictionary:
 		if at>=next_attack:
 			for id in range(1,party+1): action(id,"form").publish(game,"weapon_contact","hit","leader",now+at,{"enemy":-1})
 			next_attack+=interval
-		maximum=maxi(maximum,Fire.count(game.tactics.memory.get(Fire.BURNING,{})))
+		maximum=maxi(maximum,Fire.count(Effects.read(game,-1).get(Fire.BURNING,{})))
 		if at==20000: measure_hp=game.enemy_health()
 	var before: int=game.enemy_health()
 	Fire.tick(game,30000,now+30000)
 	check(game.enemy_health()==before,"repeated same-time tick cannot replay specialized Burning")
 	var result := {"players":party,"heavy":heavy,"interval_ms":interval,"stacks_applied":action(1,"form").potency().stack_bonus+Fire.APPLICATION_STACKS.form,
-		"peak_stacks":maximum,"final_stacks":Fire.count(game.tactics.memory.get(Fire.BURNING,{})),"dot_dps_last_10s":(measure_hp-game.enemy_health())/10.0}
+		"peak_stacks":maximum,"final_stacks":Fire.count(Effects.read(game,-1).get(Fire.BURNING,{})),"dot_dps_last_10s":(measure_hp-game.enemy_health())/10.0}
 	print("SCALING_FIRE ",JSON.stringify(result))
 	return result
 
@@ -207,11 +208,11 @@ func verify_fire() -> void:
 	check(Fire.decay_amount(1000000000)==100000000,"large intensity decays in one integer calculation, not one operation per stack")
 	game.players[4][Life.STATE]=Life.start_life()
 	Fire.tick(game,30000,Time.get_ticks_msec())
-	check(game.tactics.memory[Fire.BURNING].contributors.size()==3,"stale upgraded Burning source retires after revival")
+	check(Effects.read(game,-1)[Fire.BURNING].contributors.size()==3,"stale upgraded Burning source retires after revival")
 	reset()
 	equip(game.players[1],"part_6")
 	Fire.ignite(game,action(1,"form",{"stack_bonus":100000000000000000}),-1,Time.get_ticks_msec())
-	check(not game.tactics.memory.has(Fire.BURNING),"an unrepresentable milli-HP product is refused without installing invalid Burning")
+	check(not Effects.read(game,-1).has(Fire.BURNING),"an unrepresentable milli-HP product is refused without installing invalid Burning")
 
 func verify_wood() -> void:
 	reset()
@@ -253,15 +254,15 @@ func verify_water() -> void:
 	Water.drench(game,action(2,"form"),-1)
 	drain_water()
 	check(game.enemy_health()==10000000-16 and game.encounter.hp(0)==985
-		and game.tactics.memory[Water.DRENCHED].saturation==0,"85 strong and 15 ordinary pressure preserve frozen 16 total damage; only the wide strong share hits the side target")
+		and Effects.read(game,-1)[Water.DRENCHED].saturation==0,"85 strong and 15 ordinary pressure preserve frozen 16 total damage; only the wide strong share hits the side target")
 	Clock.advance(game,2.0)
 	Water.drench(game,action(2,"form"),-1)
 	Water.tick(game,Clock.advance(game,2.3))
 	Water.drench(game,action(2,"form",{"saturation_bonus":205}),-1)
 	drain_water()
-	check(game.tactics.memory[Water.DRENCHED].saturation==35 and game.enemy_health()==10000000-28
+	check(Effects.read(game,-1)[Water.DRENCHED].saturation==35 and game.enemy_health()==10000000-28
 		and game.encounter.hp(0)==985,"expired enhancement ends independently; two baseline Surges retain 35 overflow and normal radius")
-	check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),.18),"offensive scaling does not stack Drenched defense")
+	check(is_equal_approx(Water.reduction(Effects.read(game,-1).get(Water.DRENCHED,{}),Clock.now(game)),.18),"offensive scaling does not stack Drenched defense")
 	print("SCALING_WATER baseline_surge_hp=6 future_input_hp=18 future_half_width_m=4 overflow=35 threshold=100")
 	reset()
 	var p: Dictionary=game.players[1]
@@ -272,7 +273,7 @@ func verify_water() -> void:
 		and Build.slot_preview(live,"catalyst",p.catalyst).detail.contains("7.0 s"),
 		"current Water cards resolve in their own slots and the tooltip includes the real seven-second Drenched duration")
 	Water.drench(game,action(1,"catalyst"),-1)
-	check(game.tactics.memory[Water.DRENCHED].sources.values()[0].until==7000,
+	check(Effects.read(game,-1)[Water.DRENCHED].sources.values()[0].until==7000,
 		"current Water duration copies reach the actual consumer once")
 
 func verify_vital() -> void:

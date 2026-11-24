@@ -133,6 +133,10 @@ func hp_for(tactics: Dictionary) -> int:
 func token(slot: int) -> int:
 	return _scouts[slot].token if slot >= 0 and slot < _scouts.size() else -1
 
+## Stable text key used by one attack to claim each contacted occupant once.
+func contact_key(slot: int) -> String:
+	return "leader" if slot == -1 else str(token(slot))
+
 ## Both leaders and scouts have a member identity. Keep token()'s historical
 ## scout-only convention unchanged for its existing callers and packet logic.
 func spawn_identity(slot: int) -> int:

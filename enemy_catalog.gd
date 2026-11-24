@@ -4,6 +4,9 @@ const BARK := 2
 const SPORES := 4
 const MOBILITY := 8
 const JUVENILE := 16
+const MOBILITY_SPEED_SCALE := 1.18
+const JUVENILE_SPEED_SCALE := 1.15
+const HASTE_SPEED_SCALE := 1.22
 static var definitions: Array = []
 
 static func all() -> Array:
@@ -49,6 +52,15 @@ static func encode(kind: int, mask: int, growth: int) -> int:
 
 static func decode(value: int) -> Dictionary:
 	return {"kind": value & 65535, "mask": (value >> 16) & 31, "tier": (value >> 24) & 127}
+
+## Regular scouts, arena adapters and simulated spawns use these same mutation
+## factors. The simulation applies temporary haste on its own fixed-step clock.
+static func movement_speed(base: float, mutation_mask: int, hasted := false) -> float:
+	var speed := base
+	if mutation_mask & MOBILITY: speed *= MOBILITY_SPEED_SCALE
+	if hasted: speed *= HASTE_SPEED_SCALE
+	if mutation_mask & JUVENILE: speed *= JUVENILE_SPEED_SCALE
+	return speed
 
 static func radius(kind: int, mask: int = 0) -> float:
 	var radius_value := float(get_kind(kind).radius)

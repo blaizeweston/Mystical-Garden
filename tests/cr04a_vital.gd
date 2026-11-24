@@ -1,4 +1,5 @@
 extends SceneTree
+const Effects = preload("res://enemy_affinity_effects.gd")
 const WeaponEventCase = preload("res://tests/support/weapon_event_case.gd")
 const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
@@ -280,5 +281,5 @@ func benchmark(player: Dictionary, ally: Dictionary) -> void:
 		var elapsed:=Clock.advance(game,1.0/60.0)
 		Fire.tick(game,elapsed,now)
 		Vital.tick(game,elapsed)
-		for scout in game.encounter.scout_tactics(): Water.reduction(scout,elapsed)
+		for scout in game.encounter.scout_tactics(): Water.reduction(Effects.from_body(scout).get(Water.DRENCHED,{}),elapsed)
 	print("CR04A effect update (four players, 12 enemies, four sources per effect, 150 steps): ",float(Time.get_ticks_usec()-started)/count," us/step")

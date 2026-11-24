@@ -80,12 +80,18 @@ func copy(id: String, serial: int, grade := 0) -> Dictionary:
 		"rarity":"" if definition.policy == "unique" else Catalog.RARITIES[grade], "floor":3, "acquisition_id":serial}
 
 func run() -> void:
-	check(Eligibility.catalog_errors().is_empty(), "all 28 current declarations and consumers validate")
+	check(Eligibility.catalog_errors().is_empty(), "all current card declarations and consumers validate")
 	verify_migration()
 	verify_tags()
 	verify_capabilities()
 	verify_identity_and_ownership()
 	verify_grants()
+	var stats_at_gate := stats(build())
+	var facts := Eligibility.facts(stats_at_gate.affinity_build, {})
+	for card_id: String in Catalog.DEFINITIONS:
+		check(Eligibility.catalog_requirement(card_id,facts) == Eligibility.requirement(Catalog.DEFINITIONS[card_id],stats_at_gate.affinity_build),
+			"shared pool facts and fresh choice validation agree for " + card_id)
+	check(not Eligibility.catalog_requirement("missing_card",facts).is_empty(), "unknown identity cannot pass the validated-catalog path")
 	verify_short_offers()
 	if not failed: print("PASS: CE01 ", checks, " checks; 28-card migration, unordered tags, capabilities, grants, ownership, headroom and short offers")
 	quit(int(failed))

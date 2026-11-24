@@ -1,4 +1,5 @@
 extends SceneTree
+const Effects = preload("res://enemy_affinity_effects.gd")
 const Case=preload("res://tests/support/affinity_card_case.gd")
 const Thorn=preload("res://thorn_affinity.gd")
 const Sources=preload("res://affinity_status_source.gd")
@@ -21,7 +22,7 @@ func run():
  var event:=c.action(1,"core")
  check(event.potency().personal_cap_hp==16,"two Growth copies add four to the one personal cap, not twelve across slots")
  Thorn.patch(g,event,g.tactics.position,1.0,now)
- var status: Dictionary=g.tactics.memory[Thorn.BLEED]
+ var status: Dictionary=Effects.read(g,-1)[Thorn.BLEED]
  var row: Dictionary=status.contributors.values()[0]
  check(row.amount==4800 and row.cap==16000 and row.until==4750,"Density increases actual application to 30 percent; duration extends only the contribution")
  c.own(1,["creeping_briars","creeping_briars"])
@@ -30,7 +31,7 @@ func run():
  c.own(1,["serrated_edge","opening_wound","relentless_cuts"])
  var hit:=c.action(1,"form")
  hit.publish(g,"weapon_contact","one","leader",now,{"enemy":-1})
- status=g.tactics.memory[Thorn.BLEED]
+ status=Effects.read(g,-1)[Thorn.BLEED]
  var first:=Thorn.potency_units(status)
  check(first==2040,"native patch plus first direct and opening application accumulate together")
  hit.publish(g,"weapon_contact","one","leader",now,{"enemy":-1})
@@ -54,7 +55,7 @@ func run():
  for index in 2:Thorn.tick(g,c.Clock.advance(g,1.01),now)
  var victim:=c.scout(Vector3(1,0,-2))
  var before:int=g.encounter.hp(victim)
- var death_status: Dictionary=g.tactics.memory[Thorn.BLEED]
+ var death_status: Dictionary=Effects.read(g,-1)[Thorn.BLEED]
  var death_token: int=death_status.token
  death_status.token=death_token+100
  Thorn.on_death(g,-1,now)
@@ -67,7 +68,7 @@ func run():
  check(after<before and g.encounter.hp(victim)==after,"one shared heavily-Bleeding target produces one burst even with two owners")
  c.reset();c.equip(1,"thorn");c.own(1,["bloodletting"])
  Thorn.patch(g,c.action(1,"core"),g.tactics.position,1.0,now)
- status=g.tactics.memory[Thorn.BLEED]
+ status=Effects.read(g,-1)[Thorn.BLEED]
  var amount:=Thorn.potency_units(status)
  var before_hp:int=g.enemy_health()
  var request:=Active.request(g,g.players[1],"bloodletting",Vector2(0,-1),100)

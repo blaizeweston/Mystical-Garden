@@ -151,7 +151,7 @@ static func guide_contact(game: Node, recipient: Dictionary, target: int, now: i
 
 
 static func direct_context(game: Node, direct_attack: bool) -> bool:
-	return direct_attack and int(game.get_meta(&"frost_attacker",-2)) >= -1
+	return direct_attack and game.tactics.attacking_slot() >= -1
 
 
 static func recover_hit(game: Node, recipient: Dictionary, now: int) -> void:

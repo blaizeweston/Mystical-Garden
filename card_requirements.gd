@@ -55,22 +55,22 @@ static func validate(expression: Variant, known: Dictionary, depth := 0) -> Stri
 
 static func refusal(expression: Variant, facts: Dictionary, known: Dictionary) -> String:
 	var error := validate(expression, known)
-	return error if not error.is_empty() else _refusal(expression, facts)
+	return error if not error.is_empty() else refusal_for_validated(expression, facts)
 
 
-static func _refusal(expression: Dictionary, facts: Dictionary) -> String:
+static func refusal_for_validated(expression: Dictionary, facts: Dictionary) -> String:
 	var op: String = expression.keys()[0]
 	var value: Variant = expression[op]
 	match op:
 		"all":
 			for child in value:
-				var error := _refusal(child, facts)
+				var error := refusal_for_validated(child, facts)
 				if not error.is_empty(): return error
 			return ""
 		"any":
 			var reasons: PackedStringArray = []
 			for child in value:
-				var error := _refusal(child, facts)
+				var error := refusal_for_validated(child, facts)
 				if error.is_empty(): return ""
 				reasons.append(error)
 			return "Requires one alternative: " + " / ".join(reasons)

@@ -1,10 +1,10 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
 
 const Participation = preload("res://expedition_participation.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
-const Actors = preload("res://frost_combat.gd")
 const Clock = preload("res://affinity_time.gd")
 const Hurt = preload("res://enemy_hurtbox.gd")
 const Sources=preload("res://affinity_status_source.gd")
@@ -16,6 +16,7 @@ const BASIC := "spirit_card_basic"
 const EVASION := "spirit_card_evasion"
 const ECHOES := "spirit_card_echoes"
 const SHADOWS := "spirit_card_shadows"
+const CARD_FIELDS := [TEMPO, RECOVERY, BASIC, EVASION, ECHOES, SHADOWS]
 const CARD_GRANTS := {"mirrorstep_unlock":{"method":"voluntary","capability":{"producer":"card","id":"mirrorstep"}},"wraithcast_unlock":{"method":"voluntary","capability":{"producer":"card","id":"wraithcast"}}}
 const Journal = preload("res://diagnostic_journal.gd")
 const COLOR := Color("#bdafe8")
@@ -120,7 +121,7 @@ static func contact(game: Node, event: RefCounted, target: int, now: int) -> voi
 		return
 	p.erase(FOLLOW)
 	game.emit_combat_event("link","spirit_follow",p.pos,game.enemy_position(target),.28,COLOR,0.0,event.actor)
-	Actors.damage(game,follow.actor,target,follow.damage,now,COLOR)
+	OutgoingHits.affinity_and_clear(game,follow.actor,target,follow.damage,now,COLOR)
 
 
 static func tick(game: Node, elapsed: int) -> void:
@@ -138,7 +139,7 @@ static func clear(p: Dictionary) -> void:
 	p.erase(STRIDES)
 	p.erase(FORM_READY)
 	p.erase(FOLLOW)
-	for field in [TEMPO,RECOVERY,BASIC,EVASION,ECHOES,SHADOWS]:p.erase(field)
+	for field in CARD_FIELDS: p.erase(field)
 
 
 static func step(game: Node, actor: int, forward: Vector3, distance := STEP_DISTANCE) -> Vector3:
@@ -149,7 +150,7 @@ static func step(game: Node, actor: int, forward: Vector3, distance := STEP_DIST
 		var p: Dictionary=game.players[id]
 		if id!=actor and Participation.is_wild(p) and game.Life.alive(p): stops.append([p.pos,PLAYER_RADIUS*2])
 	for target in range(-1,game.encounter.scout_count()):
-		if Actors.valid_target(game,target): stops.append([game.enemy_position(target),PLAYER_RADIUS+Hurt.radius(game,target)])
+		if game.encounter.alive(target): stops.append([game.enemy_position(target),PLAYER_RADIUS+Hurt.radius(game,target)])
 	var landing:=origin
 	for i in 12:
 		var point:=origin.lerp(end,(i+1)/12.0)
@@ -174,7 +175,7 @@ static func trace(game: Node, event: RefCounted, id: int, at: Vector3) -> void:
 	var elapsed:=Clock.now(game)
 	var duration: int=event.potency().trace_ms+int(event.potency().get("trace_bonus_ms",0))+int(event.potency().get("movement_duration_ms",0))
 	for target in range(-1,game.encounter.scout_count()):
-		if not Actors.valid_target(game,target) or (target==-1 and game.tactics.boss_kind>=0): continue
+		if not game.encounter.alive(target) or (target==-1 and game.tactics.boss_kind>=0): continue
 		var body: Dictionary=game.tactics.memory if target==-1 else game.encounter.scout(target)
 		var committed: bool=game.tactics.winding_up if target==-1 else int(body.windup)>0
 		var engaged: bool=game.tactics.engaged if target==-1 else bool(body.engaged)

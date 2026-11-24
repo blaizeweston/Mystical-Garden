@@ -1,4 +1,5 @@
 extends SceneTree
+const Effects = preload("res://enemy_affinity_effects.gd")
 const Case=preload("res://tests/support/affinity_card_case.gd")
 const Water=preload("res://water_combat.gd")
 const Tides=preload("res://water_tidal_return.gd")
@@ -30,7 +31,7 @@ func run():
  reset();c.equip(1,"water",["form"])
  var event:=c.action(1,"form")
  for index in 7:Water.drench(g,event,-1)
- var status: Dictionary=g.tactics.memory[Water.DRENCHED]
+ var status: Dictionary=Effects.read(g,-1)[Water.DRENCHED]
  check(status.saturation==5 and g.effect_timeline.native_count()==1 and g.enemy_health()==1000000,"105 pressure admits one delayed event and retains five overflow")
  var tide: Dictionary=g.effect_timeline.native_records()[0]
  check(tide.waves.size()==1 and tide.waves[0].origin==g.players[1].pos and tide.waves[0].damage==6 and tide.waves[0].heal==6,"solo Form alone owns a full six-damage six-healing directional Surge")
@@ -45,11 +46,11 @@ func run():
  for index in 7:
   Water.drench(g,c.action(1,"form"),-1)
   if index<6:Water.tick(g,c.Clock.advance(g,interval))
- check(g.tactics.memory[Water.DRENCHED].saturation==5 and g.effect_timeline.native_count()==1,"ordinary Form-only attacks at the actual weapon interval reach Surge without hidden pressure decay")
+ check(Effects.read(g,-1)[Water.DRENCHED].saturation==5 and g.effect_timeline.native_count()==1,"ordinary Form-only attacks at the actual weapon interval reach Surge without hidden pressure decay")
  drain(now)
  check(g.enemy_health()==999994 and g.players[1][Vitals.STATE].hp()==76,"paced solo Form applications provide real offensive and restorative baseline value")
  Water.tick(g,c.Clock.advance(g,(Water.DURATION_MS+1)/1000.0))
- check(not g.tactics.memory.has(Water.DRENCHED),"idle Drenched expiration retires the remaining pressure and contributor records")
+ check(not Effects.read(g,-1).has(Water.DRENCHED),"idle Drenched expiration retires the remaining pressure and contributor records")
  reset()
  for peer in [1,2,3,4]:
   c.equip(peer,"water",["catalyst"])
@@ -57,7 +58,7 @@ func run():
  tide=g.effect_timeline.native_records()[0]
  var damage:=0;var healing:=0;var weight:=0
  for wave in tide.waves:damage+=int(wave.damage);healing+=int(wave.heal);weight+=int(wave.weight)
- check(tide.waves.size()==4 and damage==6 and healing==6 and weight==100 and g.tactics.memory[Water.DRENCHED].saturation==20,"four contributors share one threshold and total potency, with deterministic rounding")
+ check(tide.waves.size()==4 and damage==6 and healing==6 and weight==100 and Effects.read(g,-1)[Water.DRENCHED].saturation==20,"four contributors share one threshold and total potency, with deterministic rounding")
  drain(now)
  check(g.enemy_health()==999994 and g.players[1][Vitals.STATE].hp()==76,"four overlapping returning shares total six healing rather than four full Surges")
  reset();c.equip(1,"water");c.own(1,["gathering_clouds","widening_curtain","restorative_rain","crushing_surf","restorative_surge","wide_wake","breakwater","focused_current","undertow"])
@@ -74,7 +75,7 @@ func run():
  reset();c.equip(1,"water",["form"]);c.own(1,["saturating_strikes","rolling_current","pressure_point","refreshing_strikes"])
  for index in 3:
   event=c.action(1,"form");event.publish(g,"weapon_contact",str(index),"leader",now,{"enemy":-1})
- check(g.tactics.memory[Water.DRENCHED].saturation==60,"successive attacks apply 18, 20 and 22 actual pressure")
+ check(Effects.read(g,-1)[Water.DRENCHED].saturation==60,"successive attacks apply 18, 20 and 22 actual pressure")
  check(Water.ordinary_bonus(g,event,-1)==2 and Water.ordinary_bonus(g,event,-1)==0,"Pressure Point adds damage to one primary target only")
  check(g.players[1].has(Water.REFRESH),"eligible basic hits prepare attributed healing")
  for index in 2:c.action(1,"form").publish(g,"weapon_contact",str(index+3),"leader",now,{"enemy":-1})
@@ -84,7 +85,7 @@ func run():
  var tree=g.Classes.connected_tree(0);g.players[1].character[tree.profile_key]=tree.state([tree.nodes[0].id])
  event=c.action(1,"catalyst")
  Water.drench(g,event,-1)
- check(g.tactics.memory[Water.DRENCHED].saturation==36,"class response pressure gets its separate contribution")
+ check(Effects.read(g,-1)[Water.DRENCHED].saturation==36,"class response pressure gets its separate contribution")
  g.players[2].pos=Vector3(2.55,0,0);g.players[2][Conditions.STATE]=g.players[2][Conditions.STATE].with_slow_until(now+4000)
  Water.wash(g,event,Vector3.ZERO)
  check(g.players[2][Conditions.STATE].slow_until_ms()==0,"Cleansing Response expands actual support footprint without a separate heal")
@@ -110,7 +111,7 @@ func run():
  reset();c.equip(1,"water",["form"]);c.own(1,["refreshing_strikes"])
  for index in g.effect_timeline.NATIVE_LIMIT:g.effect_timeline.schedule_native({"kind":"fixture","owner":1,"epoch":g.participation.epoch(),"life":preload("res://player_lifecycle.gd").generation(g.players[1]),"until":now+99999,"next":now+99999})
  for index in 7:c.action(1,"form").publish(g,"weapon_contact",str(index),"leader",now,{"enemy":-1})
- check(g.tactics.memory[Water.DRENCHED].saturation==105 and g.players[1].has(Water.REFRESH),"capacity refusal preserves earned pressure and healing preparation")
+ check(Effects.read(g,-1)[Water.DRENCHED].saturation==105 and g.players[1].has(Water.REFRESH),"capacity refusal preserves earned pressure and healing preparation")
  var frame: Dictionary=g.effect_timeline.savepoint();g.effect_timeline.clear_native();g.effect_timeline.restore_savepoint(frame)
  check(g.effect_timeline.native_count()==g.effect_timeline.NATIVE_LIMIT,"existing effect rollback restores the authoritative queue")
  reset();c.equip(1,"water",["form"])

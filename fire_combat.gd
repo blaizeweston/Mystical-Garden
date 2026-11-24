@@ -1,14 +1,16 @@
 extends RefCounted
+const Effects = preload("res://enemy_affinity_effects.gd")
+const OutgoingHits = preload("res://outgoing_hits.gd")
 
 const Catalog = preload("res://affinity_card_catalog.gd")
 const SEQUENCE := "fire_card_sequence"
+const CARD_FIELDS := [SEQUENCE]
 const FLASH_READY := "fire_flashover_ready"
 const SPREAD_READY := "fire_wildfire_ready"
 const CARD_GRANTS := {"wildfire_unlock":{"method":"spread","capability":{"producer":"card","id":"wildfire","recipient":"enemy"}}}
 const Sources = preload("res://affinity_status_source.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
-const Actors = preload("res://frost_combat.gd")
 const Clock = preload("res://affinity_time.gd")
 const Footprint = preload("res://core_footprint.gd")
 const BURNING := "affinity_burning"
@@ -69,10 +71,10 @@ static func prune(game: Node, status: Dictionary, at: int) -> void:
 static func deal_tick(game: Node, target: int, status: Dictionary, now: int) -> void:
 	var owner := Sources.dominant(status.contributors,"stacks")
 	var hp := Sources.whole_tick(status,count(status)*Sources.units(TICK_HP_PER_STACK))
-	if hp>0 and not owner.is_empty(): Actors.damage(game,int(owner.actor),target,hp,now,COLOR,status.contributors.values().all(func(row):return row.get("secondary_only",false)),{"stat_affinity":"Burning","stat_weights":Sources.damage_weights(game,status.contributors.values(),"stacks")})
+	if hp>0 and not owner.is_empty(): OutgoingHits.affinity_and_clear(game,int(owner.actor),target,hp,now,COLOR,status.contributors.values().all(func(row):return row.get("secondary_only",false)),{"stat_affinity":"Burning","stat_weights":Sources.damage_weights(game,status.contributors.values(),"stacks")})
 
 static func advance(game: Node, target: int, elapsed: int, now: int) -> Dictionary:
-	var actor := Actors.body(game,target)
+	var actor := Effects.read(game,target)
 	var status: Dictionary=actor.get(BURNING,{})
 	if status.is_empty(): return {}
 	if not Sources.target_current(game,target,status):
@@ -148,10 +150,10 @@ static func form_sequence(game: Node, event: RefCounted, q: Dictionary, already:
 
 static func apply_stacks(game: Node, source: Dictionary, target: int, offered: int,
 		q: Dictionary, now: int, native := true) -> Dictionary:
-	if not game.multiplayer.is_server() or not Sources.current(game,source) or game.persistence_session.is_blocked() or not Actors.valid_target(game,target) or offered<=0: return {}
+	if not game.multiplayer.is_server() or not Sources.current(game,source) or game.persistence_session.is_blocked() or not game.encounter.alive(target) or offered<=0: return {}
 	var elapsed:=Clock.now(game)
 	var status:=advance(game,target,elapsed,now)
-	if game.persistence_session.is_blocked() or not Actors.valid_target(game,target): return {}
+	if game.persistence_session.is_blocked() or not game.encounter.alive(target): return {}
 	var fresh:=status.is_empty()
 	if fresh:status={"epoch":source.epoch,"token":game.encounter.spawn_identity(target),"contributors":{},"next":elapsed+TICK_MS,"decay":elapsed+DECAY_MS,"remainder":0}
 	var existing:=count(status)
@@ -169,14 +171,14 @@ static func apply_stacks(game: Node, source: Dictionary, target: int, offered: i
 		row.native_until=elapsed+BURN_MS;row.potency=q.duplicate(true);row.secondary_only=false
 	elif not row.has("secondary_only"): row.secondary_only=true
 	status.contributors[key]=row
-	Actors.body(game,target)[BURNING]=status
+	Effects.edit(game,target)[BURNING]=status
 	if fresh: deal_tick(game,target,status,now)
 	return status
 
 
 static func ignite(game: Node, event: RefCounted, target: int, now: int) -> void:
 	var source:=Sources.capture(event)
-	if not Sources.current(game,source) or not Actors.valid_target(game,target): return
+	if not Sources.current(game,source) or not game.encounter.alive(target): return
 	var status:=advance(game,target,Clock.now(game),now)
 	var already:=count(status)>0
 	var q: Dictionary=event.potency()
@@ -196,12 +198,12 @@ static func ignite(game: Node, event: RefCounted, target: int, now: int) -> void
 
 
 static func effect_ready(game: Node, target: int, key: String) -> int:
-	var row: Dictionary=Actors.body(game,target).get(key,{})
+	var row: Dictionary=Effects.read(game,target).get(key,{})
 	return int(row.get("until",0)) if int(row.get("epoch",-1))==game.participation.epoch() and int(row.get("token",-1))==game.encounter.spawn_identity(target) else 0
 
 
 static func reserve_effect(game: Node, target: int, key: String, until: int) -> void:
-	Actors.body(game,target)[key]={"epoch":game.participation.epoch(),"token":game.encounter.spawn_identity(target),"until":until}
+	Effects.edit(game,target)[key]={"epoch":game.participation.epoch(),"token":game.encounter.spawn_identity(target),"until":until}
 
 
 static func flashover(game: Node, source: Dictionary, target: int, status: Dictionary, q: Dictionary, now: int) -> void:
@@ -256,7 +258,7 @@ static func tick(game: Node, elapsed: int, now: int) -> void:
 	var plans: Array=[]
 	for target in range(-1,game.encounter.scout_count()):
 		if game.participation.epoch()!=epoch or game.persistence_session.is_blocked():return
-		if Actors.body(game,target).has(BURNING):
+		if Effects.read(game,target).has(BURNING):
 			var status:=advance(game,target,elapsed,now)
 			var plan:=spread_plan(game,target,status,elapsed)
 			if not plan.is_empty():plans.append(plan)
@@ -283,8 +285,8 @@ static func field(game: Node, cast: Dictionary, now: int) -> bool:
 		return false
 	cast.next_maintain = elapsed + 80
 	for target in Footprint.targets(game, cast.shapes, cast.center):
-		var first: bool = cast.affinity_action.publish(game, "core_action", "impact", Actors.target_token(game, target), now, {"enemy": target})
-		var token := Actors.target_token(game,target)
+		var first: bool = cast.affinity_action.publish(game, "core_action", "impact", game.encounter.contact_key(target), now, {"enemy": target})
+		var token: String = game.encounter.contact_key(target)
 		if first:
 			cast.stack_ready[token]=elapsed+FIELD_APPLICATION_MS
 		elif elapsed>=int(cast.stack_ready.get(token,0)):
@@ -296,7 +298,7 @@ static func field(game: Node, cast: Dictionary, now: int) -> bool:
 static func on_event(game: Node, event: RefCounted, kind: String, details: Dictionary, now: int) -> void:
 	match kind:
 		"core_action":
-			Actors.damage(game, event.actor, int(details.enemy), int(event.potency().impact_hp), now, COLOR)
+			OutgoingHits.affinity_and_clear(game, event.actor, int(details.enemy), int(event.potency().impact_hp), now, COLOR)
 			ignite(game, event, int(details.enemy), now)
 		"weapon_contact", "class_contact", "incoming_hit":
 			ignite(game, event, int(details.enemy), now)
@@ -304,7 +306,7 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 			var center: Vector3 = details.center
 			game.emit_combat_event("ability", "ember_guard", center, center, .55, COLOR, RADIUS, details.recipient, {"label": "Ember Ward"})
 			for enemy in game.skill_area_targets(center, RADIUS, center):
-				Actors.damage(game, event.actor, enemy, int(event.potency().burst_hp), now, COLOR)
+				OutgoingHits.affinity_and_clear(game, event.actor, enemy, int(event.potency().burst_hp), now, COLOR)
 				ignite(game, event, enemy, now)
 		"class_action":
 			var response: String = details.get("response", "")
@@ -329,8 +331,8 @@ static func incoming(game: Node, recipient: Dictionary, id: int, now: int) -> vo
 	if Clock.now(game) >= int(response.until) or response.event.epoch != game.participation.epoch():
 		recipient.erase(RESPONSE)
 		return
-	var target: int = game.get_meta(Actors.ATTACKER, -2)
-	if not Actors.valid_target(game, target):
+	var target: int = game.tactics.attacking_slot()
+	if not game.encounter.alive(target):
 		return
 	recipient.erase(RESPONSE)
-	response.event.publish(game, "incoming_hit", str(id), Actors.target_token(game, target), now, {"enemy": target})
+	response.event.publish(game, "incoming_hit", str(id), game.encounter.contact_key(target), now, {"enemy": target})

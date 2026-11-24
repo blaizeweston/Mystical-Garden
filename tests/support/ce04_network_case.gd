@@ -1,4 +1,5 @@
 extends RefCounted
+const Effects = preload("res://enemy_affinity_effects.gd")
 ## Explicit runtime setup only; real RPCs, identity and owner details remain authoritative.
 const Cards=preload("res://affinity_cards.gd")
 const Catalog=preload("res://affinity_card_catalog.gd")
@@ -27,9 +28,9 @@ static func host(test: RefCounted,game: Node,guests: Array) -> bool:
    copies.append({"id":id,"amount":d.get("fixed",0) if d.policy=="unique" else d.values[0],"rarity":"" if d.policy=="unique" else "Common","floor":game.participation.floor(),"acquisition_id":1000+peer*10+copies.size()})
   p[Cards.STATE]=Cards.Ledger.new(copies)
  var now:=preload("res://combat_clock.gd").now()
- var body: Dictionary=game.tactics.memory
+ var effects := Effects.edit(game,-1)
  var thorn=load("res://thorn_affinity.gd")
- body.erase(thorn.BLEED)
+ effects.erase(thorn.BLEED)
  game.encounter.set_hp(-1,10000)
  for peer in actors:
   var build: Dictionary=game.combat_build(game.players[peer]).affinity_build()
@@ -57,7 +58,7 @@ static func host(test: RefCounted,game: Node,guests: Array) -> bool:
   Cards.clear(p)
   if saved[peer][3]!=null:p[Cards.STATE]=saved[peer][3]
  if game.has_meta(thorn.FIELDS):game.remove_meta(thorn.FIELDS)
- body.erase("affinity_drenched");game.effect_timeline.clear_native();body.erase(thorn.BLEED);body.erase("affinity_brittle");body.erase("affinity_burning");body.erase("fire_flashover_ready");body.erase("fire_wildfire_ready")
+ effects.erase("affinity_drenched");game.effect_timeline.clear_native();effects.erase(thorn.BLEED);effects.erase("affinity_brittle");effects.erase("affinity_burning");effects.erase("fire_flashover_ready");effects.erase("fire_wildfire_ready")
  Core.reset(game)
  test.mark("ce04-done")
  return not test.failed

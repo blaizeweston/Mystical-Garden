@@ -125,15 +125,14 @@ class Ledger extends RefCounted:
 		var old_ids: Array = _offer.cards.map(func(card): return card.id)
 		return available.filter(func(id): return not old_ids.has(id))
 
-	func _refusal(card_id: String, stats: Dictionary, dodge_base: int) -> String:
-		var definition: Dictionary = Catalog.DEFINITIONS[card_id]
-		var reason := Eligibility.catalog_refusal(card_id)
-		if reason.is_empty(): reason = requirement(definition, stats.affinity_build, counts())
+	func _refusal(card_id: String, stats: Dictionary, dodge_base: int, facts: Dictionary) -> String:
+		var reason := Eligibility.catalog_requirement(card_id, facts)
 		if not reason.is_empty():
 			return reason
+		var definition: Dictionary = Catalog.DEFINITIONS[card_id]
 		if definition.parameter == "tempo_percent" and not _speed_headroom(stats):
 			return "Basic attacks already have no attack-speed headroom."
-		if _copies.filter(func(copy): return copy.id == card_id).size() >= int(definition.limit):
+		if int(facts.owned.card.get(card_id, 0)) >= int(definition.limit):
 			return "Already acquired this Unique." if definition.policy == "unique" else "Maximum useful copies reached."
 		if _effective_headroom(definition,stats,dodge_base,amount(card_id))==0:
 			return "The current build has reached this effect's limit."
@@ -141,14 +140,16 @@ class Ledger extends RefCounted:
 
 	func eligible(stats: Dictionary, dodge_base: int) -> Array[String]:
 		var result: Array[String] = []
+		var facts := Eligibility.facts(stats.affinity_build, counts())
 		for id: String in Catalog.DEFINITIONS:
-			if _refusal(id, stats, dodge_base).is_empty():
+			if _refusal(id, stats, dodge_base, facts).is_empty():
 				result.append(id)
 		return result
 
 	func option_refusal(option: Dictionary, stats: Dictionary, dodge_base: int) -> String:
 		var id: String = option.id
-		var reason := _refusal(id, stats, dodge_base)
+		var facts := Eligibility.facts(stats.affinity_build, counts())
+		var reason := _refusal(id, stats, dodge_base, facts)
 		if not reason.is_empty():
 			return reason
 		if int(option.amount)>_effective_headroom(Catalog.DEFINITIONS[id],stats,dodge_base,amount(id)):
@@ -169,10 +170,12 @@ class Ledger extends RefCounted:
 
 	func project_owned(stats: Dictionary, dodge_base: int) -> Array:
 		var result: Array = []
+		if _copies.is_empty(): return result
+		var facts := Eligibility.facts(stats.affinity_build, counts())
 		for source in _copies:
 			var copy := source.duplicate()
 			var definition: Dictionary = Catalog.DEFINITIONS[copy.id]
-			copy.reason = requirement(definition, stats.affinity_build, counts())
+			copy.reason = Eligibility.catalog_requirement(copy.id, facts)
 			if definition.parameter == "tempo_percent" and not _speed_headroom(stats): copy.reason = "Basic attacks already have no attack-speed headroom."
 			copy.total = amount(copy.id)
 			copy.applied = mini(int(copy.total),_fixed_tempo_limit(stats) if definition.get("tuning",{}).get("fixed_tempo",false) else parameter_limit(definition, stats, dodge_base)) if copy.reason.is_empty() else 0
