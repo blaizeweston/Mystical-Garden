@@ -99,6 +99,30 @@ static func take(game,player: Dictionary,bucket: String,id: String,amount: int,p
   values[id]=int(values.get(id,0))-amount
   if int(values[id])<=0: values.erase(id)
  return stack
+## Read-only supply check at floor generation. Opening a reserve here would
+## create an empty saved stash for a guest who has never recovered anything.
+static func garden_or_party_has_seed(species: int, progress, players: Dictionary) -> bool:
+ if progress.discoveries[species] or progress.stock[species] > 0 or progress.unknown.has(species):
+  return true
+ if _reserve_has_seed(progress.guest_seeds.get(SHARED_OWNER, {}), species):
+  return true
+ for player: Dictionary in players.values():
+  var stored: Dictionary = progress.guest_seeds.get(Session.inventory_owner(player), {})
+  if _reserve_has_seed(stored, species) or player.carried_seeds.has(species): return true
+  for stack: Dictionary in player.safe_items:
+   if stack.get("seeds", []).has(species): return true
+ return false
+
+static func _reserve_has_seed(stored: Dictionary, species: int) -> bool:
+ return not stored.is_empty() and (stored.stock[species] > 0 or stored.unknown.has(species))
+
+## Carried unidentified seeds retain their species through transfer, banking and identification.
+static func admit_wild_seed(species: int, game: Node, player: Dictionary) -> bool:
+ if not Participation.is_wild(player) or not player.get("carried_seeds") is Array: return false
+ if player.carried_seeds.is_read_only() or species < 0 or species >= preload("res://seed_catalog.gd").DEFINITIONS.size(): return false
+ put(game,player,"carry",{"item":"unidentified_seed","quantity":1,"seeds":[species]})
+ return true
+
 static func put(game,player: Dictionary,bucket: String,stack: Dictionary) -> void:
  var id:=str(stack.item);var amount:=int(stack.quantity);var definition:=Items.get_item(id)
  if bucket=="pouch":
