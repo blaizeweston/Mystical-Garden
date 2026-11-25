@@ -257,6 +257,7 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 		var p: Dictionary = players[id]
 		var offset := WILD_OFFSET if bool(p.wild) else Vector3.ZERO
 		var actor: Dictionary = avatar_models[id]
+		actor.living_in_wilds=bool(p.wild) and not bool(p.fallen)
 		actor.name_label.text="YOU" if id==local_id else str(p.name)
 		if bool(p.fallen): actor.name_label.text+=" · FALLEN"
 		actor.name_label.modulate=[Color("d8edb3"),Color("a3d5ef"),Color("e5bcf2"),Color("efcf9f")][clampi(int(p.party_slot),0,3)]

@@ -1,6 +1,7 @@
 extends RefCounted
 ## One instance belongs to the title-issued developer world. Practice borrows it.
 const Developer = preload("res://developer_mode.gd")
+const Shelter = preload("res://shelter_visuals.gd")
 const Affinities = preload("res://affinity_glyphs.gd")
 const Contacts = preload("res://contact_particles.gd")
 const Delivery = preload("res://weapon_delivery_visuals.gd")
@@ -68,6 +69,11 @@ static func _property_definitions() -> Dictionary:
 		properties[id]={"type":"float","category":"Visuals","object_name":Affinities.LABELS[id.get_slice(".",0)],
 			"label":d[4],"unit":d[5],"minimum":d[1],"maximum":d[2],"step":d[3],
 			"timing":"Local combat and experimental playback","source":"affinity_glyphs.gd","symbol":"CONTROLS."+id}
+	for id:String in Shelter.CONTROLS:
+		var d:Array=Shelter.CONTROLS[id]
+		properties[id]={"type":"float","category":"Visuals","object_name":Shelter.LABELS[id.get_slice(".",0)],
+			"label":d[4],"unit":d[5],"minimum":d[1],"maximum":d[2],"step":d[3],
+			"timing":"Local combat and experimental playback","source":"shelter_visuals.gd","symbol":"CONTROLS."+id}
 	for id: String in Delivery.CONTROLS:
 		var d: Array=Delivery.CONTROLS[id]
 		var group: String={"trail":"Weapon edge","projectile":"Projectile","dodge":"Ordinary dodge","text":"Combat captions"}[id.get_slice(".",0)]
@@ -106,6 +112,7 @@ func baseline(id: String) -> float:
 		SPEAR: return preload("res://class_catalog.gd").DEFINITIONS[0].weapons[1].reach
 		WATER: return preload("res://garden_irrigation.gd").RADIUS_M
 		FLORA: return preload("res://wild_flora_generation.gd").SPAWN_CHANCE * 100.0
+	if Shelter.CONTROLS.has(id): return Shelter.CONTROLS[id][0]
 	if Affinities.CONTROLS.has(id): return Affinities.CONTROLS[id][0]
 	if Delivery.CONTROLS.has(id): return Delivery.CONTROLS[id][0]
 	if Ambient.CONTROLS.has(id): return Ambient.CONTROLS[id][0]
@@ -122,7 +129,7 @@ func applied(id: String) -> float: return _applied.get(id, baseline(id))
 func request(world: Node, id: String, value: Variant) -> bool:
 	if not authorized(world) or not valid(id,value): return false
 	_set_difference(_requested,id,value)
-	if id in [SUN,IMPACT] or Contacts.DEFAULTS.has(id) or Ambient.CONTROLS.has(id) or Delivery.CONTROLS.has(id) or Affinities.CONTROLS.has(id): return apply(world,[id])
+	if id in [SUN,IMPACT] or Contacts.DEFAULTS.has(id) or Ambient.CONTROLS.has(id) or Delivery.CONTROLS.has(id) or Affinities.CONTROLS.has(id) or Shelter.CONTROLS.has(id): return apply(world,[id])
 	return true
 
 func _set_difference(values: Dictionary, id: String, value: float) -> void:
@@ -211,7 +218,7 @@ func _set_scene(world: Node, sun: float, water: float, emission: float) -> void:
 func affinity_values() -> Dictionary:
 	var result:={}
 	for id in _applied:
-		if Affinities.CONTROLS.has(id): result[id]=_applied[id]
+		if Affinities.CONTROLS.has(id) or Shelter.CONTROLS.has(id): result[id]=_applied[id]
 	return result
 
 func motion_values() -> Dictionary:

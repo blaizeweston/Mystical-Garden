@@ -84,7 +84,7 @@ static func command(game: Node, peer: int, player: Dictionary, action: String) -
   state.actions[id]={"sequence":sequence,"ready":now+int(action_tuning.cooldown_ms)}
   player[STATE]=state
   var spent: int=wood.spend_all(player,elapsed)
-  wood.burst(game,peer,player.pos,roundi(spent*float(action_tuning.damage_per_bark)),now,definition.title,float(action_tuning.radius_m),true)
+  wood.burst(game,peer,player.pos,roundi(spent*float(action_tuning.damage_per_bark)),now,definition.title,float(action_tuning.radius_m),true,"wood_spent")
   preload("res://diagnostic_journal.gd").event("combat","card_active_cast",{"actor":peer,"card":id,"spent_bark":spent,"sequence":sequence})
   if game.encounter_cleared():game.finish_combat(peer,player.pos)
   return

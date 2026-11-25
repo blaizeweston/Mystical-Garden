@@ -114,7 +114,8 @@ static func clear(game: Node, player: Dictionary) -> void:
 
 
 static func tick(game: Node, elapsed: int) -> void:
-	for player in game.players.values():
+	for id:int in game.players:
+		var player:Dictionary=game.players[id]
 		if not player.has(SOURCES):
 			continue
 		if not game.Life.alive(player):
@@ -128,6 +129,7 @@ static func tick(game: Node, elapsed: int) -> void:
 			continue
 		set_capacity(game,player,benefits.x)
 		var next: int = player[NEXT]
+		var healed_this_update:=0.
 		while next <= elapsed:
 			var regen := strongest(sources,next).y
 			if regen > 0:
@@ -135,6 +137,7 @@ static func tick(game: Node, elapsed: int) -> void:
 				player[PlayerVitals.STATE] = player[PlayerVitals.STATE].healed(regen)
 				var restored := PlayerVitals.current_hp(player) - before
 				if restored > 0:
+					healed_this_update+=restored
 					var providers := {}
 					for grant: Dictionary in sources.values():
 						if grant.start <= next and next < grant.until and grant.regen_per_second == regen:
@@ -142,6 +145,8 @@ static func tick(game: Node, elapsed: int) -> void:
 							providers[identity] = true
 					game.expedition_statistics.heal(game.participation.run_id(),providers.keys()[0] if providers.size() == 1 else "",restored)
 			next += TICK_MS
+		if healed_this_update>0:
+			game.emit_combat_event("impact","heal",player.pos,player.pos,.78,COLOR,healed_this_update,id,{"form":"vital_heal"})
 		player[NEXT] = next
 		for key in sources.keys():
 			if int(sources[key].until) <= elapsed:

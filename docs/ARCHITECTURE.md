@@ -1990,6 +1990,16 @@ Thorn Core fields draw tapering brambles along the authoritative capsule. The or
 
 [Normal-camera visual comparison](vfx05a-affinity-comparison.jpg) · [Moving comparison with full camera and detail](vfx05a-affinity-motion.webp)
 
+### Water, Wood and Vital presentation
+
+`shelter_visuals.gd` owns the cached silhouettes and six local artistic controls. Live combat and the Visuals tab use the same Compatibility shader and the Garden droplet and pollen atlas. Each visible batch has a local material clock. The wave sheet, bark grain and curved petals are project-authored. The droplets and pollen reuse the project-authored VFX03 atlas. The preset fingerprint includes the mesh builder, shader and atlas.
+
+Dewfall uses the clipped start and end of its 550 ms sweep. Each admitted Tidal Return contributor has a distinct 450 ms outgoing phase and a 450 ms return phase. The phase receipt carries its actual width and elapsed offset. Monsoon uses its own expanding and contracting ring receipts. A moisture mark follows the enemy’s published Drenched count. An intercepted return produces restorative droplets only on a recipient with positive applied healing.
+
+Ironbark plates follow the recipient’s current Bark status. Their opacity varies smoothly with remaining HP of protection. An admitted absorption emits one short chip cue at the recipient. Expiry retires the plates quietly. Splinterburst draws from the established expenditure and radial damage event. A directional Form accent marks the primary impact. Secondary splinters join the actual accepted contact endpoints, including penetrations.
+
+Vital Bloom opens around its actual cast center. Low leaves follow an active Vitality recipient. The regeneration owner emits a recipient-local cue after HP increases, summing any catch-up ticks into one displayed amount per update. Existing per-tick provider attribution remains with expedition statistics. Increasing maximum health and spending bonus HP produce no restorative cue. None of these meshes participate in targeting, status admission or settlement.
+
 ### Living Garden presentation
 
 The five authored Heart meshes retain their bark, fissure pigment, development scale and reclamation light. An additional material pass breathes only over emissive fissure surfaces. Structure and frontier roots carry distance from the Heart in their second UV channel. A branch inherits the distance at its actual attachment point, including forks. The bark shader uses this distance to move a broken band of color through the existing grain. Its ordinary crest travels at 2.1 m/s with a 0.72 m half-width. The Heart and roots share a slightly irregular 0.18 Hz rhythm at their production settings.

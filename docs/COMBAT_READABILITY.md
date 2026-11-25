@@ -148,3 +148,39 @@ At normal zoom, the flame reads along the length of the field and the radial Fro
 Updated the highest desktop revision, `Mystical Garden v0.5.2.0.exe`. All 73 source suites have current passing evidence (28 executed and 45 reused in the final connected run, following the focused run). All 40 selected packaged suites passed, plus startup/catalog and real host/three-guest connection smoke. The installed file matches the verified package SHA-256: `590ba2d95469db81347c121a6846ca81ac2cafc925a49ad0a3e24efcc1326dd7`.
 
 The previous EXE is preserved at `.godot/release/backup-20261110-002313-Mystical Garden v0.5.2.0.exe`. Source notes and original changed files are in `docs/change-backups/20261110-combat-readability`. Use the updated EXE on every co-op machine so all players receive the new visual feedback.
+
+## Water, Wood and Vital visual review
+
+In the Developer Garden, enter the Testing Arena and open **F4 → Visuals**. Choose Dewfall, either direction of Tidal Return, Drenched, Ironbark, Bark Armor, absorption, a splinter, Vital Bloom, Vitality or applied regeneration. Pause a playback and switch between baseline and experimental at the same frame. The formations, frame step, individual resets, named presets and review export work with all eleven entries.
+
+| Family | Live tuning | What to look for in combat |
+|---|---|---|
+| Water | Water opacity 0.15–1.00 and crest height 0.5–1.6× | Dewfall folds a translucent sheet across the sweep. The return has a lower crest, softer tint and opposite direction. Drenched droplets follow published Saturation. Monsoon rings stay radial. |
+| Wood | Grain contrast 0–1 and bark or splinter girth 0.6–1.4× | The plates sit beside the torso. A real absorption flicks chips off the armor while ordinary expiry retires it quietly. Splinterburst consumes the armor and sends fragments outward. Short wood fibres connect a confirmed secondary hit to its actual source. |
+| Vital | Petal lift 0.55–1.5× and pollen visibility 0–1 | Rounded petals unfold near the ground. Small leaves identify recipients who still have Vitality. Applied regeneration shows a modest amount and a few rising motes. A maximum-HP grant alone produces neither. |
+
+For an actual fight, load **Sustained damage**, equip Dewcap, Ironroot or Lantern Moss in Core, Form and Catalyst, then cast and strike. Use missing HP to see an applied restoration. Disable practice invincibility to see Bark absorb a real hit. A Vanguard Warden with Ironroot Core, Lantern Moss Form and Dewcap Catalyst can show all three families at once. Monsoon and Splinterburst can be added through the ordinary eligibility-aware editor.
+
+[Before and after](vfx05b-comparison.jpg) · [Three Core abilities in motion](vfx05b-affinity-motion.webp) · [Monsoon, armor expenditure and overlapping affinities through expiry](vfx05b-mixed-affinities.webp)
+
+The before-and-after recording pairs independent solo fights with the same build, arena setup, camera and sampling interval. The full viewport and the original-scale detail show how much of the character remains visible. Wood occupies the sides, Vital sits near the feet and Water crosses the ground or follows a wet target. Dense fights can still overlap the compact status counts and damage numbers. Returning ring captions move behind detailed captions and repeated nearby outbound captions share a count. All healing and damage numbers retain their own receipts.
+
+### Render measurements
+
+Godot 4.7.2, GL Compatibility, RTX 5080, 1100 × 720, VSync off. Each row uses 6.5 seconds per cap. The camera recordings were taken outside the timing windows. In the ordinary Water, Wood and Vital trials, capped p95 changed from 8.86, 8.74 and 8.66 ms on VFX05A to 8.90, 8.71 and 8.67 ms. The corresponding uncapped p95 values changed from 3.85, 3.82 and 3.70 ms to 4.05, 3.74 and 3.71 ms. Independent fights vary in contact count and timing.
+
+| Stress workload | 120 FPS median / p95 / worst (ms) | Uncapped median / p95 / worst (ms) | Peak new art batches / triangles |
+|---|---:|---:|---:|
+| Six concurrent Water wave or ring phases, final captions | 8.33 / 9.01 / 33.59 | 3.75 / 4.48 / 8.37 | 11 / 800 |
+| Protection, absorption, splinters and Splinterburst | 8.38 / 8.71 / 10.18 | 3.53 / 4.04 / 10.05 | 3 / 56 |
+| Bark, Vital regeneration and Water restoration | 8.13 / 8.85 / 9.85 | 3.60 / 4.17 / 9.27 | 10 / 600 |
+| Ember Wake with Wood and Vital | 8.32 / 9.04 / 29.80 | 3.78 / 4.39 / 10.55 | 4 / 158 |
+| Dewfall with Brittle and Bleed | 8.09 / 8.89 / 9.65 | 3.67 / 4.24 / 8.39 | 4 / 224 |
+
+An earlier capped Monsoon run had a 263.17 ms frame. Two fresh-process follow-ups had first-run maxima of 32.96 and 33.59 ms and same-process warm maxima of 9.61 and 9.55 ms. The original spike remains unexplained. GPU and CPU costs were not separately profiled. Peaks were sampled every 45 ms and count only the new affinity batches. Each silhouette shares geometry and each active receipt owns one material and instance. Overlapping translucent water surfaces still blend on the same pixels. All five extended capture scenes finished with zero transient combat effects and zero remaining Water, Wood or Vital body marks.
+
+### Verification and review limits
+
+Focused checks covered baseline and upgraded abilities, real HP changes, split Water contributions, recipient-based mitigation, expenditure, expedition statistics and Archive settlement. The developer lifecycle check exercised the eleven previews, six-target playback, same-frame tuning, presets, isolation and cleanup. Ordinary two-player Wood and Vital fixtures verified that guests received their own body art. Two- and four-player Water fixtures rendered a source-owned tide's positive healing on the receiving guests. The check correlates new host and guest receipts by serial because a later enemy hit can change the recipient's HP before inspection. Multiplayer checks ran headlessly. The graphical measurements and recordings are solo.
+
+The two previously recorded Garden layout mismatches and the long-path OpenGL startup evidence remain documented above. Artistic review should focus on Bark contrast against brown terrain, the resting leaves at ordinary zoom, and legibility of overlapping amounts in a Monsoon.

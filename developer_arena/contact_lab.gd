@@ -3,12 +3,13 @@ extends VBoxContainer
 const Contacts = preload("res://contact_particles.gd")
 const Tune = preload("res://developer_arena/tuning.gd")
 const Exhibit = preload("res://developer_arena/garden_exhibit.gd")
+const Shelter=preload("res://shelter_visuals.gd")
 const Affinities=preload("res://affinity_glyphs.gd")
 const Fire=preload("res://fire_combat.gd")
 const Thorn=preload("res://thorn_affinity.gd")
 const Frost=preload("res://frost_balance.gd")
 const AFFINITY_START:=11
-const AFFINITY_KINDS:=["fire","open","thorn","burning","brittle","bleeding","patch"]
+const AFFINITY_KINDS:=["fire","open","thorn","burning","brittle","bleeding","patch"]+Shelter.PREVIEWS
 var affinity_samples:Array[MeshInstance3D]=[]
 const WEAPON_SEQUENCE := 9
 const DODGE := 10
@@ -45,7 +46,7 @@ var started := false
 func setup(panel: Control, legacy_controls: Control) -> void:
 	world=panel.world
 	equipped=legacy_controls
-	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom","Reviewed weapon sequence","Dodge foot scuff","Ember Wake","Rime Bloom · both phases","Thorn Line","Burning · target","Brittle · two stacks","Bleed · target","Thorn Form patch"]:
+	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom","Reviewed weapon sequence","Dodge foot scuff","Ember Wake","Rime Bloom · both phases","Thorn Line","Burning · target","Brittle · two stacks","Bleed · target","Thorn Form patch"]+Shelter.TITLES:
 		selection.add_item(item)
 	add_child(selection)
 	selection.item_selected.connect(func(_index): select_effect())
@@ -146,6 +147,11 @@ func frame_affinity() -> void:
 func duration() -> float:
 	if selection.selected>=AFFINITY_START:
 		match AFFINITY_KINDS[selection.selected-AFFINITY_START]:
+			"dewfall":return preload("res://water_combat.gd").WAVE_MS*.001
+			"riptide","riptide_return":return preload("res://water_tidal_return.gd").PHASE_MS*.001
+			"ironbark","vital_bloom":return .55
+			"wood_fragment","bark_contact":return .32
+			"vital_heal":return .78
 			"fire": return Fire.FIELD_MS*.001
 			"open": return Affinities.OPEN_SECONDS+.42
 			"thorn": return Thorn.LIFETIME.core*.001
@@ -160,7 +166,9 @@ func refresh_ambient() -> void:
 		var latest:Dictionary=world.developer_tuning.affinity_values()
 		if latest!=captured_values:
 			captured_values=latest
-			for glyph in affinity_samples:Affinities.configure(glyph,latest)
+			for glyph in affinity_samples:
+				if glyph.has_meta("shelter_kind"):Shelter.configure(glyph,latest)
+				else:Affinities.configure(glyph,latest)
 			seek(clock)
 	if is_instance_valid(scuff) and mode.selected==1:
 		captured_values=world.developer_tuning.motion_values()
@@ -217,6 +225,16 @@ func play(advance: bool) -> void:
 		for point in origins():
 			var offset:=Vector3.UP*.24 if kind in Affinities.STATUS else Vector3.ZERO
 			var seed_value:=17+affinity_samples.size()
+			if kind in Shelter.PREVIEWS:
+				var width:=preload("res://water_combat.gd").WAVE_RADIUS if kind=="dewfall" else preload("res://water_tidal_return.gd").BASE_WIDTH
+				if kind=="riptide_return":width*=preload("res://water_tidal_return.gd").RETURN_WIDTH_SCALE
+				if kind=="vital_bloom":width=preload("res://vital_combat.gd").CORE_RADIUS
+				var heading:=Vector3.RIGHT if kind!="riptide_return" else Vector3.LEFT
+				var glyph:=Shelter.create(scene,kind,point,width,heading,seed_value,captured_values,.65)
+				glyph.set_meta("home",point)
+				glyph.set_meta("direction",heading)
+				affinity_samples.append(glyph)
+				continue
 			affinity_samples.append(Affinities.create(scene,kind,point+offset,dims,0.,seed_value,captured_values,2))
 			if kind=="open":
 				affinity_samples.append(Affinities.create(scene,"close",point,dims,0.,seed_value,captured_values))
@@ -288,6 +306,12 @@ func seek(seconds: float) -> void:
 	for glyph in affinity_samples:
 		var phase_time:=clock
 		var end:=duration()
+		if glyph.has_meta("shelter_kind"):
+			glyph.visible=clock<end
+			if str(glyph.get_meta("shelter_kind")) in Shelter.TRAVEL:
+				glyph.position=Vector3(glyph.get_meta("home"))+Vector3(glyph.get_meta("direction"))*(clock/end-.5)*1.6
+			Shelter.seek(glyph,clock,end)
+			continue
 		var phase_id:int=glyph.material_override.get_shader_parameter("effect")
 		if phase_id==Affinities.PHASES.find("open"):end=Affinities.OPEN_SECONDS
 		if phase_id==Affinities.PHASES.find("close"):phase_time-=Affinities.OPEN_SECONDS

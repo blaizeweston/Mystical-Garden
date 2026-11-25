@@ -56,6 +56,7 @@ static func host(test: RefCounted,game: Node,guests: Array) -> bool:
  for peer in guests:test.mark("ce03-accepted-"+str(peer))
  if not test.check(await test.until(func():return guests.all(func(peer):return test.read("ce03-finished-"+str(peer))=="ok")),"guests see host cooldown feedback after duplicate requests"):return false
  if family=="water" and not test.check(await test.until(func():return game.effect_timeline.core_records().is_empty()),"all card-enhanced Core phases finish before fixture cleanup"):return false
+ if family=="water" and not await allied_return(test,game,guests):return false
  for peer in actors:
   var p: Dictionary=game.players[peer]
   p.weapon=saved[peer][0];p.secondary=saved[peer][1];p.catalyst=saved[peer][2];p.pos=saved[peer][4]
@@ -68,12 +69,49 @@ static func host(test: RefCounted,game: Node,guests: Array) -> bool:
  Core.reset(game)
  test.mark("ce03-done")
  return not test.failed
+# A single donor funds the tide. All guests stand on its return path with missing HP.
+static func allied_return(test:RefCounted,game:Node,guests:Array) -> bool:
+ var water=preload("res://water_combat.gd")
+ var vitals=preload("res://player_vitals.gd")
+ var donor:Dictionary=game.players[1]
+ if not test.check(await test.until(func():return game.effect_timeline.native_records().all(func(row):return row.kind!="water_tide")),"earlier Water contributions finish"):return false
+ var old_health:={}
+ var serial:int=game.combat_event_serial
+ donor.pos=game.battlefield.dash(game.tactics.position,game.tactics.position+Vector3.RIGHT*1.3)
+ for peer in guests:
+  var ally:Dictionary=game.players[peer]
+  ally.pos=donor.pos
+  old_health[peer]=ally[vitals.STATE]
+  ally[vitals.STATE]=ally[vitals.STATE].with_hp(maxi(1,ally[vitals.STATE].max_hp()-24))
+  test.mark("tide-ready-"+str(peer),str(serial))
+ if not test.check(await test.until(func():return guests.all(func(peer):return test.read("tide-watching-"+str(peer))=="ok")),"all recipients are watching the incoming return"):return false
+ Effects.edit(game,-1).erase(water.DRENCHED)
+ var material:Dictionary=game.combat_build(donor).affinity_build().core
+ for i in 3:
+  var action=Events.begin(game,1,"core",material,material.potency_profile.values,["core_action"],preload("res://combat_clock.gd").now()+30000)
+  water.drench(game,action,-1)
+ var records:Array=game.effect_timeline.native_records().filter(func(row):return row.kind=="water_tide")
+ if not test.check(not records.is_empty() and records[0].waves.all(func(wave):return wave.source.actor==1),"return waves belong to their sole donor"):return false
+ var healed:={}
+ if not test.check(await test.until(func():
+  for event in game.combat_events:
+   if event.id>serial and event.get("form","")=="water_heal" and event.get("amount",0)>0:healed[int(event.combo)]=true
+  return guests.all(func(peer):return healed.has(peer) and test.read("tide-restored-"+str(peer))=="ok")),"every guest rendered a new host-confirmed healing receipt"):return false
+ for peer in guests:
+  var ally:Dictionary=game.players[peer]
+  ally[vitals.STATE]=old_health[peer]
+ return true
+
 static func guest(test: RefCounted,game: Node,peer: int) -> bool:
  if not test.check(await test.until(func():return not test.read("ce03-start-"+str(peer)).is_empty()),"CE03 episode begins"):return false
  var family: String=test.ce03_family
  var unique: String={"water":"monsoon","wood":"splinterburst","vital":"harvest"}[family]
  var local: Dictionary=game.players[peer]
  if not test.check(await test.until(func():return game.players.get(peer,{}).get("affinity_run_cards",[]).any(func(row):return row.id==unique) and (family=="water" or game.players.get(peer,{}).get("card_actions_state",[]).any(func(row):return row.id==unique))),"guest receives unique acquisition and additional skill-bar action"):return false
+ var renderer=preload("res://tests/support/world_presentation_case.gd").component(game,"combat")
+ var status:String={"water":"drenched","wood":"bark_armor","vital":"vitality"}[family]
+ if not test.check(await test.until(func():return renderer.statuses.active.values().any(func(item):
+  return item.event.shape==status and item.has("shelter") and is_instance_valid(item.shelter) and (family=="water" or item.event.combo==peer))),"guest projects the host's "+status+" onto the affected actor"):return false
  test.mark("ce03-seen-"+str(peer))
  if not test.check(await test.until(func():return test.read("ce03-cast-"+str(peer))=="ok"),"host requests actual extra-action input"):return false
  local=game.players[peer]
@@ -85,4 +123,11 @@ static func guest(test: RefCounted,game: Node,peer: int) -> bool:
   game.send_action(true)
  if not test.check(await test.until(func():return test.read("ce03-accepted-"+str(peer))=="ok" and (game.players.get(peer,{}).get("card_actions_state",[]).any(func(row):return row.id==unique and (bool(row.get("active",false)) if family=="vital" else row.remaining>0)) if family in ["wood","vital"] else float(game.players.get(peer,{}).get("core_state",{}).get("remaining",0))>0)),"duplicate input yields one host-owned cooldown"):return false
  test.mark("ce03-finished-"+str(peer))
+ if family=="water":
+  if not test.check(await test.until(func():return test.read("tide-ready-"+str(peer)).is_valid_int()),"guest ready to observe allied restoration"):return false
+  var before:=int(test.read("tide-ready-"+str(peer)))
+  test.mark("tide-watching-"+str(peer))
+  if not test.check(await test.until(func():return renderer.active.values().any(func(e):
+   return e.get("art","")=="water_heal" and e.event.combo==peer and e.event.id>before and e.event.amount>0)),"returning Water renders the applied heal on this guest"):return false
+  test.mark("tide-restored-"+str(peer))
  return test.check(await test.until(func():return test.read("ce03-done")=="ok"),"CE03 fixture restores equipment before normal floor progression")

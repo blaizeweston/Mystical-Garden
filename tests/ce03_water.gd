@@ -38,6 +38,7 @@ func run():
  g.players[1][Conditions.STATE]=g.players[1][Conditions.STATE].with_slow_until(now+5000)
  drain(now)
  check(g.enemy_health()==999994 and g.players[1][Vitals.STATE].hp()==76 and g.players[1][Conditions.STATE].slow_until_ms()==0,"outgoing damage and returning restoration/cleanse resolve once")
+ check(g.combat_events.any(func(e):return e.shape=="heal" and e.get("form","")=="water_heal" and e.combo==1 and e.amount==6),"returning tide displays only its actual applied restoration")
  var hp: float=g.players[1][Vitals.STATE].hp()
  drain(now)
  check(g.enemy_health()==999994 and g.players[1][Vitals.STATE].hp()==hp and status.saturation==5,"repeated timeline execution neither repeats contacts nor generates pressure")

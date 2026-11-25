@@ -133,7 +133,9 @@ static func after_hit(game: Node, id: int, epoch: int, plan: Dictionary, now: in
 		return
 	Journal.event("combat","affinity_bark_absorbed",{"recipient":id,"absorbed":plan.absorbed,"depleted":plan.depleted,
 		"damage":plan.damage,"shares":plan.shares,"owner":plan.owner})
-	if epoch==game.participation.epoch():retaliate(game,id,plan,now)
+	if epoch==game.participation.epoch():
+		game.emit_combat_event("ability","bark_contact",plan.center,plan.center,.32,COLOR,.45,id,{"label":""})
+		retaliate(game,id,plan,now)
 	if int(plan.damage)>0 and epoch==game.participation.epoch() and game.participation.active() and not game.persistence_session.is_blocked() \
 			and PlayerLifecycle.matches(game.players.get(plan.owner,{}),int(plan.owner_life)):
 		burst(game,plan.owner,plan.center,plan.damage,now,"Bark break")
@@ -163,8 +165,8 @@ static func nearby(game: Node, center: Vector3, radius: float) -> Array[int]:
 		return center.distance_to(pos)<=radius and game.battlefield.clear_line(center,pos))
 
 
-static func burst(game: Node, owner: int, center: Vector3, damage: int, now: int, label: String, radius: float=WARD_RADIUS, secondary := false) -> void:
-	game.emit_combat_event("ability","wood_burst",center,center,.55,COLOR,radius,owner,{"label":label})
+static func burst(game: Node, owner: int, center: Vector3, damage: int, now: int, label: String, radius: float=WARD_RADIUS, secondary := false, presentation := "") -> void:
+	game.emit_combat_event("ability","wood_burst",center,center,.55,COLOR,radius,owner,{"label":label,"form":presentation})
 	for target in game.skill_area_targets(center,radius,center):
 		if game.persistence_session.is_blocked(): break
 		OutgoingHits.affinity_and_clear(game,owner,target,damage,now,COLOR,secondary)

@@ -2,6 +2,7 @@ extends Node3D
 # Cosmetic host events only; icons follow rendered actors, not unsmoothed packets.
 const Catalog=preload("res://combat_status.gd")
 const Affinities=preload("res://affinity_glyphs.gd")
+const Shelter=preload("res://shelter_visuals.gd")
 var settings: Dictionary={}
 var stage: Node3D
 var active: Dictionary={}
@@ -15,7 +16,7 @@ func consume(event: Dictionary) -> void:
   var id:=int(event.shape);ended[id]=true
   if active.has(id):
    var previous:Dictionary=active[id]
-   if previous.has("mark"):retired_age[previous.identity]=previous.art_age
+   if previous.has("mark") or previous.has("shelter"):retired_age[previous.identity]=previous.art_age
    previous.node.hide()
    previous.node.queue_free()
    active.erase(id)
@@ -41,6 +42,14 @@ func consume(event: Dictionary) -> void:
   elif event.shape=="drenched":label.text="Drenched · %d/%d"%[int(event.reach),Catalog.Water.SATURATION_THRESHOLD]
  if event.shape in ["echo","grave"]:label.text=Catalog.LABELS[event.shape]+" %d/3"%int(event.reach)
  active[event.id]={"node":root,"label":label,"event":event,"age":float(event.get("age",0)),"enemy":enemy}
+ if event.shape in Shelter.STATUS:
+  var identity:="%s/%s/%s"%[event.combo,event.get("target_token",0),event.shape]
+  var strength:=1.
+  if event.shape=="drenched":strength=clampf(float(event.reach)/Catalog.Water.SATURATION_THRESHOLD,0.,1.)
+  if event.shape=="bark_armor":strength=float(event.reach)/(float(event.reach)+12.)
+  active[event.id].identity=identity
+  active[event.id].art_age=retired_age.get(identity,float(event.get("age",0.)))
+  active[event.id].shelter=Shelter.create(root,event.shape,Vector3.ZERO,.55,Vector3.ZERO,int(event.combo),settings,strength)
  if enemy and event.shape in Affinities.STATUS:
   var identity:="%s/%s/%s"%[event.combo,event.get("target_token",0),event.shape]
   active[event.id].identity=identity
@@ -51,7 +60,7 @@ func step(delta: float) -> void:
  var slots: Dictionary={}
  for id in active.keys():
   var item: Dictionary=active[id];item.age+=delta;var event: Dictionary=item.event
-  if item.has("mark"):item.art_age+=delta
+  if item.has("mark") or item.has("shelter"):item.art_age+=delta
   var target: Node3D
   if not item.enemy:target=stage.avatars.get(int(event.combo))
   elif int(event.combo)==-1:target=stage.foe
@@ -64,11 +73,14 @@ func step(delta: float) -> void:
   var in_view: bool=target.visible and at.distance_to(observer)<=sight
   if in_view and not item.has("first_seen"):item.first_seen=item.age
   var visible_age: float=item.age-float(item.get("first_seen",item.age))
-  item.node.visible=in_view and (item.enemy or visible_age<1.35)
+  item.node.visible=in_view and (item.enemy or item.has("shelter") or visible_age<1.35)
   item.node.position=target.position+Vector3(0.0,float(event.height)+slot*(.48 if item.enemy else .30),0)
   item.label.visible=visible_age<1.35 or event.shape in ["brittle","burning","drenched"]
   var text_color:=Color(event.color);text_color.a=1.0 if event.shape in ["brittle","burning","drenched"] else 1-smoothstep(.95,1.35,visible_age);item.label.modulate=text_color
   item.node.scale=Vector3.ONE*(1+.07*sin(item.age*5))
+  if item.has("shelter") and item.node.visible:
+   item.shelter.global_position=target.global_position
+   Shelter.seek(item.shelter,item.art_age,event.duration)
   if item.has("mark") and item.node.visible:
    # The status label occupies an overhead lane; keep the art against the body.
    item.mark.global_position=target.global_position+Vector3.UP*clampf((float(event.height)-1.8)*.65,.14,.75)

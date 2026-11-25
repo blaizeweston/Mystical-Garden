@@ -213,6 +213,7 @@ func test_absorption(p: Dictionary, now: int) -> void:
 	check(p[PlayerVitals.STATE].hp()==178 and available(p)==0 and game.enemy_health()==488 and burst_count()==1,"overflow reaches HP and the breaking hit lands one burst")
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now, 12.0, 0, game.tactics.position)
 	check(p[PlayerVitals.STATE].hp()==178 and burst_count()==1,"duplicate protected damage event does not debit or burst again")
+	check(game.combat_events.filter(func(e):return e.shape=="bark_contact" and e.combo==1).size()==1,"one visible absorption on the protected character")
 	Wood.grant(game,event(2,"catalyst","part_17"),1,"support")
 	hit(p,1,30,now)
 	check(available(p)==0 and p[PlayerVitals.STATE].hp()==160 and burst_count()==1,"rapid replacement depletes without a new burst")

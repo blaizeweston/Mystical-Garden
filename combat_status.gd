@@ -65,7 +65,10 @@ static func sync(game: Node,now: int) -> void:
     add(desired,game,"spirit_"+str(follow.phase),id,false,now+int(follow.until)-elapsed,1,now)
    if spirit.scale(player,elapsed)>1.0:
     add(desired,game,"spirit_stride",id,false,now+60000,1,now)
-  if player.has("affinity_bark_grants"):add(desired,game,"bark_armor",id,false,now+60000,1,now)
+  if player.has("affinity_bark_grants"):
+   var wood=preload("res://wood_affinity.gd")
+   var remaining:int=wood.capacity(wood.live_grants(player,preload("res://affinity_time.gd").now(game)))
+   if remaining>0:add(desired,game,"bark_armor",id,false,now+60000,remaining,now)
   add(desired,game,"holdfast",id,false,Warden.holdfast_until(game,player,now),1,now)
   add(desired,game,"protective_filaments",id,false,preload("res://weaver_combat.gd").filaments_until(game,player,now),1,now)
   add(desired,game,"slow",id,false,player[Conditions.STATE].slow_until_ms(),1,now)

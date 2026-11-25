@@ -18,7 +18,8 @@ static func restore(game: Node, actor: Dictionary, rolled_hp: int, source: Strin
 			if not is_same(actor,game.players[id]):
 				continue
 			if source != "floor_recovery": game.expedition_statistics.heal(game.participation.run_id(),game.expedition_stat_identity(provider),applied)
-			game.emit_combat_event("impact","heal",actor.pos,actor.pos,.85,HEAL_TINT,applied,int(id))
+			var cue: Dictionary={"form":"water_heal"} if source.begins_with("dewfall/") or source.begins_with("tidal_return/") else {}
+			game.emit_combat_event("impact","heal",actor.pos,actor.pos,.85,HEAL_TINT,applied,int(id),cue)
 			break
 	return applied
 

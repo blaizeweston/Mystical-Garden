@@ -6,6 +6,7 @@ var stage: Node3D
 const Contacts = preload("res://contact_particles.gd")
 const Delivery = preload("res://weapon_delivery_visuals.gd")
 const Affinities = preload("res://affinity_glyphs.gd")
+const Shelter = preload("res://shelter_visuals.gd")
 var affinity_overrides := {}
 var motion_overrides := {}
 var contact_overrides := {}
@@ -31,9 +32,11 @@ func set_affinity_tuning(values:Dictionary) -> void:
  for hint in hints.values():
   for plant in hint.get("plants",[]): Affinities.configure(plant,values)
  for effect in active.values():
+  if effect.has("shelter"):Shelter.configure(effect.shelter,values)
   for key in ["petals","mist","payoff"]:
    if effect.has(key):Affinities.configure(effect[key],values)
  for item in statuses.active.values():
+  if item.has("shelter"):Shelter.configure(item.shelter,values)
   if item.has("mark"):Affinities.configure(item.mark,values)
 
 func material(color: Color, emission := IMPACT_EMISSION) -> StandardMaterial3D:
@@ -70,7 +73,7 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
   if event.kind=="impact" and event.shape=="heal":
    var at:=point(event.to)
    if at.distance_to(observer)<=sight:feedback.confirmed(event,at)
-   continue
+   if event.get("form","") not in ["water_heal","vital_heal"] or event.get("amount",0)<=0:continue
   var at:=point(event.to)
   var visible_hit:=at.distance_to(observer)<=sight
   if event.kind=="ability" and event.shape=="ember_trail":
@@ -79,7 +82,7 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
     feedback.text_at(str(event.label),at,Color("#bcebdd"),int(event.id),true)
    continue
   var family:=Contacts.kind(event)
-  if event.kind=="impact" and visible_hit:
+  if event.kind=="impact" and event.shape!="heal" and visible_hit:
    var flash:=float(contact_overrides.get("impact.flash",Contacts.DEFAULTS["impact.flash"])) if family=="impact" else 1.0
    feedback.confirmed(event,at,0.0 if event.get("damage_cue","") in ["frost_rupture","burn_tick","bleed_tick"] else flash)
   # The rupture already supplies the contact visual; its damage receipt still shows HP.
@@ -91,7 +94,20 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    var strike:=point(event.strike_point) if event.has("strike_point") else at
    effect=Contacts.create(self,family,stage.WILD_OFFSET+strike,strike-point(event.from),event.get("form",""),int(event.id),contact_overrides,impact_emission,event.has("strike_point"))
   else:
-   effect=visual(Color(event.color), impact_emission if event.kind=="impact" else IMPACT_EMISSION)
+   var art:String=event.shape if event.shape in Shelter.RECEIPTS and event.kind in ["projectile","ability","link"] else ""
+   if event.kind=="impact" and event.shape=="heal":art=event.form
+   if art=="wood_burst" and event.get("form","")=="wood_spent":art="wood_spent"
+   if not art.is_empty():
+    var root:=Node3D.new()
+    add_child(root)
+    root.position=stage.WILD_OFFSET
+    var origin:=point(event.from)
+    var extent:=float(event.reach)
+    if art=="wood_fragment":extent=origin.distance_to(at)
+    if event.kind=="impact":extent=.55
+    effect={"root":root,"shelter":Shelter.create(root,art,origin,extent,at-origin,int(event.id),affinity_overrides),"art":art}
+   else:
+    effect=visual(Color(event.color), impact_emission if event.kind=="impact" else IMPACT_EMISSION)
    if event.kind=="ability" and event.shape in ["frost_open","frost_close"]:
     var phase: String="open" if event.shape=="frost_open" else "close"
     effect.petals=Affinities.create(effect.root,phase,at,Vector2.ONE*float(event.reach),0.,0,affinity_overrides)
@@ -108,9 +124,11 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    if event.shape=="pulled":feedback.text_at("Pulled",point(event.to),Color(event.color),int(event.id),true,3.45)
    elif event.shape=="restored" and int(event.reach)>0:feedback.text_at("+%d"%int(event.reach),point(event.to),Color(event.color),int(event.id))
    elif event.shape=="trophy":feedback.text_at("Trophy stolen",point(event.to),Color(event.color),int(event.id),true)
-  var phase_caption: bool=event.shape=="frost_close" and motion_overrides.get("text.detail",Delivery.CONTROLS["text.detail"][0])==0
+  var phase_caption: bool=event.shape in ["frost_close","ironbark","vital_bloom","wood_splinters","riptide_return","tidal_ring_return"] and motion_overrides.get("text.detail",Delivery.CONTROLS["text.detail"][0])==0
   if event.kind=="ability" and visible_hit and not phase_caption and not str(event.get("label",event.shape)).is_empty():
-   if family!="rupture" or contact_overrides.get("rupture.repeat_labels",0)>0 or not feedback.recent_rupture_near(at):
+   if event.shape in ["tidal_ring","riptide"]:
+    feedback.proc_caption(str(event.get("label",event.shape)),at,Color("#bcebdd"),int(event.id),motion_overrides.get("text.detail",Delivery.CONTROLS["text.detail"][0])>0)
+   elif family!="rupture" or contact_overrides.get("rupture.repeat_labels",0)>0 or not feedback.recent_rupture_near(at):
     feedback.text_at(str(event.get("label",event.shape)),at,Color("#bcebdd"),int(event.id),true)
     if family=="rupture":feedback.labels.back().rupture_at=at
   if event.kind=="subclass_release" and visible_hit and not str(event.get("label","")).is_empty():
@@ -121,7 +139,7 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    if plant_index>=0:
     var growth: Node3D=stage.build_crop(plant_index,2,false)
     growth.reparent(effect.root,false);growth.position=point(event.to);effect.growth=growth
-  if event.kind=="projectile": mount_projectile_glyph(effect,event)
+  if event.kind=="projectile" and not effect.has("shelter"): mount_projectile_glyph(effect,event)
   if active.size()>=80:
    var old=active.keys()[0];active[old].root.queue_free();active.erase(old)
   active[event.id]=effect
@@ -187,6 +205,21 @@ func circle(mesh: ImmediateMesh,center: Vector3,radius: float,width: float=.06) 
   ribbon(mesh,center+Vector3(cos(first),0,sin(first))*radius,center+Vector3(cos(second),0,sin(second))*radius,width)
 func pose(effect: Dictionary) -> void:
  var event: Dictionary=effect.event
+ if effect.has("shelter"):
+  var start:=point(event.from)
+  var end:=point(event.to)
+  var travel:bool=effect.art in Shelter.TRAVEL
+  var age:float=effect.age+int(event.get("core_phase",0))*.001
+  var progress:=clampf(age/float(event.duration),0.,1.)
+  effect.shelter.position=start.lerp(end,progress) if travel else start
+  if effect.art=="wood_fragment":effect.shelter.position=end
+  var center:Vector3=effect.shelter.position
+  if effect.art in ["riptide","riptide_return","tidal_ring","tidal_ring_return"] and not stage.avatar_models.get(int(event.combo),{}).get("living_in_wilds",false):
+   effect.root.hide()
+   return
+  effect.root.visible=progress<1. and center.distance_to(observer)<=sight+(float(event.reach) if effect.art not in ["water_heal","vital_heal"] else .5)
+  Shelter.seek(effect.shelter,age,event.duration)
+  return
  if effect.has("payoff"):Affinities.seek(effect.payoff,effect.age,float(event.duration)-float(effect.age))
  if effect.has("petals"):
   Affinities.seek(effect.petals,effect.age,float(event.duration)-float(effect.age))
@@ -266,20 +299,6 @@ func pose(effect: Dictionary) -> void:
     ribbon(mesh,base+Vector3.UP*.1,base+Vector3.UP*(.3+.25*sin(t*TAU*4+i)),.05)
  elif event.kind=="ability" and event.has("core_shapes"):
   CoreVisuals.draw(self,mesh,event,to,t,false)
- elif event.kind=="ability" and event.shape in ["tidal_ring","tidal_ring_return"]:
-  var effect_scale:=1.0-t if event.shape=="tidal_ring_return" else t
-  for band in 3:circle(mesh,to+Vector3.UP*(.08+.04*band),maxf(0,float(event.reach)*effect_scale-.10*band),.08-.015*band)
- elif event.kind=="ability" and event.shape in ["riptide","riptide_return"]:
-  var crest:=from.lerp(to,t)+Vector3.UP*.09
-  var width:=float(event.reach)
-  for band in 3:
-   var trail:=float(band)*.16
-   for index in 18:
-    var a:=index/9.0-1.0
-    var b:=(index+1)/9.0-1.0
-    var first:=crest+side*a*width-direction*(a*a*.32+trail)+Vector3.UP*(1-a*a)*.19
-    var second:=crest+side*b*width-direction*(b*b*.32+trail)+Vector3.UP*(1-b*b)*.19
-    ribbon(mesh,first,second,.15-float(band)*.035)
  elif event.kind=="ability" and event.shape in ["mirror_bloom","lantern_burst"]:
   var center:=to+Vector3.UP*.12
   var radius:=float(event.reach)
@@ -403,7 +422,6 @@ func pose(effect: Dictionary) -> void:
  var surface:=effect.mesh.material_override as StandardMaterial3D
  var color:=Color(event.color);color.a=.95 if event.kind=="projectile" else (1.0-t)*.9
  if event.kind=="dodge":color.a=1.
- if event.shape in ["riptide","riptide_return"]:color.a=.85
  if event.kind=="impact":
   color=Color("#fff2ce") if event.shape!="hurt" else Color("#ff957d")
   # Compatibility draws this unshaded material from albedo. Keep its original

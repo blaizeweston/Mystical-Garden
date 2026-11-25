@@ -288,6 +288,21 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 		fx.sync([receipt,receipt],[],"payoff-"+payoff,Vector3.ZERO)
 		if fx.active.size()!=1 or not fx.active[receipt.id].has("payoff"):return "missing or duplicate "+payoff
 	fx.clear()
+	var wave:={"id":905,"kind":"projectile","shape":"dewfall","from":[-1,0,0],"to":[2,0,0],"duration":.55,"age":.275,"reach":1.05,"combo":1,"color":"82d7ec"}
+	fx.sync([wave,wave],[],"water-floor",Vector3.ZERO)
+	if fx.active.size()!=1 or not fx.active[905].shelter.position.is_equal_approx(Vector3(.5,0,0)):return "Dewfall phase or duplicated receipt"
+	var ending:={"id":906,"kind":"projectile_end","shape":"905"}
+	fx.sync([ending,wave],[],"water-floor",Vector3.ZERO)
+	if not fx.active.is_empty():return "retired wave replayed"
+	for shape in ["drenched","bark_armor","vitality"]:
+		var status:={"id":911,"kind":"status","shape":shape,"from":[0,0,0],"to":[0,0,0],"duration":6.,"reach":20,"color":"82d7ec",
+			"form":"enemy" if shape=="drenched" else "player","combo":-1 if shape=="drenched" else 1,"height":2.35,"target_token":77}
+		fx.sync([status,status],[],shape,Vector3.ZERO)
+		if fx.statuses.active.size()!=1 or not fx.statuses.active[911].has("shelter"):return "missing or duplicated body art "+shape
+		var mark:MeshInstance3D=fx.statuses.active[911].shelter
+		fx.sync([{"id":912,"kind":"status_end","shape":"911"}],[],shape,Vector3.ZERO)
+		if not fx.statuses.active.is_empty() or not mark.get_parent().is_queued_for_deletion():return "expired body art "+shape
+	fx.clear()
 	lab.formation.select(2)
 	lab.arrange_targets()
 	for i in lab.AFFINITY_KINDS.size():
@@ -302,7 +317,7 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 			lab.seek(lab.Affinities.OPEN_SECONDS+.01)
 			if lab.affinity_samples[0].visible or not lab.affinity_samples[1].visible:return "opening/closing handoff"
 		var stamp:float=lab.clock
-		var id:String=["fire.height","frost.petals","thorn.bark","fire.embers","affinity.status","affinity.status","thorn.spines"][i]
+		var id:String=["fire.height","frost.petals","thorn.bark","fire.embers","affinity.status","affinity.status","thorn.spines","water.crest","water.opacity","water.crest","water.opacity","wood.grain","wood.thickness","wood.grain","wood.thickness","vital.petals","vital.pollen","vital.pollen"][i]
 		var proposed:float=Tune.PROPERTIES[id].maximum
 		if not tune.request(world,id,proposed):return "affinity slider "+id
 		lab.mode.select(1)
@@ -311,12 +326,12 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 		tune.reset(world,[id])
 		lab.stop()
 		if not lab.affinity_samples.is_empty():return "affinity reset"
-	if not tune.request(world,"fire.smoke",.43) or not presets.save_new("Smoldering roots").is_empty():return "affinity preset write"
-	tune.reset(world,["fire.smoke"])
-	if not presets.load_named("Smoldering roots").is_empty() or not is_equal_approx(tune.applied("fire.smoke"),.43):return "affinity preset read"
+	if not tune.request(world,"water.crest",1.35) or not tune.request(world,"fire.smoke",.43) or not presets.save_new("Smoldering roots").is_empty():return "affinity preset write"
+	tune.reset(world,["fire.smoke","water.crest"])
+	if not presets.load_named("Smoldering roots").is_empty() or not is_equal_approx(tune.applied("water.crest"),1.35) or not is_equal_approx(tune.applied("fire.smoke"),.43):return "affinity preset read"
 	var export_path:String=presets.export_review("Smoldering roots")
 	if not presets._read(export_path.path_join("changes.json")).differences.any(func(row):return row.id=="fire.smoke"):return "affinity preset export"
-	tune.reset(world,["fire.smoke"])
+	tune.reset(world,["fire.smoke","water.crest"])
 	return ""
 
 static func wild(world: Node) -> String:

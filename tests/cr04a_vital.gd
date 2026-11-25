@@ -131,13 +131,17 @@ func run() -> void:
 		var cast: Dictionary=game.effect_timeline.core_records().get(1,{})
 		check(not cast.is_empty(),"real Core can grant recovery between encounters")
 		if not cast.is_empty():
+			var before_grant:int=game.combat_event_serial
 			Core.tick(game,cast.armed)
+			check(not game.combat_events.any(func(e):return e.id>before_grant and e.shape=="heal"),"a capacity grant never displays healing")
 			check(player[PlayerVitals.STATE].max_hp()==native+q.bonus_hp and player[PlayerVitals.STATE].hp()==60 and ally[PlayerVitals.STATE].max_hp()==int(game.Life.native_maximum(game,ally))+q.bonus_hp,
 				"capacity goes to living allies without instant heal")
 			check(fallen[PlayerVitals.STATE].hp()==0 and not fallen.has(Vital.SOURCES),"Bloom never revives a fallen ally")
 			ally.pos=Vector3(8,0,0)
 			Vital.tick(game,Clock.advance(game,1.0))
 			check(player[PlayerVitals.STATE].hp()==60+q.regen_per_second and ally[PlayerVitals.STATE].hp()==60+q.regen_per_second,"recipient carries regeneration beyond the original area")
+			for recipient in [1,2]:
+				check(game.combat_events.filter(func(e):return e.id>before_grant and e.shape=="heal" and e.get("form","")=="vital_heal" and e.combo==recipient and e.amount==q.regen_per_second).size()==1,"one applied regeneration receipt per healed character")
 			check(not game.effect_timeline.core_records().has(1),"native cast released once")
 		reset(player,ally)
 		player.secondary=part

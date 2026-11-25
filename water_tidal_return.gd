@@ -138,7 +138,7 @@ static func advance(game: Node, record: Dictionary, now: int) -> void:
    wave["shown_"+str(phase)]=true
    var shape: String=("tidal_ring_return" if returning else "tidal_ring") if wave.ring else ("riptide_return" if returning else "riptide")
    var visible_width:=float(wave.get("radius",wave.width))*(RETURN_WIDTH_SCALE if returning and not wave.ring else 1.0)
-   game.emit_combat_event("ability",shape,wave.origin if not returning else wave.end,wave.end if not returning else wave.origin,PHASE_MS/1000.0,COLOR,visible_width,wave.source.actor,{"label":"Monsoon return" if returning and wave.ring else "Restorative tide" if returning else "Monsoon" if wave.ring else "Tidal Return"})
+   game.emit_combat_event("ability",shape,wave.origin if not returning else wave.end,wave.end if not returning else wave.origin,PHASE_MS/1000.0,COLOR,visible_width,wave.source.actor,{"core_phase":maxi(0,age-phase*PHASE_MS),"label":"Monsoon return" if returning and wave.ring else "Restorative tide" if returning else "Monsoon" if wave.ring else "Tidal Return"})
   resolve_segment(game,wave,wave.previous,point,radius,returning,now)
   wave.previous=point;wave.previous_radius=radius
  record.next=now+1
