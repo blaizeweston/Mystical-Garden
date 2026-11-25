@@ -3,7 +3,9 @@ extends SceneTree
 ## starts, game-scale mobs, clean resets between episodes on one floor, and well-formed records and shards.
 ## Uses ai/training/out/policy.bin, which ai/training/check_model.py writes (run_checks.ps1 runs it first).
 
+const Catalog = preload("res://enemy_catalog.gd")
 const Choice = preload("res://ai/choice_test.gd")
+const Pace = preload("res://ai/game_pace.gd")
 const Contract = preload("res://mob_sim/mob_contract.gd")
 const Env = preload("res://ai/training_env.gd")
 const NavWorld = preload("res://mob_sim/mob_nav_world.gd")
@@ -26,6 +28,7 @@ func _initialize() -> void:
 		return
 	schema = Schema.new()
 	settings = JSON.parse_string(FileAccess.get_file_as_string("res://ai/training/training.json")).episodes
+	test_game_pace()
 	test_starts()
 	test_episodes()
 	test_choice_replay()
@@ -49,6 +52,44 @@ func make_env(overrides: Dictionary, seed_value: int) -> Env:
 	var env := Env.new(schema, Recorder.new(schema), episodes, seed_value)
 	env.set_policy(FileAccess.get_file_as_bytes(POLICY), 1)
 	return env
+
+
+## Training mobs move, wind up and recover at the game's pace for their floor (combat_director.gd), and spawns
+## carry it.
+func test_game_pace() -> void:
+	var participation := GDScript.new()
+	participation.source_code = "extends RefCounted\nvar number := 1\nfunc floor() -> int:\n\treturn number\n"
+	participation.reload()
+	var game_script := GDScript.new()
+	game_script.source_code = "extends Node\nvar participation\n"
+	game_script.reload()
+	var game: Node = game_script.new()
+	game.participation = participation.new()
+	var director = preload("res://combat_director.gd")
+	var worst := 0.0
+	for floor_number in range(1, 31):
+		game.participation.number = floor_number
+		for definition: Dictionary in Catalog.all():
+			var base := float(definition.speed)
+			worst = maxf(worst, absf(base * Pace.speed_scale(base, floor_number) - director.speed(game, base)))
+			var windup := int(definition.windup)
+			worst = maxf(worst, absf(roundi(windup * Pace.windup_scale(floor_number)) - director.windup(game, windup)) / 1000.0)
+			var recovery := int(definition.recovery)
+			worst = maxf(worst, absf(roundi(recovery * Pace.recovery_scale(floor_number)) - director.recovery(game, recovery)) / 1000.0)
+	game.free()
+	check(worst < 0.002, "training speed, wind-up and recovery match the game's director on floors 1-30 (worst %.4f)" % worst)
+	var env := make_env({"explore_share": 0.0, "floors": [12, 12], "elite_share": 0.0, "mutation_chance": 0.0}, 9)
+	env._new_map()
+	var start: Vector2 = env.open[0]
+	env.party.reset(["warden"], [start], 0.5)
+	env._spawn_mobs(start, false)
+	var pool = env.sim.pool
+	var paced := true
+	for slot in pool.active:
+		var base: float = env.sim.species.speed[pool.species[slot]]
+		paced = paced and is_equal_approx(pool.speed[slot], base * Pace.speed_scale(base, 12)) and is_equal_approx(pool.windup_scale[slot], Pace.windup_scale(12))
+	check(paced and pool.active.size() > 0, "floor 12 training mobs spawn at the game's floor 12 speed and wind-up")
+	env.close()
 
 
 ## Places mobs and the party as an episode would, without playing it: distances, awareness and balance.

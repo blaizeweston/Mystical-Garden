@@ -18,6 +18,7 @@ const Battlefield = preload("res://battlefield.gd")
 const Catalog = preload("res://enemy_catalog.gd")
 const Clock = preload("res://mob_sim/mob_clock.gd")
 const Events = preload("res://mob_sim/mob_events.gd")
+const Pace = preload("res://ai/game_pace.gd")
 const Pool = preload("res://mob_sim/mob_pool.gd")
 const Recorder = preload("res://ai/rollout_recorder.gd")
 const Rewards = preload("res://ai/mob_rewards.gd")
@@ -241,6 +242,9 @@ func _spawn(at: Vector2, leader: int, elite: bool) -> int:
 	request.at = at
 	request.intelligence = _uniform("intelligence")
 	request.leader = leader
+	request.speed_scale = Pace.speed_scale(float(definition.speed), floor_number)
+	request.windup_scale = Pace.windup_scale(floor_number)
+	request.recovery_scale = Pace.recovery_scale(floor_number)
 	var tuning: Dictionary = Balance.tuning
 	var hit := float(tuning.regular.get("hit_hp", definition.preview_hit_hp)) + (floor_number - 1) * float(tuning.regular.hit_per_floor)
 	if elite:
