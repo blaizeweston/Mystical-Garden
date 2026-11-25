@@ -71,11 +71,14 @@ func _initialize_round() -> void:
 	participation.leave(HOST)
 	participation.reset_run()
 	participation.enter(HOST)
+	for step in range(1,session.encounter_depth):
+		participation.advance(participation.epoch(),ROUTE_ROOMS)
+		participation.begin_floor(0)
 	boss_floors[str(participation.floor())] = -1
-	reset_encounter(0)
+	reset_encounter(session.terrain_seed)
 	encounter.clear_scouts()
 	encounter.set_hp(-1,0)
-	actor.pos = Vector3.ZERO
+	actor.pos = Vector3.ZERO if session.terrain_seed==0 else battlefield.entry
 	actor.still_point = actor.pos
 	if session.build.is_empty(): session.build=BuildPlan.initial(actor)
 	var plan:=BuildPlan.plan(self,session.build)
@@ -142,7 +145,7 @@ func return_to_main_menu(_message: String = "") -> void:
 func spawn_selection(type: String, kind: int, count: int, formation: String, endless: bool) -> String:
 	var reason := PracticeEncounter.place(self,type,kind,count,formation,endless)
 	if reason.is_empty():
-		encounter_selection={"type":type,"kind":kind,"count":count,"formation":formation,"endless":endless}
+		encounter_selection={"type":type,"kind":kind,"count":count,"formation":formation,"endless":endless,"origin":players[HOST].pos,"facing":players[HOST].facing}
 	return reason
 
 func clear_enemies() -> void:
@@ -174,6 +177,9 @@ func restore_round(saved: Dictionary) -> void:
 	if not is_practice_world(): return
 	var selection: Dictionary=saved.get("selection",{})
 	if not selection.is_empty():
+		if selection.has("origin") and selection.has("facing"):
+			players[HOST].pos=selection.origin
+			players[HOST].facing=selection.facing
 		spawn_selection(selection.type,selection.kind,selection.count,selection.formation,selection.endless)
 	if saved.has("statistics"):
 		expedition_statistics.restore_savepoint(saved.statistics)

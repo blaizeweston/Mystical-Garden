@@ -11,6 +11,7 @@ var arrangement: OptionButton
 var endless: CheckButton
 var metrics: Label
 var editor: RefCounted
+var scenario_editor: RefCounted
 var tuning_editor: RefCounted
 var displayed_sun := NAN
 
@@ -31,7 +32,7 @@ func _ready() -> void:
 	body.add_child(title)
 	tabs.custom_minimum_size.y=clampf(get_viewport_rect().size.y-220,260,495)
 	body.add_child(tabs)
-	var sections := ["Testing","Enemies","Build","Upgrades","Statistics","Tuning"] if practice else ["Testing","Tuning"]
+	var sections := ["Testing","Enemies","Build","Upgrades","Statistics","Tuning","Scenarios"] if practice else ["Testing","Tuning"]
 	for key in sections:
 		var scroll:=ScrollContainer.new()
 		scroll.name=key
@@ -57,6 +58,7 @@ func _ready() -> void:
 		command(pages.Testing,"Clear lingering effects",func():world.session.rebuild("effects"))
 		command(pages.Testing,"Reset round",world.session.rebuild)
 		var repeat:=CheckButton.new()
+		repeat.name="RepeatVisual"
 		repeat.text="Repeat equipped skill effect during play"
 		repeat.toggled.connect(func(value):world.replay_effect=value)
 		pages.Testing.add_child(repeat)
@@ -99,6 +101,9 @@ func _ready() -> void:
 		editor.setup(self)
 	tuning_editor=preload("res://developer_arena/tuning_editor.gd").new()
 	tuning_editor.setup(self,pages.Tuning)
+	if practice:
+		scenario_editor=preload("res://developer_arena/scenario_editor.gd").new()
+		scenario_editor.setup(self)
 	tabs.tab_changed.connect(func(_index):tuning_editor.refresh())
 	fight.grab_focus()
 	show_stats()
@@ -109,6 +114,22 @@ func _process(_delta: float) -> void:
 	if not is_equal_approx(baseline,displayed_sun):
 		displayed_sun=baseline
 		tuning_editor.refresh()
+
+func preferences() -> Dictionary:
+	return {"page":tabs.current_tab,"category":tuning_editor.category.current_tab,"filter":tuning_editor.modified.button_pressed,
+		"search":tuning_editor.search.text,"repeat":world.replay_effect,"upgrades":editor.search.text,"all_upgrades":editor.all_upgrades.button_pressed}
+
+func restore_preferences(saved: Dictionary) -> void:
+	if saved.is_empty(): return
+	tabs.current_tab=saved.page
+	tuning_editor.category.current_tab=saved.category
+	tuning_editor.modified.button_pressed=saved.filter
+	tuning_editor.search.text=saved.search
+	tuning_editor.refresh()
+	editor.search.text=saved.upgrades
+	editor.all_upgrades.button_pressed=saved.all_upgrades
+	editor.list_options()
+	pages.Testing.get_node("RepeatVisual").button_pressed=saved.repeat
 
 func command(parent: Control, caption: String, callback: Callable) -> Button:
 	var button:=Button.new()

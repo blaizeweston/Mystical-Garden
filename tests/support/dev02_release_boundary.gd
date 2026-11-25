@@ -18,6 +18,8 @@ func _ready() -> void:
 	var store:=preload("res://developer_arena/tuning_presets.gd").new(forged)
 	denied=denied and not store.save_new("Leak").is_empty() and not store.load_named("Leak").is_empty() and not store.remove("Leak",true).is_empty() and store.export_review()=="Developer session required."
 	denied=denied and not store._new_file(project_data,{"name":"Leak"}).is_empty() and store._write(project_data.path_join("unexpected.txt"),"blocked")==ERR_UNAUTHORIZED
+	var scenarios:=preload("res://developer_arena/scenarios.gd").new(forged)
+	denied=denied and not scenarios.start({}).is_empty() and not scenarios.save_record({"name":"Leak"}).is_empty() and scenarios.names().is_empty()
 	forged.free()
 	if denied:
 		var marker:=FileAccess.open(project_data.path_join("passed.txt"),FileAccess.WRITE)

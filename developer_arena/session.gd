@@ -10,6 +10,11 @@ var settings := {"invincible":false,"no_cooldowns":false,"movement":true,"attack
 var build := {}
 var practice_identity := Crypto.new().generate_random_bytes(16).hex_encode()
 var replacing := false
+var terrain_seed := 0
+var encounter_depth := 1
+var active_scenario := {}
+var next_scenario := {}
+var workbench_preferences := {}
 
 func open(owner: Node) -> bool:
 	if not Developer.can_enter_arena(owner) or get_parent() != owner:
@@ -45,9 +50,20 @@ func rebuild(mode := "round") -> void:
 func _replace(mode: String) -> void:
 	if not authorized(combat): return
 	var capture: Dictionary = combat.capture_round(mode)
+	workbench_preferences = combat.workbench.preferences()
+	if mode == "scenario":
+		var plan: Dictionary = next_scenario
+		next_scenario = {}
+		build = plan.build.duplicate(true)
+		settings = plan.record.controls.duplicate()
+		terrain_seed = int(plan.record.terrain.seed)
+		encounter_depth = int(plan.record.terrain.depth)
+		active_scenario = plan.record.duplicate(true)
+		capture = {"selection":plan.encounter}
 	combat.free()
 	_create_world()
 	combat.restore_round(capture)
+	combat.workbench.restore_preferences(workbench_preferences)
 	replacing = false
 
 func _create_world() -> void:

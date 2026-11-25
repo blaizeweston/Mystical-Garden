@@ -6,6 +6,7 @@ Edges describe gameplay/data relationships. Selection uses explicit suite covera
 
 ```mermaid
 flowchart LR
+  developer_scenarios["Reproducible developer practice scenarios"]
   developer_live_tuning["Developer Workbench property tuning and presets"]
   developer_testing_arena["Isolated Developer Testing Arena"]
   living_archive["Living Archive records and character copies"]
@@ -395,7 +396,8 @@ flowchart LR
 
 | System | Source files | Covering suites |
 |---|---|---|
-| developer_live_tuning | `developer_arena/tuning.gd`, `developer_arena/tuning.gd.uid`, `developer_arena/tuning_editor.gd`, `developer_arena/tuning_editor.gd.uid`, `developer_arena/tuning_presets.gd`, `developer_arena/tuning_presets.gd.uid`, `tests/support/dev03_tuning_case.gd` | `dev02_lifecycle` |
+| developer_scenarios | `developer_arena/scenarios.gd`, `developer_arena/scenarios.gd.uid`, `developer_arena/scenario_editor.gd`, `developer_arena/scenario_editor.gd.uid`, `tests/support/dev04_scenario_case.gd` | `dev02_lifecycle` |
+| developer_live_tuning | `developer_arena/named_files.gd`, `developer_arena/named_files.gd.uid`, `developer_arena/tuning.gd`, `developer_arena/tuning.gd.uid`, `developer_arena/tuning_editor.gd`, `developer_arena/tuning_editor.gd.uid`, `developer_arena/tuning_presets.gd`, `developer_arena/tuning_presets.gd.uid`, `tests/support/dev03_tuning_case.gd` | `dev02_lifecycle` |
 | developer_testing_arena | `developer_arena/session.gd`, `developer_arena/practice_world.gd`, `developer_arena/practice_encounter.gd`, `developer_arena/workbench.gd`, `developer_arena/build_editor.gd`, `developer_arena/build_plan.gd`, `developer_arena/session.gd.uid`, `developer_arena/practice_world.gd.uid`, `developer_arena/practice_encounter.gd.uid`, `developer_arena/workbench.gd.uid`, `developer_arena/build_editor.gd.uid`, `developer_arena/build_plan.gd.uid`, `tools/dev02_release_probe.py`, `tests/support/dev02_combat_case.gd`, `tests/support/dev02_build_case.gd`, `tests/support/dev02_release_boundary.gd` | `dev02_lifecycle` |
 | living_archive | `living_archive.gd`, `living_archive.gd.uid`, `living_archive_view.gd`, `living_archive_view.gd.uid` | `wild_flora_party`, `wild_flora_harvest`, `legacy_departure_outcomes`, `expedition_results_rejoin`, `expedition_statistics`, `garden_construction_inventory`, `garden_layout_persistence`, `guarded_expedition_coop`, `guarded_garden_actions`, `four_players_coop`, `garden_altar`, `garden_cultivation_structures`, `garden_cultivation_structures_coop`, `gate_garden_services`, `seed_progression`, `network_contract` |
 | wild_flora | `returning_root.gd`, `returning_root.gd.uid`, `wild_flora.gd`, `wild_flora.gd.uid`, `wild_flora_generation.gd`, `wild_flora_generation.gd.uid` | `dev02_lifecycle`, `wild_flora_coop`, `wild_flora_party`, `wild_flora_generation`, `wild_flora_harvest`, `world_guidance`, `gameplay_ui`, `experimental_terrain`, `expedition_forfeiture`, `expedition_forfeiture_coop`, `guarded_garden_actions`, `exploration_ui`, `heart_progression` |

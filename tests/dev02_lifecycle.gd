@@ -30,7 +30,7 @@ func run() -> void:
 			var code := OS.execute(OS.get_executable_path(),PackedStringArray(["--headless","--path",ProjectSettings.globalize_path("res://"),"--script","res://tests/dev02_lifecycle.gd","--quit-after","650","--",token,phase]),output,true)
 			var log_text := "\n".join(output)
 			if not check(code == 0 and "verified "+phase in log_text and not "ERROR:" in log_text,log_text): return
-		print("PASS: isolated Developer Garden, arena controls and build rebuild, live tuning, preset restart, extraction and reset")
+		print("PASS: isolated Developer Garden, arena controls and build rebuild, live tuning, replayable scenarios, restart, extraction and reset")
 		quit()
 		return
 	if not check(args.size()==2 and args[0].length()==16 and args[0].is_valid_hex_number(),"fixture token"): return
@@ -77,7 +77,7 @@ func run() -> void:
 		arena._input(start)
 		if not check(not arena.workbench.opened,"controller closes workbench"): return
 		arena._input(start)
-		if not check(arena.workbench.opened and arena.workbench.tabs.get_tab_count()==6,"controller opens combat and tuning panels"): return
+		if not check(arena.workbench.opened and arena.workbench.tabs.get_tab_count()==7,"controller opens combat and tuning panels"): return
 		if not check(arena.session_world.host()==ERR_UNAVAILABLE and arena.session_world.join("127.0.0.1")==ERR_UNAVAILABLE,"practice offline"): return
 		var tuning_error: String=TuningCase.arena(arena)
 		if not check(tuning_error.is_empty(),tuning_error): return
@@ -93,6 +93,8 @@ func run() -> void:
 		if not check(not is_instance_valid(arena) and session.combat.is_practice_world(),"fresh round"): return
 		var build_error: String=await preload("res://tests/support/dev02_build_case.gd").verify(session)
 		if not check(build_error.is_empty(),build_error): return
+		var scenario_error: String=await preload("res://tests/support/dev04_scenario_case.gd").run(session)
+		if not check(scenario_error.is_empty(),scenario_error): return
 		session.close()
 		await process_frame
 		await process_frame
@@ -120,6 +122,13 @@ func run() -> void:
 		actor.pos = garden.battlefield.advance
 		garden.expedition_transitions.checkpoint(1,false)
 		if not check(not garden.participation.active() and garden.progress.archive.garden!=counters,"developer extraction and archive"): return
+		if not check(Developer.enter_arena(garden),"reopen scenario library after process restart"): return
+		var replay_session:=garden.get_node("TestingArena")
+		var scenario_error: String=preload("res://tests/support/dev04_scenario_case.gd").restart(replay_session.combat)
+		if not check(scenario_error.is_empty(),scenario_error): return
+		replay_session.close()
+		await process_frame
+		await process_frame
 		garden.return_to_main_menu()
 		var title := current_scene
 		title.app_settings.values.developer_mode = true

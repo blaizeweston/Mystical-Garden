@@ -8,7 +8,8 @@
   },
   "full_after_days": 7,
   "systems": {
-    "developer_live_tuning": {"label":"Developer Workbench property tuning and presets","files":["developer_arena/tuning.gd","developer_arena/tuning.gd.uid","developer_arena/tuning_editor.gd","developer_arena/tuning_editor.gd.uid","developer_arena/tuning_presets.gd","developer_arena/tuning_presets.gd.uid","tests/support/dev03_tuning_case.gd"]},
+    "developer_scenarios": {"label":"Reproducible developer practice scenarios","files":["developer_arena/scenarios.gd","developer_arena/scenarios.gd.uid","developer_arena/scenario_editor.gd","developer_arena/scenario_editor.gd.uid","tests/support/dev04_scenario_case.gd"]},
+    "developer_live_tuning": {"label":"Developer Workbench property tuning and presets","files":["developer_arena/named_files.gd","developer_arena/named_files.gd.uid","developer_arena/tuning.gd","developer_arena/tuning.gd.uid","developer_arena/tuning_editor.gd","developer_arena/tuning_editor.gd.uid","developer_arena/tuning_presets.gd","developer_arena/tuning_presets.gd.uid","tests/support/dev03_tuning_case.gd"]},
     "developer_testing_arena": {"label":"Isolated Developer Testing Arena","files":["developer_arena/session.gd","developer_arena/practice_world.gd","developer_arena/practice_encounter.gd","developer_arena/workbench.gd","developer_arena/build_editor.gd","developer_arena/build_plan.gd","developer_arena/session.gd.uid","developer_arena/practice_world.gd.uid","developer_arena/practice_encounter.gd.uid","developer_arena/workbench.gd.uid","developer_arena/build_editor.gd.uid","developer_arena/build_plan.gd.uid","tools/dev02_release_probe.py","tests/support/dev02_combat_case.gd","tests/support/dev02_build_case.gd","tests/support/dev02_release_boundary.gd"]},
     "living_archive": {"label":"Living Archive records and character copies","files":["living_archive.gd","living_archive.gd.uid","living_archive_view.gd","living_archive_view.gd.uid"]},
     "wild_flora": {"label":"Natural Wilds specimens, deterministic selection and per-character harvest","files":["returning_root.gd","returning_root.gd.uid","wild_flora.gd","wild_flora.gd.uid","wild_flora_generation.gd","wild_flora_generation.gd.uid"]},
@@ -1508,7 +1509,7 @@
     ]
   },
   "suites": {
-    "dev02_lifecycle": {"kind":"unit","systems":["developer_live_tuning","developer_testing_arena","wild_flora","garden_development","world_presentation","expedition_continuation","developer_garden","affinity_cards","expedition_statistics","incoming_player_hit","network_session"],"package":false},
+    "dev02_lifecycle": {"kind":"unit","systems":["developer_scenarios","developer_live_tuning","developer_testing_arena","wild_flora","garden_development","world_presentation","expedition_continuation","developer_garden","affinity_cards","expedition_statistics","incoming_player_hit","network_session"],"package":false},
     "expedition_suspend": {"kind":"unit","systems":["expedition_continuation","expedition_participation","network_session","departure_settlement","persistence_operations"],"package":false},
     "wild_flora_coop": {"kind":"pair","systems":["expedition_continuation","wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},
     "wild_flora_party": {"kind":"party","systems":["expedition_continuation","living_archive","wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},

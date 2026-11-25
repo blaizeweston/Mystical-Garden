@@ -32,38 +32,52 @@ static func entries() -> Array[Dictionary]:
 				result.append({"type":"Elite","kind":kind,"name":title})
 	return result
 
-static func place(world: Node, type: String, kind: int, count: int, formation: String, endless: bool) -> String:
-	if not world.is_practice_world(): return "Developer session required."
+static func selection_error(type: String, kind: int, count: int, formation: String) -> String:
 	if not entries().any(func(row):return row.type==type and row.kind==kind):
 		return "Unknown encounter selection."
 	if count<1 or count>Roster.Config.MAX_SCOUTS or not FORMATIONS.has(formation):
 		return "Invalid quantity or arrangement."
 	if (type in ["Elite","Boss"] or formation=="Single") and count!=1:
 		return "Choose one for a single target or a dedicated leader encounter."
+	return ""
+
+static func formation_points(ground: RefCounted, origin: Vector3, facing: Vector3, count: int, formation: String) -> Array[Vector3]:
+	var points: Array[Vector3]=[]
+	var side:=facing.cross(Vector3.UP)
+	var center:=origin+facing*3.0
+	for index in count:
+		var desired:=center
+		match formation:
+			"Line": desired+=side*(index-float(count-1)/2.0)*1.6
+			"Cluster": desired+=side*(index%3-1)*1.5+facing*floorf(index/3.0)*1.5
+			"Ring": desired=origin+facing.rotated(Vector3.UP,TAU*index/count)*maxf(3.0,count*.35)
+		var placed:=false
+		for offset in [Vector3.ZERO,side,-side,facing,-facing,side+facing,-side+facing,facing*2]:
+			var point: Vector3=desired+offset*1.5
+			if ground.can_spawn(point) and point.distance_to(origin)>=.9 and not points.any(func(p):return p.distance_to(point)<.9):
+				points.append(point)
+				placed=true
+				break
+		if not placed: return []
+	return points
+
+static func place(world: Node, type: String, kind: int, count: int, formation: String, endless: bool) -> String:
+	if not world.is_practice_world(): return "Developer session required."
+	var error:=selection_error(type,kind,count,formation)
+	if not error.is_empty(): return error
 	var points: Array[Vector3]=[]
 	var actor: Dictionary=world.players[1]
 	var ground=world.battlefield
 	var origin: Vector3=actor.pos
 	if world.tactics.boss_kind>=0 and type not in ["Boss","Elite"]:
 		ground=world.Battlefield.new()
-		ground.configure(world.participation.route(),world.participation.depth(),0)
-		origin=Vector3.ZERO
+		ground.configure(world.participation.route(),world.participation.depth(),world.session.terrain_seed)
+		origin=Vector3.ZERO if world.session.terrain_seed==0 else ground.entry
 	if type not in ["Elite","Boss"]:
-		var facing: Vector3=actor.facing.normalized()
-		var side:=facing.cross(Vector3.UP)
-		var center: Vector3=origin+facing*3.0
-		for index in count:
-			var desired := center
-			match formation:
-				"Line": desired += side*(index-float(count-1)/2.0)*1.6
-				"Cluster": desired += side*(index%3-1)*1.5+facing*floorf(index/3.0)*1.5
-				"Ring": desired = origin+facing.rotated(Vector3.UP,TAU*index/count)*maxf(3.0,count*.35)
-			var point: Vector3=world.clear_spawn(desired) if ground==world.battlefield else desired
-			if not point.is_finite() or not ground.can_spawn(point) or point.distance_to(origin)<.9 or points.any(func(p):return p.distance_to(point)<.9):
-				return "Insufficient clear space for this arrangement. Move or use fewer enemies."
-			points.append(point)
+		points=formation_points(ground,origin,actor.facing.normalized(),count,formation)
+		if points.size()!=count: return "Insufficient clear space for this arrangement. Move or use fewer enemies."
 	world.boss_floors[str(world.participation.floor())]=kind if type=="Boss" else -1
-	world.reset_encounter(0)
+	world.reset_encounter(world.session.terrain_seed)
 	world.encounter.clear_scouts()
 	world.encounter.inexhaustible=type=="Target" and endless
 	if type in ["Elite","Boss"]:
