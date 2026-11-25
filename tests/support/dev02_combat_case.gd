@@ -33,11 +33,33 @@ static func verify(arena: Node) -> String:
 	arena.tick_enemies(0.1,arena.CombatClock.now())
 	if arena.encounter.position(0)!=point or arena.encounter.scout(0).windup!=0: return "enemy controls"
 	arena.set_control("movement",true)
+	var body: Dictionary=arena.encounter.scout(0)
+	body.pos=actor.pos+Vector3(4,0,0)
+	body.engaged=true
+	var distance: float=body.pos.distance_to(actor.pos)
+	arena.tick_enemies(.20,arena.CombatClock.now())
+	if body.pos.distance_to(actor.pos)>=distance or body.windup>0: return "enemy movement without attacks"
 	arena.set_control("attacks",true)
+	arena.set_control("movement",false)
+	body.pos=actor.pos+Vector3(.72,0,0)
+	point=body.pos
+	body.ready=0
+	arena.tick_enemies(.2,arena.CombatClock.now()+5000)
+	if body.pos!=point or body.windup==0: return "stationary enemy attack"
+	arena.set_control("movement",true)
 	if not arena.spawn_selection("Elite",0,1,"Single",false).is_empty() or not arena.encounter.leader_tactics().get("gate_elite",false): return "elite owner"
 	for row in arena.PracticeEncounter.entries():
 		if row.type=="Boss":
 			if not arena.spawn_selection("Boss",row.kind,1,"Single",false).is_empty() or arena.tactics.boss_kind!=row.kind: return "dedicated boss setup"
 	arena.clear_enemies()
 	if not arena.encounter.cleared(): return "clear roster"
+	var experience: Array=actor.character.xp.duplicate()
+	var trophies: Array=actor.carried_parts.duplicate()
+	var archive: Dictionary=arena.progress.archive.garden.duplicate(true)
+	if not arena.spawn_selection("Enemy",0,1,"Single",false).is_empty(): return "ordinary defeat fixture"
+	arena.encounter.set_hp(0,1)
+	Outgoing.hit_world(arena,1,0,actor.pos,{"damage":1.0,"knockback":0.0},arena.CombatClock.now())
+	arena.finish_combat(1,actor.pos)
+	if arena.round_stats().party.kills!=1 or actor.character.xp!=experience or actor.carried_parts!=trophies or arena.progress.archive.garden!=archive or not actor.carried_seeds.is_empty():
+		return "practice defeat or reward isolation"
 	return ""

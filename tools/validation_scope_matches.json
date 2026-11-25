@@ -131,7 +131,7 @@
         "baseline": ""
       },
       "guarded_legacy_heartbeat": {
-        "match": "\tif not persistence_session.is_guarded() and (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= GuardedTitleSession.RENEW_SECONDS:",
+        "match": "\trenew_legacy_slot()",
         "baseline": "\tif (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= 1.0:"
       },
 
@@ -486,7 +486,7 @@
     },
     "_ready": {
       "experimental_terrain_1": {
-        "match": "\tif has_meta(&\"experimental_terrain\") and not preload(\"res://assets/terrain_m02/experimental/experiment_mode.gd\").verified():\n\t\tset_process(false)\n\t\tset_physics_process(false)\n\t\t_refuse_unowned_world.call_deferred()\n\t\treturn\n\tif has_meta(&\"experimental_terrain\") or preload(\"res://persistence_writer_integration.gd\").default_route(get_tree()):\n",
+        "match": "\tif has_meta(&\"experimental_terrain\") and not preload(\"res://assets/terrain_m02/experimental/experiment_mode.gd\").verified():\n\t\tset_process(false)\n\t\tset_physics_process(false)\n\t\t_refuse_unowned_world.call_deferred()\n\t\treturn\n\tif not is_practice_world() and (has_meta(&\"experimental_terrain\") or preload(\"res://persistence_writer_integration.gd\").default_route(get_tree())):\n",
         "baseline": "\tif preload(\"res://persistence_writer_integration.gd\").default_route(get_tree()):\n"
       },
       "shared_menu_button_roots": {

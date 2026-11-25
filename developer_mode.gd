@@ -19,6 +19,9 @@ static var _authorized_world: WeakRef
 static func authorized_build() -> bool:
 	return OS.has_feature("editor") or (OS.has_feature("template_debug") and OS.has_feature("developer_tools"))
 
+static func workbench_input(event: InputEvent) -> bool:
+	return event.is_action_pressed("developer_workbench") or (event is InputEventJoypadButton and event.pressed and event.button_index==JOY_BUTTON_START)
+
 static func is_test_garden(game: Node) -> bool:
 	return authorized_build() and is_instance_valid(game) and _authorized_world != null and _authorized_world.get_ref() == game
 
@@ -43,6 +46,7 @@ static func is_solo(game: Node) -> bool:
 
 static func can_edit(game: Node) -> bool:
 	return is_test_garden(game) and is_solo(game) and game.app_settings.values.get("developer_mode",false) \
+		and (not game.has_node("TestingArena") or game.get_node("TestingArena").garden==null) \
 		and not game.participation.active() and not game.returning_to_title \
 		and not game.ui.cinematic_active() and game.persistence_session.can_write()
 
@@ -154,6 +158,7 @@ static func grant_resources(game: Node) -> String:
 	return Transactions.feedback(result, "Could not save the developer action.")
 
 static func _grant_resources(game: Node, details: Dictionary) -> String:
+	if not can_edit(game): return "Developer session required."
 	var progress: RefCounted = game.progress
 	var old_knowledge: int = progress.knowledge
 	var old_parts: Array = progress.parts.duplicate()
@@ -180,6 +185,7 @@ static func stock_materials(game: Node) -> String:
 	return Transactions.feedback(result, "Could not save the developer action.")
 
 static func _stock_materials(game: Node, details: Dictionary) -> String:
+	if not can_edit(game): return "Developer session required."
 	if not game.players.has(game.HOST):
 		return "Developer tools are available in the single-player Developer Garden."
 	var player: Dictionary = game.players[game.HOST]
@@ -251,6 +257,7 @@ static func test_unlock(game: Node, id: String) -> String:
 	return Transactions.feedback(result, "Could not save the developer action.")
 
 static func _test_unlock(game: Node, id: String, details: Dictionary) -> String:
+	if not can_edit(game): return "Developer session required."
 	var progress: RefCounted = game.progress
 	var path: Array[String] = []
 	if progress.heart.has(id) or not collect_path(progress.heart,id,path) or path.is_empty():

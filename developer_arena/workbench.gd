@@ -10,10 +10,16 @@ var amount := SpinBox.new()
 var arrangement := OptionButton.new()
 var endless := CheckButton.new()
 var metrics := Label.new()
-var editor: Control
+var editor: RefCounted
 
 func _ready() -> void:
 	position=Vector2(14,42)
+	var background:=StyleBoxFlat.new()
+	background.bg_color=Color("#171d17")
+	background.border_color=Color("#69784c")
+	background.set_border_width_all(1)
+	for side in [SIDE_TOP,SIDE_BOTTOM,SIDE_LEFT,SIDE_RIGHT]: background.set_content_margin(side,10.0)
+	add_theme_stylebox_override("panel",background)
 	custom_minimum_size=Vector2(560,410)
 	var body:=VBoxContainer.new()
 	add_child(body)
@@ -22,7 +28,7 @@ func _ready() -> void:
 	body.add_child(title)
 	tabs.custom_minimum_size.y=285
 	body.add_child(tabs)
-	for key in ["Testing","Enemies","Statistics"]:
+	for key in ["Testing","Enemies","Build","Upgrades","Statistics"]:
 		var scroll:=ScrollContainer.new()
 		scroll.name=key
 		tabs.add_child(scroll)
@@ -70,6 +76,8 @@ func _ready() -> void:
 	body.add_child(footer)
 	fight=command(footer,"Resume testing",toggle)
 	command(footer,"Return to Developer Garden",world.session.close)
+	editor=preload("res://developer_arena/build_editor.gd").new()
+	editor.setup(self)
 	fight.grab_focus()
 	show_stats()
 

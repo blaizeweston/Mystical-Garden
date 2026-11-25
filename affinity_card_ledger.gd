@@ -207,11 +207,18 @@ class Ledger extends RefCounted:
 			var definition: Dictionary = Catalog.DEFINITIONS[card_id]
 			var unique: bool = definition.policy == "unique"
 			var grade := -1 if unique else _rarity(random, floor_number)
-			var offered: int = definition.fixed if unique else definition.values[grade]
-			var contribution:=mini(offered,_effective_headroom(definition,stats,dodge_base,amount(card_id)))
-			options.append({"id": card_id, "rarity": "" if unique else Catalog.RARITIES[grade], "amount": contribution})
+			options.append(option_for_grade(card_id, "" if unique else Catalog.RARITIES[grade], stats, dodge_base))
 		return options
 
+
+	func option_for_grade(id: String, rarity: String, stats: Dictionary, dodge_base: int) -> Dictionary:
+		var definition: Dictionary = Catalog.DEFINITIONS.get(id,{})
+		if definition.is_empty(): return {}
+		var unique: bool = definition.policy=="unique"
+		var grade := Catalog.RARITIES.find(rarity)
+		if (unique and not rarity.is_empty()) or (not unique and grade<0): return {}
+		var offered: int = definition.fixed if unique else definition.values[grade]
+		return {"id":id,"rarity":rarity,"amount":mini(offered,_effective_headroom(definition,stats,dodge_base,amount(id)))}
 
 	static func requirement(definition: Dictionary, build: Dictionary, card_counts: Variant = null) -> String:
 		return Eligibility.requirement(definition, build, card_counts)

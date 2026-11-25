@@ -20,7 +20,11 @@ func run() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() == 0:
 		var token := Crypto.new().generate_random_bytes(8).hex_encode()
-		for phase in ["write","resume"]:
+		for phase in ["write","resume","guarded"]:
+			if phase=="guarded":
+				var isolated_root:=ProjectSettings.globalize_path("res://.godot/vd/g-"+token)
+				if not check(not DirAccess.dir_exists_absolute(isolated_root) and DirAccess.make_dir_recursive_absolute(isolated_root)==OK,"fresh guarded directory"): return
+				for key in ["APPDATA","LOCALAPPDATA","XDG_DATA_HOME"]: OS.set_environment(key,isolated_root)
 			var output := []
 			var code := OS.execute(OS.get_executable_path(),PackedStringArray(["--headless","--path",ProjectSettings.globalize_path("res://"),"--script","res://tests/dev02_lifecycle.gd","--quit-after","650","--",token,phase]),output,true)
 			var log_text := "\n".join(output)
@@ -31,6 +35,9 @@ func run() -> void:
 	if not check(args.size()==2 and args[0].length()==16 and args[0].is_valid_hex_number(),"fixture token"): return
 	var menu: Node = load("res://main_menu.tscn").instantiate()
 	var base := "user://release-fixtures/dev02-"+args[0]
+	if args[1]=="guarded":
+		await guarded_round_trip(menu,args[0])
+		return
 	menu.storage.root_path = base
 	menu.settings_path = base.path_join("settings.cfg")
 	menu.import_legacy = false
@@ -55,8 +62,17 @@ func run() -> void:
 		var c: String = FileAccess.get_sha256(garden.local_character.path)
 		if not check(Developer.enter_arena(garden),"practice launch"): return
 		var session := garden.get_node("TestingArena")
+		if not check(not Developer.can_edit(garden),"parked Garden rejects resource commands"): return
 		var arena: Node = session.combat
 		if not check(arena.is_practice_world() and arena.participation.active() and not arena.persistence_session.can_write(),"practice authority"): return
+		if not check(arena.workbench.editor.options.item_count>0,"unfiltered list shows eligible upgrades"): return
+		var start:=InputEventJoypadButton.new()
+		start.button_index=JOY_BUTTON_START
+		start.pressed=true
+		arena._input(start)
+		if not check(not arena.workbench.opened,"controller closes workbench"): return
+		arena._input(start)
+		if not check(arena.workbench.opened and arena.workbench.tabs.get_tab_count()==5,"controller opens all five panels"): return
 		if not check(arena.session_world.host()==ERR_UNAVAILABLE and arena.session_world.join("127.0.0.1")==ERR_UNAVAILABLE,"practice offline"): return
 		var combat_error: String = preload("res://tests/support/dev02_combat_case.gd").verify(arena)
 		if not check(combat_error.is_empty(),combat_error): return
@@ -64,6 +80,8 @@ func run() -> void:
 		await process_frame
 		await process_frame
 		if not check(not is_instance_valid(arena) and session.combat.is_practice_world(),"fresh round"): return
+		var build_error: String=await preload("res://tests/support/dev02_build_case.gd").verify(session)
+		if not check(build_error.is_empty(),build_error): return
 		session.close()
 		await process_frame
 		await process_frame
@@ -95,4 +113,28 @@ func run() -> void:
 	for path in hashes.get_section_keys("ordinary"):
 		if not check(FileAccess.get_sha256(path)==hashes.get_value("ordinary",path),"ordinary save changed"): return
 	print("verified ",args[1])
+	quit()
+
+func guarded_round_trip(menu: Node, token: String) -> void:
+	var expected:=ProjectSettings.globalize_path("res://.godot/vd/g-"+token).replace("\\","/").simplify_path()+"/"
+	if not check(OS.get_user_data_dir().replace("\\","/").simplify_path().begins_with(expected),"guarded canonical paths require the new disposable profile"): return
+	menu.guarded_persistence=true
+	menu.import_legacy=false
+	menu.restore_last_selection=false
+	root.add_child(menu)
+	current_scene=menu
+	menu.app_settings.values.developer_mode=true
+	if not check(menu.app_settings.save_settings(menu.app_settings.values)==OK and Developer.open_garden(menu,false)==OK,"guarded developer launch"): return
+	var garden:=current_scene
+	var before: String=FileAccess.get_sha256(garden.progress.path)
+	if not check(garden.persistence_session.owns_leases() and Developer.enter_arena(garden),"guarded arena entry"): return
+	var session:=garden.get_node("TestingArena")
+	session._process(1.0)
+	session.close()
+	await process_frame
+	await process_frame
+	if not check(garden==current_scene and garden.persistence_session.owns_leases() and before==FileAccess.get_sha256(garden.progress.path),"guarded lease and Garden retained"): return
+	garden.return_to_main_menu()
+	await process_frame
+	print("verified guarded")
 	quit()

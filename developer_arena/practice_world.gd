@@ -3,11 +3,13 @@ extends "res://game.gd"
 const Developer = preload("res://developer_mode.gd")
 var session: CanvasLayer
 var workbench: Control
+const BuildPlan = preload("res://developer_arena/build_plan.gd")
 const PracticeEncounter = preload("res://developer_arena/practice_encounter.gd")
 var practice_targets := false
 var encounter_selection := {}
 var replay_effect := false
 var next_effect := 0
+var round_elapsed_ms := 0.0
 
 class MemoryGarden extends Progress:
 	func load_garden(_recover := true) -> Error: return OK
@@ -21,7 +23,7 @@ class PracticeAccess extends GuardedTitleSession:
 	func can_write() -> bool: return false
 
 func is_practice_world() -> bool:
-	return is_instance_valid(session) and session.authorized(self) and Developer.is_solo(self)
+	return Developer.authorized_build() and is_instance_valid(session) and session.authorized(self) and Developer.is_solo(self)
 
 func _ready() -> void:
 	if not is_practice_world():
@@ -30,6 +32,7 @@ func _ready() -> void:
 		return
 	progress = MemoryGarden.new()
 	local_character = MemoryCharacter.new()
+	local_character.identity=session.practice_identity
 	guest_character = MemoryCharacter.new()
 	progress.path = ""
 	local_character.path = ""
@@ -40,15 +43,27 @@ func _ready() -> void:
 	settings_path = session.garden.settings_path
 	super()
 	ui.configure_arena_menu(false)
-	start_round()
+	_initialize_round()
 	var overlay := CanvasLayer.new()
 	overlay.layer = 10
 	add_child(overlay)
 	workbench = load("res://developer_arena/workbench.gd").new()
 	workbench.world = self
 	overlay.add_child(workbench)
+	ui.get_node("%MenuButton").hide()
+	ui.get_node("Surface/Prompts").hide()
+	var open_button:=Button.new()
+	open_button.text="Workbench"
+	open_button.theme=ui.get_node("Surface").theme
+	overlay.add_child(open_button)
+	open_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	open_button.offset_left=-132
+	open_button.offset_right=-14
+	open_button.offset_top=12
+	open_button.offset_bottom=48
+	open_button.pressed.connect(workbench.toggle)
 
-func start_round() -> void:
+func _initialize_round() -> void:
 	if not is_practice_world(): return
 	var actor: Dictionary = players[HOST]
 	participation.leave(HOST)
@@ -60,17 +75,27 @@ func start_round() -> void:
 	encounter.set_hp(-1,0)
 	actor.pos = Vector3.ZERO
 	actor.still_point = actor.pos
-	actor.weapon = actor.prepared
-	actor.secondary = actor.prepared_secondary
-	actor.catalyst = actor.prepared_catalyst
-	actor[preload("res://affinity_cards.gd").STATE] = preload("res://affinity_card_ledger.gd").Ledger.new()
-	actor[preload("res://expedition_grafts.gd").STATE] = preload("res://expedition_grafts.gd").Ledger.new(participation.epoch())
-	expedition_statistics.bind_session(network_session.session_identity())
-	expedition_statistics.admit(participation.run_id(),expedition_stat_identity(HOST),actor.character.name,Classes.DEFINITIONS[actor.frame].name,1,Time.get_ticks_msec())
+	if session.build.is_empty(): session.build=BuildPlan.initial(actor)
+	var plan:=BuildPlan.plan(self,session.build)
+	if not plan.error.is_empty() or not plan.removed.is_empty():
+		session.close()
+		return
+	plan.profile.name=actor.character.name
+	plan.profile.appearance=actor.character.appearance.duplicate(true)
+	local_character.data=plan.profile
+	actor.character=local_character.data
+	restore_class_loadout(actor)
+	actor.weapon=actor.prepared
+	actor.secondary=actor.prepared_secondary
+	actor.catalyst=actor.prepared_catalyst
+	actor[AffinityCards.STATE]=plan.cards
+	actor[BuildPlan.Grafts.STATE]=plan.grafts
+	actor[PlayerVitals.STATE]=actor[PlayerVitals.STATE].with_native_max_hp(Life.native_maximum(self,actor)).refilled()
+	reset_statistics()
 	status = "Developer Testing Arena"
 
 func _input(event: InputEvent) -> void:
-	if workbench != null and (event.is_action_pressed("developer_workbench") or event.is_action_pressed("session_menu")):
+	if workbench != null and (Developer.workbench_input(event) or event.is_action_pressed("session_menu")):
 		workbench.toggle()
 		get_viewport().set_input_as_handled()
 	elif is_instance_valid(workbench) and not workbench.opened and preload("res://ability_aim.gd").release_event(self,event):
@@ -82,6 +107,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	if is_practice_world() and is_instance_valid(workbench) and not workbench.opened:
+		round_elapsed_ms+=delta*1000.0
 		if session.settings.no_cooldowns: reset_abilities()
 		if replay_effect and Time.get_ticks_msec()>=next_effect:
 			preview_effect()
@@ -94,7 +120,12 @@ func _act(id: int, strike: bool) -> void:
 	if strike and is_practice_world(): super(id,true)
 
 func garden_action(id: int, action: String) -> void:
-	if is_practice_world() and id == HOST and (action.begins_with("class_cast:") or action.begins_with("core_cast:") or action.begins_with("card_cast:")):
+	if not is_practice_world() or id!=HOST: return
+	var actor: Dictionary=players[HOST]
+	if session.settings.no_cooldowns and CombatClock.now()<maxi(int(actor.get("cast_until",0)),int(actor.get("core_cast_until",0))): return
+	if action in ["class_skill","class_skill_two"]:
+		action=preload("res://ability_aim.gd").request_native(self,actor,0 if action=="class_skill" else 1)
+	if action.begins_with("class_cast:") or action.begins_with("core_cast:") or action.begins_with("card_cast:"):
 		super(id,action)
 
 func finish_combat(_id: int, _position: Vector3) -> void:
@@ -125,11 +156,16 @@ func capture_round(mode: String) -> Dictionary:
 	var saved := {"selection":encounter_selection.duplicate(),"mode":mode}
 	if mode=="effects":
 		saved.statistics=expedition_statistics.savepoint()
+		saved.elapsed=round_elapsed_ms
 		saved.roster=[]
 		for slot in range(-1,encounter.scout_count()):
-			saved.roster.append({"hp":encounter.hp(slot),"pos":enemy_position(slot)})
+			var data: Dictionary=encounter.scout(slot) if slot>=0 else {}
+			saved.roster.append({"hp":encounter.hp(slot),"pos":enemy_position(slot),"kind":data.get("kind",enemy_kind),"route":data.get("route",0),
+				"mutations":data.get("mutations",0),"growth":data.get("growth",0),"summoned":data.get("summoned",false),"max_hp":data.get("max_hp",0)})
+		saved.cooldowns=players[HOST][Cooldowns.STATE]
 		saved.position=players[HOST].pos
 		saved.health=players[HOST][PlayerVitals.STATE]
+		saved.fallen=PlayerLifecycle.fallen(players[HOST])
 	return saved
 
 func restore_round(saved: Dictionary) -> void:
@@ -139,16 +175,33 @@ func restore_round(saved: Dictionary) -> void:
 		spawn_selection(selection.type,selection.kind,selection.count,selection.formation,selection.endless)
 	if saved.has("statistics"):
 		expedition_statistics.restore_savepoint(saved.statistics)
+		round_elapsed_ms=saved.elapsed
+		players[HOST][Cooldowns.STATE]=saved.cooldowns
 		players[HOST].pos=saved.position
 		players[HOST][PlayerVitals.STATE]=saved.health
-		for slot in range(-1,mini(encounter.scout_count(),saved.roster.size()-1)):
+		if saved.fallen: players[HOST][PlayerLifecycle.STATE]=players[HOST][PlayerLifecycle.STATE].fall()
+		encounter.clear_scouts()
+		encounter.anchors.clear()
+		for slot in range(-1,saved.roster.size()-1):
 			var row: Dictionary=saved.roster[slot+1]
-			encounter.set_hp(slot,row.hp)
-			if slot>=0: encounter.scout(slot).pos=row.pos
-			elif row.pos.is_finite(): tactics.position=row.pos
+			if slot==-1:
+				encounter.set_hp(slot,row.hp)
+				if row.pos.is_finite(): tactics.position=row.pos
+				continue
+			var body:=make_scout(row.kind,row.pos,row.route,row.mutations,row.growth)
+			body.hp=row.hp
+			body.max_hp=row.max_hp
+			body.summoned=row.summoned
+			encounter.register_scout(body)
+			if practice_targets: encounter.anchors[encounter.token(slot)]=row.pos
 
 func tick_enemies(delta: float, now: int) -> void:
-	if not is_practice_world() or practice_targets: return
+	if not is_practice_world(): return
+	if practice_targets:
+		for body in encounter.scout_tactics():
+			var token:=encounter.token_for(body)
+			if encounter.anchors.has(token): body.pos=encounter.anchors[token]
+		return
 	var allow_attacks: bool=session.settings.attacks
 	var allow_motion: bool=session.settings.movement
 	if not allow_attacks: cancel_enemy_attacks()
@@ -195,17 +248,28 @@ func restore_health() -> void:
 
 func reset_statistics() -> void:
 	if not is_practice_world(): return
+	round_elapsed_ms=0.0
 	expedition_statistics=preload("res://expedition_statistics.gd").new()
 	var actor: Dictionary=players[HOST]
-	expedition_statistics.bind_session(network_session.session_identity())
-	expedition_statistics.admit(participation.run_id(),expedition_stat_identity(HOST),actor.character.name,Classes.DEFINITIONS[actor.frame].name,participation.floor(),Time.get_ticks_msec())
+	expedition_statistics.bind_session(session.practice_identity)
+	expedition_statistics.admit(participation.run_id(),expedition_stat_identity(HOST),actor.character.name,Classes.DEFINITIONS[actor.frame].name,participation.floor(),0)
 
 func round_stats() -> Dictionary:
 	if not is_practice_world(): return {}
-	return expedition_statistics.current_report(participation.run_id(),expedition_stat_identity(HOST),Time.get_ticks_msec())
+	return expedition_statistics.current_report(participation.run_id(),expedition_stat_identity(HOST),roundi(round_elapsed_ms))
 
 func preview_effect() -> void:
 	if not is_practice_world(): return
 	next_effect=Time.get_ticks_msec()+1200
 	var actor: Dictionary=players[HOST]
 	stage.emit_skill_effect(actor.pos+actor.facing*2.0,1.2,weapon_effect_color(actor))
+
+func apply_build(spec: Dictionary, removal_preview: Array) -> String:
+	if not is_practice_world() or session.replacing: return "Practice round unavailable."
+	var resolved:=BuildPlan.plan(self,spec)
+	if not resolved.error.is_empty(): return resolved.error
+	if resolved.removed!=removal_preview: return "The dependency preview changed. Review the build again."
+	session.build=spec.duplicate(true)
+	session.build.upgrades=resolved.accepted.duplicate(true)
+	session.rebuild("build")
+	return ""

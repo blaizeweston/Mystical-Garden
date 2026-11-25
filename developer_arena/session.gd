@@ -8,6 +8,7 @@ var previous_mode: ProcessMode
 var closing := false
 var settings := {"invincible":false,"no_cooldowns":false,"movement":true,"attacks":true}
 var build := {}
+var practice_identity := Crypto.new().generate_random_bytes(16).hex_encode()
 var replacing := false
 
 func open(owner: Node) -> bool:
@@ -63,6 +64,9 @@ func authorized(world: Node) -> bool:
 
 func _process(_delta: float) -> void:
 	if closing or garden == null: return
+	if not authorized(combat):
+		close()
+		return
 	if garden.persistence_session.is_guarded():
 		if garden.persistence_session.tick().error != OK:
 			close()

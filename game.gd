@@ -314,7 +314,7 @@ func configure_gameplay_ui() -> void:
 	var entries: Array = []
 	for definition in Enemies.all(): entries.append({"name":definition.name,"description":definition.description})
 	ui.fill_bestiary(entries)
-	ui.configure_arena_menu(FileAccess.file_exists("res://neural_arena/arena_entry.gd"))
+	ui.configure_arena_menu(not is_practice_world() and FileAccess.file_exists("res://neural_arena/arena_entry.gd"))
 	for feature in ["inventory","progression","loadout","graft","altar","planting","summary"]:
 		var path: String = {"inventory":"inventory_panel","progression":"progression_panel",
 			"loadout":"loadout_panel","graft":"affinity_grafting_panel","altar":"garden_altar_panel",
@@ -426,7 +426,7 @@ func add_player(id: int) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("developer_workbench") and preload("res://developer_mode.gd").enter_arena(self):
+	if preload("res://developer_mode.gd").workbench_input(event) and preload("res://developer_mode.gd").enter_arena(self):
 		get_viewport().set_input_as_handled()
 		return
 	if preload("res://ability_aim.gd").release_event(self,event):
