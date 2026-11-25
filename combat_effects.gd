@@ -3,6 +3,9 @@ const CoreVisuals = preload("res://core_skill_visuals.gd")
 const Ranger = preload("res://ranger_combat.gd")
 const EnemyFeedback = preload("res://enemy_move_feedback.gd")
 var stage: Node3D
+const IMPACT_EMISSION := 0.65
+var impact_emission := IMPACT_EMISSION
+var preview_effects: Array[Dictionary] = []
 var active: Dictionary={}
 var seen: Dictionary={}
 var hints: Dictionary={}
@@ -15,11 +18,11 @@ func _ready() -> void:
  feedback.stage=stage;add_child(feedback)
  statuses.stage=stage;add_child(statuses)
 
-func material(color: Color) -> StandardMaterial3D:
- var result:=StandardMaterial3D.new();result.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;result.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA;result.cull_mode=BaseMaterial3D.CULL_DISABLED;result.vertex_color_use_as_albedo=true;result.albedo_color=color;result.emission_enabled=true;result.emission=color;result.emission_energy_multiplier=.65;return result
-func visual(color: Color) -> Dictionary:
+func material(color: Color, emission := IMPACT_EMISSION) -> StandardMaterial3D:
+ var result:=StandardMaterial3D.new();result.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;result.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA;result.cull_mode=BaseMaterial3D.CULL_DISABLED;result.vertex_color_use_as_albedo=true;result.albedo_color=color;result.emission_enabled=true;result.emission=color;result.emission_energy_multiplier=emission;return result
+func visual(color: Color, emission := IMPACT_EMISSION) -> Dictionary:
  var root:=Node3D.new();add_child(root);root.position=stage.WILD_OFFSET
- var mesh:=MeshInstance3D.new();root.add_child(mesh);mesh.mesh=ImmediateMesh.new();mesh.material_override=material(color);mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+ var mesh:=MeshInstance3D.new();root.add_child(mesh);mesh.mesh=ImmediateMesh.new();mesh.material_override=material(color,emission);mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
  return {"root":root,"mesh":mesh,"age":0.0}
 func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,radius: float=6.8) -> void:
  if key!=floor_key: clear();floor_key=key
@@ -47,7 +50,7 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    continue
   if active.size()>=80:
    var old=active.keys()[0];active[old].root.queue_free();active.erase(old)
-  var effect:=visual(Color(event.color));effect.event=event;effect.age=float(event.get("age",0))
+  var effect:=visual(Color(event.color), impact_emission if event.kind=="impact" else IMPACT_EMISSION);effect.event=event;effect.age=float(event.get("age",0))
   var visible_hit: bool=point(event.to).distance_to(observer)<=sight
   if event.kind=="impact" and visible_hit:feedback.confirmed(event,point(event.to))
   if event.kind=="proc" and visible_hit:
@@ -89,7 +92,21 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
   var hint: Dictionary=hints[warning.id];hint.event=warning;draw_hint(hint)
  for id in hints.keys():
   if not keep.has(id): hints[id].root.queue_free();hints.erase(id)
+## Presentation only. These IDs live outside the replicated event sequence.
+func preview_skill_impact(skill: Dictionary, from: Vector3, to: Vector3, wild: bool, emission: float) -> void:
+ for previous in preview_effects: previous.root.queue_free()
+ preview_effects.clear()
+ for kind in ["ability","impact"]:
+  var color := Color(skill.color)
+  var effect := visual(color,emission if kind=="impact" else IMPACT_EMISSION)
+  effect.root.position=stage.WILD_OFFSET if wild else Vector3.ZERO
+  effect.event={"id":-1,"kind":kind,"shape":skill.mode if kind=="ability" else "hit","duration":.8 if kind=="ability" else .2,"from":[from.x,from.y,from.z],"to":[to.x,to.y,to.z],"reach":maxf(.8,skill.get("radius",1.2)),"color":color}
+  effect.preview=true
+  preview_effects.append(effect)
+  pose(effect)
 func clear() -> void:
+ for preview in preview_effects: preview.root.queue_free()
+ preview_effects.clear()
  for collection in [active,hints]:
   for effect in collection.values(): effect.root.queue_free()
   collection.clear()
@@ -331,12 +348,19 @@ func pose(effect: Dictionary) -> void:
  var surface:=effect.mesh.material_override as StandardMaterial3D
  var color:=Color(event.color);color.a=.95 if event.kind=="projectile" else (1.0-t)*.9
  if event.shape in ["riptide","riptide_return"]:color.a=.85
- if event.kind=="impact":color=Color("#fff2ce") if event.shape!="hurt" else Color("#ff957d");color.a=(1-clampf(float(effect.age)/.2,0,1))*.95
+ if event.kind=="impact":
+  color=Color("#fff2ce") if event.shape!="hurt" else Color("#ff957d")
+  # Compatibility draws this unshaded material from albedo. Keep its original
+  # appearance at the production emission and show experimental energy changes.
+  if not is_equal_approx(surface.emission_energy_multiplier,IMPACT_EMISSION):
+   var intensity: float=(1.0+surface.emission_energy_multiplier)/(1.0+IMPACT_EMISSION)
+   color=Color(color.r*intensity,color.g*intensity,color.b*intensity)
+  color.a=(1-clampf(float(effect.age)/.2,0,1))*.95
  if event.kind=="swing" and event.has("pattern"):
   var contact:=float(event.get("contact",.42));var band:=.12
   color.a*=smoothstep(contact-band,contact,t)*(1-smoothstep(contact,contact+.26,t))
  surface.albedo_color=color
- effect.root.visible=Geometry3D.get_closest_point_to_segment(observer,from,to).distance_to(observer)<=sight
+ effect.root.visible=effect.has("preview") or Geometry3D.get_closest_point_to_segment(observer,from,to).distance_to(observer)<=sight
 func snare_roots(mesh: ImmediateMesh, center: Vector3, radius: float, count: int) -> void:
  for index in count:
   var ray:=Vector3(cos(index*TAU/count),0,sin(index*TAU/count))
@@ -563,6 +587,11 @@ func draw_hint(hint: Dictionary) -> void:
  color.a=.8+.12*sin(float(Time.get_ticks_msec())*.012);effect_material.albedo_color=color;effect_material.emission=color
  hint.root.visible=Geometry3D.get_closest_point_to_segment(observer,from,to).distance_to(observer)<=sight+radius
 func step(delta: float) -> void:
+ for i in range(preview_effects.size()-1,-1,-1):
+  var effect: Dictionary=preview_effects[i]
+  effect.age+=delta
+  if effect.age>=float(effect.event.duration): effect.root.queue_free();preview_effects.remove_at(i)
+  else: pose(effect)
  feedback.step(delta)
  statuses.step(delta)
  for id in active.keys():

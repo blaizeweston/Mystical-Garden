@@ -30,6 +30,7 @@ func _ready() -> void:
 		process_mode = Node.PROCESS_MODE_DISABLED
 		queue_free()
 		return
+	developer_tuning = session.garden.developer_tuning
 	progress = MemoryGarden.new()
 	local_character = MemoryCharacter.new()
 	local_character.identity=session.practice_identity
@@ -42,6 +43,7 @@ func _ready() -> void:
 	persistence_session = PracticeAccess.new()
 	settings_path = session.garden.settings_path
 	super()
+	developer_tuning.sync_scene(self)
 	ui.configure_arena_menu(false)
 	_initialize_round()
 	var overlay := CanvasLayer.new()
@@ -261,8 +263,7 @@ func round_stats() -> Dictionary:
 func preview_effect() -> void:
 	if not is_practice_world(): return
 	next_effect=Time.get_ticks_msec()+1200
-	var actor: Dictionary=players[HOST]
-	stage.emit_skill_effect(actor.pos+actor.facing*2.0,1.2,weapon_effect_color(actor))
+	developer_tuning.replay(self)
 
 func apply_build(spec: Dictionary, removal_preview: Array) -> String:
 	if not is_practice_world() or session.replacing: return "Practice round unavailable."

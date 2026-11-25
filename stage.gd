@@ -128,13 +128,20 @@ static func make_environment() -> Environment:
 	return env
 
 
+var production_sun_energy: float
+var preview_sun_energy := NAN
+
+func apply_scene_sun(production: float) -> void:
+	production_sun_energy = production
+	$Sun.light_energy = production if is_nan(preview_sun_energy) else preview_sun_energy
+
 func _ready() -> void:
 	if has_node("WorldEnvironment"):
 		$WorldEnvironment.environment = make_environment()
 	if has_node("Sun"):
 		var sun := $Sun as DirectionalLight3D
 		sun.light_color = Color("#ffe9c6")
-		sun.light_energy = 1.35
+		apply_scene_sun(1.35)
 		sun.shadow_enabled = true
 		sun.shadow_bias = 0.04
 		sun.shadow_blur = 1.4
@@ -213,7 +220,7 @@ func _ready() -> void:
 func focus(origin: Vector3, wild: bool, delta: float = 1.0) -> void:
 	if has_node("Sun"):
 		$Sun.light_color=Color("#ffe9c6") if wild else Color("#fff4dc")
-		$Sun.light_energy=1.35 if wild else 1.05
+		apply_scene_sun(1.35 if wild else 1.05)
 	if has_node("WorldEnvironment"):
 		$WorldEnvironment.environment.adjustment_saturation=.88 if wild else .98
 		$WorldEnvironment.environment.ambient_light_energy=.9 if wild else 1.05
@@ -295,7 +302,7 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 	if not visual_field.generated.is_empty():
 		var climate: Dictionary=visual_field.generated.climate
 		$Sun.light_color=climate.sun
-		$Sun.light_energy=climate.sun_energy
+		apply_scene_sun(climate.sun_energy)
 		$WorldEnvironment.environment.ambient_light_color=climate.ambient
 		$WorldEnvironment.environment.ambient_light_energy=climate.ambient_energy
 	ensure_enemy(foe, foe_model, campaign[18] if campaign.size() > 18 else 0)

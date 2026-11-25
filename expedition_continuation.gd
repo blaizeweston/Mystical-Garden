@@ -119,6 +119,10 @@ static func capture(game) -> Dictionary:
 		"hosted":game.network_session.role()=="Host","port":game.network_session.port(),"data":data,"digest":hash_context.finish().hex_encode()}
 
 static func suspend(game) -> bool:
+	if game.developer_tuning != null and game.developer_tuning.authorized(game) and game.developer_tuning.gameplay_modified():
+		game.status = "Save & Quit is paused. Save a preset if desired, then reset gameplay tuning in the Workbench before suspending."
+		game.tell(game.HOST,game.status)
+		return false
 	if not game.multiplayer.is_server() or not game.slot_claimed or not game.persistence_session.can_write(): return false
 	if not game.departure_settlement.is_empty():
 		if not game.flush_kill_rewards() or not game.departure_settlement.is_empty() or not game.persistence_session.can_write():

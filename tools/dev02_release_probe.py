@@ -81,7 +81,7 @@ func _initialize():
         log = (work/"run.log").read_text(encoding="utf-8", errors="replace") if (work/"run.log").exists() else ""
         if proc.returncode or not (work/"passed.txt").is_file() or "ERROR:" in log:
             raise RuntimeError(log[-6000:] or proc.stderr.decode(errors="replace"))
-        print("PASS: Windows release template rejected developer entry, resources, stock and research.")
+        print("PASS: Windows release template rejected developer entry, resource grants, research, tuning and preset writes.")
 
 
 if __name__ == "__main__":

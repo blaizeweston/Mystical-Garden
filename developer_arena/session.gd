@@ -88,4 +88,6 @@ func _return() -> void:
 	if is_instance_valid(garden):
 		garden.process_mode = previous_mode
 		garden.mouse_controls.release(garden)
+		garden.remove_child(self)
+		garden.developer_tuning.sync_scene(garden)
 	queue_free()

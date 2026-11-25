@@ -9,10 +9,15 @@ func _ready() -> void:
 		return
 	var forged:=Node.new()
 	forged.set_meta(Developer.WORLD_META,{"slot":0})
-	var denied:=OS.has_feature("template_release") and not Developer.authorized_build() and Developer.open_garden(forged,false)==ERR_UNAUTHORIZED and not Developer.enter_arena(forged)
+	var denied:=OS.has_feature("template_release") and not Developer.authorized_build() and Developer.open_garden(forged,false)==ERR_UNAUTHORIZED and not Developer.enter_arena(forged) and not Developer.toggle_workbench(forged)
 	denied=denied and Developer.grant_resources(forged).begins_with("Developer tools") and Developer.stock_materials(forged).begins_with("Developer tools") and Developer.test_unlock(forged,"flowering").begins_with("Developer tools") and not Developer.can_edit(forged)
 	var unchanged: Dictionary={}
 	denied=denied and Developer._grant_resources(forged,unchanged)=="Developer session required." and Developer._stock_materials(forged,unchanged)=="Developer session required." and Developer._test_unlock(forged,"irrigation",unchanged)=="Developer session required." and unchanged.is_empty()
+	var tune:=preload("res://developer_arena/tuning.gd").new()
+	denied=denied and not tune.attach(forged) and not tune.request(forged,tune.SUN,3.0) and not tune.apply(forged,[tune.WATER]) and not tune.replace(forged,{tune.SPEAR:6.0}) and not tune.replay(forged)
+	var store:=preload("res://developer_arena/tuning_presets.gd").new(forged)
+	denied=denied and not store.save_new("Leak").is_empty() and not store.load_named("Leak").is_empty() and not store.remove("Leak",true).is_empty() and store.export_review()=="Developer session required."
+	denied=denied and not store._new_file(project_data,{"name":"Leak"}).is_empty() and store._write(project_data.path_join("unexpected.txt"),"blocked")==ERR_UNAUTHORIZED
 	forged.free()
 	if denied:
 		var marker:=FileAccess.open(project_data.path_join("passed.txt"),FileAccess.WRITE)

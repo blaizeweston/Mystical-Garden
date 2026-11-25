@@ -75,14 +75,16 @@ func configure(site: int, encounter: int, map_seed: int = 0, boss: int = -1, pha
 func has_seed_cache() -> bool:
 	return _seed_cache_present
 
-func generate_flora(global_floor: int, starter_species: int = -1, exclusions: Array = []) -> Dictionary:
-	const Flora = preload("res://wild_flora_generation.gd")
+const Flora = preload("res://wild_flora_generation.gd")
+
+func generate_flora(global_floor: int, starter_species: int = -1, exclusions: Array = [], chance := Flora.SPAWN_CHANCE, reserved_root := Vector3.INF) -> Dictionary:
 	if global_floor < 1 or configured_key.z == 0 or configured_key.x < 0 or boss_kind >= 0:
 		return {}
 	var random := Flora.floor_random(configured_key, global_floor)
 	var species := starter_species
 	if species == -1:
-		if random.randf() >= Flora.SPAWN_CHANCE:
+		var roll := random.randf()
+		if chance < 1.0 and roll >= chance:
 			return {}
 		species = Flora.roll_species(global_floor, configured_key.x, random)
 	elif global_floor > 2 or species not in [0, 1]:
@@ -92,7 +94,7 @@ func generate_flora(global_floor: int, starter_species: int = -1, exclusions: Ar
 	var reserved := exclusions.duplicate()
 	reserved.append_array(spawn_points)
 	reserved.append(leader)
-	var place := _flora_position(random, reserved)
+	var place := _flora_position(random, reserved, reserved_root)
 	if not place.is_finite() and starter_species >= 0:
 		place = _starter_flora_position(reserved)
 	return {"species": species, "position": place} if place.is_finite() else {}

@@ -1,0 +1,161 @@
+extends RefCounted
+## One instance belongs to the title-issued developer world. Practice borrows it.
+const Developer = preload("res://developer_mode.gd")
+const IMPACT := "impact.emission"
+const SUN := "scene.sun_energy"
+const SPEAR := "briar_spear.reach"
+const WATER := "living_sprinkler.base_radius"
+const FLORA := "wild_flora.probability"
+# All entries are finite floats. Source symbols own the production numbers.
+const PROPERTIES := {
+	IMPACT: {"type":"float", "category":"Visuals", "object_name":"Combat impact", "label":"Emission", "unit":"×",
+		"minimum":0, "maximum":4, "step":0.05,
+		"timing":"Next impact or visual replay", "source":"combat_effects.gd", "symbol":"IMPACT_EMISSION"},
+	SUN: {"type":"float", "category":"Visuals", "object_name":"Scene sun", "label":"Light energy", "unit":"×",
+		"minimum":0, "maximum":4, "step":0.05,
+		"timing":"Immediate scene update", "source":"stage.gd", "symbol":"apply_scene_sun / biome climate.sun_energy"},
+	SPEAR: {"type":"float", "category":"Gameplay", "object_name":"Briar Spear", "label":"Attack reach", "unit":"m",
+		"minimum":0.5, "maximum":8, "step":0.1,
+		"timing":"Next accepted spear attack", "source":"class_catalog.gd", "symbol":"warden.weapons[0_1].reach"},
+	WATER: {"type":"float", "category":"Garden", "object_name":"Living Sprinkler", "label":"Base coverage", "unit":"m",
+		"minimum":0.5, "maximum":10, "step":0.1,
+		"timing":"Apply to recalculate base coverage. Researched coverage takes precedence.", "source":"garden_structure_catalog.gd", "symbol":"sprinkler.radius_m"},
+	FLORA: {"type":"float", "category":"World", "object_name":"Ordinary Wild Flora", "label":"Specimen chance", "unit":"%",
+		"minimum":0, "maximum":100, "step":1,
+		"timing":"Next eligible generated floor", "source":"wild_flora_generation.gd", "symbol":"SPAWN_CHANCE"}
+}
+var _owner: WeakRef
+var _active_stage: WeakRef
+var _requested := {}
+var _applied := {}
+var last_used := {}
+var replay_slot := 0
+
+func attach(garden: Node) -> bool:
+	if _owner != null or not Developer.is_test_garden(garden) or not Developer.is_solo(garden): return false
+	_owner = weakref(garden)
+	_active_stage = weakref(garden.stage)
+	return true
+
+func authorized(world: Node) -> bool:
+	if not Developer.authorized_build() or _owner == null: return false
+	var garden: Node = _owner.get_ref()
+	if not Developer.is_test_garden(garden) or not Developer.is_solo(garden) or not garden.slot_claimed or not garden.persistence_session.can_write() or garden.returning_to_title or not garden.app_settings.values.developer_mode: return false
+	var session := garden.get_node_or_null("TestingArena")
+	if world == garden: return session == null or session.garden == null
+	return session != null and session.combat == world and session.authorized(world) and Developer.is_solo(world)
+
+func directory(world: Node) -> String:
+	if not authorized(world): return ""
+	return str(_owner.get_ref().slot_storage_root).path_join("tuning")
+
+func baseline(id: String) -> float:
+	match id:
+		IMPACT: return preload("res://combat_effects.gd").IMPACT_EMISSION
+		SUN: return _active_stage.get_ref().production_sun_energy if _active_stage != null and is_instance_valid(_active_stage.get_ref()) else NAN
+		SPEAR: return preload("res://class_catalog.gd").DEFINITIONS[0].weapons[1].reach
+		WATER: return preload("res://garden_irrigation.gd").RADIUS_M
+		FLORA: return preload("res://wild_flora_generation.gd").SPAWN_CHANCE * 100.0
+	return NAN
+
+static func valid(id: String, value: Variant) -> bool:
+	if not PROPERTIES.has(id) or not (value is float or value is int): return false
+	var row: Dictionary = PROPERTIES[id]
+	return is_finite(value) and value >= row.minimum and value <= row.maximum
+
+func requested(id: String) -> float: return _requested.get(id, baseline(id))
+func applied(id: String) -> float: return _applied.get(id, baseline(id))
+
+func request(world: Node, id: String, value: Variant) -> bool:
+	if not authorized(world) or not valid(id,value): return false
+	_set_difference(_requested,id,value)
+	if id in [SUN,IMPACT]: return apply(world,[id])
+	return true
+
+func _set_difference(values: Dictionary, id: String, value: float) -> void:
+	if is_equal_approx(value,baseline(id)): values.erase(id)
+	else: values[id] = value
+
+func apply(world: Node, ids: Array) -> bool:
+	if not authorized(world): return false
+	for id in ids:
+		if not PROPERTIES.has(id): return false
+	for id in ids: _set_difference(_applied,id,requested(id))
+	sync_scene(world)
+	return true
+
+func replace(world: Node, changes: Dictionary) -> bool:
+	if not authorized(world): return false
+	for id in changes:
+		if not valid(id,changes[id]): return false
+	_requested.clear()
+	for id in changes: _set_difference(_requested,id,changes[id])
+	return apply(world,PROPERTIES.keys())
+
+func reset(world: Node, ids: Array) -> bool:
+	if not authorized(world): return false
+	for id in ids:
+		if not PROPERTIES.has(id): return false
+	for id in ids: _requested.erase(id)
+	return apply(world,ids)
+
+func generate_specimen(world: Node, starter: int, occupied: Array, reserved_root: Dictionary) -> Dictionary:
+	if not authorized(world): return {}
+	var depth: int=world.participation.floor()
+	var chance:=applied(FLORA)
+	if starter<0 and world.battlefield.boss_kind<0: last_used[FLORA]=chance
+	# Banking uses the site it would have received with the production flora roll.
+	# A newly enabled specimen finds a clear site around that existing reservation.
+	if starter<0 and _applied.has(FLORA) and "checkpoint_deposit" in world.progress.heart.unlocked:
+		var ordinary: Dictionary=world.battlefield.generate_flora(depth,starter,occupied)
+		reserved_root.position=world.battlefield.generate_returning_root(depth,"reaching_tendrils" in world.progress.heart.unlocked,occupied,ordinary.get("position",Vector3.INF))
+	return world.battlefield.generate_flora(depth,starter,occupied,chance/100.0,reserved_root.get("position",Vector3.INF))
+
+func gameplay_modified() -> bool:
+	for id in [SPEAR,WATER,FLORA]:
+		if _requested.has(id) or _applied.has(id): return true
+	return false
+
+func sync_scene(world: Node) -> void:
+	if not authorized(world): return
+	_active_stage = weakref(world.stage)
+	_set_scene(world,_applied.get(SUN,NAN),applied(WATER),applied(IMPACT))
+
+func discard_disabled(world: Node) -> void:
+	if _owner == null or _owner.get_ref() != world or not Developer.is_test_garden(world) or world.app_settings.values.developer_mode: return
+	_requested.clear()
+	_applied.clear()
+	last_used.clear()
+	_set_scene(world,NAN,baseline(WATER),baseline(IMPACT))
+	if is_instance_valid(world.developer_workbench): world.developer_workbench.hide(); world.developer_workbench.opened=false
+
+func _set_scene(world: Node, sun: float, water: float, emission: float) -> void:
+	var restoring_disabled: bool = _owner != null and _owner.get_ref() == world and Developer.is_test_garden(world) and not world.app_settings.values.developer_mode and is_nan(sun) and is_equal_approx(water,baseline(WATER)) and is_equal_approx(emission,baseline(IMPACT))
+	if not authorized(world) and not restoring_disabled: return
+	world.stage.preview_sun_energy = sun
+	world.stage.apply_scene_sun(world.stage.production_sun_energy)
+	world.stage.get_node("CombatEffects").impact_emission = emission
+	var coverage = world.progress.irrigation
+	if is_equal_approx(coverage.radius_base_sprinkler,water): return
+	# Settle the partial growth tick at its previous rate before recomputing coverage.
+	if world.growth_clock > 0.0:
+		var elapsed: float = world.growth_clock
+		world.growth_clock = 0.0
+		if world.persistence_session.is_guarded(): world.guarded_growth_tick(elapsed)
+		elif world.progress.advance_growth(elapsed,world.participation.active()) and not world.is_practice_world():
+			if world.progress.save_garden()!=OK: world.status="Plant growth could not be saved. Use Save Garden to retry."
+	coverage.set_sprinkler_radius(water,world.progress.structures,world.progress.heart.unlocked)
+	var garden: Node = world.stage.experimental_garden
+	if garden != null and garden.ghost != null and garden.ghost.visible: garden._show_ghost()
+
+func replay(world: Node, original := false) -> bool:
+	if not authorized(world) or not world.players.has(world.HOST): return false
+	var actor: Dictionary = world.players[world.HOST]
+	var skill: Dictionary = world.combat_build(actor).class_skill(replay_slot)
+	if skill.is_empty(): return false
+	var wild: bool = world.participation.active()
+	var from: Vector3 = actor.pos
+	var to: Vector3 = from + actor.facing * 2.0
+	var effects: Node = world.stage.get_node("CombatEffects")
+	effects.preview_skill_impact(skill,from,to,wild,baseline(IMPACT) if original else applied(IMPACT))
+	return true

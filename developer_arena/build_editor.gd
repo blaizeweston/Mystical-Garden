@@ -66,7 +66,10 @@ func setup(owner: Control) -> void:
 	panel.message.get_parent().add_child(review)
 	preview.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	review.add_child(preview)
-	panel.command(panel.message.get_parent(),"Apply build and restart round",apply)
+	var submit: Button=panel.command(panel.message.get_parent(),"Apply build and restart round",apply)
+	var update_visibility:=func(_index): submit.visible=panel.tabs.get_current_tab_control().name in ["Build","Upgrades"]
+	panel.tabs.tab_changed.connect(update_visibility)
+	update_visibility.call(panel.tabs.current_tab)
 	load_controls()
 	refresh()
 

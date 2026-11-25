@@ -29,6 +29,22 @@ static func can_enter_arena(game: Node) -> bool:
 	return can_edit(game) and game.slot_claimed and game.progress.suspended_expedition.is_empty() \
 		and game.parked_explorers.is_empty() and game.departure_settlement.is_empty() and not game.expedition_open_failed
 
+static func toggle_workbench(game: Node) -> bool:
+	if not is_test_garden(game) or game.developer_tuning == null or not game.developer_tuning.authorized(game): return false
+	if game.settings_dialog.visible or game.ui.cinematic_active(): return false
+	if not is_instance_valid(game.developer_workbench) or not game.developer_workbench.visible: game.ui.close_panels()
+	if game.developer_workbench == null:
+		var overlay := CanvasLayer.new()
+		overlay.layer = 15
+		game.add_child(overlay)
+		var panel = load("res://developer_arena/workbench.gd").new()
+		panel.world = game
+		game.developer_workbench = panel
+		overlay.add_child(panel)
+		game.mouse_controls.release(game)
+	else: game.developer_workbench.toggle()
+	return true
+
 static func enter_arena(game: Node) -> bool:
 	if not can_enter_arena(game) or game.get_node_or_null("TestingArena") != null:
 		return false

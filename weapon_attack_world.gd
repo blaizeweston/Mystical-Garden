@@ -28,6 +28,9 @@ func start_facts(peer: int, now: int) -> Dictionary:
 func capture_attack(peer: int, now: int) -> Dictionary:
 	var actor: Dictionary = _world.players[peer]
 	var stats: Dictionary = _world.combat_build(actor).basic_stats()
+	if Motion.form(actor) == "spear" and _world.developer_tuning != null and _world.developer_tuning.authorized(_world):
+		var tuning = _world.developer_tuning
+		stats.reach += tuning.applied(tuning.SPEAR) - tuning.baseline(tuning.SPEAR)
 	stats.interval = preload("res://basic_attack_timing.gd").interval(int(stats.interval),preload("res://basic_attack_timing.gd").temporary_percent(_world,actor,now))
 	var build: Dictionary = stats.get("affinity_build", {})
 	if build.is_empty(): return stats
@@ -56,6 +59,9 @@ func start_timeline(peer: int, stats: Dictionary, form: String, now: int) -> int
 	var started = actor[Actions.STATE].try_start(now, int(stats.interval), roundi(float(Motion.profile(form).duration) * 1000), float(stats.reach), form)
 	if started == null: return -1
 	actor[Actions.STATE] = started
+	if form=="spear" and _world.developer_tuning != null and _world.developer_tuning.authorized(_world):
+		var tune = _world.developer_tuning
+		tune.last_used[tune.SPEAR] = tune.applied(tune.SPEAR)
 	var variant := Motion.basic_variant(form, started.basic_step())
 	if not variant.is_empty(): stats.weapon_variant = variant.clip
 	preload("res://vital_combat.gd").launch(_world,actor,stats,now)

@@ -149,6 +149,8 @@ var tactics := EnemyTactics.new(Stage.ENEMY_START)
 const EncounterRoster = preload("res://encounter_roster.gd")
 var encounter := EncounterRoster.new(ENEMY_HEALTH)
 var battlefield := Battlefield.new()
+var developer_tuning: RefCounted
+var developer_workbench: Control
 var run_guardians := 0
 var map_rng := RandomNumberGenerator.new()
 var pressure_at := 0
@@ -238,6 +240,10 @@ func _ready() -> void:
 	deaths.name="DeathEffects";deaths.stage=stage;stage.add_child(deaths)
 	var effects=preload("res://combat_effects.gd").new()
 	effects.name="CombatEffects";effects.stage=stage;stage.add_child(effects)
+	if preload("res://developer_mode.gd").is_test_garden(self):
+		developer_tuning = preload("res://developer_arena/tuning.gd").new()
+		developer_tuning.attach(self)
+		settings_dialog.applied.connect(func(): developer_tuning.discard_disabled(self))
 	var map=preload("res://exploration.gd").new()
 	map.name="Exploration";add_child(map)
 	world_view=WorldPresentation.new(stage,deaths,effects,map,event_audio,soundscape)
@@ -426,8 +432,11 @@ func add_player(id: int) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if preload("res://developer_mode.gd").workbench_input(event) and preload("res://developer_mode.gd").enter_arena(self):
+	if preload("res://developer_mode.gd").workbench_input(event) and preload("res://developer_mode.gd").toggle_workbench(self):
 		get_viewport().set_input_as_handled()
+		return
+	if is_instance_valid(developer_workbench) and developer_workbench.visible:
+		if event.is_action_pressed("session_menu"): developer_workbench.toggle(); get_viewport().set_input_as_handled()
 		return
 	if preload("res://ability_aim.gd").release_event(self,event):
 		get_viewport().set_input_as_handled()
@@ -458,11 +467,13 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if is_instance_valid(developer_workbench) and developer_workbench.visible: return
 	if stage.experimental_garden != null and event is InputEventMouseMotion:
 		if stage.experimental_garden.placement_input(event): get_viewport().set_input_as_handled()
 	if event is InputEventMouseButton: _unhandled_key_input(event)
 
 func _unhandled_key_input(event: InputEvent) -> void:
+	if is_instance_valid(developer_workbench) and developer_workbench.visible: return
 	if stage.experimental_garden != null and stage.experimental_garden.placement_input(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -1483,6 +1494,7 @@ func submit_movement(commands: Array,epoch: String) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_instance_valid(developer_workbench) and developer_workbench.visible: return
 	if persistence_session.is_blocked() or persistence_session.is_guarded():
 		if returning_to_title or persistence_session.is_stopping(): return
 		if persistence_session.is_blocked():
@@ -1885,11 +1897,15 @@ func start_encounter() -> void:
 		participation.route(), participation.floor(), participation.seed()]
 	var occupied: Array[Vector3] = [tactics.position]
 	for slot in encounter.scout_count(): occupied.append(encounter.position(slot))
+	var reserved_root := {}
 	wild_flora.begin(floor_key, func() -> Dictionary:
 		var starter := WildFlora.starter(participation.floor(), InventoryModel.garden_or_party_has_seed.bind(progress, players))
-		return battlefield.generate_flora(participation.floor(), starter, occupied))
+		if developer_tuning != null and developer_tuning.authorized(self):
+			return developer_tuning.generate_specimen(self,starter,occupied,reserved_root)
+		return battlefield.generate_flora(participation.floor(),starter,occupied))
 	if "checkpoint_deposit" in progress.heart.unlocked:
 		wild_flora.generate_root(floor_key,func(plant: Vector3) -> Vector3:
+			if reserved_root.has("position"): return reserved_root.position
 			return battlefield.generate_returning_root(participation.floor(),"reaching_tendrils" in progress.heart.unlocked,occupied,plant))
 
 
