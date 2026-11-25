@@ -52,6 +52,55 @@ The [gameplay comparison](vfx02-contact-gameplay.png) uses normal-camera frames 
 
 The three-target Rime Bloom capture shows one rupture caption and three damage numbers. The six-target ring shows one caption and six numbers. Each visual remains centered at its own victim. Rime Bloom's opening and closing labels can still overlap the numbers. The main artistic review questions are contact brightness on dark and pale targets, shard size at gameplay zoom, and legibility beside a hostile telegraph. Lower-end hardware and four-player rendering need separate measurements.
 
+## Ordinary weapon motion and contact
+
+The finished animation pose supplies two points on the distal edge of each supported prop. A short ribbon joins successive samples in world space. Anticipation starts up to 0.23 of a clip before release and sampling ends 0.19 after release. The prop owns its mesh and uses the shared `weapon_edge.gdshader`. Recovery fades the samples. A new weapon, interrupted strike, floor transition or large position correction clears them.
+
+| Equipment | What the player sees |
+|---|---|
+| Rootblade and Harvest Scythe | The outer edge follows each reviewed forehand, backhand or crossing cut. |
+| Briar Spear | The thrust leaves a fine line at the point. The alternating sweep shows the distal blade moving sideways. |
+| Heartwood Maul | The overhead and lateral follow-through carry a broader edge and a short, heavier contact burst. |
+| Graft Knives and Root Lash | Only the striking knife paints a shortened wake. The lash tracks its final moving link. |
+| Vine Bow and Bark Arbalest | The arrow has a long shaft and fletching. The bolt has a shorter, heavier head. Both release at the reviewed socket. |
+| Spore Staff, Thorn Wand, Seed Focus, Thorn Ring and Petal Fan | Each projectile keeps its own profile. The held seed and ring become flying models, the fan releases edged petals, and each receives a short directional wake. |
+| Bloom Bell and Spore Censer | The existing rings and suspended bowl with its directional smoke communicate their radial and sweeping delivery. |
+
+Travelling heads use the captured floor-local flight segment and elapsed time. The handoff uses the frozen weapon socket. Termination immediately hides the flying visual and remembers its ID against delayed duplicate releases. The existing confirmed-hit burst uses the projectile intersection recorded by the sweep. For a melee hit, which resolves against a body footprint, it uses the incoming face of that footprint before displacement. Damage text can continue to follow the displaced target. Ground contact outlines still use the resolved attack pattern.
+
+An accepted dodge kicks six fading earth-colored flecks from the starting foot. Repeated nearby proc captions show their occurrence count. Numeric damage and active stack indicators remain individually visible. Short two-tone ticks lie inside the ordinary sweep, stomp, swipe, artillery and snare warnings. Existing authored boss warnings keep their own presentation.
+
+### Reviewing and tuning ordinary attacks
+
+From the Developer Garden enter the Testing Arena. Open **F4 → Tuning → Visuals → Reviewed weapon sequence**, choose the weapon and first attack or follow-up, and play, pause or step. Switch **Production baseline / Experimental** at the same elapsed time. The reference shot travels three metres in the private viewport. Use **Dodge foot scuff** for movement-only playback. For applied damage, load **Sustained damage** or **Spirit echoes**, spawn a single target or a cluster and attack in the arena. The live round and the private preview use the same weapon poses, edge shader and flight drawing.
+
+| Workbench control | Production default | Range |
+|---|---:|---:|
+| Edge width | 1× | 0.3–1.6× |
+| Edge persistence | 105 ms | 40–200 ms |
+| Edge opacity | 0.68 | 0–1 |
+| Flight wake opacity | 0.55 | 0–1 |
+| Dodge foot scuff opacity | 0.65 | 0–1 |
+| Show every repeated proc caption | Off | Off / On |
+
+Knives use 66% of the selected persistence. Each active hand reuses one mesh, samples up to 120 times per second and retains up to 24 points (46 triangles). The wake, fletching, foot scuffs and warning ticks share their existing event surfaces. The edge shader and geometry are project-authored. Contact particle count, hue, speed and body-flash controls remain in **Weapon contact**. The ordinary client uses production values. An authorized solo developer session can save, reset and export differences through the existing presets.
+
+### VFX04 rendered comparison
+
+[Before and after at the gameplay camera](vfx04-weapon-comparison.jpg) · [Side-by-side motion study](vfx04-weapon-motion.webp). The recordings use separate live fights on VFX03 and VFX04, with the same camera, formation and weapon. The motion study crops the original frames and plays at half speed. The private Laboratory supplies fixed-phase comparisons when matching the frame exactly matters.
+
+[Rootbound Pilgrim sweep at encounters 2, 10 and 16](vfx04-sweep-warnings.jpg). The inside-edge ticks distinguish the danger arc from the player's plain footprint on all three surfaces. Foreground foliage still obscures part of the encounter-10 arc. The short knife wake and dodge dust are deliberately quiet at ordinary zoom. Their prominence during dense fights remains an artistic review decision.
+
+Each frame-time sample ran for 6.5 seconds in the solo Testing Arena at 1100 × 720 on an RTX 5080, Godot 4.7.2 GL Compatibility, with VSync off. The baseline used VFX03. A 120 FPS limit was applied for the capped column, then removed. Numbers are milliseconds per whole rendered frame.
+
+| Workload | Capped p95, before → after | Uncapped p95, before → after | VFX04 uncapped median / worst | VFX04 peak simultaneous combat effects |
+|---|---:|---:|---:|---:|
+| Single-target Rootblade | 8.65 → 8.65 | 3.54 → 3.57 | 3.18 / 26.36 | 2 |
+| Repeated Graft Knives | 8.66 → 8.66 | 3.78 → 3.83 | 3.40 / 26.28 | 2 |
+| Three targets, Frost Core and ordinary strikes | 8.76 → 8.79 | 3.93 → 3.98 | 3.47 / 26.55 | 7 |
+
+VFX02 reported 8.75 ms capped p95 for single-target combat and 8.83 ms for its overlapping-effects workload with VSync on. VFX03's Garden measurements describe a different scene. The peaks above count active combat receipts, excluding actor-owned edge strips and floating captions. The warmed camera recordings peaked at 13 edge samples for the Rootblade, spear and maul (24 triangles per strip) and nine for a knife (16 triangles). Weapon contact retains six splinters and three glints (54 triangles). The dodge uses six triangles. Short runs on this machine leave the 26 ms outliers, GPU headroom, lower-end devices and four-player rendering open for review.
+
 ## Installed verification
 
 Updated the highest desktop revision, `Mystical Garden v0.5.2.0.exe`. All 73 source suites have current passing evidence (28 executed and 45 reused in the final connected run, following the focused run). All 40 selected packaged suites passed, plus startup/catalog and real host/three-guest connection smoke. The installed file matches the verified package SHA-256: `590ba2d95469db81347c121a6846ca81ac2cafc925a49ad0a3e24efcc1326dd7`.

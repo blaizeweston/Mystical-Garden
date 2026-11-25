@@ -260,6 +260,9 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 		actor.name_label.text="YOU" if id==local_id else str(p.name)
 		if bool(p.fallen): actor.name_label.text+=" · FALLEN"
 		actor.name_label.modulate=[Color("d8edb3"),Color("a3d5ef"),Color("e5bcf2"),Color("efcf9f")][clampi(int(p.party_slot),0,3)]
+		var floor_view:=Vector3i(campaign[0],depth,campaign[8])
+		actor.trail_floor_changed=actor.get("trail_floor",floor_view)!=floor_view
+		actor.trail_floor=floor_view
 		update_avatar(avatars[id], actor, p, offset + p.pos, delta)
 		var effect: Dictionary=p.get("skill_fx",{})
 		if bool(p.wild) and not effect.is_empty() and not effect.get("event_driven",false) and int(effect.get("seq",0))!=int(actor.get("skill_fx_seq",-1)):
@@ -477,7 +480,10 @@ func slide_actor(root: Node3D, actor: Dictionary, target: Vector3, delta: float,
 	return visible_motion
 
 
+var weapon_vfx_values := {}
+
 func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, world_position: Vector3, delta: float) -> void:
+	var teleport: bool=actor.last!=Vector3.INF and Vector3(actor.last).distance_squared_to(world_position)>4.
 	var speed_hint: Vector3=player.get("velocity",Vector3.INF)
 	var travel:=slide_actor(root,actor,world_position,delta,Vector3.INF if speed_hint.is_zero_approx() else speed_hint)
 	actor.gait_vector=travel
@@ -533,6 +539,8 @@ func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, world_po
 		actor.visual_weapon=effect_visual
 		actor.weapon_key=visual_key
 	preload("res://weapon_visuals.gd").animate(actor,str(player.weapon_form),attack_phase,active,yaw,float(motion.reach),motion)
+	motion.interrupt=fallen or not motion.equipped or motion.ability or teleport or actor.get("trail_floor_changed",false)
+	preload("res://weapon_motion_trail.gd").sample_actor(actor,str(player.weapon_form),attack_phase,active and not animation.is_empty(),motion,delta,weapon_vfx_values)
 
 
 func attack_material(tint: Color) -> StandardMaterial3D:

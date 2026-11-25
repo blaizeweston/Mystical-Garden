@@ -8,6 +8,7 @@ uniform float lifetime;
 uniform float fragment_count;
 uniform float speed;
 uniform float size_scale;
+uniform vec2 splinter_shape = vec2(1.0);
 uniform float spread;
 uniform float sequence;
 uniform float energy;
@@ -41,8 +42,8 @@ void vertex() {
 	vec3 offset = travel * (0.07 + flight);
 	offset.y -= 1.4 * elapsed * elapsed;
 	float shrink = (1.0 - smoothstep(0.40, 1.0, t)) * size_scale;
-	float length_scale = role < 0.5 ? 0.25 : 0.24;
-	float width_scale = role < 0.5 ? 0.058 : 0.095;
+	float length_scale = role < 0.5 ? 0.25 * splinter_shape.x : 0.24;
+	float width_scale = role < 0.5 ? 0.058 * splinter_shape.y : 0.095;
 	opacity = 1.0 - smoothstep(0.47 + 0.18*r, 1.0, t);
 	if (role > 1.5 && role < 2.5) {
 		offset = travel * (0.035 + t*0.13);

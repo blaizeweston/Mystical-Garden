@@ -79,6 +79,9 @@ func host_run():
   mark("equip-"+form)
   check(await until(func():return marked("seen-"+form)),"guest confirms both "+form+" attacks")
   check(p[WeaponActions.STATE].basic_step()==2,"two admitted "+form+" attacks")
+ # End this fixture's synthetic membership before its peer leaves. No
+ # expedition admission or settlement identity was created by this setup.
+ ExpeditionCase.set_membership(game,p,false)
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects")
 func guest_run():
  game.guest_character.data.active_class=2
@@ -205,6 +208,7 @@ func guest_run():
  var blade_visible: Array[String]=[]
  var blade_returns: Array[String]=[]
  var blade_events: Array[String]=[]
+ var saw_blade_trail:=false
  ready_at=Time.get_ticks_msec()+6000;send_at=0
  while Time.get_ticks_msec()<ready_at and (blade_clips.size()<2 or blade_visible.size()<2 or blade_returns.size()<2 or blade_events.size()<2):
   var now:=Time.get_ticks_msec()
@@ -216,6 +220,7 @@ func guest_run():
   if not view.is_empty():
    var name:=str(view.field_rig.player.current_animation)
    if name.begins_with("Attack_rootblade") and not blade_visible.has(name):blade_visible.append(name)
+   if view.visual_weapon.has_node("MotionTrail") and view.visual_weapon.get_node("MotionTrail").visible:saw_blade_trail=true
    if name.begins_with("Recover_rootblade") and not blade_returns.has(name):blade_returns.append(name)
   for received in game.guest_replication.received_events():
    var event: Dictionary=received.event
@@ -224,6 +229,7 @@ func guest_run():
     check(event.pattern=="sweep" and is_equal_approx(float(event.span),1.9) and is_zero_approx(float(event.get("yaw_offset",0))),"both Rootblade slashes replicate the same existing indicator")
   await process_frame
  game.submit_combat.rpc_id(1,Vector2(0,1),false)
+ check(saw_blade_trail,"guest renders the mounted blade trail from host-selected poses")
  check(blade_clips==["Attack_rootblade_forehand","Attack_rootblade_backhand"],"host selects forehand then backhand without a guest counter")
  check(blade_visible.size()==2 and blade_events.size()==2,"both Rootblade clips arrive in rendered poses and swing events")
  check(blade_returns.has("Recover_rootblade_left") and blade_returns.has("Recover_rootblade_right"),"guest plays both imported return clips")

@@ -157,9 +157,13 @@ func playback(page: Control) -> void:
 func populate_visual_properties() -> void:
 	visual_property.clear()
 	var prefix := "rupture." if lab.selection.selected==2 else "impact."
-	if lab.selection.selected>=4: prefix=lab.Exhibit.GROUPS[lab.selection.selected-4]+"."
+	if lab.selection.selected>=4 and lab.selection.selected<lab.WEAPON_SEQUENCE: prefix=lab.Exhibit.GROUPS[lab.selection.selected-4]+"."
 	for id: String in Catalog.PROPERTIES:
-		if not id.begins_with(prefix) and id!=Catalog.SUN: continue
+		if lab.selection.selected==lab.WEAPON_SEQUENCE:
+			if not (id.begins_with("trail.") or id=="projectile.tail" or id=="text.detail"): continue
+		elif lab.selection.selected==lab.DODGE:
+			if id!="dodge.dust": continue
+		elif not id.begins_with(prefix) and id!=Catalog.SUN: continue
 		var definition: Dictionary=Catalog.PROPERTIES[id]
 		visual_property.add_item("Tune · "+str(definition.label))
 		visual_property.set_item_metadata(visual_property.item_count-1,id)

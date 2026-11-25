@@ -1628,6 +1628,7 @@ func dodge_player(id: int, direction: Vector2) -> void:
 	p[Cooldowns.STATE]=p[Cooldowns.STATE].start(Cooldowns.DODGE,now,resolved.dodge_ms(DODGE_COOLDOWN_MS,prepared))
 	p.facing=facing
 	p.pos=landing
+	preload("res://weapon_delivery_visuals.gd").confirmed_dodge(self,id,previous,landing)
 	preload("res://spirit_affinity.gd").movement(self,p,previous,p.pos)
 	preload("res://spirit_affinity.gd").voluntary(self,id,previous,p.pos,now)
 
@@ -3173,6 +3174,7 @@ func emit_combat_event(kind: String,shape: String,from: Vector3,to: Vector3,dura
 	for key in options:
 		if key in ["form","pattern","contact","width","span","yaw_offset","projectile_radius","height","owner","clip","weapon_release","target_token","core_shapes","core_phase","damage_cue"]:latest[key]=options[key]
 	if kind=="impact" and shape in ["hit","hurt","block","heal"]:
+		if options.has("strike_point"):latest.strike_point=options.strike_point
 		latest.amount=maxi(0,roundi(reach));latest.target_id=combo
 		latest.target_token=encounter.token(combo) if shape=="hit" and combo>=0 and combo<encounter.scout_count() else -1
 	if kind=="subclass_release":

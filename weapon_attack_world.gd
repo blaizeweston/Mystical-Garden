@@ -177,7 +177,7 @@ func pierce(previous: Vector3, point: Vector3, target: int) -> void:
 	preload("res://combat_status.gd").proc(_world, "pierce", previous, point, target)
 
 func hit(peer: int, target: int, origin: Vector3, point: Vector3, forward: Vector3, stats: Dictionary, now: int) -> void:
-	Outgoing.hit_world(_world, peer, target, origin, stats, now)
+	Outgoing.hit_world(_world, peer, target, origin, stats, now, -1, point)
 	if stats.has(Events.CONTEXT):
 		Events.contact(_world, stats, target, now, false, point, forward)
 

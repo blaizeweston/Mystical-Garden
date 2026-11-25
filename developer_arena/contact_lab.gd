@@ -3,6 +3,14 @@ extends VBoxContainer
 const Contacts = preload("res://contact_particles.gd")
 const Tune = preload("res://developer_arena/tuning.gd")
 const Exhibit = preload("res://developer_arena/garden_exhibit.gd")
+const WEAPON_SEQUENCE := 9
+const DODGE := 10
+const DODGE_LIFE := preload("res://weapon_delivery_visuals.gd").DODGE_DURATION
+var scuff: MeshInstance3D
+const WeaponExhibit = preload("res://developer_arena/weapon_exhibit.gd")
+var weapon_exhibit: Node3D
+var weapon_choice := OptionButton.new()
+var variant_choice := OptionButton.new()
 var exhibit: Node3D
 var water := CheckButton.new()
 var heart_stage := OptionButton.new()
@@ -30,7 +38,7 @@ var started := false
 func setup(panel: Control, legacy_controls: Control) -> void:
 	world=panel.world
 	equipped=legacy_controls
-	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom"]:
+	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom","Reviewed weapon sequence","Dodge foot scuff"]:
 		selection.add_item(item)
 	add_child(selection)
 	selection.item_selected.connect(func(_index): select_effect())
@@ -67,6 +75,13 @@ func setup(panel: Control, legacy_controls: Control) -> void:
 	for item in ["One target","Three · cluster","Six · ring"]: formation.add_item(item)
 	formation.item_selected.connect(func(_index): stop(); arrange_targets())
 	options.add_child(formation)
+	for role in WeaponExhibit.Classes.DEFINITIONS:
+		for weapon in role.weapons: weapon_choice.add_item(weapon.name)
+	options.add_child(weapon_choice)
+	for name_text in ["First attack","Follow-up"]: variant_choice.add_item(name_text)
+	options.add_child(variant_choice)
+	weapon_choice.item_selected.connect(func(_index): rebuild_at_phase())
+	variant_choice.item_selected.connect(func(_index): rebuild_at_phase())
 	water.text="Water supplied"
 	water.button_pressed=true
 	water.toggled.connect(func(_on): rebuild_at_phase())
@@ -98,6 +113,8 @@ func select_effect() -> void:
 	equipped.visible=selection.selected==3
 	formation.visible=selection.selected<3
 	targets.visible=formation.visible
+	weapon_choice.visible=selection.selected==WEAPON_SEQUENCE
+	variant_choice.visible=weapon_choice.visible
 	heart_stage.visible=selection.selected in [4,5]
 	water.visible=selection.selected in [6,7]
 	var center:=Vector3(3.5,.55,1.5) if selection.selected==5 else Vector3(0,1.6,0) if selection.selected==4 else Vector3(0,.78,0)
@@ -105,10 +122,25 @@ func select_effect() -> void:
 	camera.look_at(center)
 	camera.size=3.7 if selection.selected==5 else 5.8 if selection.selected==4 else 2.35 if selection.selected>5 else float([2.35,3.,3.7][formation.selected])
 
+	if selection.selected==DODGE:
+		camera.look_at(Vector3(0,.12,0))
+		camera.size=1.9
+	if weapon_choice.visible:
+		camera.position=Vector3(5.,3.4,4.1)
+		camera.look_at(Vector3(0,1.,.6))
+		camera.size=3.15
+
 func duration() -> float:
-	return 16.0 if selection.selected>=4 else CYCLE
+	if selection.selected==WEAPON_SEQUENCE:
+		return weapon_exhibit.duration+.3 if is_instance_valid(weapon_exhibit) else 1.
+	return 16.0 if selection.selected in range(4,9) else CYCLE
 
 func refresh_ambient() -> void:
+	if is_instance_valid(scuff) and mode.selected==1:
+		captured_values=world.developer_tuning.motion_values()
+		seek(clock)
+	if is_instance_valid(weapon_exhibit) and mode.selected==1 and captured_values!=world.developer_tuning.motion_values():
+		rebuild_at_phase()
 	if not is_instance_valid(exhibit) or mode.selected!=1: return
 	var values: Dictionary=world.developer_tuning.ambient_values()
 	if values==captured_values: return
@@ -146,6 +178,26 @@ func play(advance: bool) -> void:
 	if not world.developer_tuning.authorized(world) or selection.selected==3: return
 	stop()
 	var tune=world.developer_tuning
+	if selection.selected==DODGE:
+		scuff=MeshInstance3D.new()
+		scuff.mesh=ImmediateMesh.new()
+		scuff.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		scuff.material_override=world.stage.get_node("CombatEffects").material(WeaponExhibit.Delivery.SCUFF_TINT,0.)
+		scene.add_child(scuff)
+		captured_values=tune.motion_values() if mode.selected==1 else {}
+		started=true
+		running=advance
+		seek(0.)
+		return
+	if selection.selected==WEAPON_SEQUENCE:
+		weapon_exhibit=WeaponExhibit.new()
+		scene.add_child(weapon_exhibit)
+		captured_values=tune.motion_values() if mode.selected==1 else {}
+		weapon_exhibit.build(world.stage,weapon_choice.selected/3,weapon_choice.selected%3,variant_choice.selected,captured_values)
+		started=true
+		running=advance
+		seek(0)
+		return
 	if selection.selected>=4:
 		var group: String=Exhibit.GROUPS[selection.selected-4]
 		exhibit=Exhibit.new()
@@ -187,6 +239,15 @@ func rebuild_at_phase() -> void:
 
 func seek(seconds: float) -> void:
 	clock=clampf(seconds,0,duration())
+	if is_instance_valid(scuff):
+		scuff.visible=clock<DODGE_LIFE
+		if scuff.visible:
+			var mesh:=scuff.mesh as ImmediateMesh
+			mesh.clear_surfaces()
+			mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+			WeaponExhibit.Delivery.foot_scuff(mesh,Vector3.ZERO,Vector3.RIGHT,clock/DODGE_LIFE,captured_values.get("dodge.dust",WeaponExhibit.Delivery.CONTROLS["dodge.dust"][0]))
+			mesh.surface_end()
+	if is_instance_valid(weapon_exhibit): weapon_exhibit.seek(clock)
 	if is_instance_valid(exhibit): exhibit.seek(clock)
 	for sample in samples:
 		sample.root.visible=clock<sample.life
@@ -207,6 +268,14 @@ func single_step() -> void:
 	seek(clock+FRAME)
 
 func stop() -> void:
+	if is_instance_valid(scuff):
+		scuff.hide()
+		scuff.queue_free()
+		scuff=null
+	if is_instance_valid(weapon_exhibit):
+		weapon_exhibit.hide()
+		weapon_exhibit.queue_free()
+		weapon_exhibit=null
 	if is_instance_valid(exhibit):
 		exhibit.hide()
 		exhibit.queue_free()

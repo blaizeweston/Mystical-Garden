@@ -192,6 +192,47 @@ static func arena(world: Node) -> String:
 	var exported:=presets.export_review("VFX02 Test")
 	if presets._read(exported.path_join("changes.json")).differences.size()!=2: return "VFX export mismatch"
 	tune.reset(world,["rupture.size"])
+	lab.selection.select(lab.WEAPON_SEQUENCE)
+	lab.select_effect()
+	lab.mode.select(0)
+	for i in 15:
+		lab.weapon_choice.select(i)
+		lab.play(false)
+		var example=lab.weapon_exhibit
+		lab.seek(example.duration*float(example.profile.release))
+		if example.form in example.Trail.FORMS:
+			var trail=example.actor.visual_weapon.get_node("MotionTrail")
+			if trail.tips.size()<2 or not trail.visible: return "missing sampled edge "+example.form
+			if trail.tips.size()>trail.MAX_SAMPLES: return "unbounded edge"
+			if example.form!="whip" and trail.tips.back().distance_to(example.actor.visual_weapon.get_node("WeaponTip").global_position)>.08: return "detached tip "+example.form
+		if not example.flight.is_empty():
+			lab.seek(example.duration*float(example.profile.release)+.02)
+			if not example.flight.mesh.visible: return "missing preview flight "+example.form
+		lab.seek(lab.duration())
+		if example.form in example.Trail.FORMS and example.actor.visual_weapon.get_node("MotionTrail").visible: return "edge survived recovery "+example.form
+		lab.stop()
+	lab.weapon_choice.select(0)
+	lab.play(false)
+	lab.seek(.14)
+	if not tune.request(world,"trail.opacity",.32): return "trail tuning"
+	lab.mode.select(1)
+	lab.compare_at_phase()
+	if not is_equal_approx(lab.clock,.14) or lab.weapon_exhibit.values.get("trail.opacity")!=.32 or world.stage.weapon_vfx_values.get("trail.opacity")!=.32: return "same-phase tuned sequence"
+	if not presets.save_new("Blade edge").is_empty(): return "edge preset"
+	tune.reset(world,["trail.opacity"])
+	if not presets.load_named("Blade edge").is_empty() or tune.applied("trail.opacity")!=.32: return "edge reload"
+	var edge_export:=presets.export_review("Blade edge")
+	if not presets._read(edge_export.path_join("changes.json")).differences.any(func(row):return row.id=="trail.opacity"): return "missing edge export"
+	tune.reset(world,["trail.opacity"])
+	lab.stop()
+	lab.selection.select(lab.DODGE)
+	lab.select_effect()
+	lab.play(false)
+	lab.single_step()
+	if not lab.scuff.visible or lab.scuff.mesh.get_surface_count()!=1: return "foot scuff replay"
+	lab.seek(.4)
+	if lab.scuff.visible: return "foot dust survived decay"
+	lab.stop()
 	if world.round_stats().party!=before or world.combat_events!=events: return "visual replay modified combat"
 	tune.reset(world,[Tune.IMPACT])
 	var actor: Dictionary=world.players[1]

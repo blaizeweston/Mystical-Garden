@@ -62,6 +62,11 @@ static func build(stage: Node3D,class_id: int,weapon_id: int) -> Node3D:
     root.add_child(piece)
     segments.append(piece)
    root.set_meta("vine_segments",segments)
+ # Tips in the imported meshes' grip coordinates.
+ if form=="blade": marker(root,"WeaponTip",Vector3(0,.822,0))
+ if form=="knives": marker(root,"WeaponTip",Vector3(.066,.593,0))
+ if form in preload("res://weapon_motion_trail.gd").FORMS:
+  preload("res://weapon_motion_trail.gd").attach_to(root)
  root.set_meta("handle",handle)
  root.scale=Vector3.ONE*model_scale(form)
  return root

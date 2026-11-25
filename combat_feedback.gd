@@ -17,14 +17,34 @@ static func family(mode: String) -> String:
  if mode in ["bind","strangle","snare","snare_field","root","lure","decoy"]:return "control"
  if mode in ["salvo","volley","judgement","lance","shot"]:return "bolt"
  return "burst"
-func text_at(text: String,at: Vector3,color: Color,id: int,ability: bool=false,height: float=-1.0) -> void:
+func text_at(text: String,at: Vector3,color: Color,_id: int,ability: bool=false,height: float=-1.0) -> void:
  if labels.size()>=MAX_LABELS:var old: Dictionary=labels.pop_front();old.node.queue_free()
  var label:=Label3D.new();add_child(label);label.text=text;label.billboard=BaseMaterial3D.BILLBOARD_ENABLED
  label.font_size=42 if ability else 64;label.pixel_size=.008;label.outline_size=12;label.outline_modulate=Color("#10171e");label.modulate=color
  label.no_depth_test=true;label.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
- var offset:=Vector3(((id%5)-2)*.13,height if height>=0.0 else (2.65 if not ability else 2.35),0)
+ var used:=0
+ for entry in labels:
+  if entry.age<.48 and entry.at.distance_squared_to(at)<1.7:
+   used|=1<<int(entry.lane)
+ var lane:=0
+ while lane<5 and used&(1<<lane):lane+=1
+ var camera:=get_viewport().get_camera_3d()
+ var right:=camera.global_basis.x if camera!=null else Vector3.RIGHT
+ var offset:=right*float([0,-1,1,0,-1,1][lane])*.46
+ offset.y+=(height if height>=0.0 else (2.55 if not ability else 2.17))+.30*float(lane%2)+.26*floori(lane/3.)
  label.position=stage.WILD_OFFSET+at+offset
- labels.append({"node":label,"start":label.position,"color":color,"age":0.0,"life":.85 if not ability else 1.0})
+ labels.append({"at":at,"lane":lane,"node":label,"start":label.position,"color":color,"age":0.0,"life":.85 if not ability else 1.0})
+func proc_caption(caption: String,at: Vector3,color: Color,id: int,detailed: bool) -> void:
+ if not detailed:
+  for item in labels:
+   if item.get("caption","")==caption and item.age<.38 and at.distance_squared_to(item.at)<2.25:
+    item.count+=1
+    item.node.text="%s ×%d"%[caption,item.count]
+    return
+ text_at(caption,at,color,id,true)
+ labels.back().caption=caption
+ labels.back().count=1
+
 const RUPTURE_LABEL_RADIUS := 6.5
 func recent_rupture_near(at: Vector3) -> bool:
  for item in labels:

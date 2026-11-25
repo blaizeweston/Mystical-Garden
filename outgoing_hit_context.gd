@@ -180,7 +180,7 @@ func install_hit(target: int, token: int, point: Vector3, applied: int, recovery
 
 
 func finish_contact(target: int, token: int, origin: Vector3, point: Vector3, contact_point: Vector3,
-		stats: Dictionary, graft: Dictionary, now: int, before: int, applied: int) -> void:
+		stats: Dictionary, graft: Dictionary, now: int, before: int, applied: int, visual_contact: Vector3) -> void:
 	var attribution: Dictionary = stats.get("stat_weights",{_identity:1})
 	_world.expedition_statistics.damage(_world.participation.run_id(),applied,attribution,stats.get("stat_affinity",""))
 	if stats.get("rite_suppressed", false) and applied < before:
@@ -191,6 +191,12 @@ func finish_contact(target: int, token: int, origin: Vector3, point: Vector3, co
 			load("res://oracle_combat.gd").ordinary_contact(_world, _actor, target, contact_point, stats, now)
 		var form := "magic" if stats.get("trait_secondary", false) else str(stats.get("audio_form", Motion.form(_actor)))
 		var presentation := {"form":form}
+		if Motion.PROFILES.has(form):
+			# Swept projectiles already know their intersection. Melee admission
+			# uses a body footprint; mark its incoming face before knockback.
+			if not visual_contact.is_finite():
+				visual_contact=contact_point.move_toward(origin,preload("res://enemy_hurtbox.gd").radius(_world,target))
+			presentation.strike_point=[visual_contact.x,visual_contact.y,visual_contact.z]
 		if stats.get("stat_affinity","") == "Brittle rupture": presentation.damage_cue = "frost_rupture"
 		_world.emit_combat_event("impact", "hit", origin, point, .85, stats.get("affinity_color", _world.weapon_effect_color(_actor)), float(applied), target, presentation)
 	if _roster.death_pending(target, token):

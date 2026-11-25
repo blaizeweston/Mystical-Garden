@@ -93,6 +93,26 @@ func run():
  check(game.combat_events.any(func(e):return e.kind=="projectile_end"),"confirmed projectile hit terminates flight visual")
  fx.clear();fx.sync(game.combat_events_snapshot(),[],"projectile",p.pos)
  check(not fx.active.values().any(func(e):return e.event.kind=="projectile"),"hit projectile is removed from rendered effects")
+ var receipts: Array=game.combat_events_snapshot()
+ receipts.reverse()
+ fx.clear();fx.sync(receipts,[],"reordered",p.pos)
+ check(not fx.active.values().any(func(e):return e.event.kind=="projectile"),"a late release cannot resurrect a terminated arrow")
+ fx.feedback.proc_caption("Echo",Vector3.ZERO,Color.WHITE,520,false)
+ fx.feedback.proc_caption("Echo",Vector3.ZERO,Color.WHITE,521,false)
+ check(fx.feedback.labels.back().node.text=="Echo ×2","local duplicate proc captions retain the occurrence count")
+ fx.feedback.proc_caption("Echo",Vector3.ZERO,Color.WHITE,522,true)
+ check(fx.feedback.labels.back().node.text=="Echo","detailed captions stay available")
+ var hp_before_dodge:=PlayerVitals.current_hp(p)
+ var before_dodge: Vector3=p.pos
+ game.combat_events.clear();game.dodge_player(1,Vector2.RIGHT)
+ var scuffs: Array=game.combat_events.filter(func(e):return e.kind=="dodge")
+ check(scuffs.size()==1 and p.pos!=before_dodge and PlayerVitals.current_hp(p)==hp_before_dodge,"accepted ordinary displacement emits one foot cue")
+ game.dodge_player(1,Vector2.RIGHT)
+ check(game.combat_events.filter(func(e):return e.kind=="dodge").size()==1,"unready dodge emits no foot cue")
+ p.pos=before_dodge
+ var terminal: Dictionary=receipts.filter(func(e):return e.kind=="projectile_end")[0]
+ var arrow_hit: Dictionary=receipts.filter(func(e):return e.kind=="impact" and e.shape=="hit")[0]
+ check(fx.point(arrow_hit.strike_point).distance_to(fx.point(terminal.to))<.001,"arrow splinters originate at its swept termination point")
  # Every ability family has a distinct mesh and a readable name; no legacy ring needed.
  game.combat_events.clear();fx.clear()
  for mode in ["guard","growth","bind","charge","salvo","quake"]:

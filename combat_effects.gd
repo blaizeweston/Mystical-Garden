@@ -4,6 +4,8 @@ const Ranger = preload("res://ranger_combat.gd")
 const EnemyFeedback = preload("res://enemy_move_feedback.gd")
 var stage: Node3D
 const Contacts = preload("res://contact_particles.gd")
+const Delivery = preload("res://weapon_delivery_visuals.gd")
+var motion_overrides := {}
 var contact_overrides := {}
 const IMPACT_EMISSION := 0.65
 var impact_emission := IMPACT_EMISSION
@@ -39,7 +41,11 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
   if event.kind=="windup":continue
   if event.kind=="projectile_end":
    var ended:=int(event.shape)
-   if active.has(ended):active[ended].root.queue_free();active.erase(ended)
+   seen[ended]=true
+   if active.has(ended):
+    active[ended].root.hide()
+    active[ended].root.queue_free()
+    active.erase(ended)
    continue
   if event.kind=="field_end":
    var ended:=int(event.shape)
@@ -63,14 +69,15 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
   var effect: Dictionary
   if not family.is_empty():
    if age>=float(contact_overrides.get(family+".lifetime",Contacts.DEFAULTS[family+".lifetime"])):continue
-   effect=Contacts.create(self,family,stage.WILD_OFFSET+at,at-point(event.from),event.get("form",""),int(event.id),contact_overrides,impact_emission)
+   var strike:=point(event.strike_point) if event.has("strike_point") else at
+   effect=Contacts.create(self,family,stage.WILD_OFFSET+strike,strike-point(event.from),event.get("form",""),int(event.id),contact_overrides,impact_emission,event.has("strike_point"))
   else:
    effect=visual(Color(event.color), impact_emission if event.kind=="impact" else IMPACT_EMISSION)
   effect.event=event
   effect.age=age
   if event.kind=="proc" and visible_hit:
    var display_name: String={"mark_break":"Mark triggered","core_mark_burst":"Core Mark burst","shatter":"Shatter!","suppress":"Interrupted","echo":"Echo","link":"Linked hit","chorus":"Chorus","counter":"Counter!","brace":"Braced","momentum":"Death charge","pierce":"Pierced","punish":"Wind-up punished","siphon":"Life restored"}.get(str(event.shape),str(event.shape).capitalize())
-   feedback.text_at(display_name,point(event.to),Color(event.color),int(event.id),true)
+   feedback.proc_caption(display_name,at,Color(event.color),int(event.id),motion_overrides.get("text.detail",Delivery.CONTROLS["text.detail"][0])>0)
   if event.kind=="enemy_release" and visible_hit:
    if event.shape=="pulled":feedback.text_at("Pulled",point(event.to),Color(event.color),int(event.id),true,3.45)
    elif event.shape=="restored" and int(event.reach)>0:feedback.text_at("+%d"%int(event.reach),point(event.to),Color(event.color),int(event.id))
@@ -87,18 +94,7 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    if plant_index>=0:
     var growth: Node3D=stage.build_crop(plant_index,2,false)
     growth.reparent(effect.root,false);growth.position=point(event.to);effect.growth=growth
-  if event.kind=="projectile" and event.get("form","")==event.shape and event.shape in ["orb","ring"]:
-   var held_scale := preload("res://plant_polearms.gd").SCALE if event.shape in ["orb","ring"] and event.has("weapon_release") else 0.0
-   var model:=preload("res://plant_weapon_models.gd").in_flight(event.shape,float(event.projectile_radius),held_scale)
-   effect.root.add_child(model)
-   effect.glyph=model
-  elif event.kind=="projectile" and event.shape in ["spell","needle","orb","ring"]:
-   var glyph:=MeshInstance3D.new();effect.root.add_child(glyph)
-   if event.shape=="ring":
-    var ring:=TorusMesh.new();ring.inner_radius=.14;ring.outer_radius=.22;ring.rings=12;ring.ring_segments=8;glyph.mesh=ring
-   else:
-    var sphere:=SphereMesh.new();sphere.radius=float(event.get("projectile_radius",.1));sphere.height=sphere.radius*2;sphere.radial_segments=8;sphere.rings=4;glyph.mesh=sphere
-   glyph.material_override=material(Color(event.color));glyph.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;effect.glyph=glyph
+  if event.kind=="projectile": mount_projectile_glyph(effect,event)
   if active.size()>=80:
    var old=active.keys()[0];active[old].root.queue_free();active.erase(old)
   active[event.id]=effect
@@ -144,6 +140,20 @@ func ribbon(mesh: ImmediateMesh,a: Vector3,b: Vector3,width: float) -> void:
  var side: Vector3=(b-a).cross(Vector3.UP).normalized()*width*.5
  if side.length_squared()<.00001: side=Vector3.RIGHT*width*.5
  for vertex in [a-side,a+side,b+side,a-side,b+side,b-side]: mesh.surface_add_vertex(vertex)
+func mount_projectile_glyph(effect: Dictionary,event: Dictionary) -> void:
+ if event.get("form","")==event.shape and event.shape in ["orb","ring"]:
+  var held_scale := preload("res://plant_polearms.gd").SCALE if event.has("weapon_release") else 0.0
+  var model:=preload("res://plant_weapon_models.gd").in_flight(event.shape,float(event.projectile_radius),held_scale)
+  effect.root.add_child(model)
+  effect.glyph=model
+ elif event.shape in ["spell","needle","orb","ring"]:
+  var glyph:=MeshInstance3D.new();effect.root.add_child(glyph)
+  if event.shape=="ring":
+   var ring:=TorusMesh.new();ring.inner_radius=.14;ring.outer_radius=.22;ring.rings=12;ring.ring_segments=8;glyph.mesh=ring
+  else:
+   var sphere:=SphereMesh.new();sphere.radius=float(event.get("projectile_radius",.1));sphere.height=sphere.radius*2;sphere.radial_segments=8;sphere.rings=4;glyph.mesh=sphere
+  glyph.material_override=material(Color(event.color));glyph.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;effect.glyph=glyph
+
 func circle(mesh: ImmediateMesh,center: Vector3,radius: float,width: float=.06) -> void:
  for i in 40:
   var first:=i*TAU/40.0;var second:=(i+1)*TAU/40.0
@@ -193,24 +203,9 @@ func pose(effect: Dictionary) -> void:
   else:
    circle(mesh,to+Vector3.UP*.12,maxf(.3,float(event.reach))*t,.045)
  elif event.kind=="projectile":
-  var start: Vector3=effect.get("visual_from",from+Vector3.UP*float(event.get("height",1.05)))
-  var finish: Vector3=effect.get("visual_to",to+Vector3.UP*float(event.get("height",1.05)))
-  var at:=start.lerp(finish,t)
-  direction=start.direction_to(finish)
-  var tail:=minf(.40+.35*t,start.distance_to(at)) if effect.has("visual_from") else .40+.35*t
-  ribbon(mesh,at-direction*tail,at,float(event.get("projectile_radius",.08)))
-  if event.shape in ["arrow","bolt","petal"]:
-   var tip: Vector3=at
-   if event.shape=="petal":
-    var radius:=float(event.get("projectile_radius",.10))
-    for vertex in [tip,at-direction*.12+side*radius,at-direction*.32,tip,at-direction*.32,at-direction*.12-side*radius]:
-     mesh.surface_add_vertex(vertex)
-   else:
-    for vertex in [tip,at-direction*.18+side*float(event.get("projectile_radius",.1)),at-direction*.18-side*float(event.get("projectile_radius",.1))]: mesh.surface_add_vertex(vertex)
-   if event.shape=="arrow":
-    for vertex in [at-direction*.32,at-direction*.47+side*.08,at-direction*.47-side*.08]: mesh.surface_add_vertex(vertex)
-  if effect.has("glyph"):
-   effect.glyph.position=at;effect.glyph.rotation.y=t*TAU*3
+  Delivery.projectile(self,mesh,effect,from,to,t,motion_overrides.get("projectile.tail",Delivery.CONTROLS["projectile.tail"][0]))
+ elif event.kind=="dodge":
+  Delivery.foot_scuff(mesh,from,to,t,motion_overrides.get("dodge.dust",Delivery.CONTROLS["dodge.dust"][0]))
  elif event.kind=="field" and event.shape in [Ranger.CORRIDOR,Ranger.ESCAPE]:
   var width := float(event.reach)
   var lane_from := from+Vector3.UP*.055
@@ -331,11 +326,10 @@ func pose(effect: Dictionary) -> void:
   else:
    for i in outline.size():
     for vertex in [center,outline[i],outline[(i+1)%outline.size()]]:mesh.surface_add_vertex(vertex+Vector3.UP*.09)
-  mesh.surface_set_color(Color.WHITE)
+  mesh.surface_set_color(Color(1,1,1,.53))
   for i in outline.size():ribbon(mesh,outline[i]+Vector3.UP*.10,outline[(i+1)%outline.size()]+Vector3.UP*.10,.045)
   if not lash.is_empty():
    for i in range(1,lash.size()):ribbon(mesh,lash[i-1]+Vector3.UP*.10,lash[i]+Vector3.UP*.10,.035)
-  elif event.pattern=="line":ribbon(mesh,from+Vector3.UP*.85,to+Vector3.UP*.85,float(event.width)*2)
   elif event.shape=="smoke" and event.pattern=="sweep":
    var reach:=float(event.reach)
    var angle:=lerpf(-float(event.span)*.5,float(event.span)*.5,clampf(t/float(event.get("contact",.5)),0,1))
@@ -376,6 +370,7 @@ func pose(effect: Dictionary) -> void:
  mesh.surface_end()
  var surface:=effect.mesh.material_override as StandardMaterial3D
  var color:=Color(event.color);color.a=.95 if event.kind=="projectile" else (1.0-t)*.9
+ if event.kind=="dodge":color.a=1.
  if event.shape in ["riptide","riptide_return"]:color.a=.85
  if event.kind=="impact":
   color=Color("#fff2ce") if event.shape!="hurt" else Color("#ff957d")
@@ -509,6 +504,7 @@ func draw_hint(hint: Dictionary) -> void:
   var forward: Vector3=(aim-from).normalized()
   if forward.is_zero_approx():forward=Vector3.FORWARD
   var span_value:=float(event.span)
+  Delivery.danger_marks(self,mesh,from,forward,span_value,radius,5)
   ribbon(mesh,from,from+forward.rotated(Vector3.UP,span_value*.5)*radius,.06)
   ribbon(mesh,from,from+forward.rotated(Vector3.UP,-span_value*.5)*radius,.06)
   for i in 24:
@@ -554,6 +550,7 @@ func draw_hint(hint: Dictionary) -> void:
  else:
   var center: Vector3=from if role in ["swipe","stomp","chant","shepherd","brood","desperate"] else to
   circle(mesh,center,.36 if role=="brood" else radius,.045 if role=="brood" else .065)
+  if role in ["artillery","snare","stomp","swipe"]: Delivery.danger_marks(self,mesh,center,Vector3.FORWARD,TAU,radius,10)
   if role in ["artillery","snare","stomp","chant","shepherd","lure"]: circle(mesh,center,radius*.72,.04)
   if role in ["volley","artillery","snare","lure"]:
    var anchor:=point(event.anchor)+Vector3.UP*.055 if event.has("anchor") else from

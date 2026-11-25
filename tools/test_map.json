@@ -9,7 +9,7 @@
   "full_after_days": 7,
   "systems": {
     "developer_scenarios": {"label":"Reproducible developer practice scenarios","files":["developer_arena/scenarios.gd","developer_arena/scenarios.gd.uid","developer_arena/scenario_editor.gd","developer_arena/scenario_editor.gd.uid","tests/support/dev04_scenario_case.gd"]},
-    "developer_live_tuning": {"label":"Developer Workbench property tuning and presets","files":["developer_arena/named_files.gd","developer_arena/named_files.gd.uid","developer_arena/tuning.gd","developer_arena/tuning.gd.uid","developer_arena/tuning_editor.gd","developer_arena/tuning_editor.gd.uid","developer_arena/contact_lab.gd","developer_arena/contact_lab.gd.uid","developer_arena/garden_exhibit.gd","developer_arena/garden_exhibit.gd.uid","developer_arena/tuning_presets.gd","developer_arena/tuning_presets.gd.uid","tests/support/dev03_tuning_case.gd"]},
+    "developer_live_tuning": {"label":"Developer Workbench property tuning and presets","files":["developer_arena/named_files.gd","developer_arena/named_files.gd.uid","developer_arena/tuning.gd","developer_arena/tuning.gd.uid","developer_arena/tuning_editor.gd","developer_arena/tuning_editor.gd.uid","developer_arena/contact_lab.gd","developer_arena/contact_lab.gd.uid","developer_arena/weapon_exhibit.gd","developer_arena/weapon_exhibit.gd.uid","developer_arena/garden_exhibit.gd","developer_arena/garden_exhibit.gd.uid","developer_arena/tuning_presets.gd","developer_arena/tuning_presets.gd.uid","tests/support/dev03_tuning_case.gd"]},
     "developer_testing_arena": {"label":"Isolated Developer Testing Arena","files":["developer_arena/session.gd","developer_arena/practice_world.gd","developer_arena/practice_encounter.gd","developer_arena/workbench.gd","developer_arena/build_editor.gd","developer_arena/build_plan.gd","developer_arena/session.gd.uid","developer_arena/practice_world.gd.uid","developer_arena/practice_encounter.gd.uid","developer_arena/workbench.gd.uid","developer_arena/build_editor.gd.uid","developer_arena/build_plan.gd.uid","tools/dev02_release_probe.py","tests/support/dev02_combat_case.gd","tests/support/dev02_build_case.gd","tests/support/dev02_release_boundary.gd"]},
     "living_archive": {"label":"Living Archive records and character copies","files":["living_archive.gd","living_archive.gd.uid","living_archive_view.gd","living_archive_view.gd.uid"]},
     "wild_flora": {"label":"Natural Wilds specimens, deterministic selection and per-character harvest","files":["returning_root.gd","returning_root.gd.uid","wild_flora.gd","wild_flora.gd.uid","wild_flora_generation.gd","wild_flora_generation.gd.uid"]},
@@ -301,7 +301,7 @@
     },
     "presentation": {
       "label": "HUD, world drawing, animation and effects",
-      "files": ["traveller_avatar.gd", "root_ui.gd", "stage.gd", "combat_effects.gd", "contact_particles.gd", "contact_particles.gd.uid", "assets/shaders/contact_fragments.gdshader", "assets/shaders/contact_fragments.gdshader.uid", "enemy_death_effects.gd", "boss_lair_visuals.gd", "weapon_visuals.gd", "game_metrics.gd", "network_movement.gd", "network_movement.gd.uid", "combat_feedback.gd", "combat_feedback.gd.uid", "assets/characters/weapon_actions.json", "status_feedback.gd", "status_feedback.gd.uid"]
+      "files": ["traveller_avatar.gd", "root_ui.gd", "stage.gd", "combat_effects.gd", "contact_particles.gd", "contact_particles.gd.uid", "weapon_delivery_visuals.gd", "weapon_delivery_visuals.gd.uid", "weapon_motion_trail.gd", "weapon_motion_trail.gd.uid", "assets/shaders/weapon_edge.gdshader", "assets/shaders/weapon_edge.gdshader.uid", "assets/shaders/contact_fragments.gdshader", "assets/shaders/contact_fragments.gdshader.uid", "enemy_death_effects.gd", "boss_lair_visuals.gd", "weapon_visuals.gd", "game_metrics.gd", "network_movement.gd", "network_movement.gd.uid", "combat_feedback.gd", "combat_feedback.gd.uid", "assets/characters/weapon_actions.json", "status_feedback.gd", "status_feedback.gd.uid"]
     },
     "diagnostics": {
       "label": "Saved diagnostic logs and report export",
@@ -5088,7 +5088,7 @@
         "additive": true
       }},
     "dodge_player": {
-
+      "foot_scuff": {"additive":true,"systems":["presentation"]}
 
     },
     "move_player": {
@@ -5500,6 +5500,7 @@
         "additive": true
       }},
     "emit_combat_event": {
+      "strike_point": {"additive":true,"systems":["presentation"]},
       "rupture_damage_cue": {"additive":true,"systems":["presentation"]},
       "ct01_0": {
         "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
@@ -7090,6 +7091,7 @@
     "weapon_visuals.gd": {
       "newline": "crlf",
       "regions": {
+          "vfx04_weapon_mount": {"systems":["presentation"]},
         "botanical_weapon_dynamics": {
           "systems": [
             "avatar_motion_view"
@@ -7199,6 +7201,10 @@
     "combat_effects.gd": {
       "newline": "crlf",
       "regions": {
+          "vfx04_circular_warning": {"systems":["presentation"]},
+          "vfx04_sweep_warning": {"systems":["presentation"]},
+          "vfx04_flight_wake": {"systems":["presentation"]},
+          "vfx04_shared_flight_models": {"systems":["presentation"]},
         "local_rupture_labels": {"additive":true,"systems":["presentation"]},
         "ct03_ranger_1": {"systems": ["presentation", "ranger_progression"]},
         "ct03_ranger_2": {"systems": ["presentation", "ranger_progression"]},
@@ -8825,6 +8831,8 @@
     "combat_feedback.gd": {
       "newline": "crlf",
       "regions": {
+          "vfx04_label_lanes": {"systems":["presentation"]},
+          "vfx04_label_signature": {"systems":["presentation"]},
         "cb07_0": {
           "systems": [
             "expedition_sustain"

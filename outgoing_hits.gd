@@ -21,8 +21,8 @@ const INTERRUPT_THRESHOLD_MS := 150
 
 
 static func hit_world(world: Node, source_peer: int, target: int, origin: Vector3,
-		stats: Dictionary, now: int, expected_token: int = -1) -> Dictionary:
-	return hit(Context.new(world, source_peer), target, origin, stats, now, expected_token)
+		stats: Dictionary, now: int, expected_token: int = -1, visual_contact := Vector3.INF) -> Dictionary:
+	return hit(Context.new(world, source_peer), target, origin, stats, now, expected_token, visual_contact)
 
 
 ## Previously accepted affinity HP may finish after its source has departed.
@@ -46,7 +46,7 @@ static func affinity_and_clear(world: Node, source_peer: int, target: int, hp: i
 
 
 static func hit(source: Context, target: int, origin: Vector3, stats: Dictionary,
-		now: int, expected_token: int = -1) -> Dictionary:
+		now: int, expected_token: int = -1, visual_contact := Vector3.INF) -> Dictionary:
 	if not source.is_current() or not source.permits_contact(stats): return {}
 	source.observe_contact(target)
 	var token := source.capture_target(target)
@@ -94,7 +94,7 @@ static func hit(source: Context, target: int, origin: Vector3, stats: Dictionary
 	source.record_pressure(point, damage, before, applied)
 	point = source.install_hit(target, token, point, applied, int(stats.get("recovery", 0)),
 		now + NATIVE_STAGGER_MS + int(stats.get("stagger", 0)), winding, stats, now, INTERRUPT_THRESHOLD_MS)
-	source.finish_contact(target, token, origin, point, contact_point, stats, graft, now, before, applied)
+	source.finish_contact(target, token, origin, point, contact_point, stats, graft, now, before, applied, visual_contact)
 	source.record_damage(applied, float(stats.get("shot_distance", distance)))
 	return {"target":target, "token":token, "damage":damage, "applied_hp":applied,
 		"before_hp":before, "after_hp":source.enemy_hp(target), "point":point}

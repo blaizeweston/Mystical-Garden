@@ -50,7 +50,7 @@ static func geometry(frost: bool, count: int) -> ArrayMesh:
 	return mesh
 
 static func create(parent: Node3D, family: String, at: Vector3, incoming: Vector3, form: String,
-		sequence: int, values: Dictionary, emission: float) -> Dictionary:
+		sequence: int, values: Dictionary, emission: float, surface_known := false) -> Dictionary:
 	var frost := family == "rupture"
 	var prefix := family + "."
 	var count := int(values.get(prefix+"count",DEFAULTS[prefix+"count"]))
@@ -65,6 +65,12 @@ static func create(parent: Node3D, family: String, at: Vector3, incoming: Vector
 	material.set_shader_parameter("sequence",posmod(sequence,251))
 	var direction := Vector3(incoming.x,0,incoming.z).normalized()
 	var spread := 1.45 if Motion.is_projectile(form) else 2.65
+	if not frost:
+		# Heavy wood sheds broader flecks. Points and light alternating cuts
+		# produce a narrow recoil without another flash or damage event.
+		var shape: Vector2={"hammer":Vector2(.90,1.40),"knives":Vector2(.67,.68),"spear":Vector2(1.12,.72),"bow":Vector2(.92,.65),"crossbow":Vector2(.81,1.07),"whip":Vector2(.82,.72)}.get(form,Vector2.ONE)
+		material.set_shader_parameter("splinter_shape",shape)
+		if form in ["spear","knives"]: spread=1.65
 	if direction.is_zero_approx():
 		direction=Vector3.RIGHT
 		spread=TAU
@@ -78,7 +84,7 @@ static func create(parent: Node3D, family: String, at: Vector3, incoming: Vector
 	glyph.material_override=material
 	parent.add_child(glyph)
 	glyph.position=at + Vector3.UP * (0.98 if frost else 0.83)
-	if not frost and not incoming.is_zero_approx():
+	if not frost and not surface_known and not incoming.is_zero_approx():
 		# Show the first contact at the near surface of the body before the flecks travel on.
 		glyph.position-=direction*0.24
 	glyph.rotation.y=-atan2(direction.z,direction.x)
