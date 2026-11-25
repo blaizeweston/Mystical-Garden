@@ -85,7 +85,8 @@ def analyse_moment(moment: dict, shard: Path | None, policy: MobPolicy, critic: 
     good = [b for b in branches if b["forced"] and b["legal"] and b["same_state"] and b["life"] >= 0]
     result = {"fight_seed": moment["fight_seed"], "mode": moment["scout"]["mode"], "mobs": moment["scout"]["mobs"],
               "seconds_in": moment["moment"]["seconds"], "branches": len(branches), "bad_replays": sum(not b["same_state"] for b in branches),
-              "not_forced": sum(not (b["forced"] and b["legal"]) for b in branches)}
+              "not_forced": sum(not (b["forced"] and b["legal"]) for b in branches),
+              "held": sum(int(b.get("held", 0)) for b in branches), "hold_missed": sum(int(b.get("hold_missed", 0)) for b in branches)}
     if not good or shard is None or not shard.exists():
         result["skipped"] = "no usable branches"
         return result
@@ -145,7 +146,7 @@ def run_moments(policy_file: Path, settings: dict, args, out: Path, schema: MobS
         command = [godot, "--headless", "--path", str(PROJECT), "--script", "res://ai/choice_test.gd", "--",
                    "--policy", str(policy_file), "--fight-seed", str(seed), "--continuations", str(args.continuations),
                    "--rows", str(args.rows), "--out", str(out / "moments" / f"{name}.json"), "--shards", str(out / "shards" / name),
-                   "--squad-mix", f"{mix:.4f}"]
+                   "--squad-mix", f"{mix:.4f}", "--hold-seconds", f"{args.hold_seconds:g}"]
         jobs.append((name, command))
     total = len(jobs)
     if total == 0:
@@ -297,6 +298,7 @@ def summarise(results: list[dict], names: list[str]) -> dict:
         "value_corr": correlation([s["value"] for s in stats], [s["policy_return"] for s in stats]),
         "wipe_spread": nan_mean(s["wipe_spread"] for s in stats),
         "options": nan_mean(s["options"] for s in stats),
+        "held": sum(int(r.get("held", 0)) for r in results), "hold_missed": sum(int(r.get("hold_missed", 0)) for r in results),
     }
     behaviours = {}
     for option in sorted({k for s in stats for k in s["edges"]}):
@@ -319,6 +321,9 @@ def report(summary: dict, label: str, args) -> str:
              f"{args.continuations} continuations per legal behaviour, on average {s['options']:.1f} legal behaviours. "
              f"Replays that did not reach the scouted state: {s['bad_replays']} (should be 0). Returns are the mob's own "
              "discounted return from the moment (the trainer's gamma per decision), in mob reward units.", "",
+             (f"Hold: the forced behaviour was kept at the mob's decisions for {args.hold_seconds:g} s after the moment "
+              f"({s['held']} later decisions held, {s['hold_missed']} where it was not legal and the policy chose)."
+              if getattr(args, "hold_seconds", 0) > 0 else "Hold: none; only the moment's own decision was forced."), "",
              "## Does the choice matter?", "",
              "Choice share: of the spread in what a mob earns after one decision, the part that comes from which behaviour it "
              "chose rather than how the rest of the fight went. PPO sees one sampled future per decision, so a small share "
@@ -374,6 +379,8 @@ def main() -> int:
     parser.add_argument("--rows", type=int, default=64, help="decisions per branch kept for the critic")
     parser.add_argument("--processes", type=int, default=0)
     parser.add_argument("--seed", type=int, default=3)
+    parser.add_argument("--hold-seconds", type=float, default=0.0,
+                        help="keep the forced behaviour at each of the mob's decisions for this long (0: the moment's decision only)")
     parser.add_argument("--keep-shards", action="store_true")
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()

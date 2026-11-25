@@ -183,3 +183,13 @@ func test_choice_replay() -> void:
 	check(same, "every replay reaches the scouted state at the moment")
 	check(legal and recorder.lives == 3 and recorder.rows <= 24, "each branch forces a legal behaviour and keeps at most its first rows")
 	check(streams[1] == streams[2] and not streams[1].is_empty(), "the same behaviour and continuation seed replay the same rewards")
+	recorder.start_branch()
+	var held: Choice.ChoiceBrain = play.call(func(choice: Choice.ChoiceBrain) -> void:
+		choice.force_tick = int(moment.tick)
+		choice.force_until = int(moment.tick) + 240
+		choice.force_slot = int(moment.slot)
+		choice.force_option = moment.options[1]
+		choice.continuation_seed = 77
+		choice.party_seed = 78)
+	check(held != null and held.forced_legal and held.later_forced + held.later_missed > 0,
+		"a held choice is forced again at the mob's later decisions (%d held, %d not legal)" % [held.later_forced if held else 0, held.later_missed if held else 0])

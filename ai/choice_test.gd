@@ -11,6 +11,8 @@ extends SceneTree
 ##    so behaviours are compared on the same luck), forces the behaviour (targets, manoeuvre and messages are still
 ##    the policy's, given that behaviour) and plays on to the end of the fight. Fights are deterministic from their
 ##    seed; a fingerprint of the world and both generators at the moment proves each replay reached the same state.
+## With --hold-seconds the mob keeps the forced behaviour at each of its decisions for that long (whenever it is legal),
+## which measures how much a committed choice matters rather than a single decision.
 ##
 ## Writes --out (JSON: the moment, and per branch the mob's reward at each of its decisions from the moment on, how
 ## its life ended, the squad's reward after the moment and the fight's outcome) and --shards/moment.shard: the mob's
@@ -18,7 +20,7 @@ extends SceneTree
 ## The shard's reward column is zero; the rewards are in the JSON. Nothing is written to a run folder.
 ##
 ## godot --headless --path <project> --script res://ai/choice_test.gd -- --policy <policy.bin> --fight-seed <n>
-##   --continuations <n> --rows <n> --out <moment.json> --shards <folder> [--squad-mix <f>]
+##   --continuations <n> --rows <n> --out <moment.json> --shards <folder> [--squad-mix <f>] [--hold-seconds <f>]
 
 const Clock = preload("res://mob_sim/mob_clock.gd")
 const Contract = preload("res://mob_sim/mob_contract.gd")
@@ -39,6 +41,11 @@ class ChoiceBrain extends "res://ai/training_brain.gd":
 	var seen := 0
 	var picked := {}
 	var force_tick := -1
+	## The forced behaviour is kept at every decision of the mob before this tick (when legal); force_tick + 1 forces
+	## only the moment's own decision.
+	var force_until := -1
+	var later_forced := 0
+	var later_missed := 0
 	var force_slot := -1
 	var force_option := -1
 	var continuation_seed := 0
@@ -97,11 +104,20 @@ class ChoiceBrain extends "res://ai/training_brain.gd":
 	func _sample_head(batch: Batch, index: int, logits: PackedFloat32Array, row: int, head: int, skip_none: bool,
 			masks: PackedByteArray, actions: PackedByteArray) -> Vector2:
 		var result: Vector2 = super(batch, index, logits, row, head, skip_none, masks, actions)
-		if head != Contract.Head.BEHAVIOUR or not forced or batch.clock.tick != force_tick or batch.slots[index] != force_slot:
+		if head != Contract.Head.BEHAVIOUR or not forced or batch.slots[index] != force_slot:
+			return result
+		var tick: int = batch.clock.tick
+		if tick < force_tick or tick >= maxi(force_until, force_tick + 1):
 			return result
 		var mask_offset: int = schema.contract.head_offsets[head]
-		forced_legal = force_option >= 0 and force_option < _head_sizes[head] and masks[mask_offset + force_option] != 0
-		if not forced_legal:
+		var legal: bool = force_option >= 0 and force_option < _head_sizes[head] and masks[mask_offset + force_option] != 0
+		if tick == force_tick:
+			forced_legal = legal
+		elif legal:
+			later_forced += 1
+		else:
+			later_missed += 1
+		if not legal:
 			return result
 		var offset := row + mask_offset
 		var best := -INF
@@ -254,6 +270,7 @@ var out_path := ""
 var shard_dir := ""
 var fight_seed := 1
 var continuations := 4
+var hold_seconds := 0.0
 var rows := 64
 var squad_mix := -1.0
 
@@ -291,7 +308,7 @@ func _run() -> int:
 		return 1
 	var moment: Dictionary = scout.brain.picked
 	var result := {"fight_seed": fight_seed, "scout": scout.report, "moment": moment if not moment.is_empty() else null,
-		"candidates": scout.brain.seen, "branches": [], "rows": rows, "continuations": continuations}
+		"candidates": scout.brain.seen, "branches": [], "rows": rows, "continuations": continuations, "hold_seconds": hold_seconds}
 	recorder.clear()
 	if not moment.is_empty():
 		for option: int in moment.options:
@@ -300,6 +317,7 @@ func _run() -> int:
 				var lives_before := recorder.lives
 				var branch := _play(schema, recorder, settings, weights, func(brain: ChoiceBrain) -> void:
 					brain.force_tick = int(moment.tick)
+					brain.force_until = int(moment.tick) + Clock.from_ms(hold_seconds * 1000.0)
 					brain.force_slot = int(moment.slot)
 					brain.force_option = option
 					brain.continuation_seed = hash([fight_seed, continuation, "brain"])
@@ -308,7 +326,7 @@ func _run() -> int:
 					return 1
 				var choice: ChoiceBrain = branch.brain
 				result.branches.append({"option": option, "continuation": continuation, "forced": choice.forced,
-					"legal": choice.forced_legal, "same_state": choice.fingerprint == moment.fingerprint,
+					"legal": choice.forced_legal, "held": choice.later_forced, "hold_missed": choice.later_missed, "same_state": choice.fingerprint == moment.fingerprint,
 					"life": lives_before if recorder.lives > lives_before else -1, "kept": recorder.kept,
 					"rewards": Array(recorder.stream).map(func(value: float) -> float: return snappedf(value, 0.00001)),
 					"end": recorder.ended, "report": branch.report})
@@ -379,6 +397,8 @@ func _parse_arguments() -> bool:
 				fight_seed = int(value)
 			"--continuations":
 				continuations = maxi(1, int(value))
+			"--hold-seconds":
+				hold_seconds = maxf(0.0, float(value))
 			"--rows":
 				rows = maxi(2, int(value))
 			"--squad-mix":
