@@ -136,6 +136,21 @@ func freeze_departure(run: int, identity: String, now: int) -> void:
 	_disconnected[identity] = _snapshot(identity,now)
 	_disconnected[identity].players[_disconnected[identity].personal_index].outcome = "Disconnected"
 
+func resume_guest(identity: String, absent_ms: int, floor_number: int) -> void:
+	if not _disconnected.has(identity) or _rows.get(identity,{}).get("outcome")!=SETTLING: return
+	_disconnected.erase(identity)
+	_rows[identity].outcome = ACTIVE
+	_joined[identity] += maxi(0,absent_ms)
+	_rows[identity].deepest = maxi(_rows[identity].deepest,floor_number)
+
+func resume_clock(session: String, shift_ms: int) -> void:
+	_session = session
+	_start_ms += shift_ms
+	for identity in _joined: _joined[identity] += shift_ms
+	for identity in _pending: _pending[identity] += shift_ms
+	for reports in [_results,_disconnected,_confirmed_departures]:
+		for report in reports.values(): report.session = session
+
 func settled_disconnect(identity: String) -> Dictionary:
 	if not _disconnected.has(identity): return {}
 	var frozen: Dictionary = _disconnected[identity]

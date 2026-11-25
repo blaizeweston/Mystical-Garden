@@ -30,6 +30,9 @@ class Life extends RefCounted:
 	func clear_inactive() -> Life:
 		return next_life() if fallen() else self
 
+	static func reserve_generation(generation_id: int) -> void:
+		_last_generation = maxi(_last_generation,generation_id)
+
 	static func next_life() -> Life:
 		_last_generation += 1
 		return Life.new(_last_generation)

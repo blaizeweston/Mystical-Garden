@@ -77,7 +77,7 @@ static func after_q(game: Node, actor: int, player: Dictionary, skill: Dictionar
 	var learned_ward := nodes.has("grave_ward")
 	if not nearby.is_empty() and (grave_hit or learned_ward):
 		var duration := Balance.WARD_MS + (Progression.WARD_EXTENSION_MS if grave_hit and nodes.has("lingering_veil") else 0)
-		nearby[0][Protection.STATE] = nearby[0][Protection.STATE].grant(now+duration,2 if grave_hit and learned_ward else 1,Time.get_ticks_msec(),game.participation.epoch())
+		nearby[0][Protection.STATE] = nearby[0][Protection.STATE].grant(now+duration,2 if grave_hit and learned_ward else 1,preload("res://combat_clock.gd").now(),game.participation.epoch())
 	if damaged and nodes.has("grave_offering"):
 		heal_lowest(game,center,1,Progression.OFFERING_HP,"grave_offering",actor)
 
@@ -120,7 +120,7 @@ static func finish_siphon(game: Node, player: Dictionary, skill: Dictionary, tar
 			player[Cooldowns.STATE] = timers.refund(Cooldowns.R, now, Progression.SWIFT_MS, Balance.COOLDOWN_MIN_MS)
 		if prepared.has("wake_ward"):
 			for peer in support_peers(game,impact):
-				game.players[peer][Protection.STATE] = game.players[peer][Protection.STATE].grant(now+Balance.WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())
+				game.players[peer][Protection.STATE] = game.players[peer][Protection.STATE].grant(now+Balance.WARD_MS,1,preload("res://combat_clock.gd").now(),game.participation.epoch())
 		if damaged and prepared.has("veil_dance"):
 			var timers: Cooldowns.Timers = player[Cooldowns.STATE]
 			player[Cooldowns.STATE] = timers.ready_by(Cooldowns.DODGE, now)

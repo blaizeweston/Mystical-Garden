@@ -1308,6 +1308,8 @@
       }
     },
     "warden_combat.gd": {
+        "suspended_expedition_1": {"match": "\tbest[Protection.STATE] = best[Protection.STATE].grant(now+950,1,preload(\"res://combat_clock.gd\").now(),game.participation.epoch())\n", "baseline": "\tbest[Protection.STATE] = best[Protection.STATE].grant(now+950,1,Time.get_ticks_msec(),game.participation.epoch())\n"},
+        "suspended_expedition_2": {"match": "\t\t\tally[Protection.STATE] = ally[Protection.STATE].grant(now+1250,1,preload(\"res://combat_clock.gd\").now(),game.participation.epoch())\n", "baseline": "\t\t\tally[Protection.STATE] = ally[Protection.STATE].grant(now+1250,1,Time.get_ticks_msec(),game.participation.epoch())\n"},
       "ar08_lifecycle_1": {
         "match": "const PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
         "baseline": ""
@@ -1604,6 +1606,9 @@
       }
     },
     "progress.gd": {
+        "suspended_expedition_1": {"match": "## Present only after an explicit host Save & Quit. Consumed through the Garden transaction.\nvar suspended_expedition := {}\n", "baseline": ""},
+        "suspended_expedition_2": {"match": "\tvar suspended: Variant = file.get_value(\"expedition\", \"suspended\", {})\n\tif not suspended is Dictionary: return ERR_FILE_CORRUPT\n\tsuspended_expedition = suspended\n", "baseline": ""},
+        "suspended_expedition_3": {"match": "\tif not suspended_expedition.is_empty(): file.set_value(\"expedition\",\"suspended\",suspended_expedition)\n", "baseline": ""},
       "archive_retired_recipe": {"match": "\t\t\t\taltar_recipes[key]={\"item\":recorded[key].item,\"success\":recorded[key].get(\"success\",false)==true}\n\t\t\t\tif recorded[key].get(\"historical_success\",false)==true: altar_recipes[key].historical_success=true\n", "baseline": "\t\t\t\taltar_recipes[key]={\"item\":recorded[key].item,\"success\":recorded[key].get(\"success\",false)==true}\n"},
       "archive_storage": {"match": "var shared_components: Dictionary={}\nconst Archive = preload(\"res://living_archive.gd\")\nvar archive := Archive.fresh()\nvar character_records: Dictionary={}\n", "baseline": "var shared_components: Dictionary={}\nvar character_records: Dictionary={}\n"},
       "archive_read_garden": {"match": "\tprojection_origin = origin\n\tif file.has_section_key(\"archive\",\"records\"):\n\t\tvar records: Variant = file.get_value(\"archive\",\"records\")\n\t\tif not Archive.valid(records): return ERR_INVALID_DATA\n\t\tarchive = records\n\telse: archive = Archive.fresh(origin)\n\tvar historical_ancient := not file.has_section_key(\"inventory\",\"ancient_seed_format\")\n", "baseline": "\tprojection_origin = origin\n\tvar historical_ancient := not file.has_section_key(\"inventory\",\"ancient_seed_format\")\n"},
@@ -3987,6 +3992,11 @@
       }
     },
     "main_menu.gd": {
+        "suspended_expedition_1": {"match": "\tvar owner := str(current.get(\"suspended_owner\",\"\"))\n\tcontinue_button.text = \"Continue Expedition\" if not owner.is_empty() else \"Continue\"\n\tif not owner.is_empty() and owner != character.get(\"identity\",\"\"):\n\t\tcontinue_button.disabled = true\n\t\tcontinue_button.tooltip_text = \"Select the character who saved this expedition.\"\n\telse: continue_button.tooltip_text = \"\"\n", "baseline": ""},
+        "suspended_expedition_2": {"match": "\tif has_meta(&\"experimental_terrain\") and owner.is_empty():\n", "baseline": "\tif has_meta(&\"experimental_terrain\"):\n"},
+        "suspended_expedition_3": {"match": "func continue_game() -> void:\n\tif not continue_button.disabled: launch(false)\n", "baseline": "func continue_game() -> void:\n\tif has_meta(&\"experimental_terrain\"): return\n\tif not continue_button.disabled: launch(false)\n"},
+        "suspended_expedition_4": {"match": "\telif host_choice.button_pressed and not game.expedition_open_failed and game.network_session.role()==\"Solo\" and not game.participation.active():\n", "baseline": "\telif host_choice.button_pressed:\n"},
+        "suspended_expedition_5": {"match": "\tif not join and host_choice.button_pressed and not game.expedition_open_failed and game.network_session.role()==\"Solo\" and not game.participation.active(): game.request_host_session()\n", "baseline": "\tif not join and host_choice.button_pressed: game.request_host_session()\n"},
       "experimental_coop_1": {
         "match": "\tif not join and host_choice.button_pressed: game.request_host_session()\n",
         "baseline": "\tif not join and host_choice.button_pressed and not has_meta(&\"experimental_terrain\"): game.host_button.pressed.emit()\n"
@@ -4361,6 +4371,8 @@
       }
     },
     "subclass_combat.gd": {
+        "suspended_expedition_1": {"match": "\t\tnearby[0][Protection.STATE] = nearby[0][Protection.STATE].grant(now+Balance.WARD_MS,1,preload(\"res://combat_clock.gd\").now(),game.participation.epoch())\n", "baseline": "\t\tnearby[0][Protection.STATE] = nearby[0][Protection.STATE].grant(now+Balance.WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())\n"},
+        "suspended_expedition_2": {"match": "\t\t\tally[Protection.STATE] = ally[Protection.STATE].grant(now+Balance.WARD_MS,1,preload(\"res://combat_clock.gd\").now(),game.participation.epoch())\n", "baseline": "\t\t\tally[Protection.STATE] = ally[Protection.STATE].grant(now+Balance.WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())\n"},
       "er01_ally_heal": {"match": "game.Life.Sustain.restore(game,ally,heal_hp,skill.id,-1,id)", "baseline": "game.Life.Sustain.restore(game,ally,heal_hp,skill.id)"},
       "ar08_lifecycle_1": {
         "match": "const PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",

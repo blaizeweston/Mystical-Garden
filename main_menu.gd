@@ -455,11 +455,17 @@ func select_slot(slot: int) -> void:
 	var character:=character_summary(selected_character)
 	var is_ready: bool=character.exists and character.error==OK and not character.active
 	continue_button.disabled=not content_valid or not is_ready or not current.exists or current.error!=OK or current.active
+	var owner := str(current.get("suspended_owner",""))
+	continue_button.text = "Continue Expedition" if not owner.is_empty() else "Continue"
+	if not owner.is_empty() and owner != character.get("identity",""):
+		continue_button.disabled = true
+		continue_button.tooltip_text = "Select the character who saved this expedition."
+	else: continue_button.tooltip_text = ""
 	delete_button.disabled=transitioning or current.active or not current.exists
 	new_button.disabled=not content_valid or character.error!=OK or character.active or current.active
 	join_button.disabled=not content_valid or not is_ready
 	host_choice.disabled=current.active
-	if has_meta(&"experimental_terrain"):
+	if has_meta(&"experimental_terrain") and owner.is_empty():
 		continue_button.disabled = true
 	if guarded_persistence:
 		delete_button.disabled = transitioning or current.state != "healthy"
@@ -712,7 +718,6 @@ func create_and_launch(confirmed: bool) -> void:
 	launch(false)
 
 func continue_game() -> void:
-	if has_meta(&"experimental_terrain"): return
 	if not continue_button.disabled: launch(false)
 
 func join_game() -> void:
@@ -768,7 +773,7 @@ func launch(join: bool) -> void:
 		var error: int=game.session_world.join()
 		if error!=OK:
 			game.return_to_main_menu(game.status)
-	elif host_choice.button_pressed:
+	elif host_choice.button_pressed and not game.expedition_open_failed and game.network_session.role()=="Solo" and not game.participation.active():
 		game.request_host_session()
 	queue_free()
 
@@ -940,7 +945,7 @@ func _launch_guarded(join: bool) -> void:
 	if network_dialog.visible: network_dialog.dismiss()
 	get_tree().current_scene = game
 	preload("res://title_music.gd").set_playing(get_tree(),false)
-	if not join and host_choice.button_pressed: game.request_host_session()
+	if not join and host_choice.button_pressed and not game.expedition_open_failed and game.network_session.role()=="Solo" and not game.participation.active(): game.request_host_session()
 	queue_free()
 
 

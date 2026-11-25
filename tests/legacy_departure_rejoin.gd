@@ -47,32 +47,26 @@ func host_run() -> void:
 	rules.trophy_cap = cap
 	var receipt: Dictionary = world.monster_rewards.pending_receipts()[0]
 	var host_award: Dictionary = receipt.rewards.filter(func(award): return award.id==1)[0]
-	var sparks_before: int = world.wallet_for(world.players[1]).earned_sparks()
-	var lock := FileAccess.open(world.progress.path+".recovery",FileAccess.WRITE)
-	check(lock != null,"file open across actual disconnect")
 	mark("drop")
 	if not await until(func():return not world.players.has(peer)):
 		check(false,"guest disconnected"); return
+	check(world.parked_explorers.has(identity) and world.expedition_statistics.result_for(identity).is_empty(),"disconnected seat held without finalization")
+	check(world.wallet_for(world.players[1]).earned_sparks()==host_award.essence and world.monster_rewards.status(receipt.key)==world.MonsterRewards.Phase.COMMITTED,"pending kill credited once")
+	var lock := FileAccess.open(world.progress.path+".recovery",FileAccess.WRITE)
+	check(lock != null,"cleanup file open across settlement")
+	world.expedition_transitions.abandon(1)
 	var report: Dictionary = world.expedition_statistics.result_for(identity)
-	check(report.get("outcome")=="Disconnected" and world.participation.contains(1),"retain guest report while host continues")
-	check(world.departure_settlement.status(identity)==world.DepartureSettlement.Phase.CLEANUP_PENDING and not world.persistence_session.can_write(),"identity and session held")
+	check(report.get("outcome")=="Disconnected" and not world.participation.active() and world.parked_explorers.is_empty(),"terminal save settles the parked character")
+	check(not world.persistence_session.can_write(),"cleanup pending holds new admissions")
 	check(world.progress.reserve(identity).unknown.size()==seeds_before+1,"one protected seed banked to the departing character")
-	var drops: Array = world.wild_item_drops.duplicate(true)
-	var expected_sparks: int = sparks_before + host_award.essence
-	check(drops.size()==1 and drops[0].id==receipt.key+":1" and drops[0].stack.item==host_award.item and not host_award.item.is_empty(),"one attributed trophy for the continuing player")
-	check(world.wallet_for(world.players[1]).earned_sparks()==expected_sparks and world.monster_rewards.status(receipt.key)==world.MonsterRewards.Phase.CLEANUP_PENDING,"wallet applied and receipt held after commit")
 	var garden := FileAccess.get_sha256(world.progress.path)
 	var profile: Dictionary = world.progress.character_records.get(identity,{}).get("profile",{})
-	check(not profile.is_empty() and profile.xp[0]>0 and profile.monsters[0]==1,"detached guest receives one kill award")
-	world.session_world.remove(peer)
-	check(not world.flush_kill_rewards() and not world.recover_departure_cleanup() and FileAccess.get_sha256(world.progress.path)==garden,"held retry cannot reapply receipt or protected cargo")
+	check(not profile.is_empty() and profile.xp[0]>0 and profile.monsters[0]==1,"absent guest receives pre-disconnect kill")
+	check(not world.recover_departure_cleanup() and FileAccess.get_sha256(world.progress.path)==garden,"held retry cannot reapply protected cargo")
 	lock.close()
 	world._handle_ui_request("save",{})
-	check(world.persistence_session.can_write() and not world.departure_settlement.blocks_admission(identity),"verified cleanup releases both holds")
-	check(FileAccess.get_sha256(world.progress.path)==garden and world.progress.character_records[identity].profile==profile,"cleanup does not rewrite settled rewards")
-	check(world.wild_item_drops==drops and world.wallet_for(world.players[1]).earned_sparks()==expected_sparks and world.monster_rewards.status(receipt.key)==world.MonsterRewards.Phase.COMMITTED,"cleanup releases the receipt without awarding trophy or Essence again")
-	world.expedition_transitions.abandon(1)
-	check(world.expedition_statistics.result_for(identity)==report,"host ending does not alter guest result")
+	check(world.persistence_session.can_write(),"cleanup released write hold")
+	check(FileAccess.get_sha256(world.progress.path)==garden and world.progress.character_records[identity].profile==profile and world.expedition_statistics.result_for(identity)==report,"cleanup retains exactly one result")
 	mark("readmit")
 	check(await until(func():return marked("viewed")),"readmitted guest receives their report")
 

@@ -20,6 +20,8 @@ var identity := Crypto.new().generate_random_bytes(16).hex_encode()
 const Archive = preload("res://living_archive.gd")
 var archive_visits: Dictionary = {}
 var projection_receipts: Dictionary = {}
+## Private rejoin credentials for hosts visited with this character.
+var rejoin_ticket := {}
 
 
 static func blank() -> Dictionary:
@@ -179,6 +181,8 @@ func _read_profile() -> Error:
 		var visits: Variant = file.get_value("character","archive_visits",{})
 		if not Archive.valid_visits(visits): return ERR_INVALID_DATA
 		archive_visits = visits
+		var ticket: Variant = file.get_value("character","rejoin_ticket",{})
+		rejoin_ticket = ticket if ticket is Dictionary else {}
 		projection_receipts = receipts
 	return result
 
@@ -235,6 +239,7 @@ func _serialize_save(stage := Callable()) -> Error:
 	if not archive_visits.is_empty(): file.set_value("character","archive_visits",archive_visits)
 	file.set_value("character", "progress", data)
 	file.set_value("character", "identity", identity)
+	if not rejoin_ticket.is_empty(): file.set_value("character","rejoin_ticket",rejoin_ticket)
 	if not projection_receipts.is_empty():
 		file.set_value("character", "projection_receipts", projection_receipts)
 	var bytes := file.encode_to_text().to_utf8_buffer()

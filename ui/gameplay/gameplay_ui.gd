@@ -60,6 +60,7 @@ var _checkpoint_offer_revision := 0
 @onready var _leave_button: Button = %LeaveButton
 @onready var _save_button: Button = %SaveButton
 @onready var _title_confirmation: ConfirmationDialog = %TitleConfirmation
+@onready var _title_exit_warning: String = _title_confirmation.dialog_text
 @onready var _arena_button: Button = %ArenaButton
 @onready var _arena_setup_button: Button = %ArenaSetupButton
 
@@ -82,6 +83,8 @@ func _ready() -> void:
 	_join_button.pressed.connect(func(): requested.emit("join",{}))
 	_leave_button.pressed.connect(func(): requested.emit("leave",{}))
 	_abandon_button.pressed.connect(func(): requested.emit("abandon",{}))
+	%SaveQuitButton.visible = false
+	%SaveQuitButton.pressed.connect(func(): requested.emit("save_quit",{}))
 	%TitleButton.pressed.connect(func(): requested.emit("title",{}))
 	_arena_button.pressed.connect(func(): requested.emit("arena_open",{}))
 	_arena_setup_button.pressed.connect(func(): requested.emit("arena_setup",{}))
@@ -384,7 +387,11 @@ func checkpoint_revision() -> int:
 func show_abandon_confirmation() -> void:
 	_abandon_confirmation.popup_centered()
 
-func show_title_confirmation() -> void:
+func show_title_confirmation(only_absent_explorers := false) -> void:
+	if only_absent_explorers:
+		_title_confirmation.dialog_text = "End the expedition for the disconnected explorers? Their protected cargo will return to the Garden. They can no longer rejoin this run."
+	else:
+		_title_confirmation.dialog_text = _title_exit_warning
 	_title_confirmation.popup_centered(Vector2i(540,220))
 
 func present_connection(waiting: bool, message: String) -> void:
@@ -428,6 +435,10 @@ func _refresh_prompt() -> void:
 
 func present_menu(state: Dictionary) -> void:
 	_session_label.text = state.session_text
+	%SaveQuitButton.visible = state.get("can_resume_exit",false)
+	%SaveQuitButton.text = "Disconnect & Rejoin Later" if state.role=="Guest" else "Save & Quit"
+	%TitleButton.visible = not %SaveQuitButton.visible or state.get("only_absent_explorers",false)
+	%TitleButton.text = "End Expedition & Return to Title" if state.get("only_absent_explorers",false) else "Return to Main Menu"
 	_host_button.text = "Share Join Address" if state.role == "Host" else "Host Co-op"
 	_host_button.disabled = not state.can_host
 	_join_button.disabled = not state.can_join

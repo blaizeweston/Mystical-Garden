@@ -149,7 +149,7 @@ static func canopy_contacts(game: Node, canopy: Dictionary, now: int) -> void:
 			continue
 		canopy.recipients[id] = true
 		# Standard one-charge Ward with no affinity block response attached.
-		ally[Protection.STATE] = ally[Protection.STATE].grant(now+Progression.CANOPY_WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())
+		ally[Protection.STATE] = ally[Protection.STATE].grant(now+Progression.CANOPY_WARD_MS,1,preload("res://combat_clock.gd").now(),game.participation.epoch())
 		Journal.event("combat","canopy_ward",{"actor":canopy.owner,"cast":canopy.visual_id,"recipient":id})
 
 

@@ -90,7 +90,6 @@ func guest_run() -> void:
  if not await until(func():return world.guest_character.data.xp[0]>200):
   check(false,"floor profile reaches guest disk")
   return
- var before_profile: Dictionary=world.guest_character.data.duplicate(true)
  mark("banked")
  if not await until(func():return marked("advance")):
   check(false,"floor travel prompt")
@@ -99,14 +98,19 @@ func guest_run() -> void:
  if not await until(func():return marked("exit-ready") and world.participation.floor()==2):
   check(false,"second-floor presentation")
   return
+ var before_profile: Dictionary=world.guest_character.data.duplicate(true)
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
- world.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
- check(not world.returning_to_title and world.network_session.awaiting_abandonment_save(),"window close is deferred pending authoritative save")
+ world.return_to_main_menu()
+ check(not world.returning_to_title and world.network_session.awaiting_abandonment_save(),"explicit abandonment waits for authoritative save")
+ world.save_and_quit(false)
+ check(not world.returning_to_title and world.network_session.awaiting_abandonment_save(),"disconnect cannot bypass a pending abandonment")
  if not await until(func():return world.get_meta(&"guest_projection_notice","").contains("not saved")):
   check(false,"guest save abort is visible")
   return
  check(is_instance_valid(world) and world.network_session.role()=="Guest" and world.guest_character.data==before_profile,"failed guest save cannot close or erase the local profile")
- check(world.ui.visible_expedition_result().get("outcome")=="Abandonment","guest receives host result independently of local save retry")
+ if not await until(func():return world.ui.visible_expedition_result().get("outcome")=="Abandonment"):
+  check(false,"guest receives host result independently of local save retry")
+  return
  mark("save-refused")
  if not await until(func():return marked("retry-exit")):
   check(false,"host correction remains retryable")

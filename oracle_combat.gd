@@ -98,7 +98,7 @@ static func after_q(game: Node, id: int, player: Dictionary, skill: Dictionary, 
 	bestow(game,id,skill,cast,affected,allies,now)
 	var nodes: Array = skill.oracle_nodes
 	if nodes.has("kindled_ward") and not allies.is_empty():
-		lowest_recipient(game,allies)[Protection.STATE] = lowest_recipient(game,allies)[Protection.STATE].grant(now+Balance.WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())
+		lowest_recipient(game,allies)[Protection.STATE] = lowest_recipient(game,allies)[Protection.STATE].grant(now+Balance.WARD_MS,1,preload("res://combat_clock.gd").now(),game.participation.epoch())
 	if nodes.has("quiet_ground"):
 		for ally in allies:
 			ally[Conditions.STATE] = ally[Conditions.STATE].cleanse_slow()

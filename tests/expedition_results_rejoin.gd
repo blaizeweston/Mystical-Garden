@@ -37,13 +37,13 @@ func host_run() -> void:
 	if not await until(func():return not world.players.has(peer)):
 		check(false,"host sees disconnection")
 		return
-	check(world.departure_settlement.blocks_admission(identity) and world.expedition_statistics.result_for(identity).is_empty(),"rollback holds readmission and hides tentative result")
-	world.remove_meta(&"guarded_gameplay_test_fault")
-	check(world.flush_kill_rewards(),"retry commits departure")
-	var saved: Dictionary = world.expedition_statistics.result_for(identity)
-	check(saved.get("outcome")=="Disconnected" and saved.players.size()==2 and world.participation.contains(1),"one frozen result while host continues")
+	check(world.parked_explorers.has(identity) and world.expedition_statistics.result_for(identity).is_empty(),"disconnection keeps a resumable seat")
 	world.expedition_transitions.abandon(1)
-	check(world.expedition_statistics.result_for(identity)==saved,"host's later termination cannot alter the guest's result")
+	check(world.participation.contains(1) and world.parked_explorers.has(identity) and world.expedition_statistics.result_for(identity).is_empty(),"failed terminal save restores both active and reserved participants")
+	world.remove_meta(&"guarded_gameplay_test_fault")
+	world.expedition_transitions.abandon(1)
+	var saved: Dictionary = world.expedition_statistics.result_for(identity)
+	check(saved.get("outcome")=="Disconnected" and saved.players.size()==2 and not world.participation.active(),"absent guest settles once at the end")
 	check(world.progress.archive.garden.runs==1 and world.progress.archive.garden.abandons==1 and world.progress.archive.characters[identity].runs==1,"one disconnected guest and one abandonment share one expedition")
 	mark("readmit")
 	check(await until(func():return marked("viewed")),"reconnected guest read own report")
@@ -80,6 +80,9 @@ func guest_run() -> void:
 	world.receive_expedition_result(old_binding,world.guest_character.identity,delayed.run,delayed)
 	world.receive_expedition_result(world.network_session.accepted_connection_key(),"another-character",delayed.run,delayed)
 	check(world.ui.visible_expedition_result().is_empty(),"stale connection cannot reopen a result")
+	if not world.persistence_session.is_guarded():
+		mark("viewed")
+		return
 	check(world.guest_character.archive_visits.get(world.get_meta("guest_projection_origin"),{}).get("runs")==1,"a fresh client recovers its personal Archive through the verified profile delivery")
 	var origin: String=world.get_meta("guest_projection_origin")
 	var loaded := Profile.new()

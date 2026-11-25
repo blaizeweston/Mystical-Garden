@@ -225,11 +225,68 @@ func host(menu: Node) -> void:
 	if not await until(func():return peers.all(func(peer):return read("stale-"+str(peer))=="yes"),"all guests tried previous-floor requests"): return
 	await tree.create_timer(0.5).timeout
 	for peer in peers: check(not game.wild_flora_view(peer).claimed and game.players[peer].carried_seeds.size()==carried_after[peer],"old identity and old action stamp rejected")
+	# Set up an acquired upgrade through the ordinary card ledger and a known
+	# carried item so the restored build and cargo comparisons cannot pass empty.
+	var seed_item: String=game.Items.seed_id(plant.species)
+	for peer in peers:
+		var actor: Dictionary = game.players[peer]
+		game.checkpoint_card_data(actor)
+		var ledger = game.AffinityCards.ledger(actor)
+		var plan: Dictionary = ledger.plan_choice(game.participation.floor(),int(ledger.offer().revision),"0",999,
+			int(actor.upgrade_seed),0,game.combat_build(actor).weapon_base_stats(),game.DODGE_COOLDOWN_MS)
+		if not check(plan.has("copy"),"acquired a real upgrade for rejoin"): return
+		actor[game.AffinityCards.STATE] = plan.ledger
+		actor.carried_items[seed_item] = 3
 	mark("verified")
 	if not party:
 		if not await until(func():return game.players.size()==1,"guest detached during expedition"): return
-		mark("detached")
-		if not await until(func():return read("blocked")=="yes","active run bars old character readmission"): return
+		var absent_id: String = game.parked_explorers.keys()[0]
+		var held: Dictionary = game.parked_explorers[absent_id]
+		var held_loot: Dictionary = held.actor.carried_items.duplicate(true)
+		var graft_id: int = held.actor.expedition_grafts.identity()
+		var copies: Array = held.actor[game.AffinityCards.STATE].copies()
+		var edited: Dictionary = held.actor.character.duplicate(true)
+		edited.xp[0] += 30
+		if not check(not game.Continuation.profile_matches(held.actor,edited,game.progress.character_records[absent_id],{}),"divergent character progress stays protected"): return
+		if not check(not game.Continuation.authorized(game,absent_id,"a".repeat(64)),"a character id alone cannot claim the reserved seat"): return
+		if not check(game.participation.advance(game.participation.epoch(),6),"host advances while guest is absent"): return
+		game.start_encounter()
+		game.tactics.stagger_until=game.CombatClock.now()+90000
+		game.encounter.set_hp(-1,2)
+		game.save_and_quit(false)
+		var title := tree.current_scene
+		if not check(title!=game and title.continue_button.text=="Continue Expedition","co-op host suspended the current floor"): return
+		await tree.process_frame
+		title.continue_button.pressed.emit()
+		game=tree.current_scene
+		if not check(game!=title and game.network_session.role()=="Host" and game.encounter.hp(-1)==2,"host restored the fight and reopened the session"): return
+		mark("detached",str(game.participation.floor()))
+		if not await until(func():return read("back-in-wilds")=="yes","guest returned to current floor"): return
+		var restored: Dictionary = {}
+		for member in game.players.values():
+			if Session.identity(member)==absent_id: restored=member
+		if not check(not restored.is_empty() and restored.carried_items==held_loot and game.AffinityCards.ledger(restored).copies()==copies and restored.expedition_grafts.identity()==graft_id and game.participation.participants().size()==2,"guest retained exact loot, build and a single seat"): return
+	else:
+		if not await until(func():return peers.all(func(peer):return read("await-host-"+str(peer))=="yes"),"all three guests are still online"): return
+		var cargo := {}
+		for peer in peers:
+			var actor: Dictionary = game.players[peer]
+			cargo[Session.identity(actor)] = [actor.carried_items.duplicate(true),game.AffinityCards.ledger(actor).copies(),actor.expedition_grafts.identity()]
+		game.encounter.set_hp(-1,2)
+		game.save_and_quit(false)
+		var title := tree.current_scene
+		if not check(title!=game and title.continue_button.text=="Continue Expedition","host saved all connected participants"): return
+		await tree.process_frame
+		title.continue_button.pressed.emit()
+		game=tree.current_scene
+		if not check(game!=title and game.parked_explorers.size()==3 and game.encounter.hp(-1)==2,"three reserved seats and same wounded enemy"): return
+		mark("host-restored",str(game.participation.floor()))
+		if not await until(func():return peers.all(func(peer):return read("rejoined-wild-"+str(peer))=="yes"),"three guests rejoin the restored fight"): return
+		if not check(game.parked_explorers.is_empty() and game.participation.participants().size()==4,"all four participants restored exactly once"): return
+		for actor: Dictionary in game.players.values():
+			var identity := Session.identity(actor)
+			if cargo.has(identity):
+				if not check(cargo[identity]==[actor.carried_items,game.AffinityCards.ledger(actor).copies(),actor.expedition_grafts.identity()],"correct build and loot per rejoined guest"): return
 	check(game.expedition_transitions.finish_failed(),"wipe finishes through settlement")
 	mark("garden")
 	if not await until(func():return read("rejoined")=="yes" if not party else peers.all(func(peer):return read("garden-"+str(peer))=="yes"),"Garden state recovered"): return
@@ -296,25 +353,31 @@ func guest(menu: Node) -> void:
 	mark("stale-"+str(peer))
 	if not await until(func():return read("verified")=="yes","host verifies stale rejections"): return
 	if not party:
-		game.return_to_main_menu()
-		if not await until(func():return read("detached")=="yes" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"returned to title during active run"): return
-		var old_menu:=tree.current_scene.get_instance_id()
+		game.save_and_quit(false)
+		if not await until(func():return not read("detached").is_empty() and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"saved guest can rejoin"): return
 		join(tree.current_scene)
-		if not await until(func():return tree.current_scene.get_instance_id()!=old_menu and tree.current_scene.get("return_message") is String,"old character rejected while floor is live"): return
-		check("host is in the Wilds" in tree.current_scene.return_message,"specific active-expedition refusal")
-		mark("blocked")
+		if not await until(func():return joined(tree.current_scene),"same profile reconnects during the fight"): return
+		game=tree.current_scene
+		if not await until(func():return game.participation.floor()==int(read("detached")) and game.participation.contains(game.local_player_id()),"joined the party's later floor"): return
+		check(game.guest_character.identity==character,"same persistent character")
+		mark("back-in-wilds")
+	else:
+		mark("await-host-"+str(peer))
+		if not await until(func():return not read("host-restored").is_empty() and tree.current_scene.has_method("continue_game"),"host closure returns the guest to title"): return
+		join(tree.current_scene)
+		if not await until(func():return joined(tree.current_scene),"connected guest can rejoin after host suspension"): return
+		game=tree.current_scene
+		if not await until(func():return game.participation.floor()==int(read("host-restored")) and game.participation.contains(game.local_player_id()),"rejoined the original party"): return
+		if not check(game.guest_character.identity==character,"rejoined the original character"): return
+		mark("rejoined-wild-"+str(peer))
 	if not await until(func():return read("garden")=="yes","host returned to Garden"): return
 	if not party:
-		join(tree.current_scene)
-		if not await until(func():return joined(tree.current_scene),"same profile reconnects at Garden"): return
-		game=tree.current_scene
-		check(game.guest_character.identity==character and game.wild_flora_view(game.local_player_id()).is_empty(),"reconnected character does not recover stale flora")
 		game.request_wild_flora.rpc_id(1,plant.identity,stamp)
 		if not await until(func(): return game.heart_state().unlocked.has("cultivation_grounds") and game.stage.experimental_garden.remote_development.get("energy")==int(read("built")) and game.stage.experimental_garden.bed_ids.size()==10, "rejoined client receives committed Heart and Energy"): return
 		if not await until(func(): return game.stage.experimental_garden.remote_irrigation.watered_slots.has(9) and game.cultivation.projection(game.local_player_id()).get("beds",[]).any(func(b):return b.slot==9 and b.sprinkler),"rejoined guest recovers authoritative watering"): return
 		mark("rejoined")
 	else:
-		if not await until(func():return game.wild_flora_view(peer).is_empty() and game.participation.floor()==1,"discard old flora after wipe"): return
+		if not await until(func():return game.wild_flora_view(game.local_player_id()).is_empty() and game.participation.floor()==1,"discard old flora after wipe"): return
 		mark("garden-"+str(peer))
 	await until(func():return read("offline")=="yes" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest observed normal teardown")
 

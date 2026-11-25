@@ -59,6 +59,9 @@ func _admit(id: int, binding: int, reserved_override: Array = [], effects = null
 	if not refusal.is_empty():
 		game.action_feedback(effects,id,refusal)
 		return false
+	if not game.participation.active() and not game.parked_explorers.is_empty():
+		game.action_feedback(effects,id,"An expedition member can still reconnect to this run.")
+		return false
 	var starting: bool = not game.participation.active()
 	var available: bool = game.progress.campaign.available(game.participation.route())
 	if starting and not available:
@@ -354,6 +357,8 @@ func reset() -> void:
 	var held_peers: Array[int] = []
 	for player in game.players.values():
 		if Participation.is_waiting(player): held_peers.append(Participation.peer_for(player))
+	if game.participation.active(): return
+	game.Continuation.settle_absent(game)
 	if not game.participation.reset_run(): return
 	game.wild_flora.clear()
 	game.mouse_controls.clear(game)
@@ -538,7 +543,7 @@ func complete_guest_exit(intent: int) -> void:
 ## involuntarily disconnected and retain the existing failed-run settlement.
 func finish_voluntary() -> bool:
 	var game = _world.get_ref()
-	if not game.participation.active(): return game.persistence_session.can_publish_state()
+	if not game.participation.active() and game.parked_explorers.is_empty(): return game.persistence_session.can_publish_state()
 	if game.persistence_session.is_guarded():
 		var saved: Dictionary = game.run_guarded_action(game.HOST,game.Transactions.Scope.PAIR,func(effects): return commit_voluntary(effects))
 		return game.Transactions.committed(saved.persistence)

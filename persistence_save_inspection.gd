@@ -19,6 +19,7 @@ static func garden(path: String) -> Dictionary:
   var file: ConfigFile = inspected.file
   var beds: Variant = file.get_value("garden", "plots_v2", [])
   result.summary = {
+   "suspended_owner": str(file.get_value("expedition","suspended",{}).get("owner","")) if file.get_value("expedition","suspended",{}) is Dictionary else "",
    "knowledge": _number(file.get_value("garden", "knowledge", 0)),
    "plots": beds.size() if beds is Array and not beds.is_empty() else 3,
    "best": _number(file.get_value("campaign", "best_clear", 0))

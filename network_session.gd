@@ -275,6 +275,15 @@ func admit_peer(id: int, now: int, character := "", local := false) -> Link:
 	_peers[id] = member
 	return Link.new(self, id, member.binding)
 
+## Before reopening a saved fight, bind its local attacks to the original host.
+## Remote peers must obtain a fresh binding in the newly opened session.
+func restore_expedition_host(saved_binding: int) -> Link:
+	if _role not in ["Solo","Host"] or _peers.size()!=1 or not _peers.has(1) or not _peers[1].local or saved_binding<1:
+		return null
+	_peers[1].binding = saved_binding
+	_last_binding = maxi(_last_binding,saved_binding)
+	return Link.new(self,1,saved_binding)
+
 func binding(id: int) -> int:
 	return _peers[id].binding if _peers.has(id) else 0
 

@@ -64,6 +64,8 @@ func summary(slot: int) -> Dictionary:
 	result.exists = true
 	if result.error != OK:
 		return result
+	var suspended: Variant = file.get_value("expedition","suspended",{})
+	result.suspended_owner = suspended.get("owner","") if suspended is Dictionary else ""
 	result.knowledge = int(file.get_value("garden","knowledge",0))
 	result.best = int(file.get_value("campaign","best_clear",0))
 	var beds = file.get_value("garden","plots_v2",[])

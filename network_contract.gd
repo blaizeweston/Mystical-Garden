@@ -22,6 +22,7 @@ const CAPABILITIES := {
 	"expedition_travel_consent": 2,
 	"expedition_abandonment_forfeiture": 1,
 	"wild_flora_harvest": 2,
+	"expedition_resume": 1,
 	"returning_root": 1,
 	"botanical_acquisition": 2,
 	"immediate_heart_research": 2,

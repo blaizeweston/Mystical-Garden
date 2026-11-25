@@ -152,7 +152,7 @@ static func resolve_segment(game: Node, wave: Dictionary, previous: Vector3, poi
    wave.healed[peer]=true
    game.Life.Sustain.restore(game,player,int(wave.heal),"tidal_return/"+str(wave.source.actor),-1,wave.source.actor)
    load("res://water_combat.gd").cleanse(player)
-   if int(wave.ward_ms)>0:player[Protection.STATE]=player[Protection.STATE].grant(now+int(wave.ward_ms),1,Time.get_ticks_msec(),game.participation.epoch())
+   if int(wave.ward_ms)>0:player[Protection.STATE]=player[Protection.STATE].grant(now+int(wave.ward_ms),1,preload("res://combat_clock.gd").now(),game.participation.epoch())
   return
  for target in range(-1,game.encounter.scout_count()):
   if game.persistence_session.is_blocked() or not living_source(game,wave.source):return

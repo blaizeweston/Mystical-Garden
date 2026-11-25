@@ -10,6 +10,10 @@ const Participation = preload("res://expedition_participation.gd")
 const Session = preload("res://network_session.gd")
 var session_world := preload("res://session_world.gd").new(self)
 var expedition_statistics := preload("res://expedition_statistics.gd").new()
+const Continuation = preload("res://expedition_continuation.gd")
+var parked_explorers := {}
+var expedition_saved_for_exit := false
+var expedition_open_failed := false
 var expedition_transitions := preload("res://expedition_transitions.gd").new(self)
 const ActionIdentity = preload("res://network_action_identity.gd")
 
@@ -256,6 +260,13 @@ func _ready() -> void:
 	multiplayer.connection_failed.connect(session_world.connection_failed)
 	multiplayer.server_disconnected.connect(session_world.server_disconnected)
 	add_player(HOST)
+	if not network_session.joined_from_title():
+		CombatClock.reset_live()
+		if not progress.suspended_expedition.is_empty() and not Continuation.open(self):
+			expedition_open_failed = true
+			set_physics_process(false)
+			set_process(false)
+			_stop_guarded_session.call_deferred(status)
 	diagnostic_watch=preload("res://diagnostic_watch.gd").new();diagnostic_watch.game=self;add_child(diagnostic_watch)
 	preload("res://menu_button_roots.gd").watch(self,func():return app_settings.values.get("ambient_motion",true))
 
@@ -271,6 +282,9 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		if persistence_session.is_blocked() and not persistence_session.is_guarded():
 			get_tree().quit()
+			return
+		if _continuable() or network_session.role()=="Guest" and Participation.is_wild(players.get(local_player_id(),{})):
+			save_and_quit(true)
 			return
 		if expedition_transitions.request_guest_exit(Session.Exit.APPLICATION): return
 		if persistence_session.is_guarded():
@@ -338,7 +352,11 @@ func _handle_ui_request(command: String, data: Dictionary) -> void:
 		"host": request_host_session()
 		"join": request_ip_join()
 		"leave":
-			if not expedition_transitions.request_guest_exit(Session.Exit.SESSION): session_world.leave("Back in your own Garden.")
+			if _continuable() or network_session.role()=="Guest" and Participation.is_wild(players.get(local_player_id(),{})):
+				save_and_quit(false)
+			elif not expedition_transitions.request_guest_exit(Session.Exit.SESSION):
+				session_world.leave("Back in your own Garden.")
+		"save_quit": save_and_quit(false)
 		"abandon": request_abandon_run()
 		"arena_open":
 			if FileAccess.file_exists("res://neural_arena/arena_entry.gd"): load("res://neural_arena/arena_entry.gd").open_from(self)
@@ -930,6 +948,13 @@ func _apply_pending_kill_rewards(effects = null, departure_work: Array[Dictionar
 		for reward: Dictionary in receipt.rewards:
 			var id: int = reward.id
 			var player: Dictionary = players.get(id, {})
+			# Network peer numbers can change while a reward waits for its checkpoint.
+			if player.is_empty() or _kill_reward_identity(id,player)!=reward.identity:
+				for current_id in players:
+					if _kill_reward_identity(current_id,players[current_id])==reward.identity:
+						id = current_id
+						player = players[id]
+						break
 			var is_live: bool = not player.is_empty() and _kill_reward_identity(id, player) == reward.identity
 			if not is_live:
 				player = {}
@@ -937,6 +962,8 @@ func _apply_pending_kill_rewards(effects = null, departure_work: Array[Dictionar
 					if entry.peer_id == id and entry.identity == reward.identity:
 						player = entry.actor
 						break
+			if not is_live and parked_explorers.has(reward.identity):
+				player = parked_explorers[reward.identity].actor
 			if player.is_empty():
 				continue
 			var profile: Dictionary = player.character
@@ -944,15 +971,18 @@ func _apply_pending_kill_rewards(effects = null, departure_work: Array[Dictionar
 			var kind: int = receipt.kind
 			profile.xp[class_id] = mini(Character.Experience.MAX_XP, int(profile.xp[class_id]) + int(reward.xp))
 			profile.monsters[kind] = mini(9999, int(profile.monsters[kind]) + 1)
-			# DepartureSettlement banks detached profiles with protected cargo.
+			# Parked members keep only rewards earned while they were present.
 			if not is_live:
+				if parked_explorers.has(reward.identity):
+					if not receipt.run_rewards_granted: _apply_run_kill_reward(receipt,reward,player,id,true)
+					record_character(id,player)
 				continue
 			if effects == null:
 				publish_character(id)
 			else:
 				live_profiles[id] = true
 			if not receipt.run_rewards_granted:
-				notices.append(_apply_run_kill_reward(receipt, reward, player))
+				notices.append(_apply_run_kill_reward(receipt, reward, player,id))
 	if effects == null:
 		monster_rewards.defer_legacy_notices(notices)
 	else:
@@ -962,17 +992,20 @@ func _apply_pending_kill_rewards(effects = null, departure_work: Array[Dictionar
 			effects.append(_publish_kill_reward_notices.bind(notices, true))
 	return true
 
-func _apply_run_kill_reward(receipt: Dictionary, reward: Dictionary, player: Dictionary) -> Dictionary:
-	var id: int = reward.id
-	grant_run_essence(id, player, int(reward.essence))
+func _apply_run_kill_reward(receipt: Dictionary, reward: Dictionary, player: Dictionary, current_peer := 0, parked := false) -> Dictionary:
+	var id: int = current_peer if current_peer!=0 else reward.id
+	if parked:
+		player[ExpeditionWallet.STATE] = wallet_for(player).credit_sparks(int(reward.essence))
+	else:
+		grant_run_essence(id, player, int(reward.essence))
 	if int(receipt.epoch) == participation.epoch():
 		var at: Vector3 = receipt.position
 		var drop_id := "%s:%d" % [receipt.key, id]
 		if not reward.item.is_empty():
-			wild_item_drops.append({"id":drop_id, "owner":id, "stack":{"item":reward.item,"quantity":1}, "position":[at.x, at.y, at.z]})
+			wild_item_drops.append({"id":drop_id, "owner":id, "owner_identity":reward.identity, "stack":{"item":reward.item,"quantity":1}, "position":[at.x, at.y, at.z]})
 		if not reward.boss_seed.is_empty():
 			at.x += 0.7
-			wild_item_drops.append({"id":drop_id+":seed", "owner":id, "stack":reward.boss_seed.duplicate(true), "position":[at.x, at.y, at.z]})
+			wild_item_drops.append({"id":drop_id+":seed", "owner":id, "owner_identity":reward.identity, "stack":reward.boss_seed.duplicate(true), "position":[at.x, at.y, at.z]})
 	return {"id":id, "identity":reward.identity, "essence":reward.essence, "xp":reward.xp, "parts":int(not reward.item.is_empty())}
 
 func _publish_kill_reward_notices(notices: Array[Dictionary], require_profile := false, xp_pending := false) -> void:
@@ -1853,22 +1886,23 @@ func start_encounter() -> void:
 			return battlefield.generate_returning_root(participation.floor(),"reaching_tendrils" in progress.heart.unlocked,occupied,plant))
 
 
+func clear_floor_effects(player: Dictionary) -> void:
+	preload("res://native_grafts.gd").clear(player)
+	preload("res://oracle_combat.gd").clear(player)
+	preload("res://vital_combat.gd").clear(self,player)
+	preload("res://wood_affinity.gd").clear(player)
+	preload("res://storm_affinity.gd").clear(player)
+	preload("res://spirit_affinity.gd").clear(player)
+	player.erase("affinity_void_form_ready")
+	player.erase("affinity_thorn_form_ready")
+
 func reset_encounter(seed_value: int = -1) -> void:
 	if not SaveBatch.guarded_active(): flush_kill_rewards()
 	monster_rewards.retire_completed()
 	encounter_kill_records.clear();combat_threat.clear();combat_velocity.clear();combat_last_positions.clear();tactics.memory.clear();moving_ranged_hits=0;encounter_started_at=CombatClock.now();encounter_party_size=Director.party_size(self)
 	encounter_kills.clear();encounter_rewarded=false;reward_retry_at=0
 	participation.begin_floor(seed_value)
-	for player in players.values():
-		preload("res://native_grafts.gd").clear(player)
-	for player in players.values():
-		preload("res://oracle_combat.gd").clear(player)
-		preload("res://vital_combat.gd").clear(self,player)
-		preload("res://wood_affinity.gd").clear(player)
-		preload("res://storm_affinity.gd").clear(player)
-		preload("res://spirit_affinity.gd").clear(player)
-		player.erase("affinity_void_form_ready")
-		player.erase("affinity_thorn_form_ready")
+	for player in players.values(): clear_floor_effects(player)
 	preload("res://core_combat.gd").reset(self)
 	enemy_traits.clear();effect_timeline.clear_native()
 	weapon_attacks.clear()
@@ -2174,7 +2208,8 @@ func _process(_delta: float) -> void:
 	ui.present_menu({"session_text":"Developer Garden · Single player" if has_meta("developer_garden") else session_text,
 		"role":network_session.role(),"can_host":not has_meta("developer_garden") and network_session.role() in ["Host","Solo"] and not (network_session.role()=="Solo" and wild),
 		"can_join":not has_meta("developer_garden") and network_session.role()=="Solo" and not wild,
-		"can_leave":network_session.role()!="Solo","can_save":multiplayer.is_server(),"can_bank":root_access,"wild":wild,
+		"only_absent_explorers":not parked_explorers.is_empty() and not participation.active(),
+		"can_resume_exit":_continuable() or network_session.role()=="Guest" and wild,"can_leave":network_session.role()!="Solo","can_save":multiplayer.is_server(),"can_bank":root_access,"wild":wild,
 		"look":Array(p.get("character",{}).get("appearance",p.get("appearance",[0,0,0,0,0])))})
 	ui.present_context(prompt,details)
 	ui.present_hud({"party":preload("res://party_hud.gd").members(players,local_id,travel.get("members",[])),
@@ -2200,17 +2235,43 @@ func living_scout_count() -> int:
 
 
 
+func _continuable() -> bool:
+	return network_session.role() in ["Solo","Host"] and slot_claimed and (participation.active() or not parked_explorers.is_empty())
+
+func save_and_quit(application: bool) -> void:
+	if returning_to_title or expedition_open_failed: return
+	if network_session.role()=="Guest":
+		# An explicit abandonment already submitted must finish its profile correction.
+		if network_session.awaiting_abandonment_save() and expedition_transitions.request_guest_exit(Session.Exit.APPLICATION if application else Session.Exit.TITLE):
+			return
+		if not persistence_session.can_write(): return
+		if character_dirty and not save_local_character(): return
+	elif not _continuable() or not Continuation.suspend(self):
+		return
+	expedition_saved_for_exit = true
+	returning_to_title = true
+	set_physics_process(false)
+	set_process(false)
+	if application:
+		persistence_session.begin_shutdown()
+		session_world.offline()
+		release_slot()
+		get_tree().quit()
+	else:
+		_finish_title_return("Expedition saved. Choose Continue Expedition to resume." if multiplayer.is_server() else "Disconnected. Rejoin the host with this character to continue.")
+
 func request_main_menu() -> void:
-	if participation.active() and network_session.role() in ["Solo","Host"] or Participation.is_wild(players.get(local_player_id(),{})):
-		ui.show_title_confirmation()
+	if _continuable() or Participation.is_wild(players.get(local_player_id(),{})):
+		ui.show_title_confirmation(not parked_explorers.is_empty() and not participation.active())
 	else:
 		return_to_main_menu()
 
 
 func prepare_guarded_exit(save_garden := true) -> bool:
+	if expedition_saved_for_exit or expedition_open_failed: return true
 	if not persistence_session.can_write(): return true
 	if network_session.role() in ["Solo","Host"] and slot_claimed:
-		if participation.active():
+		if participation.active() or not parked_explorers.is_empty():
 			if not expedition_transitions.finish_voluntary(): return false
 			character_dirty=false
 			return true
@@ -2244,7 +2305,7 @@ func return_to_main_menu(message: String = "") -> void:
 		_finish_title_return(message)
 		return
 	if network_session.role() in ["Solo","Host"] and not network_session.joined_from_title():
-		if participation.active():
+		if participation.active() or not parked_explorers.is_empty():
 			if not expedition_transitions.finish_voluntary():
 				returning_to_title = false
 				return
@@ -2886,6 +2947,9 @@ func inventory_drop_list(player: Dictionary) -> Array:
 
 func can_see_item_drop(player: Dictionary,entry: Dictionary) -> bool:
 	if not entry.has("owner"): return true
+	if entry.has("owner_identity") and multiplayer.is_server():
+		var peer := Session.peer_for(player)
+		return peer>0 and _kill_reward_identity(peer,player)==entry.owner_identity
 	return players.has(int(entry.owner)) and is_same(players[int(entry.owner)],player)
 
 func inventory_floor_snapshot(player: Dictionary) -> Array:

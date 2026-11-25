@@ -231,7 +231,7 @@ func savepoint() -> Dictionary:
 	var members: Array[Dictionary] = []
 	for member in _scouts:
 		members.append(_capture(member))
-	return {"leader": _capture(_leader), "scouts": members}
+	return {"leader": _capture(_leader), "scouts": members, "last_token": _last_token}
 
 func _capture(member: Member) -> Dictionary:
 	return {"token": member.token, "hp": member.hp, "ended": member.ended, "tactics": member.tactics.duplicate(true)}
@@ -244,6 +244,7 @@ func _restore_member(state: Dictionary) -> Member:
 func restore_savepoint(state: Dictionary) -> void:
 	# An aborted plan must never make an ID available to another spawn.
 	_reserved_tokens.clear()
+	_last_token = maxi(_last_token,int(state.get("last_token",0)))
 	_leader = _restore_member(state.leader)
 	_scouts.clear()
 	for member in state.scouts:

@@ -721,6 +721,7 @@
     },
     "enemy_attack_execution": {"label": "Host enemy attack execution, scheduled identity and detached contacts", "files": ["enemy_attack.gd", "enemy_attack.gd.uid", "enemy_attack_hits.gd", "enemy_attack_hits.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid", "combat_status.gd", "combat_status.gd.uid"]},
     "incoming_player_hit": {"label": "Host incoming hit defenses, guarded health loss and life outcomes", "files": ["incoming_player_hit.gd", "incoming_player_hit.gd.uid"]},
+    "expedition_continuation": {"label":"Save & Quit, mid-fight restore and disconnected expedition seats","files":["expedition_continuation.gd","expedition_continuation.gd.uid","expedition_suspend_codec.gd","expedition_suspend_codec.gd.uid","tests/support/suspended_process.gd","tests/support/suspended_process.gd.uid"]},
     "expedition_participation": {"label": "Expedition membership, run/floor identity and travel consent", "files": ["expedition_participation.gd", "expedition_participation.gd.uid"]},
     "network_session": {"label": "Peer authorization, session lifecycle, explicit RPC contract and action identity", "files": ["network_session.gd", "network_session.gd.uid", "session_world.gd", "session_world.gd.uid", "network_contract.gd", "network_contract.gd.uid", "network_action_identity.gd", "network_action_identity.gd.uid"]}
   },
@@ -1248,6 +1249,9 @@
       "enemies",
       "encounter_roster"
     ],
+    "_continuable": ["expedition_continuation"],
+    "save_and_quit": ["expedition_continuation"],
+    "clear_floor_effects": ["expeditions","expedition_continuation"],
     "request_main_menu": [
       "menus"
     ],
@@ -1500,8 +1504,9 @@
     ]
   },
   "suites": {
-    "wild_flora_coop": {"kind":"pair","systems":["wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},
-    "wild_flora_party": {"kind":"party","systems":["living_archive","wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},
+    "expedition_suspend": {"kind":"unit","systems":["expedition_continuation","expedition_participation","network_session","departure_settlement","persistence_operations"],"package":false},
+    "wild_flora_coop": {"kind":"pair","systems":["expedition_continuation","wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},
+    "wild_flora_party": {"kind":"party","systems":["expedition_continuation","living_archive","wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},
     "wild_flora_generation": {"kind":"unit","systems":["wild_flora","seeds","hex_terrain","terrain"],"profile":"terrain","package":false},
     "wild_flora_harvest": {"kind":"unit","systems":["living_archive","wild_flora","seeds","items","expeditions","persistence_operations","expedition_participation","player_lifecycle"],"profile":"terrain","package":false},
     "legacy_departure_rejoin": {"kind":"pair","systems":["expedition_statistics","expedition_participation","departure_settlement","network_session","persistence_operations"],"package":false},
@@ -5961,7 +5966,9 @@
     },
     "warden_combat.gd": {
       "newline": "lf",
-      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]},  "ar08_lifecycle_6": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_7": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_8": {"systems": ["player_lifecycle"]}, "ar06_cooldown_1": {"systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"systems": ["player_cooldowns"]}, "ar06_cooldown_3": {"systems": ["player_cooldowns"]}, "ar06_cooldown_4": {"systems": ["player_cooldowns"]},  "ct02_2": {
+      "regions": {
+        "suspended_expedition_1": {"systems": ["expedition_continuation", "player_protection"]},
+        "suspended_expedition_2": {"systems": ["expedition_continuation", "player_protection"]},"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]},  "ar08_lifecycle_6": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_7": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_8": {"systems": ["player_lifecycle"]}, "ar06_cooldown_1": {"systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"systems": ["player_cooldowns"]}, "ar06_cooldown_3": {"systems": ["player_cooldowns"]}, "ar06_cooldown_4": {"systems": ["player_cooldowns"]},  "ct02_2": {
           "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
         }, "ct01_holdfast_1": {
           "systems": ["warden_progression", "combat", "life"]
@@ -6200,6 +6207,9 @@
     "progress.gd": {
       "newline": "lf",
       "regions": {
+        "suspended_expedition_1": {"systems": ["expedition_continuation"]},
+        "suspended_expedition_2": {"systems": ["expedition_continuation"]},
+        "suspended_expedition_3": {"systems": ["expedition_continuation"]},
       "archive_retired_recipe": {"systems": ["living_archive", "seeds"]},
       "archive_storage": {"systems": ["living_archive"]},
       "archive_read_garden": {"systems": ["living_archive"]},
@@ -8936,6 +8946,11 @@
     "main_menu.gd": {
       "newline": "crlf",
       "regions": {
+        "suspended_expedition_1": {"systems": ["expedition_continuation"]},
+        "suspended_expedition_2": {"systems": ["expedition_continuation"]},
+        "suspended_expedition_3": {"systems": ["expedition_continuation"]},
+        "suspended_expedition_4": {"systems": ["expedition_continuation"]},
+        "suspended_expedition_5": {"systems": ["expedition_continuation"]},
         "experimental_coop_1": {
           "systems": [
             "hex_terrain",
@@ -9528,6 +9543,8 @@
     "subclass_combat.gd": {
       "newline": "lf",
       "regions": {
+        "suspended_expedition_1": {"systems": ["expedition_continuation", "player_protection"]},
+        "suspended_expedition_2": {"systems": ["expedition_continuation", "player_protection"]},
       "er01_ally_heal": {"systems": ["expedition_statistics"]},"ar08_lifecycle_1": {"systems": ["player_lifecycle"]},   "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}, "ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]}, "ar06_cooldown_1": {"systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"systems": ["player_cooldowns"]},      "ct05_oracle_2": {"systems": ["oracle_progression"]},     "ct04_reaper_1": {"systems": ["warden_progression", "reaper_progression"]},  "ct04_reaper_3": {"systems": ["warden_progression", "reaper_progression"]}, "ct04_reaper_4": {"systems": ["warden_progression", "reaper_progression"]},    "ct03_ranger_1": {"systems": ["warden_progression", "ranger_progression"]},  "ct03_ranger_3": {"systems": ["warden_progression", "ranger_progression"]},   "ct03_ranger_6": {"systems": ["warden_progression", "ranger_progression"]},   "ct02_1": {
           "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
         }, "ct02_2": {

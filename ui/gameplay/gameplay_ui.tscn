@@ -229,6 +229,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Abandon Expedition"
 
+[node name="SaveQuitButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/ExitActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Save & Quit"
+
 [node name="TitleButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/ExitActions"]
 unique_name_in_owner = true
 layout_mode = 2

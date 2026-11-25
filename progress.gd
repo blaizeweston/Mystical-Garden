@@ -17,6 +17,8 @@ const Archive = preload("res://living_archive.gd")
 var archive := Archive.fresh()
 var character_records: Dictionary={}
 var projection_origin := ""
+## Present only after an explicit host Save & Quit. Consumed through the Garden transaction.
+var suspended_expedition := {}
 var item_stashes: Dictionary={}
 var ground_items: Array=[]
 var needs_inventory_backup:=false
@@ -97,6 +99,9 @@ func _read_garden() -> Error:
 	var result := file.load(path)
 	if result != OK:
 		return result
+	var suspended: Variant = file.get_value("expedition", "suspended", {})
+	if not suspended is Dictionary: return ERR_FILE_CORRUPT
+	suspended_expedition = suspended
 	var development: Variant = file.get_value("garden_development", "state", {})
 	garden_development_error = GardenDevelopment.refusal(development)
 	if not garden_development_error.is_empty():
@@ -384,6 +389,7 @@ func _serialize_save(stage := Callable()) -> Error:
 		if copied != OK:
 			return copied
 	var file := ConfigFile.new()
+	if not suspended_expedition.is_empty(): file.set_value("expedition","suspended",suspended_expedition)
 	file.set_value("content","component_crafts",component_crafts)
 	file.set_value("content","shared_components",shared_components)
 	file.set_value("archive","records",archive)

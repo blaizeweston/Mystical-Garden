@@ -235,7 +235,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			var extra := Catalog.Weaver.GIFT_EXTENSION_MS if extend_ward and is_same(ally,nearby[0]) else 0
 			events.grant_ward(game,ally,now+Balance.WARD_MS+extra,1,event,adapter,now)
 	if not reaper and not oracle and not nearby.is_empty() and ((not ranger and skill.first == 2 and not extend_ward) or (skill.get("hit_ward",false) and not affected.is_empty())):
-		nearby[0][Protection.STATE] = nearby[0][Protection.STATE].grant(now+Balance.WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())
+		nearby[0][Protection.STATE] = nearby[0][Protection.STATE].grant(now+Balance.WARD_MS,1,preload("res://combat_clock.gd").now(),game.participation.epoch())
 	if not skill.has("heal") and Balance.healing_bonus(stats) > 0.0:
 		game.Life.Sustain.heal(game,player,Balance.healing_bonus(stats),"class_healing_bonus")
 	var follow := -1
@@ -314,7 +314,7 @@ static func follow_through(game: Node, player: Dictionary, skill: Dictionary, ce
 	player.erase("subclass_follow")
 	if lane == 2 and skill.has("weaver_nodes"):
 		for ally in allies(game,center,3.0):
-			ally[Protection.STATE] = ally[Protection.STATE].grant(now+Balance.WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())
+			ally[Protection.STATE] = ally[Protection.STATE].grant(now+Balance.WARD_MS,1,preload("res://combat_clock.gd").now(),game.participation.epoch())
 		game.emit_combat_event("subclass_release","silk",center,center,.55,Color(skill.color),3.0,0,{"pattern":"ground"})
 
 

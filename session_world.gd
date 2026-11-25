@@ -14,6 +14,7 @@ const Campaign = preload("res://campaign.gd")
 const Life = preload("res://expedition_life.gd")
 
 var _world: WeakRef
+var _ticket := ""
 
 func _init(world: Node) -> void:
 	_world = weakref(world)
@@ -53,6 +54,10 @@ func joined() -> void:
 	game.ui.close_panels()
 	var guarded = game.persistence_session.is_guarded()
 	var catalog: Dictionary = game.progress.ContentIDs.manifest()
+	var endpoint := Network.format_endpoint(game.network_session.address(),game.network_session.port())
+	_ticket = game.guest_character.rejoin_ticket.get(endpoint,"")
+	if _ticket.is_empty(): _ticket = Crypto.new().generate_random_bytes(32).hex_encode()
+	catalog["rejoin_ticket"] = _ticket
 	if guarded: catalog["guest_projection_receipts"] = game.guest_character.projection_receipts
 	game.register_character.rpc_id(game.HOST, game.guest_character.identity, game.guest_character.data,catalog,Network.PROTOCOL)
 
@@ -78,7 +83,12 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 	if guarded:
 		catalog = catalog.duplicate()
 		catalog.erase("guest_projection_receipts")
-	var reason =admission_error(identity,catalog,protocol)
+	var ticket: Variant = catalog.get("rejoin_ticket","")
+	catalog = catalog.duplicate()
+	catalog.erase("rejoin_ticket")
+	var returning: bool = ticket is String and game.Continuation.authorized(game,identity,ticket)
+	var reason = admission_error(identity,catalog,protocol,returning)
+	if not ticket is String or ticket!="" and (ticket.length()!=64 or not ticket.is_valid_hex_number(false)): reason = "Invalid expedition rejoin ticket."
 	if var_to_bytes(profile).size()>32768: reason="This character profile is too large."
 	if reason.is_empty() and not Character.Experience.supported(profile):
 		reason="This character uses an unsupported Class XP format."
@@ -90,8 +100,16 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 		reason="This Garden requires guarded profile saves."
 	if not reason.is_empty(): reject(id,reason,binding);return
 	var incoming: Dictionary=Character.normalize(profile)
+	var original_digest := preload("res://guest_profile_projection.gd").digest(incoming)
 	var recorded=game.progress.character_records.get(identity,{})
 	var admission = {}
+	var parked: Dictionary = game.parked_explorers.get(identity,{}) if returning else {}
+	if returning:
+		var origin: String = game.progress.projection_origin
+		var receipt: Dictionary = receipts.get(origin,{}) if guarded else {}
+		if not game.Continuation.profile_matches(parked.actor,incoming,recorded,receipt):
+			reject(id,"This character changed while disconnected. Your character and expedition seat have been preserved.",binding)
+			return
 	if guarded:
 		var projection = load("res://guest_profile_projection.gd")
 		var origin: String = game.progress.projection_origin
@@ -100,7 +118,7 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 		if admission.is_empty():
 			reject(id,"The saved guest projection conflicts with this character. Review the saves before joining.",binding)
 			return
-		incoming = admission.profile.duplicate(true)
+		incoming = parked.actor.character.duplicate(true) if returning else admission.profile.duplicate(true)
 		game.Progress.Archive.set_slice(incoming,game.progress.archive,identity)
 		# Preserve the verified guest base even if its previous Garden sent a slice.
 		if projection.digest(incoming) != admission.projection.digest:
@@ -127,7 +145,10 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 		preload("res://guest_profile_projection.gd").merge_progress(incoming,recovered)
 	if not guarded: game.Progress.Archive.set_slice(incoming,game.progress.archive,identity)
 	if not game.players.has(id) or not game.network_session.bind_character(id,identity,binding): return
+	if returning and not guarded: incoming = parked.actor.character.duplicate(true)
 	game.players[id].character = incoming
+	game.players[id].admitted_profile_digest = original_digest
+	if not ticket.is_empty(): game.players[id].rejoin_digest = ticket.sha256_text()
 	PartyTravel.cancel(game,"Party changed. Confirm readiness again.")
 	game.restore_class_loadout(game.players[id])
 	if not game.persistence_session.is_guarded(): preload("res://garden_growth_service.gd").register(game,id)
@@ -135,9 +156,11 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 	if guarded:
 		game.players[id].projection_base = admission.base
 		game.players[id].projection_delivery = {"revision":admission.projection.revision,"state":"pending","feedback":[]}
+	if returning: game.Continuation.rejoin(game,id,identity)
 	var reply: Dictionary = {"profile":incoming,"origin":game.progress.projection_origin,"projection":admission.projection} if guarded else incoming.duplicate()
 	reply.session_binding = game.network_session.connection_key(id)
 	reply.session_character = identity
+	reply.resumed_expedition = returning
 	game.connection_accepted.rpc_id(id,reply)
 	game.expedition_statistics.bind_session(game.network_session.session_identity())
 	var report: Dictionary = game.expedition_statistics.result_for(identity)
@@ -251,16 +274,16 @@ func remove(id: int) -> void:
 	Journal.event("network","peer_disconnected",{"actor":id})
 	var leaving: Dictionary = game.players.get(id, {})
 	var leaving_wild = Participation.is_wild(leaving)
-	leaving.erase(ExpeditionWallet.STATE)
 	if not game.multiplayer.is_server() or game.network_session.role()=="Guest" or game.network_session.role()=="Connecting":
 		game.network_session.release_peer(id)
 		game.participation.detach(id)
 		game.players.erase(id)
 		game.motions.erase(id)
 		return
-	if leaving_wild:
+	var parked: bool = leaving_wild and game.Continuation.park(game,id)
+	if leaving_wild and not parked:
 		game.expedition_statistics.freeze_departure(game.participation.run_id(),Session.inventory_owner(leaving),Time.get_ticks_msec())
-	if Session.ready_for(leaving,false):
+	if not parked and Session.ready_for(leaving,false):
 		game._capture_pending_departure(id, leaving)
 	var may_settle = game.persistence_session.can_write()
 	game.network_session.release_peer(id)
@@ -269,9 +292,9 @@ func remove(id: int) -> void:
 	game.motions.erase(id)
 	if may_settle:
 		PartyTravel.cancel(game,"A player disconnected. Confirm readiness again to continue.")
-		var needs_wipe: bool = (game.participation.active() or leaving_wild) and Life.living_ids(game).is_empty()
+		var needs_wipe: bool = (game.participation.active() or leaving_wild) and Life.living_ids(game).is_empty() and (game.participation.active() or not parked)
 		if needs_wipe: game.expedition_transitions.finish_failed()
-		elif game.flush_kill_rewards() and not game.persistence_session.is_guarded() and game.persistence_session.can_write():
+		elif (game.parked_explorers.is_empty() or game.participation.active()) and game.flush_kill_rewards() and not game.persistence_session.is_guarded() and game.persistence_session.can_write():
 			game.expedition_transitions.finish_if_empty()
 			game.resume_checkpoint_if_ready()
 
@@ -283,7 +306,7 @@ func server_disconnected() -> void:
 	if game.network_session.role()=="Connecting" or (game.network_session.role()=="Guest" and game.network_session.join_phase()=="garden"):
 		rejected(Network.join_failure(game.network_session.join_phase(),game.network_session.address(),game.network_session.port(),false))
 	elif game.network_session.role()=="Guest":
-		leave("Host disconnected. Your character progress is preserved.")
+		leave("Host disconnected. Rejoin the same host and character when the expedition is available.")
 
 
 func connection_failed() -> void:
@@ -305,12 +328,12 @@ func offline() -> void:
 	game.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 
 
-func admission_error(identity: String,catalog: Dictionary,protocol: int) -> String:
+func admission_error(identity: String,catalog: Dictionary,protocol: int, returning := false) -> String:
 	var game = _world.get_ref()
 	return game.network_session.admission_error(identity, protocol == Network.PROTOCOL,
 		catalog == game.progress.ContentIDs.manifest(), Character.valid_identity(identity),
 		game.local_character.identity, game.departure_settlement.blocks_admission(identity),
-		game.participation.active())
+		(game.participation.active() or not game.parked_explorers.is_empty()) and not returning)
 
 
 func reject(id: int, reason: String, expected_binding: int = 0) -> void:
@@ -338,7 +361,8 @@ func accepted(profile: Dictionary) -> void:
 		rejected("The host did not provide the current session binding.")
 		return
 	var payload := profile.duplicate()
-	payload.erase("session_binding");payload.erase("session_character")
+	var resumed: bool = payload.get("resumed_expedition",false)==true
+	payload.erase("session_binding");payload.erase("session_character");payload.erase("resumed_expedition")
 	if game.persistence_session.is_guarded():
 		if not payload.get("origin") is String or not payload.get("projection") is Dictionary or not payload.get("profile") is Dictionary:
 			rejected("The host did not provide guarded profile evidence.")
@@ -347,6 +371,20 @@ func accepted(profile: Dictionary) -> void:
 		rejected("The host and guest must use the same save mode.")
 		return
 	if not game.network_session.accept_guest(Time.get_ticks_msec(),connection,identity): return
+	var endpoint := Network.format_endpoint(game.network_session.address(),game.network_session.port())
+	if game.guest_character.rejoin_ticket.get(endpoint,"")!=_ticket:
+		if game.persistence_session.is_guarded():
+			var stored := Transactions.run_gameplay(game,Transactions.Scope.GUEST_PROFILE,func():
+				game.guest_character.rejoin_ticket[endpoint] = _ticket
+				return true)
+			if not stored.completed or stored.value!=true:
+				rejected(Transactions.feedback_text(game,"Could not save your rejoin ticket."))
+				return
+		else:
+			game.guest_character.rejoin_ticket[endpoint] = _ticket
+			if game.guest_character.save_profile()!=OK:
+				rejected("Could not save your rejoin ticket.")
+				return
 	if game.persistence_session.is_guarded():
 		game.set_meta(&"guest_projection_origin",payload.origin)
 		var saved: bool = game.save_guest_projection(payload.profile,payload.origin,payload.projection)
@@ -354,7 +392,7 @@ func accepted(profile: Dictionary) -> void:
 			rejected(Transactions.feedback_text(game,"Could not finish loading the selected character."))
 			return
 	Journal.event("network","join_accepted")
-	game.status="Joined the host's Garden."
+	game.status="Rejoined your expedition." if resumed else "Joined the host's Garden."
 	if not game.persistence_session.is_guarded(): game.receive_character(payload)
 	game.ui.close_panels()
 

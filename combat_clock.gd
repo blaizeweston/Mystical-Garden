@@ -7,12 +7,19 @@ const TICKS_PER_SECOND := 60
 static var _stepped := false
 static var _start_ms := 0
 static var _ticks := 0
+static var _resume_offset_ms := 0
+
+static func resume_at(saved_ms: int) -> void:
+	_resume_offset_ms = saved_ms - Time.get_ticks_msec()
+
+static func reset_live() -> void:
+	_resume_offset_ms = 0
 
 
 # Fixed simulation ticks convert to whole milliseconds.
 @warning_ignore_start("integer_division")
 static func now() -> int:
-	return _start_ms + _ticks * 1000 / TICKS_PER_SECOND if _stepped else Time.get_ticks_msec()
+	return _start_ms + _ticks * 1000 / TICKS_PER_SECOND if _stepped else Time.get_ticks_msec() + _resume_offset_ms
 
 
 @warning_ignore_restore("integer_division")
