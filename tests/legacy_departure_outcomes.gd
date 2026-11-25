@@ -104,14 +104,17 @@ func verify_extraction_faults() -> void:
 		actor.pos=world.battlefield.advance
 		check(Tx.run_gameplay(world,Tx.Scope.PAIR,func():return true).completed,"save original checkpoint")
 		var baseline:=disk()
+		var counted: int = world.progress.archive.garden.get("runs",0)
 		var knowledge: int=world.progress.knowledge
 		var result:=checkpoint_with_fault(fault)
 		var active: Dictionary=world.progress.garden_interactions.returns.active
 		if fault=="rollback":
+			check(world.progress.archive.garden.get("runs",0)==counted,"rollback restores Archive totals")
 			check(confirms(result,Batch.Outcome.ABORTED_RESTORED) and world.participation.active() and world.progress.knowledge==knowledge and active.get("extraction_knowledge",0)==0 and disk()==baseline,"both milestone and balance roll back")
 			unlock()
 			check(checkpoint_with_fault("retry").completed and world.progress.knowledge==knowledge+14,"verified rollback permits a single real extraction")
 		elif fault=="cleanup":
+			check(read(G,"archive","records").garden.runs==counted+1 and read(C,"character","archive_visits").has(world.progress.archive.origin),"committed Garden total and portable character slice persist together")
 			check(confirms(result,Batch.Outcome.COMMITTED_CLEANUP_PENDING) and not world.participation.active() and active.extraction_knowledge==14 and read(G,"garden","knowledge")==knowledge+14,"confirmed extraction and shared milestone installed together")
 			check(not checkpoint_with_fault("retry").completed,"cleanup hold refuses replay")
 			unlock();restart(true,disk())

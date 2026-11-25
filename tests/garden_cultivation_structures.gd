@@ -91,7 +91,11 @@ func run() -> void:
 	var revision: int=g.structures.revision
 	check(garden.configure_sanctuary(sanctuary,"standard",revision) and not garden.configure_sanctuary(sanctuary,"enhanced",revision) and g.plots[0].care==accepted,"stale settings and overlaps cannot replace accepted care")
 	g.advance_growth(86400);actor.pos=game.stage.bed_position(0)
-	game.cultivation.harvest(1,0);game.seed_reserve(actor).stock[0]+=1;game.cultivation.plant_seed(1,0)
+	var rare_before: int=g.part_count(game.Parts.rare_part(0))
+	var credited_before: int=g.archive.garden.get("refined",0)
+	check(game.cultivation.harvest(1,0) and not game.cultivation.harvest(1,0),"accepted material crop followed by an empty-bed retry")
+	check(g.archive.garden.parts==Rules.HARVEST_PARTS and g.archive.garden.get("refined",0)-credited_before==g.part_count(game.Parts.rare_part(0))-rare_before,"only actual ordinary and refined parts count")
+	game.seed_reserve(actor).stock[0]+=1;game.cultivation.plant_seed(1,0)
 	g.advance_growth(86400)
 	check(g.plots[0].stage==3 and Care.preserved(g.plots[0]) and g.plots[0].care.opportunity=="patient_bud","long growth update accepts standard care before maturity")
 	actor.pos=Vector3(0,0,1.5)

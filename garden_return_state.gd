@@ -16,7 +16,9 @@ static func finish(state: Dictionary) -> void:
  run.closed=true
  var outcomes: Dictionary={}
  for entry in run.members.values():outcomes[entry.status]=int(outcomes.get(entry.status,0))+1
- state.history.append({"run":run.id,"sequence":run.sequence,"outcomes":outcomes})
+ var summary := {"run":run.id,"sequence":run.sequence,"outcomes":outcomes}
+ if run.has("archive"): summary.archive=run.archive
+ state.history.append(summary)
  while state.history.size()>HISTORY_LIMIT:state.history.pop_front()
 static func begin(state: Dictionary) -> void:
  if not state.active.is_empty() and not state.active.get("closed",false):

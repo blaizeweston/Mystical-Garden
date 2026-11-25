@@ -57,6 +57,7 @@ func run() -> void:
 	world.InventoryModel.put(world,actor,"carry",{"item":"boss_mystery_seed","quantity":1,"lineages":{"ghost_fern":1}})
 	clear_floor(actor, 6)
 	world.expedition_transitions.checkpoint(1, false)
+	check(world.progress.archive.garden.get("wild")==2 and world.progress.archive.garden.get("extracts")==1,"two accepted specimens and one successful expedition enter the Archive")
 	check(not world.participation.active() and reserve.unknown == [0,1] and reserve.stock[0] == 0 and reserve.stock[1] == 0, "extraction delivers the two unidentified species")
 	check(world.wild_flora_view(1).is_empty() and world.wild_flora.savepoint().specimen.is_empty(), "floor discarded at extraction")
 	var extracted: Dictionary=world.InventoryModel.take(world,actor,"stash","boss_mystery_seed",1)
@@ -109,6 +110,7 @@ func run() -> void:
 		world.harvest_wild_flora(1, lost.identity)
 		world.expedition_transitions.abandon(1)
 		check(reserve.unknown.is_empty() and actor.carried_seeds.is_empty(), "unbanked specimen is forfeited")
+		check(world.progress.archive.garden.get("wild")==4 and world.progress.archive.garden.get("roots")==2,"forfeited loot still counts as harvested, duplicated root requests count only accepted units")
 	var kept := enter_fresh(actor)
 	if not kept.is_empty():
 		actor.pos = kept.position
@@ -123,6 +125,7 @@ func run() -> void:
 		check(actor.carried_seeds == [1], "unprotected second seed before wipe")
 		actor[PlayerLifecycle.STATE] = actor[PlayerLifecycle.STATE].fall()
 		check(world.expedition_transitions.finish_failed(), "wipe settlement commits")
+		check(world.progress.archive.garden.get("wipes")==1 and world.progress.archive.garden.get("extracts")==1,"one wiped expedition does not count as extraction")
 		check(reserve.unknown == [kept.species] and actor.carried_seeds.is_empty() and actor.safe_items.is_empty(), "only pouched species recovered from wipe")
 	verify_spawn_equivalence(actor, reserve)
 	verify_gathering(actor)

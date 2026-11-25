@@ -13,6 +13,8 @@ var needs_research_backup := false
 const InventoryModel=preload("res://inventory_model.gd")
 var component_crafts: Dictionary={}
 var shared_components: Dictionary={}
+const Archive = preload("res://living_archive.gd")
+var archive := Archive.fresh()
 var character_records: Dictionary={}
 var projection_origin := ""
 var item_stashes: Dictionary={}
@@ -199,6 +201,11 @@ func _read_garden() -> Error:
 	if not origin is String or (not origin.is_empty() and not load("res://guest_profile_projection.gd").valid_origin(origin)):
 		return ERR_INVALID_DATA
 	projection_origin = origin
+	if file.has_section_key("archive","records"):
+		var records: Variant = file.get_value("archive","records")
+		if not Archive.valid(records): return ERR_INVALID_DATA
+		archive = records
+	else: archive = Archive.fresh(origin)
 	var historical_ancient := not file.has_section_key("inventory","ancient_seed_format")
 	item_stashes={}
 	var stashes=file.get_value("inventory","stashes",{})
@@ -213,6 +220,7 @@ func _read_garden() -> Error:
 		for key in recorded:
 			if key is String and recorded[key] is Dictionary and recorded[key].get("item") is String and not InventoryModel.Items.get_item(recorded[key].item).is_empty():
 				altar_recipes[key]={"item":recorded[key].item,"success":recorded[key].get("success",false)==true}
+				if recorded[key].get("historical_success",false)==true: altar_recipes[key].historical_success=true
 	needs_altar_backup=not file.has_section("altar")
 	if needs_altar_backup:
 		for pair in attempted_pairs:
@@ -378,6 +386,7 @@ func _serialize_save(stage := Callable()) -> Error:
 	var file := ConfigFile.new()
 	file.set_value("content","component_crafts",component_crafts)
 	file.set_value("content","shared_components",shared_components)
+	file.set_value("archive","records",archive)
 	file.set_value("characters","records",character_records)
 	if not projection_origin.is_empty():
 		file.set_value("characters", "projection_origin", projection_origin)

@@ -13,6 +13,7 @@ var _clears := 0
 var _last_clear := -1
 var _party := {}
 var _rows := {}
+var _joined := {}
 var _entries := {}
 var _pending := {}
 var _results := {}
@@ -41,33 +42,46 @@ func admit(run: int, identity: String, display_name: String, class_name_text: St
 		_last_clear = -1
 		_party = {"damage":0.0,"kills":0,"elites":0,"bosses":0,"healing":0.0,"unattributed_damage":0.0,"unattributed_healing":0.0}
 		_rows = {}
+		_joined.clear()
 	if _rows.has(identity): return
 	_results.erase(identity)
 	_entries[identity] = run
 	var row := {"name":display_name,"class_name":class_name_text,"outcome":ACTIVE,"affinity":{}}
 	for metric in COUNTERS: row[metric] = 0
+	row.deepest = floor_number
+	row.cleared = 0
+	row.participation_ms = 0
+	_joined[identity] = now
 	_rows[identity] = row
 
 func reached(run: int, floor_number: int) -> void:
-	if run == _run: _deepest = maxi(_deepest, floor_number)
+	if run != _run: return
+	_deepest = maxi(_deepest, floor_number)
+	for row in _rows.values():
+		if row.outcome == ACTIVE: row.deepest = maxi(row.deepest, floor_number)
 
 func clear_encounter(run: int, floor_number: int) -> void:
 	if run != _run or _rows.is_empty() or floor_number <= _last_clear: return
 	_last_clear = floor_number
 	_clears += 1
+	for row in _rows.values():
+		if row.outcome == ACTIVE: row.cleared = floor_number
 
 func _active(run: int, identity: String) -> bool:
 	return run == _run and _rows.has(identity) and _rows[identity].outcome == ACTIVE
 
 func count(run: int, identity: String, metric: String, amount: float = 1.0) -> void:
-	if amount > 0 and metric in COUNTERS and _active(run,identity):
-		_rows[identity][metric] += amount
+	if amount > 0 and (metric in COUNTERS or metric == "wild") and _active(run,identity):
+		_rows[identity][metric] = _rows[identity].get(metric,0) + amount
 
 ## Weights are captured by the effect resolver. Keep fractional HP internally
 ## so even a one-HP tick shared by four people credits all four.
 func damage(run: int, amount: int, weights: Dictionary, affinity: String) -> void:
 	if run != _run or _rows.is_empty() or amount <= 0: return
 	_party.damage += amount
+	if not affinity.is_empty():
+		if not _party.has("affinity"): _party.affinity = {}
+		_party.affinity[affinity] = _party.affinity.get(affinity,0) + amount
 	var total := 0.0
 	for weight in weights.values(): total += maxf(0.0,weight)
 	if total <= 0:
@@ -104,28 +118,32 @@ func _party_outcome() -> String:
 
 func _snapshot(identity: String, now: int) -> Dictionary:
 	return {"party_outcome":_party_outcome(),"session":_session,"run":_run,"personal_index":_rows.keys().find(identity),"outcome":_rows[identity].outcome,"elapsed_ms":maxi(0,now-_start_ms),
-		"floor":_deepest,"clears":_clears,"party":_party.duplicate(true),"players":_rows.values().duplicate(true)}
+		"floor":_deepest,"cleared_floor":maxi(0,_last_clear),"clears":_clears,"party":_party.duplicate(true),"players":_rows.values().duplicate(true)}
 
-func finish(run: int, identity: String, outcome: String, now: int) -> void:
-	if not _active(run,identity): return
+func finish(run: int, identity: String, outcome: String, now: int) -> Dictionary:
+	if not _active(run,identity): return {}
+	_rows[identity].participation_ms = maxi(0, now - int(_joined[identity]))
 	_rows[identity].outcome = outcome
 	_pending[identity] = now
+	return _snapshot(identity,now)
 
 ## Freeze when the peer leaves. A later settlement may run after another
 ## character has entered a different expedition.
 func freeze_departure(run: int, identity: String, now: int) -> void:
 	if not _active(run,identity): return
+	_rows[identity].participation_ms = maxi(0, now - int(_joined[identity]))
 	_rows[identity].outcome = SETTLING
 	_disconnected[identity] = _snapshot(identity,now)
 	_disconnected[identity].players[_disconnected[identity].personal_index].outcome = "Disconnected"
 
-func settled_disconnect(identity: String) -> void:
-	if not _disconnected.has(identity): return
+func settled_disconnect(identity: String) -> Dictionary:
+	if not _disconnected.has(identity): return {}
 	var frozen: Dictionary = _disconnected[identity]
 	frozen.outcome = "Disconnected"
 	if frozen.run == _run and _rows.has(identity): _rows[identity].outcome = frozen.outcome
 	_confirmed_departures[identity] = frozen
 	_disconnected.erase(identity)
+	return frozen
 
 func _retain(identity: String, report: Dictionary) -> void:
 	_results.erase(identity)
@@ -162,7 +180,7 @@ func result_for(identity: String) -> Dictionary:
 
 func savepoint() -> Dictionary:
 	return {"session":_session,"run":_run,"start_ms":_start_ms,"deepest":_deepest,"clears":_clears,"last_clear":_last_clear,
-		"party":_party.duplicate(),"rows":_rows.duplicate(true),"pending":_pending.duplicate(),"entries":_entries.duplicate(),
+		"party":_party.duplicate(true),"joined":_joined.duplicate(),"rows":_rows.duplicate(true),"pending":_pending.duplicate(),"entries":_entries.duplicate(),
 		"results":_results.duplicate(),"disconnected":_disconnected.duplicate(true),"confirmed":_confirmed_departures.duplicate()}
 
 func restore_savepoint(point: Dictionary) -> void:
@@ -173,6 +191,7 @@ func restore_savepoint(point: Dictionary) -> void:
 	_clears = point.clears
 	_last_clear = point.last_clear
 	_party = point.party
+	_joined = point.joined
 	_rows = point.rows
 	_pending = point.pending
 	_results = point.results

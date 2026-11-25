@@ -34,6 +34,22 @@ func run():
   check(UIFixture.control(game,"guide").text.contains(view.station_controls.label(station)),"nearby station offers a matching prompt")
   game.act(1,false);view._process(0.0)
   check(view.station_panel.visible and view.station_controls.station==station,"interact opens "+station)
+  if station=="living_archive":
+   var archive=view.station_controls.archive_view
+   check(archive.visible and archive.scope.tab_count==2 and archive.categories.tab_count==4,"Archive offers both scopes and all four categories")
+   check(archive.facts.current.retired==0 and archive.facts.current.species==[1,24] and archive.facts.current.research[1]==31,"starting collections and research come from current ledgers")
+   archive.categories.current_tab=1
+   var historical: Dictionary=archive.facts.duplicate(true)
+   historical.current.best_clear=12
+   archive.present(historical)
+   check(archive.grid.get_children().any(func(cell):return cell.text=="At least 12"),"a historical clear is only a lower bound for deepest reached")
+   await process_frame;await process_frame
+   archive.scroll.grab_focus()
+   var down:=InputEventAction.new();down.action="ui_down";down.pressed=true
+   archive.scroll.gui_input.emit(down)
+   check(archive.scroll.scroll_vertical>0,"directional input scrolls longer Archive categories")
+   archive.scope.current_tab=1;archive.categories.current_tab=2
+   check(archive.grid.get_children().any(func(cell):return cell.text=="Damage prevented on this character"),"personal protection is labeled by recipient")
   if station=="seed_archive":
    view.station_controls.apply.pressed.emit()
    check(game.seed_reserve(p).stock[0]==before+1 and game.progress.parts[0]==10-game.reclamation_cost(0),"station button completes reclamation")

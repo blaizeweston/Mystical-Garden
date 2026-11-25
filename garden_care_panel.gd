@@ -2,7 +2,6 @@ extends VBoxContainer
 # Station controls submit intents through the existing Garden command route.
 const Offerings=preload("res://assets/terrain_m02/garden_offerings.gd")
 const Items=preload("res://item_catalog.gd")
-const Campaign=preload("res://campaign.gd")
 const Seeds=preload("res://seed_catalog.gd")
 const Parts=preload("res://weapon_parts.gd")
 signal refresh_requested(station: String)
@@ -11,6 +10,8 @@ var _ui: CanvasLayer
 var _facts: Dictionary={}
 func configure(ui: CanvasLayer) -> void:_ui=ui
 func present(facts: Dictionary) -> void:_facts=facts.duplicate(true)
+var archive_view := preload("res://living_archive_view.gd").new()
+var archive_refresh_at := 0
 var station: String=""
 var title: Label
 var info: Label
@@ -25,6 +26,7 @@ func _ready() -> void:
  add_theme_constant_override("separation",12)
  title=Label.new();title.add_theme_font_size_override("font_size",23);add_child(title)
  info=Label.new();info.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;add_child(info)
+ add_child(archive_view);archive_view.hide()
  items=OptionButton.new();add_child(items)
  items.item_selected.connect(func(_index):update_button())
  apply=Button.new();add_child(apply)
@@ -36,25 +38,22 @@ func open(id: String) -> void:
  station=id;signature=""
  title.text=label(id)
  var archive:=id=="living_archive"
+ archive_view.visible=archive;info.visible=not archive
+ archive_refresh_at=0
+ if archive:archive_view.open()
  items.visible=not archive
  apply.visible=not archive
  apply.text="Reclaim seed" if id=="seed_archive" else "Offer trophy"
  refresh()
 func refresh() -> void:
+ if station=="living_archive":
+  if Time.get_ticks_msec()<archive_refresh_at:return
+  archive_refresh_at=Time.get_ticks_msec()+1000
  refresh_requested.emit(station)
  if not _facts.get("present",false):return
  status.text=str(_facts.get("status",""))
  if station=="living_archive":
-  var lines: Array[String]=["Guardian memories recorded in this Garden"]
-  var campaign: PackedInt32Array=_facts.get("campaign",PackedInt32Array())
-  if campaign.size()<14+Campaign.BIOME_COUNT:
-   info.text="Waiting for the Garden’s guardian records.";return
-  for site in Campaign.BIOME_COUNT:
-   var count: int=campaign[14+site]
-   var decoded: Array = _facts.get("decoded",[])
-   var earned := site < decoded.size() and bool(decoded[site])
-   lines.append("%s · %d / %d%s"%[Campaign.NAMES[site],count,Campaign.MEMORY_REQUIREMENTS[site]," · Decoded" if earned else ""])
-  info.text="\n".join(lines)
+  archive_view.present(_facts.get("records",{}))
   return
  if not _facts.has("discoveries"):return
  var known: Array=_facts.discoveries

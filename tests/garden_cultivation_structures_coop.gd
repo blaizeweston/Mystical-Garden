@@ -52,6 +52,8 @@ func host_run() -> void:
  mark("ready")
  if not await until(func():return marked("harvested") and g.plots[0].species<0):check(false,"guest harvest reached host");return
  check(game.seed_reserve(guest).stock[0]==before+3 and guest.character.plants[0]==familiarity+2,"one payout to the harvesting guest")
+ var record: Dictionary=g.archive.characters[game._kill_reward_identity(id,guest)]
+ check(record.plants==1 and record.seeds==3 and record.seed_harvests==1 and g.archive.garden.plants==1,"accepted crop credits the harvesting guest exactly once")
  mark("rejoin")
  if not await until(func():return marked("rejoined")):check(false,"guest recovered configured structure");return
  mark("done")

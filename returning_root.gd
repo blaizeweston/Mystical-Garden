@@ -61,8 +61,11 @@ static func deposit(game, peer: int, actor: Dictionary, command: String) -> void
 			var member := Returns.Member.new(str(actor.get("garden_run_actor","")),str(actor.get("garden_run_id","")),true)
 			game.garden_commands.credit_return(member,stack.get("seeds",[]),"root:%s:%d"%[root.identity,root.used],item==Items.Ancient.ITEM)
 		game.wild_flora.record_deposit(character)
+		game.Progress.Archive.activity(game.progress.archive,character,{"roots":1})
+		game.record_character(peer,actor)
 		return true)
 	if Transactions.committed(saved.persistence) and saved.value == true:
+		if peer != game.HOST and game.persistence_session.is_guarded(): game.send_committed_profile(peer)
 		preload("res://diagnostic_journal.gd").event("expedition","returning_root_deposit",{"character":character,"root":root.identity,"unit":root.used+1,"item":item})
 		game.tell(peer,Transactions.feedback_text(game,"Secured 1 %s in Garden storage."%Items.get_item(item).name))
 	else:

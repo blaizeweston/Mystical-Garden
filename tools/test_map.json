@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "living_archive": {"label":"Living Archive records and character copies","files":["living_archive.gd","living_archive.gd.uid","living_archive_view.gd","living_archive_view.gd.uid"]},
     "wild_flora": {"label":"Natural Wilds specimens, deterministic selection and per-character harvest","files":["returning_root.gd","returning_root.gd.uid","wild_flora.gd","wild_flora.gd.uid","wild_flora_generation.gd","wild_flora_generation.gd.uid"]},
     "expedition_statistics": {"label":"Host expedition statistics, committed results and summary tabs","files":["expedition_statistics.gd","expedition_statistics.gd.uid","ui/gameplay/expedition_summary.gd","ui/gameplay/expedition_summary.gd.uid"]},
       "actor_collision": {
@@ -850,6 +851,7 @@
     "expedition_stat_identity": ["expedition_statistics"],
     "publish_expedition_results": ["expedition_statistics"],
     "send_expedition_result": ["expedition_statistics","network_session"],
+    "receive_archive": ["living_archive","network_session"],
     "receive_expedition_result": ["expedition_statistics","network_session"],
     "combat_build": ["weapons", "classes", "expeditions", "combat", "combat_builds"],
     "tick_enemies": ["enemies", "enemy_tactics", "enemy_attack_execution"],
@@ -1499,13 +1501,13 @@
   },
   "suites": {
     "wild_flora_coop": {"kind":"pair","systems":["wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},
-    "wild_flora_party": {"kind":"party","systems":["wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},
+    "wild_flora_party": {"kind":"party","systems":["living_archive","wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},
     "wild_flora_generation": {"kind":"unit","systems":["wild_flora","seeds","hex_terrain","terrain"],"profile":"terrain","package":false},
-    "wild_flora_harvest": {"kind":"unit","systems":["wild_flora","seeds","items","expeditions","persistence_operations","expedition_participation","player_lifecycle"],"profile":"terrain","package":false},
+    "wild_flora_harvest": {"kind":"unit","systems":["living_archive","wild_flora","seeds","items","expeditions","persistence_operations","expedition_participation","player_lifecycle"],"profile":"terrain","package":false},
     "legacy_departure_rejoin": {"kind":"pair","systems":["expedition_statistics","expedition_participation","departure_settlement","network_session","persistence_operations"],"package":false},
-    "legacy_departure_outcomes": {"kind":"unit","systems":["knowledge", "garden_returns", "expedition_statistics","expedition_participation","departure_settlement","loot","persistence_operations"],"package":false},
-    "expedition_results_rejoin": {"kind":"pair","systems":["expedition_statistics","expedition_participation","departure_settlement","network_session","persistence_operations"],"package":false},
-    "expedition_statistics": {"kind":"unit","systems":["expedition_statistics","expedition_participation","combat","incoming_player_hit","life","loot"],"package":false},
+    "legacy_departure_outcomes": {"kind":"unit","systems":["living_archive","knowledge", "garden_returns", "expedition_statistics","expedition_participation","departure_settlement","loot","persistence_operations"],"package":false},
+    "expedition_results_rejoin": {"kind":"pair","systems":["living_archive","expedition_statistics","expedition_participation","departure_settlement","network_session","persistence_operations"],"package":false},
+    "expedition_statistics": {"kind":"unit","systems":["living_archive","expedition_statistics","expedition_participation","combat","incoming_player_hit","life","loot"],"package":false},
     "staff_attacks": {"kind": "unit", "systems": ["weapons", "weapon_attacks", "player_weapon_actions", "avatar_motion_view", "presentation", "combat", "hex_terrain", "world_snapshot", "network_session", "guest_replication"], "profile": "standard", "package": false},
     "staff_attacks_coop": {"kind": "pair", "systems": ["weapons", "weapon_attacks", "player_weapon_actions", "avatar_motion_view", "presentation", "combat", "hex_terrain", "world_snapshot", "network_session", "guest_replication"], "profile": "standard", "package": false},
 
@@ -1543,10 +1545,10 @@
         "package": true
       },
       "garden_living_infrastructure": {"kind":"unit","systems":["garden_development","garden","cultivation_growth","knowledge","persistence_operations","actor_collision"],"package":true},
-      "garden_construction_inventory": {"kind":"unit","systems":["garden_development","garden","knowledge","cultivation_growth","persistence_operations","actor_collision"],"package":true},
+      "garden_construction_inventory": {"kind":"unit","systems":["living_archive","garden_development","garden","knowledge","cultivation_growth","persistence_operations","actor_collision"],"package":true},
       "garden_layout_persistence": {
         "kind": "unit",
-        "systems": [
+        "systems": ["living_archive",
           "garden_cinematics",
           "garden_development",
           "garden",
@@ -2002,7 +2004,7 @@
     },
     "guarded_expedition_coop": {
       "kind": "pair",
-      "systems": ["knowledge",
+      "systems": ["living_archive","knowledge",
         "player_lifecycle",
         "player_vitals",
         "player_cooldowns",
@@ -2034,7 +2036,7 @@
     "guarded_garden_actions": {
       "candidate_release": true,
       "kind": "unit",
-      "systems": ["wild_flora", "garden_development",
+      "systems": ["living_archive", "wild_flora", "garden_development",
         "expedition_wallet",
         "persistence_operations",
         "persistence_authorization",
@@ -2690,7 +2692,7 @@
     },
     "four_players_coop": {
       "kind": "party",
-      "systems": ["knowledge", "garden_returns", "departure_settlement", "expedition_statistics", "garden_development", "garden_heart_view", "garden_canopy",
+      "systems": ["living_archive","knowledge", "garden_returns", "departure_settlement", "expedition_statistics", "garden_development", "garden_heart_view", "garden_canopy",
         "loot",
         "world_snapshot",
         "health_pool_hud",
@@ -2731,7 +2733,7 @@
     },
     "garden_altar": {
       "kind": "unit",
-      "systems": [
+      "systems": ["living_archive",
         "seeds",
         "items",
         "knowledge",
@@ -2776,7 +2778,7 @@
     },
     "garden_cultivation_structures": {
       "kind": "unit",
-      "systems": ["garden_development",
+      "systems": ["living_archive","garden_development",
         "garden_cultivation_structures",
         "garden_zones",
         "garden_observations",
@@ -2790,7 +2792,7 @@
     },
     "garden_cultivation_structures_coop": {
       "kind": "pair",
-      "systems": ["garden_development",
+      "systems": ["living_archive","garden_development",
         "garden_cultivation_structures",
         "garden_zones",
         "garden_observations",
@@ -3065,7 +3067,7 @@
     },
     "gate_garden_services": {
       "kind": "unit",
-      "systems": ["garden_development",
+      "systems": ["living_archive","garden_development",
         "garden",
         "seeds",
         "knowledge",
@@ -3584,7 +3586,7 @@
     },
     "seed_progression": {
       "kind": "unit",
-      "systems": [
+      "systems": ["living_archive",
         "seeds",
         "progression",
         "knowledge",
@@ -4056,7 +4058,7 @@
     },
     "expedition_participation": {"kind": "unit", "systems": ["expedition_participation", "expeditions", "network_session"], "package": true},
     "network_session": {"kind": "unit", "systems": ["network_session", "connection_flow"], "package": false},
-    "network_contract": {"kind": "unit", "systems": ["network_session", "connection_flow", "world_snapshot", "actor_collision"], "package": false},
+    "network_contract": {"kind": "unit", "systems": ["living_archive","network_session", "connection_flow", "world_snapshot", "actor_collision"], "package": false},
     "network_action_identity": {"kind": "unit", "systems": ["network_session", "player_lifecycle", "expedition_participation", "ability_aim"], "package": false},
     "network_contract_coop": {"kind": "pair", "systems": ["network_session", "connection_flow", "world_snapshot", "persistence_operations", "actor_collision"], "package": false}
   },
@@ -5191,7 +5193,8 @@
 
     "_affinity_checkpoint_command": {"ar07_vitals_1": {"systems": ["player_vitals"], "additive": true}, "ar03_wallet_reroll_debit": {"systems": ["expedition_wallet", "affinity_cards"], "additive": true}},
     "run_guarded_action": {"ar04_departure_result": {"systems": ["departure_settlement"], "additive": true}},
-    "settle_expedition_rewards": {"ar05_reward_lifecycle": {"systems": ["loot"], "additive": true}, "ar04_departure_staging": {"systems": ["departure_settlement"], "additive": true}},
+    "settle_expedition_rewards": {
+      "archive_departure": {"systems": ["living_archive", "departure_settlement"], "additive": true},"ar05_reward_lifecycle": {"systems": ["loot"], "additive": true}, "ar04_departure_staging": {"systems": ["departure_settlement"], "additive": true}},
     "prepare_guarded_exit": {"ar05_reward_lifecycle": {"systems": ["loot"], "additive": true}, "ar04_departure_exit": {"systems": ["departure_settlement"], "additive": true}},
     "add_player": {    "ar03_wallet_initialization": {"systems": ["expedition_wallet"], "additive": true},   "preview_starting_capacity": {
         "systems": [
@@ -5606,6 +5609,7 @@
       }
     }},
   "script_functions": {
+    "living_archive.gd": {"fresh": ["living_archive"], "valid_id": ["living_archive"], "valid_totals": ["living_archive"], "valid_visits": ["living_archive"], "valid": ["living_archive"], "add": ["living_archive"], "join_totals": ["living_archive"], "activity": ["living_archive"], "harvest": ["living_archive"], "set_slice": ["living_archive"], "personal": ["living_archive"], "settle": ["living_archive"], "station": ["living_archive"]},
     "heart_catalog.gd": {
       "garden_development": ["knowledge","garden_development"],
       "cultivation": ["knowledge","garden_cultivation_structures","garden_development"],
@@ -5791,6 +5795,8 @@
         },"rounded_join_import": {"systems": ["garden_canopy"]}, "rounded_join_proposal": {"systems": ["garden_canopy"]}}},
     "affinity_cards.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "assets/terrain_m02/experimental/experiment_garden.gd": {"newline": "lf", "regions": {
+      "archive_contribute": {"systems": ["living_archive"]},
+      "archive_construct": {"systems": ["living_archive"]},
         "hg04_construction_scrolling_1": {"systems": ["garden_development","gameplay_ui"]},
         "hg04_construction_scrolling_2": {"systems": ["garden_development","gameplay_ui"]},
         "hg04_construction_scrolling_3": {"systems": ["garden_development","gameplay_ui"]},
@@ -6194,6 +6200,10 @@
     "progress.gd": {
       "newline": "lf",
       "regions": {
+      "archive_retired_recipe": {"systems": ["living_archive", "seeds"]},
+      "archive_storage": {"systems": ["living_archive"]},
+      "archive_read_garden": {"systems": ["living_archive"]},
+      "archive_serialize_save": {"systems": ["living_archive"]},
       "hg06_economy_7": {"systems": ["knowledge", "persistence_operations", "items"]},
       "hg06_economy_6": {"systems": ["knowledge", "persistence_operations", "items"]},
       "hg06_economy_5": {"systems": ["knowledge", "persistence_operations", "items"]},
@@ -6365,6 +6375,10 @@
     "altar_service.gd": {
       "newline": "crlf",
       "regions": {
+      "archive_capture": {"systems": ["living_archive"]},
+      "archive_combine": {"systems": ["living_archive"]},
+      "archive_retired_success": {"systems": ["living_archive"]},
+      "archive_combine_receipt": {"systems": ["living_archive"]},
         "hg04_definitions_3": {"systems": ["seeds", "garden_cultivation_structures", "garden", "items"]},
         "hg04_definitions_2": {"systems": ["seeds", "garden_cultivation_structures", "garden", "items"]},
         "hg04_definitions_1": {"systems": ["seeds", "garden_cultivation_structures", "garden", "items"]},

@@ -547,6 +547,15 @@ func request_garden_action(action: String) -> void:
 	var id := multiplayer.get_remote_sender_id()
 	if not multiplayer.is_server() or action.length()>512: return
 	if action in ["class_skill","class_skill_two"] or (action == "research" and Participation.is_wild(players.get(id,{}))): return
+	if action.begins_with("archive_read:"):
+		if not session_world.allow_remote(id,"archive_read",2,true) or not persistence_session.can_publish_state(): return
+		var actor: Dictionary = players.get(id,{})
+		if actor.is_empty() or not Session.ready_for(actor) or not at_garden_station(actor,"living_archive"): return
+		var character := network_session.identity(id)
+		var records := Progress.Archive.station(progress,character)
+		if action.trim_prefix("archive_read:") != JSON.stringify(records).sha256_text():
+			receive_archive.rpc_id(id,network_session.connection_key(id),character,records)
+		return
 	if action.begins_with("guest_projection:"):
 		if not session_world.allow_remote(id,"profile_receipt",120,true): return
 		var fields := action.split(":")
@@ -860,6 +869,7 @@ func publish_expedition_results() -> void:
 		if entries.has(identity): send_expedition_result(peer,identity,entries[identity],{})
 		if identity in finished:
 			var report := expedition_statistics.result_for(identity)
+			if peer != HOST and persistence_session.is_guarded(): send_committed_profile(peer)
 			send_expedition_result(peer,identity,report.run,report)
 
 func send_expedition_result(peer: int, identity: String, run: int, report: Dictionary) -> void:
@@ -870,6 +880,13 @@ func send_expedition_result(peer: int, identity: String, run: int, report: Dicti
 		if is_instance_valid(ui): ui.expedition_result(connection,run,report)
 	elif network_session.transport() != null and multiplayer.get_peers().has(peer) and network_session.identity(peer) == identity:
 		receive_expedition_result.rpc_id(peer,connection,identity,run,report)
+
+@rpc("authority","call_remote","reliable")
+func receive_archive(connection: String, identity: String, records: Dictionary) -> void:
+	if not network_session.permits_details(connection) or identity != network_session.accepted_identity(): return
+	if records.get("version") != Progress.Archive.VERSION or not Progress.Archive.valid_id(records.get("origin")): return
+	guest_replication.archive = records.duplicate(true)
+	guest_replication.archive_digest = JSON.stringify(records).sha256_text()
 
 @rpc("authority","call_remote","reliable")
 func receive_expedition_result(connection: String, identity: String, run: int, report: Dictionary) -> void:
@@ -1023,12 +1040,12 @@ func settle_expedition_rewards(effects: Array[Callable], bank_kills := false) ->
 		_apply_pending_kill_rewards(effects, work)
 	for entry in work:
 		var leaving: Dictionary = entry.actor
-		if not Session.inventory_owner(leaving).is_empty():
-			record_character(entry.peer_id, leaving)
 		_recover_pouch(leaving)
 		if Participation.is_wild(leaving):
 			garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(leaving.get("garden_run_actor","")),str(leaving.get("garden_run_id","")),bool(leaving.get("wild",false))),"disconnected")
-		expedition_statistics.settled_disconnect(entry.identity)
+		var report := expedition_statistics.settled_disconnect(entry.identity)
+		Progress.Archive.settle(progress,str(leaving.get("garden_run_id","")),entry.identity,report)
+		if not Session.inventory_owner(leaving).is_empty(): record_character(entry.peer_id, leaving)
 		monster_rewards.finish_expedition(entry.identity, participation.run_id())
 
 func close_flow_for(id: int) -> void:
@@ -1070,6 +1087,7 @@ func grant_run_essence(id: int, player: Dictionary, sparks: int) -> void:
 func record_character(id: int, actor: Dictionary = {}) -> void:
 	var player: Dictionary = players[id] if actor.is_empty() else actor
 	var owner_context: String=local_character.identity if id==HOST else Session.inventory_owner(player)
+	Progress.Archive.set_slice(player.character, progress.archive, owner_context)
 	var record := {"profile":player.character.duplicate(true),"manifest":progress.ContentIDs.manifest()}
 	var base: Dictionary = player.get("projection_base", {})
 	if persistence_session.is_guarded() and id!=HOST and not base.is_empty():
@@ -1198,6 +1216,8 @@ func save_guest_projection(profile: Dictionary, origin: String, descriptor: Dict
 	_report_guest_projection(origin,descriptor,"received")
 	var saved := Transactions.run_gameplay(self, Transactions.Scope.GUEST_PROFILE, func():
 		guest_character.data = profile.duplicate(true)
+		var slice: Dictionary = profile.get("archive_slice",{})
+		if slice.get("origin") == origin: guest_character.archive_visits[origin] = slice.totals.duplicate()
 		guest_character.projection_receipts[origin] = {"revision":descriptor.revision,"digest":descriptor.digest}
 		return true)
 	var committed := Transactions.committed(saved.persistence)
@@ -1782,6 +1802,7 @@ func harvest_wild_flora(peer: int, identity: String) -> bool:
 		tell(peer,"Your carried inventory could not accept the harvest. The specimen is still available.")
 		return false
 	if not wild_flora.collect(identity,character,actor.pos,battlefield.clear_line,admitted): return false
+	expedition_statistics.count(participation.run_id(),character,"wild")
 	Journal.event("expedition", "flora_harvest", {"specimen":identity, "character":character, "species":Seeds.DEFINITIONS[actor.carried_seeds.back()].id})
 	var rewards := PackedStringArray(["%d unidentified seed%s" % [receipt.seeds,"s" if receipt.seeds > 1 else ""]])
 	for part: int in receipt.parts: rewards.append(Parts.part_name(part))
@@ -2198,7 +2219,9 @@ func prepare_guarded_exit(save_garden := true) -> bool:
 			character_dirty=false
 			return true
 		if save_garden:
-			var scope := Transactions.Scope.PAIR if character_dirty else Transactions.Scope.GARDEN
+			var here: Dictionary = progress.archive.characters.get(local_character.identity,{})
+			var mirror_due: bool = here != local_character.archive_visits.get(progress.archive.origin,{})
+			var scope := Transactions.Scope.PAIR if character_dirty or mirror_due else Transactions.Scope.GARDEN
 			var result := Transactions.run_gameplay(self,scope,func(): return true)
 			if not Transactions.committed(result.persistence): return false
 			character_dirty=false

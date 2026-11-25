@@ -79,7 +79,9 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary, paths
   execution.value = action.call()
   _owner = null
   Batch.record_serializer_error(game.progress.save_garden(), game.progress.path)
-  if game.players.has(game.HOST): game.local_character.data = game.players[game.HOST].character
+  if game.players.has(game.HOST):
+   game.local_character.data = game.players[game.HOST].character
+   _archive_host_profile(game)
   if game.network_session.role() != "Guest": Batch.record_serializer_error(game.local_character.save_profile(), game.local_character.path)
   execution.outcome = Batch.commit()
   return OK, auxiliary)
@@ -307,6 +309,7 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
     else:
      if serializer == game.local_character and game.players.has(game.HOST):
       game.local_character.data = game.players[game.HOST].character
+      _archive_host_profile(game)
      Batch.record_serializer_error(serializer.save_profile(), serializer.path)
   _participants = []
   _owner = null
@@ -375,6 +378,14 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
   if publish.is_valid(): publish.call(execution.value)
   if captured.has("statistics"): game.publish_expedition_results()
  return boundary
+
+## Mirror only this character's authoritative Garden slice on an existing local
+## profile write. Garden-only operations remain recoverable from the Garden.
+static func _archive_host_profile(game: Node) -> void:
+ var identity: String = game.local_character.identity
+ var state: Dictionary = game.progress.archive
+ if state.characters.has(identity):
+  game.local_character.archive_visits[state.origin] = state.characters[identity].duplicate()
 
 static func _serializers(game: Node, scope: Scope) -> Array:
  match scope:

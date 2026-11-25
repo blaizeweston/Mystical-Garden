@@ -27,7 +27,7 @@ func run() -> void:
 	world.set_process(false)
 	world.set_physics_process(false)
 	world.add_player(2)
-	Fixture.Sessions.set_identity(world,world.players[2],"guest-fixture")
+	Fixture.Sessions.set_identity(world,world.players[2],"6a7c3d11180b4c4281f6bb8aef799a51")
 	var stats: RefCounted = world.expedition_statistics
 	var now := Time.get_ticks_msec()
 	for id in [1,2]:
@@ -61,7 +61,13 @@ func run() -> void:
 	stats.clear_encounter(run_id,1)
 	stats.clear_encounter(run_id,1)
 	stats.reached(run_id,2)
-	stats.finish(run_id,guest,"Voluntary return",now+5000)
+	world.garden_commands.begin_returns()
+	world.garden_commands.join_returns(1)
+	world.garden_commands.join_returns(2)
+	var archive_run: String = world.players[1].garden_run_id
+	var guest_report: Dictionary = stats.finish(run_id,guest,"Voluntary return",now+5000)
+	check(world.Progress.Archive.settle(world.progress,archive_run,guest,guest_report),"first personal row accepted")
+	check(not world.Progress.Archive.settle(world.progress,archive_run,guest,guest_report),"same row cannot be counted twice")
 	stats.publishable()
 	var early: Dictionary = stats.result_for(guest)
 	check(early.party.kills==1 and early.clears==1 and early.floor==2,"duplicate death and clearance rejected")
@@ -76,7 +82,12 @@ func run() -> void:
 	world.encounter.set_hp(-1,0)
 	world.record_enemy_death(-1,Vector3.ZERO,Vector3.ZERO)
 	stats.damage(run_id,3,{guest:1},"Burning")
-	stats.finish(run_id,owner,"Extraction",now+9000)
+	var host_report: Dictionary = stats.finish(run_id,owner,"Extraction",now+9000)
+	check(world.Progress.Archive.settle(world.progress,archive_run,owner,host_report),"later extraction advances only cumulative differences")
+	var shared: Dictionary = world.progress.archive.garden
+	var personal: Dictionary = world.progress.archive.characters[guest]
+	check(shared.damage==host_report.party.damage and shared.kills==2 and shared.bosses==1 and shared["Burning"]==3,"Archive counts unattributed damage and deaths once")
+	check(shared.time_ms==9000 and shared.runs==1 and personal.time_ms==5000 and personal.prevented==17 and personal["Brittle rupture"]==4,"participant time, recipient mitigation and fractional affinity credit survive aggregation")
 	stats.publishable()
 	var final: Dictionary = stats.result_for(owner)
 	check(final.party.bosses==1 and final.players[0].bosses==0 and final.party.kills==2,"confirmed boss without a known finisher counts only for the party")

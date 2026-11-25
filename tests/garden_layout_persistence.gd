@@ -119,7 +119,9 @@ func run() -> void:
 	garden.open_offerings()
 	var item: String = game.Items.part_id(game.Parts.THORN)
 	var knowledge_before: int = game.progress.knowledge
-	check(garden.contribute(garden.funds.quote({item: 30})) and game.progress.knowledge == knowledge_before + 30, "one offering grants both currencies immediately")
+	var quote: Dictionary=garden.funds.quote({item:30})
+	check(garden.contribute(quote) and game.progress.knowledge == knowledge_before + 30, "one offering grants both currencies immediately")
+	check(not garden.contribute(quote) and game.progress.archive.garden.energy==quote.energy and game.progress.archive.characters[game.local_character.identity].energy==quote.energy,"a rejected repeat cannot increase lifetime contribution Energy")
 	garden.offering_dialog.hide()
 	garden.open_development()
 	check(not garden.plans.is_empty(), "an expansion is available")

@@ -6,6 +6,7 @@ Edges describe gameplay/data relationships. Selection uses explicit suite covera
 
 ```mermaid
 flowchart LR
+  living_archive["Living Archive records and character copies"]
   wild_flora["Natural Wilds specimens<br/> deterministic selection and per-character harvest"]
   expedition_statistics["Host expedition statistics<br/> committed results and summary tabs"]
   actor_collision["Shared tangent sliding<br/> mesh-fitted walking bodies and low-stone step-over"]
@@ -391,6 +392,7 @@ flowchart LR
 
 | System | Source files | Covering suites |
 |---|---|---|
+| living_archive | `living_archive.gd`, `living_archive.gd.uid`, `living_archive_view.gd`, `living_archive_view.gd.uid` | `wild_flora_party`, `wild_flora_harvest`, `legacy_departure_outcomes`, `expedition_results_rejoin`, `expedition_statistics`, `garden_construction_inventory`, `garden_layout_persistence`, `guarded_expedition_coop`, `guarded_garden_actions`, `four_players_coop`, `garden_altar`, `garden_cultivation_structures`, `garden_cultivation_structures_coop`, `gate_garden_services`, `seed_progression`, `network_contract` |
 | wild_flora | `returning_root.gd`, `returning_root.gd.uid`, `wild_flora.gd`, `wild_flora.gd.uid`, `wild_flora_generation.gd`, `wild_flora_generation.gd.uid` | `wild_flora_coop`, `wild_flora_party`, `wild_flora_generation`, `wild_flora_harvest`, `world_guidance`, `gameplay_ui`, `experimental_terrain`, `expedition_forfeiture`, `expedition_forfeiture_coop`, `guarded_garden_actions`, `exploration_ui`, `heart_progression` |
 | expedition_statistics | `expedition_statistics.gd`, `expedition_statistics.gd.uid`, `ui/gameplay/expedition_summary.gd`, `ui/gameplay/expedition_summary.gd.uid` | `legacy_departure_rejoin`, `legacy_departure_outcomes`, `expedition_results_rejoin`, `expedition_statistics`, `shared_affinity_status`, `experimental_terrain_coop`, `expedition_forfeiture_coop`, `guarded_expedition`, `four_players_coop` |
 | actor_collision | `assets/terrain_m02/terrain_actor_motion.gd`, `assets/terrain_m02/terrain_actor_motion.gd.uid`, `assets/terrain_m02/terrain_prop_geometry.gd`, `assets/terrain_m02/terrain_prop_geometry.gd.uid` | `terrain_actor_collision`, `heart_build_reservation`, `garden_living_infrastructure`, `garden_construction_inventory`, `garden_layout_persistence`, `garden_layout_transactions`, `ce04_void`, `ce04_spirit`, `modern_terrain_cutover`, `cr02_mode_coop`, `cr02_definitions_mismatch`, `experimental_terrain_coop`, `experimental_terrain`, `garden_construction`, `garden_expansion`, `wilds_boundary`, `wilds_play_floor`, `terrain_botanical_art`, `guarded_gameplay_transactions`, `boss_lairs`, `four_players_coop`, `garden_spring`, `heart_growth_visual`, `projectile_terrain`, `network_movement_coop`, `network_contract`, `network_contract_coop` |
@@ -668,6 +670,7 @@ flowchart LR
 | `publish_character` | foundation |
 | `publish_combat_event` | combat, connection_flow |
 | `publish_expedition_results` | expedition_statistics |
+| `receive_archive` | living_archive, network_session |
 | `receive_character` | foundation |
 | `receive_combat_event` | foundation, guest_replication |
 | `receive_details` | foundation, guest_replication |
@@ -803,6 +806,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_affinity_checkpoint_command` | ar07_vitals_1 | player_vitals |
 | `game.gd::_affinity_checkpoint_command` | ar03_wallet_reroll_debit | expedition_wallet, affinity_cards |
 | `game.gd::run_guarded_action` | ar04_departure_result | departure_settlement |
+| `game.gd::settle_expedition_rewards` | archive_departure | living_archive, departure_settlement |
 | `game.gd::settle_expedition_rewards` | ar05_reward_lifecycle | loot |
 | `game.gd::settle_expedition_rewards` | ar04_departure_staging | departure_settlement |
 | `game.gd::prepare_guarded_exit` | ar05_reward_lifecycle | loot |
@@ -897,6 +901,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `assets/terrain_m02/garden_expansion.gd` | rounded_join_proposal | garden_canopy |
 | `affinity_cards.gd` | ar08_lifecycle_1 | player_lifecycle |
 | `affinity_cards.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | archive_contribute | living_archive |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | archive_construct | living_archive |
 | `assets/terrain_m02/experimental/experiment_garden.gd` | hg04_construction_scrolling_1 | garden_development, gameplay_ui |
 | `assets/terrain_m02/experimental/experiment_garden.gd` | hg04_construction_scrolling_2 | garden_development, gameplay_ui |
 | `assets/terrain_m02/experimental/experiment_garden.gd` | hg04_construction_scrolling_3 | garden_development, gameplay_ui |
@@ -1132,6 +1138,10 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `party_travel.gd` | guarded_expedition_3 | persistence_operations, expeditions, connection_flow |
 | `party_travel.gd` | hold_range | gate_access |
 | `party_travel.gd` | request_range | gate_access |
+| `progress.gd` | archive_retired_recipe | living_archive, seeds |
+| `progress.gd` | archive_storage | living_archive |
+| `progress.gd` | archive_read_garden | living_archive |
+| `progress.gd` | archive_serialize_save | living_archive |
 | `progress.gd` | hg06_economy_7 | knowledge, persistence_operations, items |
 | `progress.gd` | hg06_economy_6 | knowledge, persistence_operations, items |
 | `progress.gd` | hg06_economy_5 | knowledge, persistence_operations, items |
@@ -1196,6 +1206,10 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `progress.gd` | interaction_state | garden_observations |
 | `progress.gd` | interaction_load | garden_observations |
 | `progress.gd` | interaction_save | garden_observations |
+| `altar_service.gd` | archive_capture | living_archive |
+| `altar_service.gd` | archive_combine | living_archive |
+| `altar_service.gd` | archive_retired_success | living_archive |
+| `altar_service.gd` | archive_combine_receipt | living_archive |
 | `altar_service.gd` | hg04_definitions_3 | seeds, garden_cultivation_structures, garden, items |
 | `altar_service.gd` | hg04_definitions_2 | seeds, garden_cultivation_structures, garden, items |
 | `altar_service.gd` | hg04_definitions_1 | seeds, garden_cultivation_structures, garden, items |
@@ -1972,6 +1986,19 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `assets/enemies/catalog.json` | enemy_attack_plan_0 (colossus.description) | enemy_attack_plan |
 | `assets/enemies/catalog.json` | choir_copy (root_choir.description) | enemy_attack_plan |
 | `assets/data/weapon_template.json` | cb03_template_roll_spread (roll_spread_hp) | weapon_balance |
+| `living_archive.gd` | fresh (method body) | living_archive |
+| `living_archive.gd` | valid_id (method body) | living_archive |
+| `living_archive.gd` | valid_totals (method body) | living_archive |
+| `living_archive.gd` | valid_visits (method body) | living_archive |
+| `living_archive.gd` | valid (method body) | living_archive |
+| `living_archive.gd` | add (method body) | living_archive |
+| `living_archive.gd` | join_totals (method body) | living_archive |
+| `living_archive.gd` | activity (method body) | living_archive |
+| `living_archive.gd` | harvest (method body) | living_archive |
+| `living_archive.gd` | set_slice (method body) | living_archive |
+| `living_archive.gd` | personal (method body) | living_archive |
+| `living_archive.gd` | settle (method body) | living_archive |
+| `living_archive.gd` | station (method body) | living_archive |
 | `heart_catalog.gd` | garden_development (method body) | knowledge, garden_development |
 | `heart_catalog.gd` | cultivation (method body) | knowledge, garden_cultivation_structures, garden_development |
 | `heart_catalog.gd` | wilds_exploration (method body) | knowledge, wild_flora, garden_returns |

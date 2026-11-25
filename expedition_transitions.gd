@@ -170,7 +170,9 @@ func _return_member(p: Dictionary, outcome := "Voluntary return") -> void:
 	if not game.SaveBatch.guarded_active(): game.flush_kill_rewards()
 	var identity: String = game._kill_reward_identity(peer,p)
 	game.expedition_statistics.reached(game.participation.run_id(),game.participation.floor())
-	game.expedition_statistics.finish(game.participation.run_id(),identity,outcome,Time.get_ticks_msec())
+	var report: Dictionary = game.expedition_statistics.finish(game.participation.run_id(),identity,outcome,Time.get_ticks_msec())
+	if game.Progress.Archive.settle(game.progress,str(p.get("garden_run_id","")),identity,report):
+		game.record_character(peer,p)
 	game.monster_rewards.finish_expedition(identity, game.participation.run_id())
 	p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active()
 	p.cast_until=0

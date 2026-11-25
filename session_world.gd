@@ -95,12 +95,19 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 	if guarded:
 		var projection = load("res://guest_profile_projection.gd")
 		var origin: String = game.progress.projection_origin
-		if origin.is_empty(): origin = Crypto.new().generate_random_bytes(16).hex_encode()
+		if origin.is_empty(): origin = game.progress.archive.origin
 		admission = projection.admit(origin, incoming, receipts, recorded)
 		if admission.is_empty():
 			reject(id,"The saved guest projection conflicts with this character. Review the saves before joining.",binding)
 			return
-		incoming = admission.profile
+		incoming = admission.profile.duplicate(true)
+		game.Progress.Archive.set_slice(incoming,game.progress.archive,identity)
+		# Preserve the verified guest base even if its previous Garden sent a slice.
+		if projection.digest(incoming) != admission.projection.digest:
+			admission.projection = projection.build(incoming,int(admission.projection.revision)+1,admission.base)
+			if admission.projection.is_empty():
+				reject(id,"Character projection revisions exhausted.",binding)
+				return
 		var result = Transactions.run_gameplay(game, Transactions.Scope.GARDEN, func():
 			if not game.network_session.matches(id,binding): return false
 			if not preload("res://garden_growth_service.gd").register_receipt(game,identity):
@@ -118,6 +125,7 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 			return
 		var recovered: Dictionary=Character.normalize(game.progress.ContentIDs.profile(recorded.profile,recorded.get("manifest",game.progress.ContentIDs.legacy())))
 		preload("res://guest_profile_projection.gd").merge_progress(incoming,recovered)
+	if not guarded: game.Progress.Archive.set_slice(incoming,game.progress.archive,identity)
 	if not game.players.has(id) or not game.network_session.bind_character(id,identity,binding): return
 	game.players[id].character = incoming
 	PartyTravel.cancel(game,"Party changed. Confirm readiness again.")

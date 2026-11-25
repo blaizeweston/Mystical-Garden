@@ -44,6 +44,7 @@ func host_run() -> void:
 	check(saved.get("outcome")=="Disconnected" and saved.players.size()==2 and world.participation.contains(1),"one frozen result while host continues")
 	world.expedition_transitions.abandon(1)
 	check(world.expedition_statistics.result_for(identity)==saved,"host's later termination cannot alter the guest's result")
+	check(world.progress.archive.garden.runs==1 and world.progress.archive.garden.abandons==1 and world.progress.archive.characters[identity].runs==1,"one disconnected guest and one abandonment share one expedition")
 	mark("readmit")
 	check(await until(func():return marked("viewed")),"reconnected guest read own report")
 
@@ -79,4 +80,16 @@ func guest_run() -> void:
 	world.receive_expedition_result(old_binding,world.guest_character.identity,delayed.run,delayed)
 	world.receive_expedition_result(world.network_session.accepted_connection_key(),"another-character",delayed.run,delayed)
 	check(world.ui.visible_expedition_result().is_empty(),"stale connection cannot reopen a result")
+	check(world.guest_character.archive_visits.get(world.get_meta("guest_projection_origin"),{}).get("runs")==1,"a fresh client recovers its personal Archive through the verified profile delivery")
+	var origin: String=world.get_meta("guest_projection_origin")
+	var loaded := Profile.new()
+	loaded.path=C
+	check(loaded.load_profile(false)==OK and loaded.archive_visits[origin].runs==1,"fresh profile load recovers the guarded contribution")
+	var other := {"runs":2,"deepest":8,"longest_ms":1}
+	var joined: Dictionary = world.Progress.Archive.personal(loaded.archive_visits,"a20c4418cdbd48ad83f4202d5015fdfa",other)
+	check(joined.runs==3 and joined.deepest==maxi(8,loaded.archive_visits[origin].deepest) and joined.longest_ms==maxi(1,loaded.archive_visits[origin].longest_ms),"counts travel across Gardens and personal bests take the maximum")
+	check(world.Progress.Archive.personal(loaded.archive_visits,origin,loaded.archive_visits[origin]).runs==1,"the current Garden replaces its local copy")
+	world.receive_archive(old_binding,world.guest_character.identity,{"version":1,"origin":origin})
+	world.receive_archive(world.network_session.accepted_connection_key(),"another-character",{"version":1,"origin":origin})
+	check(world.guest_replication.archive.is_empty(),"delayed or foreign Archive records are ignored")
 	mark("viewed")

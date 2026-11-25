@@ -17,6 +17,8 @@ static var LEVEL_THRESHOLDS: Array=preload("res://game_balance.gd").levels()
 var path := "user://character.cfg"
 var data := blank()
 var identity := Crypto.new().generate_random_bytes(16).hex_encode()
+const Archive = preload("res://living_archive.gd")
+var archive_visits: Dictionary = {}
 var projection_receipts: Dictionary = {}
 
 
@@ -38,6 +40,9 @@ static func blank() -> Dictionary:
 
 static func normalize(source: Dictionary) -> Dictionary:
 	var result := blank()
+	var slice: Variant = source.get("archive_slice")
+	if slice is Dictionary and Archive.valid_id(slice.get("origin")) and Archive.valid_totals(slice.get("totals")):
+		result.archive_slice = {"origin":slice.origin,"totals":slice.totals.duplicate()}
 	result.name=clean_name(str(source.get("name","Wanderer")))
 	result.quarantine=source.get("quarantine",{}).duplicate(true) if source.get("quarantine",{}) is Dictionary else {}
 	for c in result.xp.size():
@@ -171,6 +176,9 @@ func _read_profile() -> Error:
 			identity = saved_id
 		needs_content_backup=not file.has_section("content")
 		data = normalize(ContentIDs.profile(saved,file.get_value("content","manifest",ContentIDs.legacy()))) if saved is Dictionary else blank()
+		var visits: Variant = file.get_value("character","archive_visits",{})
+		if not Archive.valid_visits(visits): return ERR_INVALID_DATA
+		archive_visits = visits
 		projection_receipts = receipts
 	return result
 
@@ -224,6 +232,7 @@ func _serialize_save(stage := Callable()) -> Error:
 			return copied
 	var file := ConfigFile.new()
 	file.set_value("content","manifest",ContentIDs.manifest())
+	if not archive_visits.is_empty(): file.set_value("character","archive_visits",archive_visits)
 	file.set_value("character", "progress", data)
 	file.set_value("character", "identity", identity)
 	if not projection_receipts.is_empty():

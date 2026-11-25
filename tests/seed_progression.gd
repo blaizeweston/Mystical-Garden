@@ -69,6 +69,7 @@ func run():
 				g.altar_recipes[old_book]={"success":true,"item":game.Items.seed_id(i)}
 				check(not game.Altar.preview(game,player,removed).known,"retired historical success cannot advertise a seed")
 				game.Altar.combine(game,player,removed)
+				check(g.altar_recipes[old_book].get("historical_success",false),"retrying a retired recipe preserves historical success in the Archive")
 				check(g.stock[i]==0 and g.knowledge==knowledge and not g.altar_recipes[old_book].success,"disabled recipe only salvages")
 				continue
 			var outcome: String=game.Altar.combine(game,player,ingredients(b,a))

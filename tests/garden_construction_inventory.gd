@@ -59,6 +59,7 @@ func run() -> void:
 	garden.refund_dialog.hide()
 	garden.development_dialog.hide()
 	check(not g.structures.instances.has(paid) and not garden.retire_structure(paid,g.structures.revision,true) and garden.funds.energy==10000,"refund once")
+	check(g.archive.garden.get("built")==1 and g.archive.garden.get("energy",0)==0,"redeployment and actual-payment refunds never count as paid construction or contributed Energy")
 	# A historically paid instance carries its own receipt across a catalog price change.
 	var original_item: String = game.Items.part_id(game.Parts.THORN)
 	var prior_parts: int = g.part_count(game.Parts.THORN)

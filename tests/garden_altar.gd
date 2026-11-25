@@ -33,6 +33,7 @@ func run():
  var outcome:=Service.combine(game,p,seeds)
  check(outcome.contains("Discovered") and reserve.stock[0]==4 and reserve.stock[1]==4 and reserve.stock[2]==1 and g.discoveries[2] and g.knowledge==before_knowledge+6,"seed sacrifice consumes one per slot and discovers a higher plant")
  check(Service.preview(game,p,seeds).known and Service.preview(game,p,seeds).item==Items.seed_id(2),"known seed result replaces question mark")
+ check(g.archive.garden.crosses==1 and g.archive.characters[game.local_character.identity].crosses==1,"first accepted cross counts once for the actor and Garden")
  var reverse: Array=[seeds[1],seeds[0]]
  check(Service.preview(game,p,reverse).item==Items.seed_id(2),"recipe order does not matter")
  Service.combine(game,p,reverse)
@@ -43,6 +44,7 @@ func run():
  Service.combine(game,p,parts)
  check(reserve.parts[1]==4 and reserve.parts[2]==4 and reserve.parts[3]==1,"plant materials combine into the higher-lineage crafting part")
  check(Items.RARITIES.find(Items.get_item(Items.part_id(3)).rarity)>Items.RARITIES.find(Items.get_item(Items.part_id(1)).rarity),"part outcome is a higher rarity")
+ check(g.archive.garden.crosses==2,"successful repeat counts and material synthesis does not")
  check(reserve.stock[2]==2,"part sacrifice does not create a seed")
  check(Service.preview(game,p,parts).known,"successful material recipe is remembered")
  # A same-species unknown pair consumes two, returns one material and records the salvage preview.
@@ -125,9 +127,15 @@ func run():
  g.save_garden()
  var reload=load("res://progress.gd").new();reload.path=g.path;reload.load_garden()
  check(reload.altar_recipes==g.altar_recipes,"recipe book persists in Garden save")
- var legacy=ConfigFile.new();legacy.load(g.path);legacy.erase_section("altar")
+ var legacy=ConfigFile.new();legacy.load(g.path);legacy.erase_section("archive")
+ var pre_archive_path: String=g.path+".pre_archive"
+ legacy.save(pre_archive_path)
+ var historical=load("res://progress.gd").new();historical.path=pre_archive_path
+ check(historical.load_garden()==OK and historical.archive.garden.is_empty() and historical.archive.characters.is_empty() and historical.discoveries==reload.discoveries and historical.altar_recipes==reload.altar_recipes,"a pre-Archive save retains its authoritative discovery ledgers and starts with empty activity")
+ legacy.erase_section("altar")
  var legacy_path: String=g.path+".legacy";legacy.save(legacy_path)
  var migrated=load("res://progress.gd").new();migrated.path=legacy_path;migrated.load_garden();migrated.save_garden()
+ check(migrated.archive.garden.is_empty() and migrated.archive.characters.is_empty(),"pre-altar conversion cannot invent Archive activity")
  check(FileAccess.file_exists(legacy_path+".pre-altar-v1.bak") and not migrated.altar_recipes.is_empty(),"legacy attempts migrate with an altar recovery backup")
  for recipe in Recipes.all():
   if recipe.mode!="parts": continue

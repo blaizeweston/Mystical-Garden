@@ -19,6 +19,8 @@ var _carried := 0
 var _pouch := false
 var _briar := false
 var _details := {}
+var archive: Dictionary = {}
+var archive_digest := ""
 var _details_key := ""
 var _details_at := -1
 var _garden: Array = initial_garden()
@@ -44,6 +46,7 @@ func clear_session() -> void:
 	_leader_hp = _initial_hp
 	_scouts.clear();_campaign = PackedInt32Array(DEFAULT_CAMPAIGN)
 	_carried = 0;_pouch = false;_briar = false
+	archive = {};archive_digest = ""
 	_details.clear();_details_key = "";_details_at = -1
 	_garden = initial_garden();_inventory = DEFAULT_INVENTORY.duplicate(true)
 	_events.clear();_vitals.clear();_flash.clear();_names.clear()

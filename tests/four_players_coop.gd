@@ -20,6 +20,7 @@ var game: Node
 var failed=false
 var base: String
 var role: String
+var restored_observation := {}
 func check(ok: bool,message: String):
  if not ok: failed=true;printerr("FAIL four players ",role,": ",message)
 func mark(key: String,value: String="ready"):
@@ -158,7 +159,12 @@ func host_run():
  game.expedition_transitions.checkpoint(1,false)
  check(await until(func():return not game.participation.active()) and game.progress.knowledge==starting_knowledge+14,"remaining party extracts together for the eight-point difference")
  check(PlayerVitals.current_hp(game.players[thorn_guest])==100 and game.players[thorn_guest].lost_health==0,"extraction restores the sealed capacity")
+ var archive: Dictionary=game.progress.archive
+ check(archive.garden.runs==1 and archive.garden.extracts==1 and archive.characters.size()==4 and archive.characters.values().all(func(row):return row.runs==1 and row.extracts==1),"staggered extraction counts four participations in one Garden expedition")
  if not await publish_vitals("restored",thorn_guest):return
+ for actor in game.players.values():actor.pos=game.stage.station_position("living_archive")
+ mark("archive")
+ check(await until(func():return all_guests_marked("archive")),"all three guests read the same Garden and their personal results")
  for id in game.players:
   var p=game.players[id]
   check(game.seed_reserve(p).unknown.has(SessionCase.Session.slot_for(p)),"each player's seed banks to their own reserve")
@@ -261,6 +267,11 @@ func verify_vitals_marker(stage: String,index: int) -> void:
  var expected=JSON.parse_string(FileAccess.get_file_as_string(base+"-"+stage))
  if not expected is Dictionary:return
  var actor: Dictionary=game.players.get(int(expected.id),{})
+ if stage=="restored":
+  var observed := {"wanted":expected,"revision":actor.get("vitals_revision"),"hp":actor.get("hp"),"capacity":actor.get("max_hp"),"lost":actor.get("lost_health"),"fallen":actor.get("fallen"),"damage":actor.get("damage_seq"),"summary":not game.ui.visible_expedition_result().is_empty()}
+  if observed!=restored_observation:
+   restored_observation=observed
+   print("Post-extraction readback ",JSON.stringify(observed))
  if int(actor.get("vitals_revision",0))!=int(expected.revision):return
  for field in ["hp","max_hp","lost_health","fallen","damage_seq"]:
   if actor.get(field)!=expected[field]:return
@@ -290,6 +301,14 @@ func guest_run(index: int):
    reconnected=true;mark("rejoined_snapshot")
   if game.network_session.role()=="Guest":
    var id=game.multiplayer.get_unique_id()
+   if marked("archive") and not marked("archive-"+str(index)):
+    if game.guest_replication.archive.is_empty():
+     if not marked("archive-read-"+str(index)):
+      game.send_garden_action("archive_read:");mark("archive-read-"+str(index))
+    else:
+     var records: Dictionary=game.guest_replication.archive
+     check(records.garden.get("runs")==1 and records.personal.get("extracts")==1 and not records.has("characters"),"read-only Archive returns only this character and the Garden")
+     mark("archive-"+str(index))
    if game.players.size()==4 and game.players.has(id):
     saw_four=true;check(game.guest_character.data.name=="Player "+str(index),"owner profile preserved")
    if not marked("core-"+str(index)) and ExpeditionCase.is_wild(game.players.get(id,{})):

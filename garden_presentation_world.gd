@@ -69,8 +69,20 @@ func _station_frame(world: Node, actor: Dictionary, station: String) -> Dictiona
 	if actor.is_empty():return {}
 	var result: Dictionary={"present":true,"status":world.status}
 	if station=="living_archive":
-		result.decoded=world.heart_state().get("decoded",[false,false,false]).duplicate()
-		result.campaign=(world.campaign_snapshot() if world.multiplayer.is_server() else world.guest_replication.campaign()).duplicate()
+		if not world.persistence_session.can_publish_state(): return result
+		var records: Dictionary
+		var profile: RefCounted
+		if world.multiplayer.is_server():
+			profile = world.local_character
+			records = world.Progress.Archive.station(world.progress,profile.identity)
+		else:
+			profile = world.guest_character
+			if world.network_session.role() != "Guest": return result
+			world.request_garden_action.rpc_id(world.HOST,"archive_read:"+world.guest_replication.archive_digest)
+			records = world.guest_replication.archive.duplicate(true)
+		if not records.is_empty():
+			records.personal = world.Progress.Archive.personal(profile.archive_visits,records.origin,records.personal)
+			result.records = records
 		return result
 	if station=="monster_studies": result.studied=world.heart_state().get("offered",[]).duplicate()
 	var garden: Array=world.garden_snapshot() if world.multiplayer.is_server() else world.guest_replication.garden_progress()

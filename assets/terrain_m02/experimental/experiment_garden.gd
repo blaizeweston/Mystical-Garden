@@ -352,6 +352,7 @@ func contribute(quote: Dictionary) -> bool:
 		for id: String in quote.items:
 			game.progress.add_parts(funds.items[id].legacy_part, -int(quote.items[id]))
 		game.progress.knowledge += int(quote.knowledge)
+		game.Progress.Archive.activity(game.progress.archive,game.local_character.identity,{"energy":int(quote.energy)})
 		return true)
 	if accepted:
 		Journal.event("interaction", "heart_contribution", {"parts": quote.items,
@@ -556,6 +557,7 @@ func construct(kind: String, expected: int) -> bool:
 	return _commit_structure(expected,func():
 		_apply_payment(cost,-1)
 		game.Progress.Structures.add(game.progress.structures,kind,cost)
+		game.Progress.Archive.activity(game.progress.archive,game.local_character.identity,{"built":1})
 		return true)
 
 func _affordable(cost: Dictionary) -> bool:

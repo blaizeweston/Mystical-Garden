@@ -61,9 +61,10 @@ static func preview(game,player: Dictionary,draft: Array) -> Dictionary:
  return {"known":true,"item":output,"can_combine":affordable,"text":text}
 static func capture(game,player: Dictionary) -> Dictionary:
  var reserve: Dictionary=game.seed_reserve(player);var g=game.progress
- return {"garden_interactions":g.garden_interactions.duplicate(true),"rng_state":game.rng.state,"stock":reserve.stock.duplicate(),"unknown":reserve.unknown.duplicate(),"personal":reserve.parts.duplicate(),"shared":g.parts.duplicate(),"barbs":g.heartwood_barbs,"extras":g.item_stashes.duplicate(true),"discoveries":g.discoveries.duplicate(),"knowledge":g.knowledge,"veilcap":g.veilcap_discovered,"attempts":g.attempted_pairs.duplicate(true),"recipes":g.altar_recipes.duplicate(true)}
+ return {"archive":g.archive.duplicate(true),"garden_interactions":g.garden_interactions.duplicate(true),"rng_state":game.rng.state,"stock":reserve.stock.duplicate(),"unknown":reserve.unknown.duplicate(),"personal":reserve.parts.duplicate(),"shared":g.parts.duplicate(),"barbs":g.heartwood_barbs,"extras":g.item_stashes.duplicate(true),"discoveries":g.discoveries.duplicate(),"knowledge":g.knowledge,"veilcap":g.veilcap_discovered,"attempts":g.attempted_pairs.duplicate(true),"recipes":g.altar_recipes.duplicate(true)}
 static func restore(game,player: Dictionary,before: Dictionary) -> void:
  var reserve: Dictionary=game.seed_reserve(player);var g=game.progress
+ if before.has("archive"):g.archive=before.archive.duplicate(true)
  if before.has("garden_interactions"):g.garden_interactions=before.garden_interactions.duplicate(true)
  if before.has("rng_state"): game.rng.state=before.rng_state
  reserve.stock.assign(before.stock);reserve.unknown.assign(before.unknown);reserve.parts.assign(before.personal)
@@ -87,6 +88,8 @@ static func combine(game,player: Dictionary,draft: Array,effects = null) -> Stri
  if not recipe.is_empty():
   var item:=Items.get_item(output)
   if item.has("legacy_seed"):
+   var peer: int = game.Session.peer_for(player)
+   game.Progress.Archive.activity(game.progress.archive,game._kill_reward_identity(peer,player),{"crosses":1})
    game.progress.discover(int(item.legacy_seed))
    if fresh: game.progress.knowledge+=2
   elif fresh: game.progress.knowledge+=4
@@ -99,7 +102,10 @@ static func combine(game,player: Dictionary,draft: Array,effects = null) -> Stri
    var parent:=Items.get_item(conserved_parent(draft))
    game.seed_reserve(player).stock[int(parent.legacy_seed)]+=1
    message+=" Conserved one "+str(parent.name)+"."
+ var prior: Dictionary=game.progress.altar_recipes.get(key,{})
  game.progress.altar_recipes[key]={"item":output,"success":not recipe.is_empty()}
+ if mode=="seeds" and recipe.is_empty() and (prior.get("success",false) or prior.get("historical_success",false)):
+  game.progress.altar_recipes[key].historical_success=true
  if mode=="seeds":
   var a:=int(Items.get_item(draft[0].item).get("legacy_seed",-1));var b:=int(Items.get_item(draft[1].item).get("legacy_seed",-1))
   if a>=0 and b>=0:
@@ -108,6 +114,10 @@ static func combine(game,player: Dictionary,draft: Array,effects = null) -> Stri
  if not preload("res://save_batch.gd").guarded_active() and game.progress.save_garden()!=OK:
   restore(game,player,before)
   return "Could not save the offering. All ingredients and Knowledge were returned."
+ if mode=="seeds" and not recipe.is_empty():
+  var peer: int=game.Session.peer_for(player)
+  game.record_character(peer,player)
+  if effects != null and peer != game.HOST: effects.append(game.send_committed_profile.bind(peer))
  var report := func(): preload("res://diagnostic_journal.gd").event("altar","offering_saved",{"inputs":draft,"output":output,"success":not recipe.is_empty(),"fresh":fresh})
  if effects != null: effects.append(report)
  elif not preload("res://save_batch.gd").guarded_active(): report.call()

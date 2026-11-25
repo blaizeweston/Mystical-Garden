@@ -192,7 +192,6 @@ func _harvest(id: int, slot: int, effects = null) -> bool:
 	world.progress.irrigation.resolve(world.progress.structures,world.progress.heart.unlocked)
 	var local: Dictionary = world.progress.irrigation.effects.get(slot,{})
 	profile.plants[kind] = Rules.familiarity_after(familiarity,int(local.get("familiarity",1)))
-	world.save_action_profile(id, effects)
 	var harvest_roll := 0.0
 	if not seeds:
 		harvest_roll = State.crop_draw(bed) if State.compatible(bed) else world.rng.randf()
@@ -201,6 +200,8 @@ func _harvest(id: int, slot: int, effects = null) -> bool:
 	else:
 		world.progress.parts[kind]+=int(result.parts)
 		if int(result.rare_part)>0:world.progress.add_parts(int(result.rare_part),1)
+	world.Progress.Archive.harvest(world.progress.archive,world._kill_reward_identity(id,world.players[id]),result)
+	world.save_action_profile(id, effects)
 	var message:=str(result.message)
 	var play_audio := func(): preload("res://event_audio.gd").emit(world, "crop_harvested", world.stage.bed_position(slot))
 	if effects == null:

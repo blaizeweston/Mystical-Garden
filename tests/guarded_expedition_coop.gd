@@ -256,7 +256,6 @@ func guest_run() -> void:
  if not await until(reward_received):
   check(false,"guest persists one reward projection")
   return
- var after:=Slots._save_digest(C)
  var verified:=Profile.new()
  verified.path=C
  check(verified.load_profile(false)==OK and verified.data.monsters[int(read("rewards"))]==1,"guest disk confirms one kill receipt")
@@ -300,7 +299,14 @@ func guest_run() -> void:
   return
  world.toast_until=0
  world.refresh_feedback()
- check(UIFixture.control(world,"feedback").text==Tx.CLEANUP_NOTICE and Slots._save_digest(C)==after,"cleanup warning survives toast and extraction does not duplicate profile credit")
+ var before_profile:=verified.data.duplicate(true)
+ before_profile.erase("archive_slice")
+ var origin: String=world.get_meta("guest_projection_origin")
+ check(await until(func():return world.guest_character.archive_visits.get(origin,{}).get("extracts")==1),"confirmed cleanup-pending extraction delivers the portable Archive slice")
+ check(verified.load_profile(false)==OK and verified.archive_visits.get(origin,{}).get("runs")==1,"one expedition on the guest disk")
+ var current_profile:=verified.data.duplicate(true)
+ current_profile.erase("archive_slice")
+ check(UIFixture.control(world,"feedback").text==Tx.CLEANUP_NOTICE and before_profile==current_profile,"cleanup notice persists and archive delivery leaves XP, monster rewards and equipment intact")
  record("guest_transition_and_warning",original,{"floor":world.participation.floor(),"feedback":UIFixture.control(world,"feedback").text})
  world.session_world.leave("Guest fixture complete")
  check(world.network_session.transport()==null and world.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"guest offline before detachment")

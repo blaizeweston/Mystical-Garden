@@ -512,6 +512,7 @@ func caller_effects() -> void:
      var kind := "sprinkler" if str(action).begins_with("sprinkler") else "bed"
      if str(action).begins_with("grove"):
       kind="refinement_grove"
+      world.garden_action(1,"heart_start_nursery")
       world.garden_action(1,"heart_start_refinement_grove")
      if kind=="sprinkler":
       for tech in ["flowering","clearing_1","irrigation"]: world.garden_action(1,"heart_start_"+tech)
@@ -560,6 +561,8 @@ func caller_effects() -> void:
      command="garden:"+JSON.stringify({"point":point.id,"action":"observe","request":"f6-observation",
       "revision":world.progress.garden_interactions.get("revision",0)})
    if not invoke.is_valid(): invoke=world.send_garden_action.bind(command)
+   var recorded_energy: int = world.progress.archive.garden.get("energy",0)
+   var recorded_builds: int = world.progress.archive.garden.get("built",0)
    var before := disk()
    var journal = preload("res://diagnostic_journal.gd").current
    var sequence_before: int=journal.sequence
@@ -592,6 +595,7 @@ func caller_effects() -> void:
      var price := 24 if str(action).begins_with("sprinkler") else 12
      if str(action).begins_with("grove"): price=40
      var delta := 1 if action in ["construct","sprinkler_purchase","grove_purchase"] else -1
+     check(world.progress.archive.garden.get("built",0)==recorded_builds+int(not aborted and delta>0),"only accepted paid construction increments Archive activity")
      if str(action).begins_with("grove"):
       check(world.progress.part_count(ironwood)==prior_ironwood-(0 if aborted else delta),"material receipt and balance agree with "+outcome)
      check(world.progress.structures.instances.size()==prior_instances+(0 if aborted else delta)
@@ -600,6 +604,7 @@ func caller_effects() -> void:
     "purchase":
      check(world.progress.heart.has("cultivation_grounds")==not aborted and world.progress.heart.spent==prior_spent+(0 if aborted else 4) and world.progress.knowledge==40, "research accounting matches "+outcome)
     "contribution":
+     check(world.progress.archive.garden.get("energy",0)==recorded_energy+(0 if aborted else 4),"contributed Energy follows the guarded transaction outcome")
      check(world.progress.parts[0]==(20 if aborted else 18) and world.progress.knowledge==(40 if aborted else 42)
       and garden.funds.energy==prior_energy+(4 if committed else 0), "material debit, tentative Knowledge and published Energy match "+outcome)
     "water":
