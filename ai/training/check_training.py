@@ -111,7 +111,8 @@ def test_masked_terms(schema: MobSchema) -> None:
 
 def test_trainer(schema: MobSchema, folder: Path) -> None:
     settings = T.load_settings()
-    overrides = {"device": "cpu", "batch_rows": 40, "minibatch_sequences": 4, "epochs": 2, "checkpoint_minutes": 0, "keep_checkpoints": 2}
+    overrides = {"device": "cpu", "batch_rows": 40, "minibatch_sequences": 4, "epochs": 2, "checkpoint_minutes": 0, "keep_checkpoints": 2,
+                 "benchmark_milestones": False}
     run = folder / "run"
     trainer = T.Trainer(run, settings, overrides, log=lambda text: None)
     check((run / "policy" / "manifest.json").exists() and trainer.version == 1, "a new run exports policy 1 for the workers")

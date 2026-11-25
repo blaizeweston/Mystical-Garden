@@ -376,6 +376,22 @@ function hover(chart, event) {
   tip.style.top = (event.clientY + 16) + "px";
 }
 
+// The fixed benchmark's latest results: party health removed and wipes per fight beyond the scripted brain, with
+// two standard errors. The best brain so far is starred.
+function benchmarkRows() {
+  const list = (data.benchmarks || []).slice().reverse();
+  if (!list.length) return "";
+  const best = data.best_benchmark ? data.best_benchmark.version : null;
+  const pts = e => e ? `${e.mean >= 0 ? "+" : ""}${(100 * e.mean).toFixed(1)} ± ${(100 * e.error).toFixed(1)}` : "–";
+  const rows = list.map(b => {
+    const c = b.edge.contested || {};
+    return `<tr><td>${b.version === best ? "★ " : ""}v${b.version}<div class="note">${b.label || ""} · ${b.time.slice(5, 16)}</div></td>` +
+      `<td class="num">${pts(c.party_hp_lost)}</td><td class="num">${pts(c.wipe)}</td></tr>`;
+  }).join("");
+  return `<table><tr><td></td><td class="num note">health removed</td><td class="num note">wipes</td></tr>${rows}</table>` +
+    `<div class="note">Points per fight beyond the scripted brain on the same 600 fixed fights; ★ best so far.</div>`;
+}
+
 function side() {
   const s = data.summary, rows = [];
   for (const [key, [name, better, pct, digits]] of Object.entries(SUMMARY_NAMES)) {
@@ -404,6 +420,7 @@ function side() {
     `<h3>Last hour of training vs the hour before</h3><table><tr><td></td><td class="num note">last hour</td><td class="num note">before</td><td></td></tr>${rows.join("")}</table>` +
     `<h3>Pace</h3><div>${pace.per_hour ? millions(pace.per_hour) + " decisions per hour" : "–"}</div>` +
     (pace.next ? `<div class="note">${millions(pace.next)} decisions in about ${age(pace.eta_hours * 3600)}</div>` : "") +
+    `<h3>Benchmark: contested fights vs scripted</h3>${benchmarkRows() || '<div class="note">No benchmark with edges yet</div>'}` +
     `<h3>Changes and restarts</h3>${changes || '<div class="note">None yet</div>'}` +
     `<h3>Checkpoints</h3><div>${latest ? `Latest: policy ${latest.version}, ${age(latest.age)} ago` : "None yet"}</div><div class="note">${milestones} milestone${milestones === 1 ? "" : "s"} kept for later opponents</div>` +
     `<h3>Workers (decisions/s, last report)</h3>${workers || '<div class="note">No worker reports yet</div>'}`;

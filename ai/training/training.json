@@ -54,6 +54,7 @@
 		"checkpoint_minutes": 10,
 		"keep_checkpoints": 5,
 		"milestone_hours": 2,
+		"benchmark_milestones": true,
 		"keep_policies": 6,
 		"keep_awake": true
 	}

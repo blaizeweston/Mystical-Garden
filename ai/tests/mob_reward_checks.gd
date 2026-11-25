@@ -157,10 +157,12 @@ func test_sight_cap() -> void:
 	rewards.take(slot)
 	step(sim, rewards, 600)
 	var earned := rewards.take(slot)
-	check(earned > 0.0 and earned <= 0.015 + 1e-6, "sight of the target earns at most 0.015 between decisions (%.4f)" % earned)
+	var rate := float(rewards.weights.line_of_sight_per_second)
+	var cap := float(rewards.weights.line_of_sight_cap_per_decision)
+	check(earned > 0.0 and earned <= cap + 1e-6, "sight of the target earns at most %.4f between decisions (%.4f)" % [cap, earned])
 	step(sim, rewards, 30)
 	var half_second := rewards.take(slot)
-	check(is_equal_approx(half_second, 0.015), "sight of the target earns 0.03 a second (%.4f in half a second)" % half_second)
+	check(is_equal_approx(half_second, minf(cap, rate * 0.5)), "sight of the target earns %.3f a second, capped (%.4f in half a second)" % [rate, half_second])
 
 
 func test_first_sight() -> void:

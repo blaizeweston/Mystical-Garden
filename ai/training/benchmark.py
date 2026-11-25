@@ -13,11 +13,14 @@ lopsided fights are decided by the setup whatever the brain does. These are meas
 feeds a reward.
 
   python benchmark.py [--run-dir <folder>] [--checkpoint <file.pt>] [--episodes 600] [--processes <n>]
-                      [--label <text>] [--out <folder>]
+                      [--label <text>] [--no-anchors] [--out <folder>]
 
 Results go to <benchmark>/<time>/ (report.md, summary.json), and one line per run is appended to
-<benchmark>/history.jsonl. <benchmark> is a folder named benchmark next to the run folder. Only the run folder's
-checkpoints are read; training can keep running, though it then shares the processor.
+<benchmark>/history.jsonl with the brain's per-fight edge over the scripted brain. <benchmark>/best.json names the
+best brain benchmarked so far (most party health removed in contested fights). <benchmark> is a folder named
+benchmark next to the run folder. Only the run folder's checkpoints are read; training can keep running, though it
+then shares the processor. The trainer runs it with --no-anchors at every milestone (trainer setting
+benchmark_milestones); <benchmark>/running.json keeps two from running at once.
 """
 
 from __future__ import annotations
@@ -36,7 +39,7 @@ import numpy as np
 import evaluate as E
 import safe_files as S
 from mob_schema import MobSchema
-from train import default_run_dir, load_settings
+from train import default_run_dir, load_settings, pid_alive
 
 BENCHMARK_SEED = 20261125
 BENCHMARK_EPISODES = 600
@@ -153,11 +156,34 @@ def main() -> int:
     parser.add_argument("--episodes", type=int, default=BENCHMARK_EPISODES)
     parser.add_argument("--processes", type=int, default=0, help="Godot processes at once (default: most threads, or a quarter while training runs)")
     parser.add_argument("--label", default="", help="a note stored with this run in history.jsonl")
+    parser.add_argument("--no-anchors", action="store_true", help="only the scripted brain and this one (the milestone runs)")
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
     if args.episodes < 1:
         raise SystemExit("--episodes must be at least 1.")
     folder = args.run_dir.parent / "benchmark"
+    folder.mkdir(parents=True, exist_ok=True)
+    if benchmark_running(folder):
+        raise SystemExit(f"Another benchmark is running ({folder / 'running.json'}).")
+    S.atomic_write_json(folder / "running.json", {"pid": os.getpid(), "time": time.strftime("%Y-%m-%d %H:%M:%S")})
+    try:
+        return run(args, settings, folder)
+    finally:
+        (folder / "running.json").unlink(missing_ok=True)
+
+
+def benchmark_running(folder: Path) -> bool:
+    """Whether a benchmark (another process) holds the folder's running.json."""
+    holder = S.read_json(folder / "running.json") or {}
+    pid = int(holder.get("pid", 0))
+    return pid > 0 and pid != os.getpid() and pid_alive(pid)
+
+
+def edge(pair: dict) -> dict:
+    return {key: {"mean": round(value[0], 4), "error": round(value[1], 4)} for key, value in pair.items()}
+
+
+def run(args, settings: dict, folder: Path) -> int:
     if args.processes < 1:
         threads = os.cpu_count() or 4
         beat_file = args.run_dir / "trainer.json"
@@ -174,7 +200,7 @@ def main() -> int:
     if not chosen:
         raise SystemExit(f"{checkpoint.name} does not fit this schema. Convert it with convert_checkpoint.py first.")
     newest = chosen[0]
-    brains = chosen + [b for b in E.prepare(anchors(folder / "anchors"), schema, out) if b.version != newest.version]
+    brains = chosen if args.no_anchors else chosen + [b for b in E.prepare(anchors(folder / "anchors"), schema, out) if b.version != newest.version]
     contestants = [E.Contestant(E.SCRIPTED, newest.policy_file)]
     for brain in brains:
         contestants += [brain, E.game_tempered(brain)]
@@ -187,8 +213,19 @@ def main() -> int:
     S.atomic_write_bytes(out / "report.md", text.encode("utf-8"))
     S.atomic_write_json(out / "summary.json", summary)
     headline = {label: {k: round(v, 4) for k, v in values.items() if k != "vs_scripted"} for label, values in summary["contested"].items()}
-    S.append_line(folder / "history.jsonl", json.dumps({"time": time.strftime("%Y-%m-%d %H:%M:%S"), "version": newest.version,
-                                                        "label": args.label, "out": str(out), "contested": headline}))
+    game = E.game_tempered(newest).label
+    entry = {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "version": newest.version, "label": args.label, "out": str(out),
+             "checkpoint": str(checkpoint), "contested": headline,
+             "edge": {"contested": edge(summary["contested"][newest.label]["vs_scripted"]),
+                      "contested_game": edge(summary["contested"][game]["vs_scripted"]),
+                      "all": edge(summary["overall"][newest.label]["vs_scripted"])}}
+    S.append_line(folder / "history.jsonl", json.dumps(entry))
+    best = S.read_json(folder / "best.json") or {}
+    score = entry["edge"]["contested"].get("party_hp_lost", {}).get("mean")
+    if score is not None and score > float(best.get("contested_hp_edge", -1e9)):
+        S.atomic_write_json(folder / "best.json", {"version": newest.version, "checkpoint": str(checkpoint), "time": entry["time"],
+                                                   "contested_hp_edge": score, "label": args.label})
+        print(f"Best brain so far: v{newest.version} ({100 * score:+.1f} points of party health over the scripted brain in contested fights).")
     print()
     print(text)
     print(f"Saved {out / 'report.md'}")

@@ -261,7 +261,26 @@ def snapshot(run_dir: Path, metrics: Metrics, hours: float | None, focus: bool =
         "checkpoints": checkpoints, "updates": len(rows), "hours": hours, "points": bucketed(shown),
         "changes": changes(rows, events), "summary": summary(rows, latest), "pace": pace(rows, latest),
         "last_update_age": now - rows[-1]["_t"] if rows else None,
+        "benchmarks": benchmarks(run_dir), "best_benchmark": S.read_json(run_dir.parent / "benchmark" / "best.json"),
     }
+
+
+def benchmarks(run_dir: Path, keep: int = 12) -> list[dict]:
+    """The latest benchmark.py results (benchmark/history.jsonl next to the run folder): each brain's per-fight edge
+    over the scripted brain on the fixed fights. Older lines without edges are skipped."""
+    path = run_dir.parent / "benchmark" / "history.jsonl"
+    if not path.exists():
+        return []
+    found = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if entry.get("edge"):
+            found.append({"version": entry.get("version"), "time": entry.get("time"), "label": entry.get("label", ""),
+                          "edge": entry["edge"]})
+    return found[-keep:]
 
 
 def lan_addresses() -> list[str]:

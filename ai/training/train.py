@@ -20,6 +20,7 @@ import ctypes
 import json
 import os
 import signal
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -215,10 +216,33 @@ class Trainer:
         if self.seconds - self.milestone_seconds >= float(self.cfg["milestone_hours"]) * 3600.0:
             self.milestone_seconds = self.seconds
             milestones = self.folders["checkpoints"] / "milestones"
-            S.save_checkpoint(milestones, self.state(), self.version, 0)
+            kept = S.save_checkpoint(milestones, self.state(), self.version, 0)
             policy = self.folders["policy"] / f"policy_{self.version:07d}.bin"
             S.atomic_write_bytes(milestones / policy.name, policy.read_bytes())
             self.log(f"Kept milestone {self.version} for later opponents and comparisons.")
+            if bool(self.cfg.get("benchmark_milestones", False)):
+                self.benchmark(kept)
+
+    def benchmark(self, checkpoint: Path) -> None:
+        """Starts benchmark.py on a milestone in the background, at low priority, unless one is still running. It
+        plays the scripted brain and this one on the fixed fights and records the result in the benchmark folder's
+        history.jsonl, so a slide shows within one milestone. Training does not wait for it."""
+        import benchmark as B
+        folder = self.run_dir.parent / "benchmark"
+        if B.benchmark_running(folder):
+            self.log(f"A benchmark is still running; milestone {self.version} is not benchmarked.")
+            return
+        log = (self.folders["logs"] / f"benchmark_{self.version:07d}.log").open("w", encoding="utf-8")
+        command = [sys.executable, str(Path(__file__).resolve().parent / "benchmark.py"), "--run-dir", str(self.run_dir),
+                   "--checkpoint", str(checkpoint), "--no-anchors", "--label", f"milestone v{self.version}"]
+        flags = (getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0)) if os.name == "nt" else 0
+        try:
+            subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT, cwd=str(Path(__file__).resolve().parent), creationflags=flags)
+            self.log(f"Benchmarking milestone {self.version} in the background (logs/{Path(log.name).name}).")
+        except OSError as error:
+            self.log(f"Could not start the milestone benchmark: {error}")
+        finally:
+            log.close()
 
     def _set_learning_rate(self, value: float) -> None:
         cap = float(self.cfg.get("max_learning_rate", DEFAULT_LR_CAP))
