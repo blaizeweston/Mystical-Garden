@@ -271,8 +271,38 @@ func test_rules() -> void:
 	var committed: int = sim.pool.hold_until[slot] - sim.pool.behaviour_since[slot]
 	check(sim.pool.behaviour[slot] == contract.id("flee") and committed == Clock.from_ms(contract.commitments_ms[brain.commit]),
 		"a positioning behaviour holds for its chosen commitment (%d ticks)" % committed)
+	# Carrying on with a set commitment holds again for that length, without counting as a new intent.
+	var first_end: int = sim.pool.hold_until[slot]
+	var since_before: int = sim.pool.behaviour_since[slot]
+	while sim.clock.tick < first_end + 30:
+		sim.tick()
+	var again: int = sim.pool.hold_until[slot] - sim.pool.hold_start[slot]
+	check(sim.pool.behaviour[slot] == contract.id("flee") and sim.pool.hold_start[slot] >= first_end
+		and again == Clock.from_ms(contract.commitments_ms[brain.commit]) and sim.pool.behaviour_since[slot] == since_before,
+		"carrying on with a set commitment holds again for that length (%d ticks) without a new intent" % again)
+	# The usual hold (option 0) keeps the old rule: carrying on does not hold again.
+	brain.commit = 0
 	while sim.clock.tick < sim.pool.hold_until[slot]:
 		sim.tick()
+	var free_from: int = sim.pool.hold_until[slot]
+	run_ticks(sim, 30)
+	check(sim.pool.hold_until[slot] == free_from, "carrying on with the usual hold does not hold again")
+	# A target the behaviour does not use never makes a new intent: roam ignores the enemy target.
+	brain.behaviour = contract.id("roam")
+	run_ticks(sim, 12)
+	while sim.clock.tick < sim.pool.hold_until[slot]:
+		sim.tick()
+	var roam_since: int = sim.pool.behaviour_since[slot]
+	var roam_until: int = sim.pool.hold_until[slot]
+	var refused: int = sim.rules.rejected
+	for flip in 6:
+		brain.enemy = 1 - brain.enemy
+		run_ticks(sim, 8)
+	check(sim.pool.behaviour[slot] == contract.id("roam") and sim.pool.behaviour_since[slot] == roam_since
+		and sim.pool.hold_until[slot] == roam_until and sim.rules.rejected == refused,
+		"changing a target the behaviour does not use never restarts its hold")
+	brain.enemy = 1
+	brain.commit = contract.commitments_ms.size() - 1
 	brain.behaviour = contract.id("melee_attack")
 	run_ticks(sim, 30)
 	committed = sim.pool.hold_until[slot] - sim.pool.behaviour_since[slot]

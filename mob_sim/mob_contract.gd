@@ -29,6 +29,9 @@ var hold_ms := PackedInt32Array()
 ## hold_ms, the rest are fixed lengths in milliseconds. Behaviours without commit always use their hold_ms.
 var commitments_ms := PackedInt32Array()
 var commit := PackedByteArray()
+## Behaviours whose executor reads the manoeuvre (it shapes the ring they close in on). For the rest the manoeuvre
+## head, like any head a behaviour does not use, is fixed to its first legal option (see uses_head).
+var manoeuvre_used := PackedByteArray()
 var available := PackedByteArray()
 var target_kind := PackedByteArray()
 var attack_slot := PackedInt32Array()
@@ -88,6 +91,22 @@ func _add_behaviour(entry: Dictionary) -> void:
 	delivery.append(int(DELIVERY_NAMES[str(entry.get("delivery", "any"))]))
 	leader_only.append(int(entry.get("leader_only", false)))
 	commit.append(int(entry.get("commit", false)))
+	manoeuvre_used.append(int(entry.get("manoeuvre", false)))
+
+
+## Whether a behaviour's choice on this head changes anything. A head it does not use is sampled as a single fixed
+## option, so it adds no noise to training and cannot restart a hold (mob_rules.gd _commit_slot).
+func uses_head(behaviour: int, head: int) -> bool:
+	match head:
+		Head.ENEMY_TARGET:
+			return target_kind[behaviour] == TargetKind.ENEMY or target_kind[behaviour] == TargetKind.ABILITY
+		Head.ALLY_TARGET:
+			return target_kind[behaviour] == TargetKind.ALLY
+		Head.MANOEUVRE:
+			return manoeuvre_used[behaviour] != 0
+		Head.COMMIT:
+			return commit[behaviour] != 0
+	return true
 
 
 func id(label: String) -> int:

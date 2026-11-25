@@ -66,13 +66,24 @@ func _choose(batch: Batch, index: int, slot: int, logits: PackedFloat32Array, ro
 	var behaviour := _sample(batch, index, logits, row, Contract.Head.BEHAVIOUR, temperature, false)
 	var kind := contract.target_kind[behaviour]
 	var needs_enemy := kind == Contract.TargetKind.ENEMY or kind == Contract.TargetKind.ABILITY
-	var enemy := _sample(batch, index, logits, row, Contract.Head.ENEMY_TARGET, temperature, needs_enemy)
-	var ally := _sample(batch, index, logits, row, Contract.Head.ALLY_TARGET, temperature, kind == Contract.TargetKind.ALLY)
-	var manoeuvre := _sample(batch, index, logits, row, Contract.Head.MANOEUVRE, 1.0, false)
+	# A head the behaviour does not use takes its first legal option, as in training (ai/training_brain.gd).
+	var enemy := _pick(batch, index, logits, row, behaviour, Contract.Head.ENEMY_TARGET, temperature, needs_enemy)
+	var ally := _pick(batch, index, logits, row, behaviour, Contract.Head.ALLY_TARGET, temperature, kind == Contract.TargetKind.ALLY)
+	var manoeuvre := _pick(batch, index, logits, row, behaviour, Contract.Head.MANOEUVRE, 1.0, false)
 	var message_a := _sample(batch, index, logits, row, Contract.Head.MESSAGE_A, 1.0, false)
 	var message_b := _sample(batch, index, logits, row, Contract.Head.MESSAGE_B, 1.0, false)
-	var commit := _sample(batch, index, logits, row, Contract.Head.COMMIT, temperature, false) if contract.commit[behaviour] != 0 else 0
+	var commit := _pick(batch, index, logits, row, behaviour, Contract.Head.COMMIT, temperature, false)
 	batch.write_intent(index, behaviour, enemy, ally, manoeuvre, message_a, message_b, commit)
+
+
+## Samples a head the behaviour uses; a head it does not use takes its first legal option.
+func _pick(batch: Batch, index: int, logits: PackedFloat32Array, row: int, behaviour: int, head: int, temperature: float, skip_none: bool) -> int:
+	if batch.contract.uses_head(behaviour, head):
+		return _sample(batch, index, logits, row, head, temperature, skip_none)
+	for option in schema.contract.head_sizes[head]:
+		if batch.allowed(index, head, option):
+			return option
+	return 0
 
 
 ## Samples one head from its legal options. A behaviour that needs a target cannot choose "none".

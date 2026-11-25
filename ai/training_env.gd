@@ -97,6 +97,8 @@ func run_episode() -> Dictionary:
 	rewards.squad_mix = squad_mix
 	recorder.rewards = rewards
 	brain.episode_start = sim.clock.tick
+	brain.probe_symbol = int(settings.get("probe_symbol", -1))
+	brain.probe_reward = float(settings.get("probe_reward", 0.0))
 	var spawned := _spawn_mobs(start, explore)
 	var report := {"episode": episodes, "policy": policy_version, "mode": "explore" if explore else "engaged", "floor": floor_number,
 		"night": night, "party": classes.size(), "difficulty": snappedf(difficulty, 0.01), "mobs": spawned.count,

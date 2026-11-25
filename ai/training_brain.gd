@@ -14,6 +14,11 @@ var _global_builder: Builder
 var _episode_time := -1
 var _head_sizes := PackedInt32Array()
 var _mask_size := 0
+## The learnability probe (ai/training/learnability_probe.py): a decision that sends probe_symbol on message
+## channel A earns probe_reward, kept whole. Messages change nothing in the fight by themselves, so how fast
+## training learns to send it measures the learning pipeline alone. Off (-1) in normal training.
+var probe_symbol := -1
+var probe_reward := 0.0
 
 
 func _init(model_schema: Schema, weights: PackedByteArray, nav_world: RefCounted, event_log: Events, capacity: int, seed_value: int) -> void:
@@ -51,34 +56,53 @@ func decide(batch: Batch) -> void:
 		if recorder != null:
 			recorder.record(batch.slots[index], obs.slice(index * size, (index + 1) * size), global_row,
 				hidden.slice(index * memory, (index + 1) * memory), masks, actions, log_prob)
+			if probe_symbol >= 0 and actions[Contract.Head.MESSAGE_A] == probe_symbol and recorder.rewards != null:
+				recorder.rewards._keep(batch.slots[index], probe_reward, "probe")
 	decisions += batch.slots.size()
 
 
 ## Samples each head from its legal options at temperature 1, writing the options it allowed into masks and
-## the choices into actions. A behaviour that needs a target cannot choose "none". Returns the summed
+## the choices into actions. A behaviour that needs a target cannot choose "none". A head the chosen behaviour
+## does not use (Contract.uses_head) is fixed to one option, so it adds nothing to training. Returns the summed
 ## log-probability of the choices.
 func _choose_recorded(batch: Batch, index: int, logits: PackedFloat32Array, row: int, masks: PackedByteArray, actions: PackedByteArray) -> float:
 	var contract := batch.contract
-	var total := 0.0
 	var behaviour := _sample_head(batch, index, logits, row, Contract.Head.BEHAVIOUR, false, masks, actions)
-	total += behaviour.y
-	var kind := contract.target_kind[int(behaviour.x)]
+	var chosen := int(behaviour.x)
+	var kind := contract.target_kind[chosen]
 	var needs_enemy := kind == Contract.TargetKind.ENEMY or kind == Contract.TargetKind.ABILITY
-	var enemy := _sample_head(batch, index, logits, row, Contract.Head.ENEMY_TARGET, needs_enemy, masks, actions)
-	var ally := _sample_head(batch, index, logits, row, Contract.Head.ALLY_TARGET, kind == Contract.TargetKind.ALLY, masks, actions)
-	var manoeuvre := _sample_head(batch, index, logits, row, Contract.Head.MANOEUVRE, false, masks, actions)
-	var message_a := _sample_head(batch, index, logits, row, Contract.Head.MESSAGE_A, false, masks, actions)
-	var message_b := _sample_head(batch, index, logits, row, Contract.Head.MESSAGE_B, false, masks, actions)
-	var commit := Vector2(0, 0.0)
-	if contract.commit[int(behaviour.x)] != 0:
-		commit = _sample_head(batch, index, logits, row, Contract.Head.COMMIT, false, masks, actions)
-	else:
-		# A behaviour without commit keeps its own hold: the head has one option and nothing to learn.
-		masks[schema.contract.head_offsets[Contract.Head.COMMIT]] = 1
-		actions[Contract.Head.COMMIT] = 0
-	total += enemy.y + ally.y + manoeuvre.y + message_a.y + message_b.y + commit.y
-	batch.write_intent(index, int(behaviour.x), int(enemy.x), int(ally.x), int(manoeuvre.x), int(message_a.x), int(message_b.x), int(commit.x))
+	var picks := PackedInt32Array([chosen, 0, 0, 0, 0, 0, 0])
+	var total := behaviour.y
+	for head in range(Contract.Head.ENEMY_TARGET, Contract.HEAD_COUNT):
+		var choice := Vector2(_fixed_head(batch, index, head, masks, actions), 0.0)
+		if contract.uses_head(chosen, head):
+			var skip_none := (head == Contract.Head.ENEMY_TARGET and needs_enemy) or (head == Contract.Head.ALLY_TARGET and kind == Contract.TargetKind.ALLY)
+			_clear_head(head, masks)
+			choice = _sample_head(batch, index, logits, row, head, skip_none, masks, actions)
+		picks[head] = int(choice.x)
+		total += choice.y
+	batch.write_intent(index, picks[0], picks[1], picks[2], picks[3], picks[4], picks[5], picks[6])
 	return total
+
+
+## Fixes a head the behaviour does not use to its first legal option (option 0 unless the mob is locked) and
+## records only that option. Returns it.
+func _fixed_head(batch: Batch, index: int, head: int, masks: PackedByteArray, actions: PackedByteArray) -> int:
+	var option := 0
+	for candidate in _head_sizes[head]:
+		if batch.allowed(index, head, candidate):
+			option = candidate
+			break
+	_clear_head(head, masks)
+	masks[schema.contract.head_offsets[head] + option] = 1
+	actions[head] = option
+	return option
+
+
+func _clear_head(head: int, masks: PackedByteArray) -> void:
+	var offset := schema.contract.head_offsets[head]
+	for option in _head_sizes[head]:
+		masks[offset + option] = 0
 
 
 ## Returns (choice, log-probability). With no legal option the head chooses 0 with certainty.
@@ -97,17 +121,24 @@ func _sample_head(batch: Batch, index: int, logits: PackedFloat32Array, row: int
 		masks[mask_offset] = 1
 		actions[head] = 0
 		return Vector2(0, 0.0)
+	var temperature := _temperature_for(batch, index, head)
 	var total := 0.0
 	for option in range(first, size):
 		if masks[mask_offset + option] != 0:
-			total += exp(logits[offset + option] - best)
+			total += exp((logits[offset + option] - best) / temperature)
 	var roll := rng.randf() * total
 	var chosen := first
 	for option in range(first, size):
 		if masks[mask_offset + option] != 0:
 			chosen = option
-			roll -= exp(logits[offset + option] - best)
+			roll -= exp((logits[offset + option] - best) / temperature)
 			if roll <= 0.0:
 				break
 	actions[head] = chosen
-	return Vector2(chosen, logits[offset + chosen] - best - log(total))
+	return Vector2(chosen, (logits[offset + chosen] - best) / temperature - log(total))
+
+
+## The temperature a head is sampled at: 1 in training, so the trainer's probabilities match exactly.
+## ai/game_temperature_brain.gd samples as the game does instead, for evaluation.
+func _temperature_for(_batch: Batch, _index: int, _head: int) -> float:
+	return 1.0

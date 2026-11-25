@@ -42,6 +42,7 @@ const FIELD_KEYS := [
 		"winding_up", "dodging", "light_level"]],
 	["context_party", ["class_count"]],
 	["enemy", ["speed_change", "guarded", "bark_armour"]],
+	["self_dynamic", ["hold_remaining"]],
 ]
 
 var schema: Schema
@@ -151,4 +152,4 @@ func build(batch: Batch, events: Events) -> PackedFloat32Array:
 		history.taken, history.dealt, history.taken_from, history.dealt_to, history.engaged_at,
 		pool.mana, pool.channel_until, pool.dodge_until, pool.dodge_ready_at, pool.dot_until, pool.armour,
 		batch.fields.x, batch.fields.z, batch.fields.radius, batch.fields.activate, batch.fields.until, batch.fields.owner, batch.fields.flags,
-		party.stats, party.timers])
+		party.stats, party.timers, pool.hold_until, pool.hold_start, party.x, party.z])

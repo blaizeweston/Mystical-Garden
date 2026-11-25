@@ -64,6 +64,7 @@
 			{"name": "auto_cooldown_remaining", "scale": "seconds"},
 			{"name": "time_since_behaviour_change", "scale": "seconds"},
 			{"name": "behaviour_progress", "scale": "unit"},
+			{"name": "hold_remaining", "scale": "seconds"},
 			{"name": "time_in_combat", "scale": "long_seconds"},
 			{"name": "time_since_sight_lost", "scale": "seconds"},
 			{"name": "light_level", "scale": "unit"},

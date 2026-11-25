@@ -79,12 +79,12 @@ func check(condition: bool, label: String) -> void:
 
 func test_schema(schema: Schema) -> void:
 	check(schema.errors.is_empty(), "the schema loads without errors " + str(schema.errors))
-	check(schema.observation_size == 632, "the observation has 632 values")
+	check(schema.observation_size == 633, "the observation has 633 values")
 	check(schema.global_size == 52, "the critic state has 52 values")
 	var encoder_sizes := {}
 	for block in schema.ordered_blocks:
 		encoder_sizes[block.encoder] = int(encoder_sizes.get(block.encoder, 0)) + block.stride * block.repeat
-	check(encoder_sizes == {"self": 157, "enemy": 136, "ally": 288, "leader": 51}, "each encoder receives the agreed size")
+	check(encoder_sizes == {"self": 158, "enemy": 136, "ally": 288, "leader": 51}, "each encoder receives the agreed size")
 	var builder := Builder.new(schema)
 	check(builder.errors.is_empty(), "every live field has a source and no masked field does " + str(builder.errors))
 	var file := FileAccess.open(LAYOUT, FileAccess.WRITE)
@@ -344,6 +344,43 @@ func test_observation_values(schema: Schema) -> void:
 	sim.damage_mob(mate, 50.0)
 	obs = observe(sim, runtime, mob)
 	check(field_value(schema, obs, "ally", 0, "present") == 0.0, "a dead ally leaves its slot empty")
+	# The hold inputs read the current hold, whatever its length.
+	var now: int = sim.clock.tick
+	sim.pool.hold_start[mob] = now - 30
+	sim.pool.hold_until[mob] = now + 90
+	obs = observe(sim, runtime, mob)
+	check(near.call(field_value(schema, obs, "self_dynamic", 0, "hold_remaining"), 1.5 / 10.0)
+		and near.call(field_value(schema, obs, "self_dynamic", 0, "behaviour_progress"), 0.25), "hold time left and progress follow the current hold")
+
+
+## Mobs know both whether they see each player and whether that player sees them (MobPerception.player_sees).
+func test_sight_both_ways(schema: Schema) -> void:
+	var field = Battlefield.new()
+	field.configure(0, 1)
+	preload("res://tests/support/terrain_case.gd").walls(field, [])
+	var sim := Sim.new(2)
+	sim.configure(field)
+	var runtime := Runtime.new(schema, sim.locomotion.world)
+	var hidden := add_mob(sim, "rootbound", Vector2(10, 0))
+	var lit := add_mob(sim, "rootbound", Vector2(3, 0))
+	sim.set_darkness(true, 0.08)
+	sim.party.set_player(0, Vector2.ZERO, Vector2.ZERO, 100.0, 100.0)
+	sim.perception.lights = PackedFloat32Array([0.0, 0.0, 5.5, 1.0])
+	sim.perception.update(sim.clock.tick)
+	var builder := Builder.new(schema)
+	for slot in [hidden, lit]:
+		var row: int = slot * schema.contract.players
+		sim.perception.seen_tick[row] = sim.clock.tick
+		sim.perception.visible[row] = 1
+	var read := func(slot: int, label: String) -> Array:
+		var native := observe(sim, runtime, slot)
+		var script := builder.build(sim._awake_batch, sim.events)
+		return [field_value(schema, native, "enemy", 0, label), field_value(schema, script, "enemy", 0, label)]
+	check(read.call(hidden, "visible") == [1.0, 1.0] and read.call(hidden, "has_sight_of_me") == [0.0, 0.0],
+		"a mob in the dark sees a lit player who cannot see it")
+	check(read.call(lit, "has_sight_of_me") == [1.0, 1.0], "a mob inside the player's light knows it is seen")
+	sim.set_darkness(false)
+	check(read.call(hidden, "has_sight_of_me") == [1.0, 1.0], "in daylight the player sees the mob too")
 
 
 func run() -> void:
@@ -359,6 +396,7 @@ func run() -> void:
 	test_parity(schema, policy)
 	test_refuses_wrong_model(schema)
 	test_observation_values(schema)
+	test_sight_both_ways(schema)
 	test_native_observations(schema)
 	test_native_observations(schema, true)
 	test_repeatable(schema)

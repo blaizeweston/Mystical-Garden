@@ -91,8 +91,8 @@ func _bind_all() -> void:
 		"hearing_range", "smell_range", "darkvision_range", "evasion", "can_dodge", "uses_mana", "glow_radius"])
 	_bind(_ability, ["exists", "damage", "range", "cooldown_total", "cooldown_remaining", "effect_sign", "area_radius", "windup_time"])
 	_bind(_dyn, ["hp_fraction", "hp_change_1s", "hp_change_3s", "damage_dealt_1s", "damage_dealt_3s", "auto_cooldown_remaining",
-		"time_since_behaviour_change", "behaviour_progress", "time_in_combat", "time_since_sight_lost", "is_leader", "intelligence",
-		"resource_fraction", "dodge_cooldown", "channeling", "dodging", "light_level", "is_airborne"])
+		"time_since_behaviour_change", "behaviour_progress", "hold_remaining", "time_in_combat", "time_since_sight_lost", "is_leader",
+		"intelligence", "resource_fraction", "dodge_cooldown", "channeling", "dodging", "light_level", "is_airborne"])
 	_bind(_status, ["stunned", "slowed", "rooted", "buffed", "damage_over_time"])
 	_bind(_intent, ["behaviour", "target"])
 	_bind(_archetype, ["archetype"])
@@ -355,8 +355,11 @@ func _write_dynamic(batch: Batch, base: int, slot: int, kind: int, tick: int) ->
 		_put(at + _at("self_dynamic.auto_cooldown_remaining"), Clock.to_seconds(maxi(0, pool.ready_at[slot] - tick)))
 	var since := tick - pool.behaviour_since[slot]
 	_put(at + _at("self_dynamic.time_since_behaviour_change"), Clock.to_seconds(since))
-	var hold := maxi(1, Clock.from_ms(batch.contract.hold_ms[pool.behaviour[slot]]))
-	_put(at + _at("self_dynamic.behaviour_progress"), minf(1.0, float(since) / hold))
+	# Progress through the current hold, whatever length it is (a set commitment or the behaviour's own); 1 once
+	# it is over or when there has been none.
+	var hold: int = pool.hold_until[slot] - pool.hold_start[slot]
+	_put(at + _at("self_dynamic.behaviour_progress"), minf(1.0, float(tick - pool.hold_start[slot]) / hold) if hold > 0 else 1.0)
+	_put(at + _at("self_dynamic.hold_remaining"), Clock.to_seconds(maxi(0, pool.hold_until[slot] - tick)))
 	if history.engaged_at[slot] >= 0:
 		_put(at + _at("self_dynamic.time_in_combat"), Clock.to_seconds(tick - history.engaged_at[slot]))
 	var last_seen: int = history.last_visible[slot]
@@ -426,7 +429,9 @@ func _write_enemies(batch: Batch, base: int, slot: int, targeting: PackedInt32Ar
 		_put(at + _at("enemy.downed"), float(party.alive[player] == 0))
 		var toward_me := Vector2(-dx, -dz).normalized().dot(Vector2(seen_vx[row], seen_vz[row]).normalized())
 		_put(at + _at("enemy.facing_me"), float(sees and toward_me >= FACING_DOT))
-		_put(at + _at("enemy.has_sight_of_me"), float(sees))
+		# Whether this player can see the mob now, by the rule the party itself uses (MobPerception.player_sees).
+		var seen_by := party.alive[player] != 0 and senses.player_sees(Vector2(party.x[player], party.z[player]), Vector2(x, z))
+		_put(at + _at("enemy.has_sight_of_me"), float(seen_by))
 		_put(at + _at("enemy.damage_they_dealt_me"), history.window_sum(history.taken_from, row, History.BUCKETS))
 		_put(at + _at("enemy.damage_i_dealt_them"), history.window_sum(history.dealt_to, row, History.BUCKETS))
 		_put(at + _at("enemy.allies_targeting"), targeting[player + 1] - int(pool.enemy_target[slot] == player + 1))

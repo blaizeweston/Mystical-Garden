@@ -262,6 +262,8 @@ float ms_darkness_at(const MobSense *s, float x, float z) {
     return s->darkness[cell];
 }
 
+int ms_senses_on(const MobSense *s) { return s != NULL && s->dim[SD_SENSES] != 0; }
+
 float ms_light_at(const MobSense *s, float x, float z) {
     if (!s->light_ready) return 1.0f;
     int cell = grid_cell(s, x, z);

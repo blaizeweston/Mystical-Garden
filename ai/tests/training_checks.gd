@@ -191,6 +191,20 @@ func test_episodes() -> void:
 			long_holds += int(choice > 0)
 	check(fixed_ok and free_rows > 0 and long_holds > 0,
 		"only positioning behaviours choose a commitment (%d free choices, %d chose a set length)" % [free_rows, long_holds])
+	# Every head the chosen behaviour does not use is recorded with one legal option, so it adds nothing to training.
+	var unused_ok := true
+	var unused := 0
+	for row in recorder.rows:
+		var behaviour: int = recorder._actions[row * heads + Contract.Head.BEHAVIOUR]
+		for head in [Contract.Head.ENEMY_TARGET, Contract.Head.ALLY_TARGET, Contract.Head.MANOEUVRE]:
+			if contract.uses_head(behaviour, head):
+				continue
+			var open := 0
+			for option in contract.head_sizes[head]:
+				open += int(recorder._masks[row * recorder.mask_size + contract.head_offsets[head] + option] != 0)
+			unused_ok = unused_ok and open == 1
+			unused += 1
+	check(unused_ok and unused > 0, "targets and manoeuvres the behaviour does not use have one recorded option (%d)" % unused)
 	var terminal := 0
 	for row in recorder.rows:
 		terminal += int(ends[row] == Recorder.End.TERMINAL)

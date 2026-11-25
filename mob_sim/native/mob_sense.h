@@ -57,6 +57,8 @@ MsResult ms_update(MobSense *sense, MobNav *nav, const void *const *items, const
 MsResult ms_allies(MobSense *sense, MobNav *nav, const void *const *items, const int64_t *lengths, uint8_t *out);
 /* Light level from 0 to 1 at a point, from the most recent update. Senses must be on. */
 float ms_light_at(const MobSense *sense, float x, float z);
+/* Whether darkness senses are on (configured with SD_SENSES): players then see unlit mobs only when close. */
+int ms_senses_on(const MobSense *sense);
 /* Distance from a point to the nearest lit cell, zero inside light. */
 float ms_darkness_at(const MobSense *sense, float x, float z);
 float ms_scent_at(const MobSense *sense, int player, float x, float z);

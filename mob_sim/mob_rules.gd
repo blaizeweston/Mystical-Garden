@@ -236,10 +236,19 @@ func _commit_slot(batch: Batch, index: int, slot: int, tick: int) -> void:
 	if pool.windup_until[slot] > 0 or tick < pool.hold_until[slot]:
 		return
 	var previous := pool.behaviour[slot]
-	if behaviour != previous or enemy != pool.enemy_target[slot] or ally != pool.ally_target[slot]:
-		pool.hold_until[slot] = tick + _hold(batch, index, behaviour, batch.intents[at + Contract.Head.COMMIT])
+	var option := batch.intents[at + Contract.Head.COMMIT]
+	# Only a target the behaviour uses makes a new intent; the others are fixed and never restart a hold.
+	var new_enemy := contract.uses_head(behaviour, Contract.Head.ENEMY_TARGET) and enemy != pool.enemy_target[slot]
+	var new_ally := contract.uses_head(behaviour, Contract.Head.ALLY_TARGET) and ally != pool.ally_target[slot]
+	var retargeted := new_enemy or new_ally
+	if behaviour != previous or retargeted:
+		_start_hold(slot, tick, _hold(batch, index, behaviour, option))
 		pool.behaviour_since[slot] = tick
 		events.push(Events.Kind.INTENT, tick, slot, pool.generation[slot], behaviour, enemy)
+	elif _chosen_length(batch, index, behaviour, option):
+		# Carrying on with a set commitment holds again for that length; the usual hold (option 0) keeps the
+		# old rule, where only a change of intent holds.
+		_start_hold(slot, tick, commit_ticks[option])
 	pool.behaviour[slot] = behaviour
 	pool.enemy_target[slot] = enemy
 	pool.ally_target[slot] = ally
@@ -250,9 +259,17 @@ func _commit_slot(batch: Batch, index: int, slot: int, tick: int) -> void:
 
 ## The hold a behaviour change starts: the chosen commitment for a behaviour with commit, else its own hold.
 func _hold(batch: Batch, index: int, behaviour: int, option: int) -> int:
-	if contract.commit[behaviour] == 0 or option <= 0 or option >= commit_ticks.size() or not batch.allowed(index, Contract.Head.COMMIT, option):
-		return hold_ticks[behaviour]
-	return commit_ticks[option]
+	return commit_ticks[option] if _chosen_length(batch, index, behaviour, option) else hold_ticks[behaviour]
+
+
+## Whether the commit choice is a legal set length for a behaviour with commit (not the usual hold).
+func _chosen_length(batch: Batch, index: int, behaviour: int, option: int) -> bool:
+	return contract.commit[behaviour] != 0 and option > 0 and option < commit_ticks.size() and batch.allowed(index, Contract.Head.COMMIT, option)
+
+
+func _start_hold(slot: int, tick: int, ticks: int) -> void:
+	pool.hold_start[slot] = tick
+	pool.hold_until[slot] = tick + ticks
 
 
 func _message(batch: Batch, index: int, head: int, symbol: int) -> int:

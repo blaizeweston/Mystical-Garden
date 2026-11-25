@@ -8,6 +8,11 @@
 #define COVER_ANGLES 8
 #define COVER_RADII 2
 #define MAX_COVER_POINTS (COVER_ANGLES * COVER_RADII)
+/* How players see mobs, as MobPerception.player_sees: PLAYER_VIEW, PLAYER_DARK_SIGHT and LIT_THRESHOLD match
+   mob_perception.gd (and mob_exec.c, mob_sense.c). */
+#define PLAYER_VIEW 18.0f
+#define PLAYER_DARK_SIGHT 2.5f
+#define LIT_THRESHOLD 0.25f
 
 static const float cover_radius[COVER_RADII] = {3.0f, 6.0f};
 
@@ -34,6 +39,7 @@ static const MoKind input_kinds[MI_COUNT] = {
     [MI_DOT_UNTIL] = MO_INTS, [MI_ARMOUR] = MO_BYTES, [MI_FIELD_X] = MO_FLOATS, [MI_FIELD_Z] = MO_FLOATS,
     [MI_FIELD_RADIUS] = MO_FLOATS, [MI_FIELD_ACTIVATE] = MO_INTS, [MI_FIELD_UNTIL] = MO_INTS, [MI_FIELD_OWNER] = MO_BYTES,
     [MI_FIELD_FLAGS] = MO_BYTES, [MI_PARTY_STATS] = MO_FLOATS, [MI_PARTY_TIMERS] = MO_INTS,
+    [MI_HOLD_UNTIL] = MO_INTS, [MI_HOLD_START] = MO_INTS, [MI_PARTY_X] = MO_FLOATS, [MI_PARTY_Z] = MO_FLOATS,
 };
 
 MoKind mo_config_kind(int index) { return config_kinds[index]; }
@@ -73,6 +79,8 @@ typedef struct {
     const float *party_hp, *party_max_hp, *party_vx, *party_vz, *taken, *dealt, *taken_from, *dealt_to;
     const float *mana, *field_x, *field_z, *field_radius, *party_stats;
     const int *channel_until, *dodge_until, *dodge_ready, *dot_until, *field_activate, *field_until, *party_timers;
+    const int *hold_until, *hold_start;
+    const float *party_x, *party_z;
     const uint8_t *armour, *field_owner, *field_flags;
     int field_count;
     int targeting[8];
@@ -266,6 +274,18 @@ static void write_abilities(Ctx *c, int slot, int kind) {
     }
 }
 
+/* Whether a standing player can see the mob at (x, z) now: in view, with a clear line, and in the dark only when
+   close or when the mob stands in light. As MobPerception.player_sees. */
+static int player_sees_mob(const Ctx *c, int player, float x, float z) {
+    if (c->party_alive[player] == 0) return 0;
+    float px = c->party_x[player], pz = c->party_z[player];
+    float dx = x - px, dz = z - pz;
+    float distance = sqrtf(dx * dx + dz * dz);
+    if (distance > PLAYER_VIEW || mn_sight_clear(c->nav, px, pz, x, z, 0.0f) == 0) return 0;
+    if (!ms_senses_on(c->sense)) return 1;
+    return distance <= PLAYER_DARK_SIGHT || ms_light_at(c->sense, x, z) >= LIT_THRESHOLD;
+}
+
 static void write_enemies(Ctx *c, int slot) {
     MobObs *o = c->o;
     const int *f = o->field;
@@ -302,7 +322,7 @@ static void write_enemies(Ctx *c, int slot) {
         if (la != 0.0f) { la = sqrtf(la); ax /= la; az /= la; }
         if (lb != 0.0f) { lb = sqrtf(lb); bx /= lb; bz /= lb; }
         put(c, f[MF_E_FACING] + shift, sees && (double)(ax * bx + az * bz) >= (double)o->real[MR_FACING_DOT]);
-        put(c, f[MF_E_SIGHT] + shift, sees);
+        put(c, f[MF_E_SIGHT] + shift, player_sees_mob(c, player, (float)x, (float)z));
         put(c, f[MF_E_DEALT_ME] + shift, window_sum(c, c->taken_from, row, buckets));
         put(c, f[MF_E_I_DEALT] + shift, window_sum(c, c->dealt_to, row, buckets));
         put(c, f[MF_E_TARGETING] + shift, c->targeting[player + 1] - (c->enemy_target[slot] == player + 1));
@@ -323,10 +343,11 @@ static void write_dynamic(Ctx *c, int slot, int kind) {
     if (has_attack(o, kind, 0, c->mutations[slot])) put(c, f[MF_AUTO_REMAINING], seconds(c, non_negative(c->ready_at[slot] - c->tick)));
     int since = c->tick - c->behaviour_since[slot];
     put(c, f[MF_SINCE_BEHAVIOUR], seconds(c, since));
-    int hold = o->hold_ticks[c->behaviour[slot]];
-    if (hold < 1) hold = 1;
-    double progress = (double)since / (double)hold;
+    /* Progress through the current hold, whatever length it is; 1 once it is over or when there has been none. */
+    int hold = c->hold_until[slot] - c->hold_start[slot];
+    double progress = hold > 0 ? (double)(c->tick - c->hold_start[slot]) / (double)hold : 1.0;
     put(c, f[MF_BEHAVIOUR_PROGRESS], progress < 1.0 ? progress : 1.0);
+    put(c, f[MF_HOLD_REMAINING], seconds(c, non_negative(c->hold_until[slot] - c->tick)));
     if (c->engaged_at[slot] >= 0) put(c, f[MF_TIME_IN_COMBAT], seconds(c, c->tick - c->engaged_at[slot]));
     int last = o->last_visible[slot];
     put(c, f[MF_SINCE_SIGHT], last >= 0 ? seconds(c, c->tick - last) : (double)o->real[MR_NEVER_SEEN]);
@@ -600,12 +621,13 @@ MoResult mo_build(MobObs *o, const MobNav *nav, const MobSense *sense, const voi
         MI_ALIVE, MI_GENERATION, MI_SPECIES, MI_FLAGS, MI_MUTATIONS, MI_LEADER, MI_LEADER_GENERATION, MI_HP, MI_MAX_HP, MI_SPEED, MI_DAMAGE,
         MI_REACH_BONUS, MI_INTELLIGENCE, MI_BEHAVIOUR, MI_ENEMY_TARGET, MI_ALLY_TARGET, MI_MESSAGE_A, MI_MESSAGE_B, MI_BEHAVIOUR_SINCE,
         MI_READY_AT, MI_STUN_UNTIL, MI_ROOT_UNTIL, MI_SLOW_UNTIL, MI_HASTE_UNTIL, MI_ENGAGED_AT,
-        MI_MANA, MI_CHANNEL_UNTIL, MI_DODGE_UNTIL, MI_DODGE_READY, MI_DOT_UNTIL, MI_ARMOUR,
+        MI_MANA, MI_CHANNEL_UNTIL, MI_DODGE_UNTIL, MI_DODGE_READY, MI_DOT_UNTIL, MI_ARMOUR, MI_HOLD_UNTIL, MI_HOLD_START,
     };
     for (size_t i = 0; i < sizeof(per_slot) / sizeof(per_slot[0]); i++) {
         if (lengths[per_slot[i]] != cells) return MO_ERR_ARGUMENT;
     }
-    static const int per_player[] = {MI_PARTY_PRESENT, MI_PARTY_ALIVE, MI_PARTY_HP, MI_PARTY_MAX_HP, MI_PARTY_VX, MI_PARTY_VZ};
+    static const int per_player[] = {MI_PARTY_PRESENT, MI_PARTY_ALIVE, MI_PARTY_HP, MI_PARTY_MAX_HP, MI_PARTY_VX, MI_PARTY_VZ,
+                                     MI_PARTY_X, MI_PARTY_Z};
     for (size_t i = 0; i < sizeof(per_player) / sizeof(per_player[0]); i++) {
         if (lengths[per_player[i]] != players) return MO_ERR_ARGUMENT;
     }
@@ -644,6 +666,7 @@ MoResult mo_build(MobObs *o, const MobNav *nav, const MobSense *sense, const voi
              .armour = items[MI_ARMOUR], .field_x = items[MI_FIELD_X], .field_z = items[MI_FIELD_Z], .field_radius = items[MI_FIELD_RADIUS],
              .field_activate = items[MI_FIELD_ACTIVATE], .field_until = items[MI_FIELD_UNTIL], .field_owner = items[MI_FIELD_OWNER],
              .field_flags = items[MI_FIELD_FLAGS], .party_stats = items[MI_PARTY_STATS], .party_timers = items[MI_PARTY_TIMERS],
+             .hold_until = items[MI_HOLD_UNTIL], .hold_start = items[MI_HOLD_START], .party_x = items[MI_PARTY_X], .party_z = items[MI_PARTY_Z],
              .field_count = (int)fields};
     memset(out, 0, (size_t)rows * (size_t)o->dim[MD_OBSERVATION] * sizeof(float));
     for (int i = 0; i < c.active_count; i++) {
