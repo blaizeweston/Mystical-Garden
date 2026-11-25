@@ -132,12 +132,15 @@ func test_combat() -> void:
 func test_kits() -> void:
 	var world := make_world(make_config(Config.SCRIPTED_BRAIN, {"nightbloom": 4, "orchid": 3, "spore_widow": 3, "ashen_hart": 3, "rootbound": 4, "broodmother": 1}, 3))
 	var lowest := 1.0
+	var tally := UseTally.new()
 	for tick in REPEAT_TICKS * 2:
 		world.step_once()
+		tally.watch(world.bridge.sim if world.bridge != null else null)
 		for peer: int in world.players:
 			lowest = minf(lowest, PlayerVitals.current_hp(world.players[peer]) / PlayerVitals.maximum_hp(world.players[peer]))
-	var used: Dictionary = world.bridge.sim.abilities.used if world.bridge != null else {}
-	var placed: int = world.bridge.sim.abilities.hazards_placed if world.bridge != null else 0
+	tally.watch(null)
+	var used: Dictionary = tally.used
+	var placed: int = tally.placed
 	var kits = load("res://mob_sim/definitions/definition_loader.gd").shared()
 	var foreign := PackedStringArray()
 	for id in used:
@@ -199,6 +202,23 @@ func test_actions() -> void:
 	await close_world(world)
 
 
+## Ability use summed over every round: each round gets a fresh simulation, so reading only the last one would
+## count just that round (and faster fights start the last round closer to the end).
+class UseTally:
+	var used := {}
+	var placed := 0
+	var _sim = null
+
+	func watch(sim) -> void:
+		if sim == _sim:
+			return
+		if _sim != null:
+			for id in _sim.abilities.used:
+				used[id] = int(used.get(id, 0)) + int(_sim.abilities.used[id])
+			placed += int(_sim.abilities.hazards_placed)
+		_sim = sim
+
+
 ## Flyers against the real game: they move on the air layer, fight, are never rooted, and the game leaves
 ## them where the simulation put them.
 func test_flying() -> void:
@@ -208,6 +228,7 @@ func test_flying() -> void:
 	var lost := 0
 	var timed := false
 	var used := {}
+	var tally := UseTally.new()
 	for tick in REPEAT_TICKS * 2:
 		world.step_once()
 		if world.bridge == null:
@@ -226,7 +247,9 @@ func test_flying() -> void:
 			flyer_ticks += 1
 			rooted += int(sim.pool.root_until[slot] > sim.clock.tick)
 			lost += int(sim.locomotion.world.air_clearance(sim.pool.xz[slot * 2], sim.pool.xz[slot * 2 + 1]) < 0.0)
-		used = sim.abilities.used
+		tally.watch(sim)
+	tally.watch(null)
+	used = tally.used
 	var released := 0
 	for ability: String in used:
 		released += int(used[ability]) if ability.begins_with("wasp") or ability.begins_with("orchid") else 0
