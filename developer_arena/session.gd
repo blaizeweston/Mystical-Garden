@@ -6,6 +6,9 @@ var combat: Node
 var surface: SubViewport
 var previous_mode: ProcessMode
 var closing := false
+var settings := {"invincible":false,"no_cooldowns":false,"movement":true,"attacks":true}
+var build := {}
+var replacing := false
 
 func open(owner: Node) -> bool:
 	if not Developer.can_enter_arena(owner) or get_parent() != owner:
@@ -29,12 +32,29 @@ func open(owner: Node) -> bool:
 	screen.add_child(surface)
 	# Even a programmatic host/join attempt cannot attach to the Garden's transport.
 	get_tree().set_multiplayer(SceneMultiplayer.new(),surface.get_path())
+	_create_world()
+	return true
+
+func rebuild(mode := "round") -> void:
+	if replacing or not authorized(combat): return
+	replacing = true
+	combat.set_physics_process(false)
+	call_deferred("_replace",mode)
+
+func _replace(mode: String) -> void:
+	if not authorized(combat): return
+	var capture: Dictionary = combat.capture_round(mode)
+	combat.free()
+	_create_world()
+	combat.restore_round(capture)
+	replacing = false
+
+func _create_world() -> void:
 	combat = load("res://world.tscn").instantiate()
 	combat.set_script(load("res://developer_arena/practice_world.gd"))
 	combat.session = self
 	combat.name = "Practice"
 	surface.add_child(combat)
-	return true
 
 func authorized(world: Node) -> bool:
 	return not closing and is_instance_valid(garden) and get_parent() == garden and combat == world \

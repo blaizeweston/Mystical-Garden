@@ -58,6 +58,12 @@ func run() -> void:
 		var arena: Node = session.combat
 		if not check(arena.is_practice_world() and arena.participation.active() and not arena.persistence_session.can_write(),"practice authority"): return
 		if not check(arena.session_world.host()==ERR_UNAVAILABLE and arena.session_world.join("127.0.0.1")==ERR_UNAVAILABLE,"practice offline"): return
+		var combat_error: String = preload("res://tests/support/dev02_combat_case.gd").verify(arena)
+		if not check(combat_error.is_empty(),combat_error): return
+		session.rebuild()
+		await process_frame
+		await process_frame
+		if not check(not is_instance_valid(arena) and session.combat.is_practice_world(),"fresh round"): return
 		session.close()
 		await process_frame
 		await process_frame

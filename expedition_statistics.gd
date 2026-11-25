@@ -120,6 +120,9 @@ func _snapshot(identity: String, now: int) -> Dictionary:
 	return {"party_outcome":_party_outcome(),"session":_session,"run":_run,"personal_index":_rows.keys().find(identity),"outcome":_rows[identity].outcome,"elapsed_ms":maxi(0,now-_start_ms),
 		"floor":_deepest,"cleared_floor":maxi(0,_last_clear),"clears":_clears,"party":_party.duplicate(true),"players":_rows.values().duplicate(true)}
 
+func current_report(run: int, identity: String, now: int) -> Dictionary:
+	return _snapshot(identity,now) if _active(run,identity) else {}
+
 func finish(run: int, identity: String, outcome: String, now: int) -> Dictionary:
 	if not _active(run,identity): return {}
 	_rows[identity].participation_ms = maxi(0, now - int(_joined[identity]))

@@ -35,6 +35,8 @@ class Contact extends RefCounted:
 
 static func resolve_world(world: Node, peer_id: int, target_life: int, now: int,
 		damage: float, slow_ms: int = 0, origin: Vector3 = Vector3.INF, direct_attack: bool = true) -> Dictionary:
+	if world.is_practice_world() and (world.session.settings.invincible or not world.session.settings.attacks):
+		return Recipient.result(Outcome.REJECTED)
 	var contact := Contact.new(now, damage, slow_ms, origin, direct_attack)
 	var recipient := Recipient.new(world, peer_id, target_life)
 	return _resolve(contact, recipient.observe(contact), recipient)
@@ -62,6 +64,7 @@ static func _resolve(contact: Contact, observation: Dictionary, recipient: Recip
 ## Raw HP loss shares the vitals/persistence commit. It carries no enemy
 ## defense, hit grace, Slow or retaliation, including outside the Wilds.
 static func apply_health_loss(world: Node, peer_id: int, target_life: int, amount: int) -> Dictionary:
+	if world.is_practice_world() and world.session.settings.invincible: return Recipient.result(Outcome.REJECTED)
 	return Recipient.new(world, peer_id, target_life).apply_health_loss(amount)
 
 
