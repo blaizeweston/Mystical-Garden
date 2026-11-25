@@ -25,7 +25,12 @@ func text_at(text: String,at: Vector3,color: Color,id: int,ability: bool=false,h
  var offset:=Vector3(((id%5)-2)*.13,height if height>=0.0 else (2.65 if not ability else 2.35),0)
  label.position=stage.WILD_OFFSET+at+offset
  labels.append({"node":label,"start":label.position,"color":color,"age":0.0,"life":.85 if not ability else 1.0})
-func confirmed(event: Dictionary,at: Vector3) -> void:
+const RUPTURE_LABEL_RADIUS := 6.5
+func recent_rupture_near(at: Vector3) -> bool:
+ for item in labels:
+  if item.has("rupture_at") and item.age<0.20 and at.distance_squared_to(item.rupture_at)<=RUPTURE_LABEL_RADIUS*RUPTURE_LABEL_RADIUS:return true
+ return false
+func confirmed(event: Dictionary,at: Vector3,strength:=1.0) -> void:
  var amount:=int(event.get("amount",0))
  if event.shape=="block":
   text_at("BLOCK",at,Color("#f1d989"),int(event.id),true);return
@@ -42,16 +47,17 @@ func confirmed(event: Dictionary,at: Vector3) -> void:
  elif target==-1:root=stage.foe
  elif target>=0 and target<stage.support_models.size():root=stage.support_models[target]
  if not is_instance_valid(root) or not root.visible or root.position.distance_to(stage.WILD_OFFSET+at)>2.5:return
- flash(root,tint)
-func flash(root: Node3D,tint: Color) -> void:
+ if strength>0:flash(root,tint,strength)
+func flash(root: Node3D,tint: Color,strength:=1.0) -> void:
  var key:=root.get_instance_id()
- if flashes.has(key):flashes[key].age=0.0;return
- var material:=ShaderMaterial.new();material.shader=shader;material.set_shader_parameter("tint",tint);material.set_shader_parameter("strength",1.0)
+ if flashes.has(key):
+  flashes[key].age=0.0;flashes[key].strength=strength;flashes[key].material.set_shader_parameter("strength",strength);return
+ var material:=ShaderMaterial.new();material.shader=shader;material.set_shader_parameter("tint",tint);material.set_shader_parameter("strength",strength)
  var meshes: Array=[]
  for mesh in root.find_children("*","MeshInstance3D",true,false):
   if mesh.mesh==null:continue
   meshes.append({"node":mesh,"previous":mesh.material_overlay});mesh.material_overlay=material
- flashes[key]={"age":0.0,"material":material,"meshes":meshes}
+ flashes[key]={"age":0.0,"strength":strength,"material":material,"meshes":meshes}
 func clear() -> void:
  for item in labels:
   if is_instance_valid(item.node):item.node.queue_free()
@@ -74,6 +80,6 @@ func step(delta: float) -> void:
  for key in flashes.keys():
   var entry: Dictionary=flashes[key];entry.age+=delta
   if entry.age>=.16:restore(key)
-  else:entry.material.set_shader_parameter("strength",1.0-float(entry.age)/.16)
+  else:entry.material.set_shader_parameter("strength",entry.strength*(1.0-float(entry.age)/.16))
 func _exit_tree() -> void:
  clear()

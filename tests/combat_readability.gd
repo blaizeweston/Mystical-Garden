@@ -72,6 +72,12 @@ func run():
  game.encounter.set_hp(-1, 30);game.tactics.position=Vector3(0,0,2);game._process(.016)
  var fx=WorldViewCase.component(game,"combat");fx.clear();fx.sync([impact,impact],[],"test",Vector3.ZERO)
  check(fx.feedback.labels.size()==1,"duplicate RPC/detail events produce one damage number")
+ check(fx.active.size()==1 and fx.active[impact.id].get("family","")=="impact","one localized burst per confirmed receipt")
+ var rejected: Dictionary=impact.duplicate(true);rejected.id+=300;rejected.amount=0
+ fx.sync([rejected],[],"test",Vector3.ZERO)
+ check(fx.active.size()==1 and fx.feedback.labels.size()==1,"zero applied damage cannot display confirmed contact")
+ var original_energy: float=fx.active[impact.id].material.get_shader_parameter("energy")
+ check(is_equal_approx(original_energy,fx.IMPACT_EMISSION) and fx.contact_overrides.is_empty(),"ordinary world uses production presentation")
  check(fx.feedback.flashes.size()==1,"confirmed contact flashes the enemy silhouette")
  fx.step(.18);check(fx.feedback.flashes.is_empty(),"flash restores original materials")
  fx.step(1);check(fx.feedback.labels.is_empty(),"damage text expires")

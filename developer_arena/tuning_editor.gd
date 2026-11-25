@@ -8,6 +8,8 @@ var category := TabContainer.new()
 var search := LineEdit.new()
 var modified := CheckButton.new()
 var rows := {}
+var lab: Control
+var visual_property := OptionButton.new()
 var name_entry := LineEdit.new()
 var saved := OptionButton.new()
 var feedback := Label.new()
@@ -30,12 +32,12 @@ func setup(workbench: Control, parent: Control) -> void:
 		if group=="Presets":
 			preset_page(page)
 			continue
+		if group=="Visuals": playback(page)
 		var ids: Array=[]
 		for id in Catalog.PROPERTIES:
 			if Catalog.PROPERTIES[id].category!=group: continue
 			ids.append(id)
 			property_row(page,id)
-		if group=="Visuals": playback(page)
 		panel.command(page,"Reset "+group,func():tuning.reset(panel.world,ids);refresh())
 	var actions := HBoxContainer.new()
 	parent.add_child(actions)
@@ -70,14 +72,22 @@ func property_row(parent: Control,id: String) -> void:
 		controls.add_child(input)
 	slider.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	slider.custom_minimum_size.x=100
-	number.step=0.01
+	number.step=d.step if d.unit in ["pieces","off/on","°"] else 0.01
 	number.suffix=d.unit
+	var tint: ColorPickerButton
+	if id.ends_with(".hue"):
+		tint=ColorPickerButton.new()
+		tint.custom_minimum_size.x=36
+		tint.edit_alpha=false
+		tint.tooltip_text="Choose hue. The effect preserves its material saturation and brightness."
+		controls.add_child(tint)
+		tint.color_changed.connect(func(value: Color): change(id,roundf(value.h*360.0)))
 	panel.command(controls,"Reset",func():tuning.reset(panel.world,[id]);refresh())
 	var timing:=Label.new()
 	timing.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	timing.text=d.timing
 	box.add_child(timing)
-	rows[id]={"box":box,"values":values,"slider":slider,"number":number}
+	rows[id]={"box":box,"values":values,"slider":slider,"number":number,"tint":tint}
 	slider.value_changed.connect(func(value):change(id,value))
 	number.value_changed.connect(func(value):change(id,value))
 
@@ -107,8 +117,11 @@ func refresh() -> void:
 		var label: String=" ".join([d.category,d.object_name,d.label,id])
 		var changed:=not is_equal_approx(base,proposed) or not is_equal_approx(base,actual)
 		row.box.visible=(not modified.button_pressed or changed) and (search.text.is_empty() or label.containsn(search.text))
+		if d.category=="Visuals" and search.text.is_empty() and not modified.button_pressed:
+			row.box.visible=visual_property.get_selected_metadata()==id
 		row.slider.set_value_no_signal(proposed)
 		row.number.set_value_no_signal(proposed)
+		if row.tint!=null:row.tint.color=Color.from_hsv(proposed/360.0,0.6,0.97)
 		var state: String="Pending Apply" if not is_equal_approx(proposed,actual) else "Applied" if changed else "Production"
 		if state=="Applied" and id in [Catalog.SPEAR,Catalog.FLORA,Catalog.IMPACT]: state="Ready for next use"
 		row.values.text="Baseline %s   ·   Applied %s   ·   %s"%[String.num(base,3),String.num(actual,3),state]
@@ -116,6 +129,16 @@ func refresh() -> void:
 	if category.get_current_tab_control()!=null and category.get_current_tab_control().name=="Presets": refresh_names()
 
 func playback(page: Control) -> void:
+	var legacy:=VBoxContainer.new()
+	lab=preload("res://developer_arena/contact_lab.gd").new()
+	page.add_child(lab)
+	page.add_child(legacy)
+	lab.setup(panel,legacy)
+	lab.selection.item_selected.connect(func(_index): populate_visual_properties(); refresh())
+	page.add_child(visual_property)
+	visual_property.tooltip_text="Select a parameter to tune beside the preview"
+	visual_property.item_selected.connect(func(_index): refresh())
+	populate_visual_properties()
 	var abilities:=OptionButton.new()
 	var build=panel.world.combat_build(panel.world.players[panel.world.HOST])
 	for i in 2:
@@ -123,12 +146,21 @@ func playback(page: Control) -> void:
 		abilities.add_item(skill.get("name","Ability %d"%(i+1)))
 	abilities.select(tuning.replay_slot)
 	abilities.item_selected.connect(func(index):if tuning.authorized(panel.world): tuning.replay_slot=index)
-	page.add_child(abilities)
+	legacy.add_child(abilities)
 	var buttons:=HBoxContainer.new()
-	page.add_child(buttons)
+	legacy.add_child(buttons)
 	for baseline: bool in [false,true]:
 		panel.command(buttons,"Replay baseline impact" if baseline else "Replay tuned impact",func():
 			if not tuning.replay(panel.world,baseline): feedback.text="Choose an equipped ability first.")
+
+func populate_visual_properties() -> void:
+	visual_property.clear()
+	var prefix := "rupture." if lab.selection.selected==2 else "impact."
+	for id: String in Catalog.PROPERTIES:
+		if not id.begins_with(prefix) and id!=Catalog.SUN: continue
+		var definition: Dictionary=Catalog.PROPERTIES[id]
+		visual_property.add_item("Tune · "+str(definition.label))
+		visual_property.set_item_metadata(visual_property.item_count-1,id)
 
 func preset_page(page: Control) -> void:
 	page.add_child(saved)

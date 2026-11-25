@@ -8,7 +8,7 @@ static func garden(world: Node) -> String:
 	var tune: RefCounted=world.developer_tuning
 	if not tune.authorized(world) or not Developer.toggle_workbench(world): return "developer Garden workbench"
 	var panel: Control=world.developer_workbench
-	if panel.tuning_editor.rows.size()!=5 or panel.tuning_editor.category.get_tab_count()!=5: return "property catalog UI"
+	if panel.tuning_editor.rows.size()!=Tune.PROPERTIES.size() or panel.tuning_editor.category.get_tab_count()!=5: return "property catalog UI"
 	panel.toggle()
 	if not is_equal_approx(tune.baseline(Tune.SUN),world.get_node("Stage/Sun").light_energy) or not is_equal_approx(tune.baseline(Tune.SUN),1.05): return "active Garden baseline"
 	if not is_equal_approx(tune.baseline(Tune.SPEAR),3.1) or not is_equal_approx(tune.baseline(Tune.WATER),3.5) or not is_equal_approx(tune.baseline(Tune.FLORA),40.0) or not is_equal_approx(tune.baseline(Tune.IMPACT),.65): return "owner baselines"
@@ -100,11 +100,57 @@ static func arena(world: Node) -> String:
 	var fx: Node=world.stage.get_node("CombatEffects")
 	var events: Array=world.combat_events.duplicate(true)
 	tune.request(world,Tune.IMPACT,2.5)
-	if not tune.replay(world) or not is_equal_approx(fx.preview_effects[1].mesh.material_override.emission_energy_multiplier,2.5): return "visual-only replay"
-	if not tune.replay(world,true) or not is_equal_approx(fx.preview_effects[1].mesh.material_override.emission_energy_multiplier,.65): return "baseline and tuned replay use real impact materials"
-	var packet={"id":812,"kind":"impact","shape":"hit","duration":.2,"from":[0,0,0],"to":[0,0,0],"color":Color.WHITE,"reach":1}
+	if not tune.replay(world) or not is_equal_approx(fx.preview_effects[1].material.get_shader_parameter("energy"),2.5): return "visual-only replay"
+	if not tune.replay(world,true) or not is_equal_approx(fx.preview_effects[1].material.get_shader_parameter("energy"),.65): return "baseline and tuned replay use real impact materials"
+	var packet={"id":812,"kind":"impact","shape":"hit","duration":.2,"from":[0,0,0],"to":[0,0,0],"color":Color.WHITE,"reach":1,"amount":1,"form":"blade"}
 	fx.sync([packet],[],"test",Vector3.ZERO)
-	if not is_equal_approx(fx.active[812].mesh.material_override.emission_energy_multiplier,2.5): return "next confirmed hit presentation"
+	if not is_equal_approx(fx.active[812].material.get_shader_parameter("energy"),2.5): return "next confirmed hit presentation"
+	var lab=world.workbench.tuning_editor.lab
+	lab.formation.select(2)
+	lab.arrange_targets()
+	lab.selection.select(2)
+	lab.select_effect()
+	lab.mode.select(0)
+	lab.play(false)
+	lab.single_step()
+	var age: float=lab.clock
+	if lab.samples.size()!=6 or not is_equal_approx(age,lab.FRAME) or lab.running: return "six stepped isolated effects"
+	var first=lab.samples[0]
+	if first.mesh.mesh!=lab.samples[1].mesh.mesh or first.material==lab.samples[1].material: return "shared geometry or isolated clock"
+	if tune.request(world,"rupture.count",4.5) or tune.request(world,"impact.lifetime",2.0): return "invalid VFX bounds"
+	if not tune.request(world,"rupture.size",1.65): return "VFX tuning rejected"
+	lab.mode.select(1)
+	lab.compare_at_phase()
+	if lab.clock!=age or lab.running or not is_equal_approx(lab.samples[0].material.get_shader_parameter("size_scale"),1.65): return "phase-matched experimental replay"
+	lab.pause_resume()
+	lab.repeat.button_pressed=true
+	var material_before: ShaderMaterial=lab.samples[0].material
+	var children_before: int=lab.scene.get_child_count()
+	for repeat_index in 120: lab._process(lab.CYCLE)
+	if lab.samples[0].material!=material_before or lab.scene.get_child_count()!=children_before: return "repeat allocated extra particles or materials"
+	if not lab.running or lab.samples.size()!=6: return "loop rewind"
+	lab.stop()
+	if not lab.samples.is_empty() or lab.started: return "lab cleanup"
+	var rupture={"id":830,"kind":"ability","shape":"frost_rupture","label":"Brittle rupture","from":[0,0,0],"to":[0,0,0],"color":Color.WHITE,"duration":.55}
+	var second: Dictionary=rupture.duplicate(); second.id+=1
+	fx.clear()
+	fx.sync([rupture,second,rupture],[],"cold",Vector3.ZERO)
+	if fx.active.size()!=2 or fx.feedback.labels.size()!=1: return "two ruptures, one nearby caption"
+	tune.request(world,"rupture.repeat_labels",1)
+	fx.clear()
+	fx.sync([rupture,second],[],"cold",Vector3.ZERO)
+	if fx.active.size()!=2 or fx.feedback.labels.size()!=2: return "show both confirmed captions"
+	fx.step(.56)
+	if not fx.active.is_empty(): return "expired bursts"
+	fx.clear()
+	tune.reset(world,["rupture.repeat_labels"])
+	var presets:=Presets.new(world)
+	if not presets.save_new("VFX02 Test").is_empty(): return "save VFX preset"
+	tune.reset(world,["rupture.size",Tune.IMPACT])
+	if not presets.load_named("VFX02 Test").is_empty() or not is_equal_approx(tune.applied("rupture.size"),1.65): return "restore VFX preset"
+	var exported:=presets.export_review("VFX02 Test")
+	if presets._read(exported.path_join("changes.json")).differences.size()!=2: return "VFX export mismatch"
+	tune.reset(world,["rupture.size"])
 	if world.round_stats().party!=before or world.combat_events!=events: return "visual replay modified combat"
 	tune.reset(world,[Tune.IMPACT])
 	var actor: Dictionary=world.players[1]

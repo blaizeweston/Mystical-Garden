@@ -435,6 +435,7 @@
       }
     },
     "emit_combat_event": {
+      "rupture_damage_cue": {"match":"\"core_phase\",\"damage_cue\"]:latest[key]=options[key]","baseline":"\"core_phase\"]:latest[key]=options[key]"},
       "ct01_0": {
         "match": "\t\t\tfor slot in 2:\n\t\t\t\tvar skill:=Skills.resolve_in_world(self,int(players[combo].frame),slot,players[combo].character)\n\t\t\t\tif str(skill.mode)==shape:latest.label=skill.name;break\n",
         "baseline": "\t\t\tfor slot in 2:\n\t\t\t\tvar skill:=Skills.resolve(int(players[combo].frame),slot,players[combo].character)\n\t\t\t\tif str(skill.mode)==shape:latest.label=skill.name;break\n"
@@ -2402,6 +2403,7 @@
       }
     },
     "combat_effects.gd": {
+      "local_rupture_labels": {"match":"  if event.kind==\"ability\" and visible_hit and not str(event.get(\"label\",event.shape)).is_empty():\n   if family!=\"rupture\" or contact_overrides.get(\"rupture.repeat_labels\",0)>0 or not feedback.recent_rupture_near(at):\n    feedback.text_at(str(event.get(\"label\",event.shape)),at,Color(\"#bcebdd\"),int(event.id),true)\n    if family==\"rupture\":feedback.labels.back().rupture_at=at","baseline":"  if event.kind==\"ability\" and visible_hit and not str(event.get(\"label\",event.shape)).is_empty():feedback.text_at(str(event.get(\"label\",event.shape)),point(event.to),Color(\"#bcebdd\"),int(event.id),true)"},
       "ct03_ranger_1": {
         "match": "extends Node3D\nconst CoreVisuals = preload(\"res://core_skill_visuals.gd\")\nconst Ranger = preload(\"res://ranger_combat.gd\")\nconst EnemyFeedback = preload(\"res://enemy_move_feedback.gd\")\nvar stage: Node3D\n",
         "baseline": "extends Node3D\nconst CoreVisuals = preload(\"res://core_skill_visuals.gd\")\nconst EnemyFeedback = preload(\"res://enemy_move_feedback.gd\")\nvar stage: Node3D\n"
@@ -2415,8 +2417,8 @@
         "baseline": "  if effect.has(\"glyph\"):\n   effect.glyph.position=at;effect.glyph.rotation.y=t*TAU*3\n elif event.kind==\"field\":\n  if effect.has(\"growth\"): effect.growth.scale=Vector3.ONE*(minf(1.0,t*5.0)*minf(1.0,(1.0-t)*5.0)*.9+.1)\n  circle(mesh,to+Vector3.UP*.05,float(event.get(\"reach\",1.6)),.06)\n  circle(mesh,to+Vector3.UP*.06,float(event.get(\"reach\",1.6))*.65,.025)\n  if event.shape==\"snare_zone\":\n   snare_roots(mesh,to+Vector3.UP*.065,float(event.reach),8)\n  if event.shape==\"cinder_zone\":\n"
       },
       "cb07_0": {
-        "match": "  if float(event.get(\"age\",0))>=float(event.duration): continue\n  if event.kind==\"impact\" and event.shape==\"heal\":\n   var at:=point(event.to)\n   if at.distance_to(observer)<=sight:feedback.confirmed(event,at)\n   continue\n  if active.size()>=80:",
-        "baseline": "  if float(event.get(\"age\",0))>=float(event.duration): continue\n  if active.size()>=80:"
+        "match": "  if float(event.get(\"age\",0))>=float(event.duration): continue\n  if event.kind==\"impact\" and event.shape==\"heal\":\n   var at:=point(event.to)\n   if at.distance_to(observer)<=sight:feedback.confirmed(event,at)\n   continue\n",
+        "baseline": "  if float(event.get(\"age\",0))>=float(event.duration): continue\n"
       },
       "orchard_fruit_palette": {
         "match": "  \"fruit\":color=Color(\"#f78c51\") if event.get(\"active\",false) else Color(\"#e8c571\")\n",

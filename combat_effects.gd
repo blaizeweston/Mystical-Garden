@@ -3,6 +3,8 @@ const CoreVisuals = preload("res://core_skill_visuals.gd")
 const Ranger = preload("res://ranger_combat.gd")
 const EnemyFeedback = preload("res://enemy_move_feedback.gd")
 var stage: Node3D
+const Contacts = preload("res://contact_particles.gd")
+var contact_overrides := {}
 const IMPACT_EMISSION := 0.65
 var impact_emission := IMPACT_EMISSION
 var preview_effects: Array[Dictionary] = []
@@ -43,16 +45,29 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    var ended:=int(event.shape)
    if active.has(ended): active[ended].root.queue_free();active.erase(ended)
    continue
+  if event.kind=="impact" and event.shape=="hit" and int(event.get("amount",0))<=0: continue
   if float(event.get("age",0))>=float(event.duration): continue
   if event.kind=="impact" and event.shape=="heal":
    var at:=point(event.to)
    if at.distance_to(observer)<=sight:feedback.confirmed(event,at)
    continue
-  if active.size()>=80:
-   var old=active.keys()[0];active[old].root.queue_free();active.erase(old)
-  var effect:=visual(Color(event.color), impact_emission if event.kind=="impact" else IMPACT_EMISSION);effect.event=event;effect.age=float(event.get("age",0))
-  var visible_hit: bool=point(event.to).distance_to(observer)<=sight
-  if event.kind=="impact" and visible_hit:feedback.confirmed(event,point(event.to))
+  var at:=point(event.to)
+  var visible_hit:=at.distance_to(observer)<=sight
+  var family:=Contacts.kind(event)
+  if event.kind=="impact" and visible_hit:
+   var flash:=float(contact_overrides.get("impact.flash",Contacts.DEFAULTS["impact.flash"])) if family=="impact" else 1.0
+   feedback.confirmed(event,at,0.0 if event.get("damage_cue","")=="frost_rupture" else flash)
+  # The rupture already supplies the contact visual; its damage receipt still shows HP.
+  if event.get("damage_cue","")=="frost_rupture":continue
+  var age:=float(event.get("age",0))
+  var effect: Dictionary
+  if not family.is_empty():
+   if age>=float(contact_overrides.get(family+".lifetime",Contacts.DEFAULTS[family+".lifetime"])):continue
+   effect=Contacts.create(self,family,stage.WILD_OFFSET+at,at-point(event.from),event.get("form",""),int(event.id),contact_overrides,impact_emission)
+  else:
+   effect=visual(Color(event.color), impact_emission if event.kind=="impact" else IMPACT_EMISSION)
+  effect.event=event
+  effect.age=age
   if event.kind=="proc" and visible_hit:
    var display_name: String={"mark_break":"Mark triggered","core_mark_burst":"Core Mark burst","shatter":"Shatter!","suppress":"Interrupted","echo":"Echo","link":"Linked hit","chorus":"Chorus","counter":"Counter!","brace":"Braced","momentum":"Death charge","pierce":"Pierced","punish":"Wind-up punished","siphon":"Life restored"}.get(str(event.shape),str(event.shape).capitalize())
    feedback.text_at(display_name,point(event.to),Color(event.color),int(event.id),true)
@@ -60,7 +75,10 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    if event.shape=="pulled":feedback.text_at("Pulled",point(event.to),Color(event.color),int(event.id),true,3.45)
    elif event.shape=="restored" and int(event.reach)>0:feedback.text_at("+%d"%int(event.reach),point(event.to),Color(event.color),int(event.id))
    elif event.shape=="trophy":feedback.text_at("Trophy stolen",point(event.to),Color(event.color),int(event.id),true)
-  if event.kind=="ability" and visible_hit and not str(event.get("label",event.shape)).is_empty():feedback.text_at(str(event.get("label",event.shape)),point(event.to),Color("#bcebdd"),int(event.id),true)
+  if event.kind=="ability" and visible_hit and not str(event.get("label",event.shape)).is_empty():
+   if family!="rupture" or contact_overrides.get("rupture.repeat_labels",0)>0 or not feedback.recent_rupture_near(at):
+    feedback.text_at(str(event.get("label",event.shape)),at,Color("#bcebdd"),int(event.id),true)
+    if family=="rupture":feedback.labels.back().rupture_at=at
   if event.kind=="subclass_release" and visible_hit and not str(event.get("label","")).is_empty():
    feedback.text_at(event.label,point(event.to),Color(event.color),int(event.id),true)
   if event.kind=="field" and event.shape not in [Ranger.CORRIDOR,Ranger.ESCAPE]:
@@ -81,6 +99,8 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    else:
     var sphere:=SphereMesh.new();sphere.radius=float(event.get("projectile_radius",.1));sphere.height=sphere.radius*2;sphere.radial_segments=8;sphere.rings=4;glyph.mesh=sphere
    glyph.material_override=material(Color(event.color));glyph.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;effect.glyph=glyph
+  if active.size()>=80:
+   var old=active.keys()[0];active[old].root.queue_free();active.erase(old)
   active[event.id]=effect
   pose(effect)
  while seen.size()>2048:seen.erase(seen.keys()[0])
@@ -93,14 +113,19 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
  for id in hints.keys():
   if not keep.has(id): hints[id].root.queue_free();hints.erase(id)
 ## Presentation only. These IDs live outside the replicated event sequence.
-func preview_skill_impact(skill: Dictionary, from: Vector3, to: Vector3, wild: bool, emission: float) -> void:
+func preview_skill_impact(skill: Dictionary, from: Vector3, to: Vector3, wild: bool, emission: float, form: String, values: Dictionary) -> void:
  for previous in preview_effects: previous.root.queue_free()
  preview_effects.clear()
  for kind in ["ability","impact"]:
   var color := Color(skill.color)
-  var effect := visual(color,emission if kind=="impact" else IMPACT_EMISSION)
-  effect.root.position=stage.WILD_OFFSET if wild else Vector3.ZERO
-  effect.event={"id":-1,"kind":kind,"shape":skill.mode if kind=="ability" else "hit","duration":.8 if kind=="ability" else .2,"from":[from.x,from.y,from.z],"to":[to.x,to.y,to.z],"reach":maxf(.8,skill.get("radius",1.2)),"color":color}
+  var offset: Vector3=stage.WILD_OFFSET if wild else Vector3.ZERO
+  var effect: Dictionary
+  if kind=="impact":
+   effect=Contacts.create(self,"impact",offset+to,to-from,form,17,values,emission)
+  else:
+   effect=visual(color)
+   effect.root.position=offset
+  effect.event={"id":-1,"kind":kind,"shape":skill.mode if kind=="ability" else "hit","duration":effect.get("life",.8),"from":[from.x,from.y,from.z],"to":[to.x,to.y,to.z],"reach":maxf(.8,skill.get("radius",1.2)),"color":color}
   effect.preview=true
   preview_effects.append(effect)
   pose(effect)
@@ -125,6 +150,10 @@ func circle(mesh: ImmediateMesh,center: Vector3,radius: float,width: float=.06) 
   ribbon(mesh,center+Vector3(cos(first),0,sin(first))*radius,center+Vector3(cos(second),0,sin(second))*radius,width)
 func pose(effect: Dictionary) -> void:
  var event: Dictionary=effect.event
+ if effect.has("family"):
+  Contacts.pose(effect,effect.age)
+  effect.root.visible=effect.has("preview") or point(event.to).distance_to(observer)<=sight
+  return
  if event.kind=="projectile" and event.has("weapon_release") and not effect.has("visual_from"):
   var origin: Vector3=stage.weapon_release_point(event)
   if not origin.is_finite():effect.root.visible=false;return
@@ -596,7 +625,7 @@ func step(delta: float) -> void:
  statuses.step(delta)
  for id in active.keys():
   var effect: Dictionary=active[id];effect.age+=delta
-  if effect.age>=float(effect.event.duration): effect.root.queue_free();active.erase(id)
+  if effect.age>=float(effect.get("life",effect.event.duration)): effect.root.queue_free();active.erase(id)
   else: pose(effect)
 func _process(delta: float) -> void:
  step(delta)

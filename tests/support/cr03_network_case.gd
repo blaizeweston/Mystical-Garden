@@ -68,6 +68,7 @@ var ce03_family := ""
 var ce04_family := ""
 var affinity_cards_case := false
 var shared_status_case := false
+var inspect_contact_vfx := false
 
 
 func check(ok: bool, label: String) -> bool:
@@ -1018,6 +1019,13 @@ func guest(menu: Node, role: String) -> void:
 		mark("graft-seen-"+str(id))
 	if not check(await until(func():return read("strike-"+str(id))=="ok" and game.stage.has_floor()),"guest sees generated Frost floor"):return
 	game.send_action(true)
+	if inspect_contact_vfx:
+		var renderer=WorldViewCase.component(game,"combat")
+		var seen := {}
+		if not check(await until(func():
+			for visual in renderer.active.values():
+				if visual.has("family"): seen[visual.family]=true
+			return seen.has_all(["impact","rupture"])),"guest renders both confirmed contact families"):return
 	if connected_warden_case:
 		if not check(await until(func():return read("ct-q")=="ok"),"connected Warden receives Q timing"):return
 		game.send_garden_action("class_skill")

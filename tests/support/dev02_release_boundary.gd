@@ -14,7 +14,7 @@ func _ready() -> void:
 	var unchanged: Dictionary={}
 	denied=denied and Developer._grant_resources(forged,unchanged)=="Developer session required." and Developer._stock_materials(forged,unchanged)=="Developer session required." and Developer._test_unlock(forged,"irrigation",unchanged)=="Developer session required." and unchanged.is_empty()
 	var tune:=preload("res://developer_arena/tuning.gd").new()
-	denied=denied and not tune.attach(forged) and not tune.request(forged,tune.SUN,3.0) and not tune.apply(forged,[tune.WATER]) and not tune.replace(forged,{tune.SPEAR:6.0}) and not tune.replay(forged)
+	denied=denied and not tune.attach(forged) and not tune.request(forged,tune.SUN,3.0) and not tune.request(forged,"rupture.size",1.65) and not tune.apply(forged,[tune.WATER]) and not tune.replace(forged,{tune.SPEAR:6.0}) and not tune.replay(forged)
 	var store:=preload("res://developer_arena/tuning_presets.gd").new(forged)
 	denied=denied and not store.save_new("Leak").is_empty() and not store.load_named("Leak").is_empty() and not store.remove("Leak",true).is_empty() and store.export_review()=="Developer session required."
 	denied=denied and not store._new_file(project_data,{"name":"Leak"}).is_empty() and store._write(project_data.path_join("unexpected.txt"),"blocked")==ERR_UNAUTHORIZED

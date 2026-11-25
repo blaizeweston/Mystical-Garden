@@ -1,6 +1,7 @@
 extends RefCounted
 ## One instance belongs to the title-issued developer world. Practice borrows it.
 const Developer = preload("res://developer_mode.gd")
+const Contacts = preload("res://contact_particles.gd")
 const IMPACT := "impact.emission"
 const SUN := "scene.sun_energy"
 const SPEAR := "briar_spear.reach"
@@ -11,6 +12,32 @@ const PROPERTIES := {
 	IMPACT: {"type":"float", "category":"Visuals", "object_name":"Combat impact", "label":"Emission", "unit":"×",
 		"minimum":0, "maximum":4, "step":0.05,
 		"timing":"Next impact or visual replay", "source":"combat_effects.gd", "symbol":"IMPACT_EMISSION"},
+	"impact.count": {"type":"float","category":"Visuals","object_name":"Weapon contact","label":"Splinters","unit":"pieces",
+		"minimum":2,"maximum":14,"step":1,"timing":"Next confirmed event or replay","source":"contact_particles.gd","symbol":"DEFAULTS.impact.count"},
+	"impact.size": {"type":"float","category":"Visuals","object_name":"Weapon contact","label":"Splinter scale","unit":"×",
+		"minimum":0.45,"maximum":2,"step":0.05,"timing":"Next confirmed event or replay","source":"contact_particles.gd","symbol":"DEFAULTS.impact.size"},
+	"impact.speed": {"type":"float","category":"Visuals","object_name":"Weapon contact","label":"Splinter speed","unit":"m/s",
+		"minimum":1,"maximum":7,"step":0.1,"timing":"Next confirmed event or replay","source":"contact_particles.gd","symbol":"DEFAULTS.impact.speed"},
+	"impact.lifetime": {"type":"float","category":"Visuals","object_name":"Weapon contact","label":"Decay","unit":"s",
+		"minimum":0.08,"maximum":0.4,"step":0.01,"timing":"Next confirmed event or replay","source":"contact_particles.gd","symbol":"DEFAULTS.impact.lifetime"},
+	"impact.flash": {"type":"float","category":"Visuals","object_name":"Weapon contact","label":"Contact flash","unit":"×",
+		"minimum":0,"maximum":1,"step":0.05,"timing":"Next confirmed event or replay","source":"contact_particles.gd","symbol":"DEFAULTS.impact.flash"},
+	"impact.hue": {"type":"float","category":"Visuals","object_name":"Weapon contact","label":"Tint hue","unit":"°",
+		"minimum":0,"maximum":360,"step":1,"timing":"Next confirmed event or replay","source":"contact_particles.gd","symbol":"DEFAULTS.impact.hue"},
+	"rupture.count": {"type":"float","category":"Visuals","object_name":"Brittle rupture","label":"Fragments","unit":"pieces",
+		"minimum":3,"maximum":18,"step":1,"timing":"Next confirmed event or replay","source":"contact_particles.gd","symbol":"DEFAULTS.rupture.count"},
+	"rupture.size": {"type":"float","category":"Visuals","object_name":"Brittle rupture","label":"Shard scale","unit":"×",
+		"minimum":0.45,"maximum":1.8,"step":0.05,"timing":"Next confirmed event or replay","source":"contact_particles.gd","symbol":"DEFAULTS.rupture.size"},
+	"rupture.speed": {"type":"float","category":"Visuals","object_name":"Brittle rupture","label":"Outward speed","unit":"m/s",
+		"minimum":0.8,"maximum":6,"step":0.1,"timing":"Next confirmed event or replay","source":"contact_particles.gd","symbol":"DEFAULTS.rupture.speed"},
+	"rupture.lifetime": {"type":"float","category":"Visuals","object_name":"Brittle rupture","label":"Decay","unit":"s",
+		"minimum":0.14,"maximum":0.5,"step":0.01,"timing":"Next confirmed event or replay","source":"contact_particles.gd","symbol":"DEFAULTS.rupture.lifetime"},
+	"rupture.flash": {"type":"float","category":"Visuals","object_name":"Brittle rupture","label":"Fracture glint","unit":"×",
+		"minimum":0,"maximum":1.5,"step":0.05,"timing":"Next confirmed event or replay","source":"contact_particles.gd","symbol":"DEFAULTS.rupture.flash"},
+	"rupture.hue": {"type":"float","category":"Visuals","object_name":"Brittle rupture","label":"Tint hue","unit":"°",
+		"minimum":0,"maximum":360,"step":1,"timing":"Next confirmed event or replay","source":"contact_particles.gd","symbol":"DEFAULTS.rupture.hue"},
+	"rupture.repeat_labels": {"type":"float","category":"Visuals","object_name":"Brittle rupture","label":"Show every nearby rupture label","unit":"off/on",
+		"minimum":0,"maximum":1,"step":1,"timing":"Live combat labels · 0 groups nearby ruptures, 1 shows every label","source":"contact_particles.gd","symbol":"DEFAULTS.rupture.repeat_labels"},
 	SUN: {"type":"float", "category":"Visuals", "object_name":"Scene sun", "label":"Light energy", "unit":"×",
 		"minimum":0, "maximum":4, "step":0.05,
 		"timing":"Immediate scene update", "source":"stage.gd", "symbol":"apply_scene_sun / biome climate.sun_energy"},
@@ -56,12 +83,12 @@ func baseline(id: String) -> float:
 		SPEAR: return preload("res://class_catalog.gd").DEFINITIONS[0].weapons[1].reach
 		WATER: return preload("res://garden_irrigation.gd").RADIUS_M
 		FLORA: return preload("res://wild_flora_generation.gd").SPAWN_CHANCE * 100.0
-	return NAN
+	return Contacts.DEFAULTS.get(id,NAN)
 
 static func valid(id: String, value: Variant) -> bool:
 	if not PROPERTIES.has(id) or not (value is float or value is int): return false
 	var row: Dictionary = PROPERTIES[id]
-	return is_finite(value) and value >= row.minimum and value <= row.maximum
+	return is_finite(value) and value >= row.minimum and value <= row.maximum and (row.unit not in ["pieces","off/on"] or value == floor(value))
 
 func requested(id: String) -> float: return _requested.get(id, baseline(id))
 func applied(id: String) -> float: return _applied.get(id, baseline(id))
@@ -69,7 +96,7 @@ func applied(id: String) -> float: return _applied.get(id, baseline(id))
 func request(world: Node, id: String, value: Variant) -> bool:
 	if not authorized(world) or not valid(id,value): return false
 	_set_difference(_requested,id,value)
-	if id in [SUN,IMPACT]: return apply(world,[id])
+	if id in [SUN,IMPACT] or Contacts.DEFAULTS.has(id): return apply(world,[id])
 	return true
 
 func _set_difference(values: Dictionary, id: String, value: float) -> void:
@@ -134,7 +161,9 @@ func _set_scene(world: Node, sun: float, water: float, emission: float) -> void:
 	if not authorized(world) and not restoring_disabled: return
 	world.stage.preview_sun_energy = sun
 	world.stage.apply_scene_sun(world.stage.production_sun_energy)
-	world.stage.get_node("CombatEffects").impact_emission = emission
+	var effects: Node = world.stage.get_node("CombatEffects")
+	effects.impact_emission = emission
+	effects.contact_overrides = contact_values()
 	var coverage = world.progress.irrigation
 	if is_equal_approx(coverage.radius_base_sprinkler,water): return
 	# Settle the partial growth tick at its previous rate before recomputing coverage.
@@ -148,6 +177,12 @@ func _set_scene(world: Node, sun: float, water: float, emission: float) -> void:
 	var garden: Node = world.stage.experimental_garden
 	if garden != null and garden.ghost != null and garden.ghost.visible: garden._show_ghost()
 
+func contact_values() -> Dictionary:
+	var result := {}
+	for id in Contacts.DEFAULTS:
+		if _applied.has(id): result[id] = _applied[id]
+	return result
+
 func replay(world: Node, original := false) -> bool:
 	if not authorized(world) or not world.players.has(world.HOST): return false
 	var actor: Dictionary = world.players[world.HOST]
@@ -157,5 +192,6 @@ func replay(world: Node, original := false) -> bool:
 	var from: Vector3 = actor.pos
 	var to: Vector3 = from + actor.facing * 2.0
 	var effects: Node = world.stage.get_node("CombatEffects")
-	effects.preview_skill_impact(skill,from,to,wild,baseline(IMPACT) if original else applied(IMPACT))
+	effects.preview_skill_impact(skill,from,to,wild,baseline(IMPACT) if original else applied(IMPACT),
+		preload("res://weapon_motion.gd").form(actor),{} if original else contact_values())
 	return true

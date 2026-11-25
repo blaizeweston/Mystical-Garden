@@ -73,6 +73,7 @@ func guest_run():
  check(events.any(func(e):return e.kind=="impact" and e.shape=="hit" and int(e.get("amount",0))>0),"outgoing hit reaches guest")
  check(events.any(func(e):return e.kind=="ability" and not str(e.get("label","")).is_empty()),"named ability reaches guest")
  var fx=WorldViewCase.component(game,"combat")
+ check(fx.active.values().any(func(e):return e.get("family","")=="impact"),"guest renders confirmed weapon particles")
  check(fx.feedback.labels.size()==3,"two damage values and one ability label: "+str(fx.feedback.labels.map(func(item):return item.node.text)))
  var count: int=fx.feedback.labels.size();fx.sync(events,[],"%d:%d:%d:%s"%[game.participation.route(),game.participation.floor(),game.participation.seed(),str(true)],game.players[id].pos)
  check(fx.feedback.labels.size()==count,"repeat details cannot duplicate labels")

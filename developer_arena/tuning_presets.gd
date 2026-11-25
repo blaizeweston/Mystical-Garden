@@ -14,6 +14,9 @@ func fingerprint(id: String) -> String:
 	if FileAccess.file_exists(path):
 		var hash := FileAccess.get_sha256(path)
 		if not hash.is_empty():
+			if Tune.Contacts.DEFAULTS.has(id):
+				var shader_path := "res://assets/shaders/contact_fragments.gdshader"
+				if FileAccess.file_exists(shader_path): hash = (hash+FileAccess.get_sha256(shader_path)).sha256_text()
 			if id == Tune.SUN:
 				var climate := "res://assets/terrain_m02/wilds_biome.gd"
 				if FileAccess.file_exists(climate): hash = (hash+FileAccess.get_sha256(climate)).sha256_text()

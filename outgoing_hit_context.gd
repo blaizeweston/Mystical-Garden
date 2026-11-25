@@ -190,7 +190,9 @@ func finish_contact(target: int, token: int, origin: Vector3, point: Vector3, co
 		if int(_actor.get("frame", -1)) == 4 or _actor.has("oracle_omens"):
 			load("res://oracle_combat.gd").ordinary_contact(_world, _actor, target, contact_point, stats, now)
 		var form := "magic" if stats.get("trait_secondary", false) else str(stats.get("audio_form", Motion.form(_actor)))
-		_world.emit_combat_event("impact", "hit", origin, point, .85, stats.get("affinity_color", _world.weapon_effect_color(_actor)), float(applied), target, {"form":form})
+		var presentation := {"form":form}
+		if stats.get("stat_affinity","") == "Brittle rupture": presentation.damage_cue = "frost_rupture"
+		_world.emit_combat_event("impact", "hit", origin, point, .85, stats.get("affinity_color", _world.weapon_effect_color(_actor)), float(applied), target, presentation)
 	if _roster.death_pending(target, token):
 		load("res://thorn_affinity.gd").on_death(_world, target, now, stats.get("card_secondary",false))
 		_world.record_enemy_death(target, point, origin, token, _identity)
