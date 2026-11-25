@@ -39,6 +39,9 @@ h1 { font-size: 17px; margin: 0; white-space: nowrap; }
 .chart h2 { font-size: 13.5px; margin: 0; display: flex; justify-content: space-between; gap: 8px; }
 .chart h2 .name { cursor: help; }
 .chart .now { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.chart .legend { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 11.5px; color: var(--muted); margin: 1px 0 2px; font-variant-numeric: tabular-nums; }
+.chart .legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.chart .legend b { color: var(--ink); font-weight: 600; margin-left: 4px; }
 .chart canvas { flex: 1; min-height: 0; width: 100%; display: block; cursor: crosshair; }
 .up { color: var(--good); } .down { color: var(--bad); } .flat { color: var(--muted); }
 aside { border-left: 1px solid var(--line); background: var(--panel); overflow-y: auto; padding: 10px 14px 20px; }
@@ -90,9 +93,9 @@ const CHARTS = [
   {key: "damage_to_party", title: "Damage to the party", hint: "Health taken by the party per episode (a player has about 100). Should rise.", better: 1},
   {key: "life_return", title: "Mob reward per life", hint: "Total reward a mob earns over its life. The main score; should rise. Reward changes shift its level.", better: 1},
   {key: "outcomes", title: "How fights end", hint: "Green: mobs wiped the party. Red: the party cleared the mobs. Grey: time limit.", stack: ["wipe", "cleared", "timeout"], pct: true, better: 0},
-  {key: "entropy", title: "Entropy (variety of choices)", hint: "How random the mobs' choices are. Blue: fighting choices (behaviour, targets, manoeuvre), measured from the 'Locked choices' fixes on only over decisions where the mob is free to choose (not committed to a hold or wind-up); it falls slowly as mobs settle on good choices, and a fast drop toward 0.5 is a warning. Orange: the two message choices, which start fully random and fall as messages gain meaning. Grey: the average over all decisions, the only line logged before the split.", lines: [["entropy_fight", "--accent"], ["entropy_messages", "--second"], ["entropy", "--restart"]], better: 0},
-  {key: "entropy_heads", title: "Entropy by choice", hint: "Each choice's entropy where it has more than one option (logged from the phase 1 fixes on), so a change in the summed fighting entropy can be traced to its choice. Blue: behaviour. Orange: enemy target. Purple: hold length. Green: manoeuvre. Grey: ally target.", lines: [["entropy_behaviour", "--accent"], ["entropy_enemy_target", "--second"], ["entropy_commit", "--change"], ["entropy_manoeuvre", "--good"], ["entropy_ally_target", "--restart"]], better: 0},
-  {key: "commit_set_share", title: "Hold length chosen", hint: "Of the positioning decisions where a mob chooses how long to commit: blue, the share that chose a set length instead of the usual hold; orange, the share that chose 2 s or more.", lines: [["commit_set_share", "--accent"], ["commit_long_share", "--second"]], pct: true, better: 0},
+  {key: "entropy", title: "Entropy (variety of choices)", hint: "How random the mobs' choices are. Blue: fighting choices (behaviour, targets, manoeuvre), measured from the 'Locked choices' fixes on only over decisions where the mob is free to choose (not committed to a hold or wind-up); it falls slowly as mobs settle on good choices, and a fast drop toward 0.5 is a warning. Orange: the two message choices, which start fully random and fall as messages gain meaning. Grey: the average over all decisions, the only line logged before the split.", lines: [["entropy_fight", "--accent", "Fighting"], ["entropy_messages", "--second", "Messages"], ["entropy", "--restart", "All decisions"]], better: 0},
+  {key: "entropy_heads", title: "Entropy by choice", hint: "Each choice's entropy where it has more than one option (logged from the phase 1 fixes on), so a change in the summed fighting entropy can be traced to its choice. Blue: behaviour. Orange: enemy target. Purple: hold length. Green: manoeuvre. Grey: ally target.", lines: [["entropy_behaviour", "--accent", "Behaviour"], ["entropy_enemy_target", "--second", "Enemy target"], ["entropy_commit", "--change", "Hold length"], ["entropy_manoeuvre", "--good", "Manoeuvre"], ["entropy_ally_target", "--restart", "Ally target"]], better: 0},
+  {key: "commit_set_share", title: "Hold length chosen", hint: "Of the positioning decisions where a mob chooses how long to commit: blue, the share that chose a set length instead of the usual hold; orange, the share that chose 2 s or more.", lines: [["commit_set_share", "--accent", "Set length"], ["commit_long_share", "--second", "2 s or more"]], pct: true, better: 0},
   {key: "approx_kl", title: "Policy change per update (KL)", hint: "How much each update changes the mobs' choices. Should stay below 0.015 (dashed).", target: 0.015, digits: 4, better: 0},
   {key: "learning_rate", title: "Learning rate", hint: "Lowered automatically if the KL goes above its limit.", digits: 5, better: 0},
   {key: "clip_fraction", title: "Clip fraction", hint: "Share of choices PPO held back from changing too far. Under 0.2 is healthy.", digits: 3, better: 0},
@@ -113,6 +116,14 @@ function load() {
 }
 function save() { try { localStorage.setItem("mob-dashboard", JSON.stringify(prefs)); } catch (error) { /* private mode */ } }
 function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+// The named, coloured series of a chart with several (stacked or lines), for its legend; empty for one series.
+const STACK_NAMES = {wipe: "Wiped", cleared: "Cleared", timeout: "Time ran out"};
+function seriesOf(spec) {
+  if (spec.stack) return spec.stack.map((key, i) => ({name: STACK_NAMES[key] || key, colour: ["--wipe", "--cleared", "--timeout"][i]}));
+  if (spec.lines) return spec.lines.map(([key, colour, name]) => ({name: name || key, colour}));
+  return [];
+}
+function legendHtml(spec) { return seriesOf(spec).length ? `<div class="legend"></div>` : ""; }
 function fmt(spec, v) {
   if (v === null || v === undefined || Number.isNaN(v)) return "–";
   if (spec.pct) return (v * 100).toFixed(1) + "%";
@@ -159,19 +170,20 @@ function shownPoints() {
 const charts = CHARTS.map(spec => {
   const box = document.createElement("div");
   box.className = "chart";
-  box.innerHTML = `<h2><span class="name" title="${spec.hint}">${spec.title}</span><span class="now"></span></h2><canvas></canvas>`;
+  box.innerHTML = `<h2><span class="name" title="${spec.hint}">${spec.title}</span><span class="now"></span></h2>${legendHtml(spec)}<canvas></canvas>`;
   grid.appendChild(box);
-  const chart = {spec, box, canvas: box.querySelector("canvas"), now: box.querySelector(".now")};
+  const chart = {spec, box, canvas: box.querySelector("canvas"), now: box.querySelector(".now"), legend: box.querySelector(".legend")};
   chart.canvas.addEventListener("mousemove", e => hover(chart, e));
   chart.canvas.addEventListener("mouseleave", () => { hoverX = null; tip.style.display = "none"; redraw(); });
   chart.canvas.addEventListener("click", () => openModal(chart));
   return chart;
 });
-const big = {spec: null, box: null, canvas: null, now: null};
+const big = {spec: null, box: null, canvas: null, now: null, legend: null};
 
 function openModal(chart) {
-  modal.innerHTML = `<div class="chart"><h2><span>${chart.spec.title}</span><span class="now"></span></h2><div class="note">${chart.spec.hint} Click anywhere or press Esc to close.</div><canvas></canvas></div>`;
+  modal.innerHTML = `<div class="chart"><h2><span>${chart.spec.title}</span><span class="now"></span></h2><div class="note">${chart.spec.hint} Click anywhere or press Esc to close.</div>${legendHtml(chart.spec)}<canvas></canvas></div>`;
   big.spec = chart.spec; big.box = modal.firstChild; big.canvas = modal.querySelector("canvas"); big.now = modal.querySelector(".now");
+  big.legend = modal.querySelector(".legend");
   big.canvas.addEventListener("mousemove", e => hover(big, e));
   big.canvas.addEventListener("mouseleave", () => { hoverX = null; tip.style.display = "none"; redraw(); });
   modal.style.display = "flex";
@@ -327,8 +339,13 @@ function draw(chart) {
       trend = `<span class="${cls}">${arrow}</span> `;
     }
   }
-  chart.now.innerHTML = trend + (spec.stack ? value.map(v => fmt(spec, v)).join(" / ") :
-    spec.lines ? spec.lines.map(([_key, colour], i) => `<span style="color:${css(colour)}">${fmt(spec, value[i])}</span>`).join(" / ") : fmt(spec, value[0]));
+  // A chart with several series names each in its legend, with its value now or at the pointer.
+  const named = seriesOf(spec);
+  if (chart.legend) {
+    chart.legend.innerHTML = named.map(({name, colour}, i) =>
+      `<span><i style="background:${css(colour)}"></i>${name}<b>${fmt(spec, value[i])}</b></span>`).join("");
+  }
+  chart.now.innerHTML = trend + (named.length ? "" : fmt(spec, value[0]));
   chart.layout = {X, x, index, pad, width, points};
 }
 
