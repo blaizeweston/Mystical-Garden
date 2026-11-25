@@ -12,6 +12,7 @@ var reset: CheckBox
 var reset_digests := {}
 var tech_picker: OptionButton
 var unlock_button: Button
+var arena_button: Button
 var grant_button: Button
 var materials_button: Button
 
@@ -37,6 +38,13 @@ func _ready() -> void:
 				settings.cancel()
 				context.review_developer_recovery())
 	elif context != null and Developer.is_test_garden(context):
+		arena_button = Button.new()
+		arena_button.text = "Enter Testing Arena"
+		arena_button.pressed.connect(func():
+			if Developer.can_enter_arena(context):
+				settings.cancel()
+				Developer.enter_arena(context))
+		tools.add_child(arena_button)
 		grant_button = Button.new()
 		grant_button.text = "Grant Knowledge and starter supplies"
 		grant_button.pressed.connect(func(): run_tool("grant"))
@@ -58,7 +66,7 @@ func _ready() -> void:
 
 
 func setup(enabled: bool) -> void:
-	if preload("res://playtest_storage.gd").retail():
+	if not Developer.authorized_build():
 		toggle.set_pressed_no_signal(false)
 		hide()
 		return
@@ -90,6 +98,7 @@ func refresh_tools() -> void:
 			tech_picker.select(tech_picker.item_count-1)
 	var available := Developer.can_edit(context)
 	unlock_button.disabled = not available or tech_picker.item_count == 0
+	arena_button.disabled = not Developer.can_enter_arena(context)
 	grant_button.disabled = not available
 	materials_button.disabled = not available
 	if not available and toggle.button_pressed and not context.app_settings.values.get("developer_mode",false):
@@ -150,7 +159,7 @@ func run_tool(action: String) -> void:
 
 static func stock_test_garden(game: Node) -> String:
 	var ruleset = load("res://combat_ruleset.gd")
-	if not preload("res://assets/terrain_m02/experimental/experiment_mode.gd").verified() or not game.multiplayer.is_server() or game.participation.active() or not game.persistence_session.is_guarded():
+	if not Developer.authorized_build() or not game.has_meta(&"experimental_terrain") or not "participation" in game or not preload("res://assets/terrain_m02/experimental/experiment_mode.gd").verified() or not game.multiplayer.is_server() or game.participation.active() or not game.persistence_session.is_guarded():
 		return "Affinity supplies are available to the host in the isolated affinity Garden."
 	return game.run_heart_save(func():
 		for part in game.Parts.DEFINITIONS.size():

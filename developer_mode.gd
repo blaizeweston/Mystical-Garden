@@ -12,8 +12,27 @@ const SEED_STOCK := 5
 const WORLD_META := &"developer_garden"
 
 
+# Only the title launcher issues a developer session. A saved preference or
+# arbitrary node metadata cannot turn an ordinary world into a developer world.
+static var _authorized_world: WeakRef
+
+static func authorized_build() -> bool:
+	return OS.has_feature("editor") or (OS.has_feature("template_debug") and OS.has_feature("developer_tools"))
+
 static func is_test_garden(game: Node) -> bool:
-	return game.has_meta(WORLD_META)
+	return authorized_build() and is_instance_valid(game) and _authorized_world != null and _authorized_world.get_ref() == game
+
+static func can_enter_arena(game: Node) -> bool:
+	return can_edit(game) and game.slot_claimed and game.progress.suspended_expedition.is_empty() \
+		and game.parked_explorers.is_empty() and game.departure_settlement.is_empty() and not game.expedition_open_failed
+
+static func enter_arena(game: Node) -> bool:
+	if not can_enter_arena(game) or game.get_node_or_null("TestingArena") != null:
+		return false
+	var session = load("res://developer_arena/session.gd").new()
+	session.name = "TestingArena"
+	game.add_child(session)
+	return session.open(game)
 
 
 static func is_solo(game: Node) -> bool:
@@ -29,6 +48,7 @@ static func can_edit(game: Node) -> bool:
 
 
 static func open_garden(menu: Node, reset: bool, digests := {}) -> Error:
+	if not authorized_build(): return ERR_UNAUTHORIZED
 	if not preload("res://persistence_writer_integration.gd").startup_refusal().is_empty():
 		return ERR_UNAVAILABLE
 	if menu.transitioning or not menu.content_valid or not menu.app_settings.values.get("developer_mode",false):
@@ -62,6 +82,7 @@ static func open_garden(menu: Node, reset: bool, digests := {}) -> Error:
 	world.progress.path = paths.garden
 	world.local_character.path = paths.character
 	world.guest_character.path = paths.character
+	_authorized_world = weakref(world)
 	menu.transitioning = true
 	menu.get_tree().root.add_child(world)
 	menu.get_tree().current_scene = world
@@ -115,6 +136,7 @@ static func _open_guarded(menu: Node, reset: bool, digests: Dictionary) -> Dicti
 		world.free()
 		return result
 	world.slot_claimed = true
+	_authorized_world = weakref(world)
 	menu.transitioning = true
 	if menu.settings_dialog.visible: menu.settings_dialog.exclusive = false
 	menu.get_tree().root.add_child(world)

@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "developer_testing_arena": {"label":"Isolated Developer Testing Arena","files":["developer_arena/session.gd","developer_arena/practice_world.gd","developer_arena/workbench.gd"]},
     "living_archive": {"label":"Living Archive records and character copies","files":["living_archive.gd","living_archive.gd.uid","living_archive_view.gd","living_archive_view.gd.uid"]},
     "wild_flora": {"label":"Natural Wilds specimens, deterministic selection and per-character harvest","files":["returning_root.gd","returning_root.gd.uid","wild_flora.gd","wild_flora.gd.uid","wild_flora_generation.gd","wild_flora_generation.gd.uid"]},
     "expedition_statistics": {"label":"Host expedition statistics, committed results and summary tabs","files":["expedition_statistics.gd","expedition_statistics.gd.uid","ui/gameplay/expedition_summary.gd","ui/gameplay/expedition_summary.gd.uid"]},
@@ -1504,6 +1505,7 @@
     ]
   },
   "suites": {
+    "dev02_lifecycle": {"kind":"unit","systems":["developer_testing_arena","developer_garden"],"package":false},
     "expedition_suspend": {"kind":"unit","systems":["expedition_continuation","expedition_participation","network_session","departure_settlement","persistence_operations"],"package":false},
     "wild_flora_coop": {"kind":"pair","systems":["expedition_continuation","wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},
     "wild_flora_party": {"kind":"party","systems":["expedition_continuation","living_archive","wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},

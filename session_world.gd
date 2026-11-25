@@ -29,6 +29,7 @@ func host(port: int=0) -> Error:
 	if game.has_meta("developer_garden"):
 		game.status="The Developer Garden is single-player."
 		return ERR_UNAVAILABLE
+	if game.is_practice_world(): return ERR_UNAVAILABLE
 	Journal.event("network","host_requested",{"port":game.network_session.port() if port==0 else port})
 	if game.network_session.role()!="Solo" or game.participation.active(): return ERR_BUSY
 	var selected_port =game.network_session.port() if port==0 else port
@@ -175,6 +176,7 @@ func join(address: String="",port: int=0) -> Error:
 	if game.has_meta("developer_garden"):
 		game.status="The Developer Garden is single-player."
 		return ERR_UNAVAILABLE
+	if game.is_practice_world(): return ERR_UNAVAILABLE
 	Journal.event("network","join_requested",{"port":game.network_session.port() if port==0 else port})
 	if game.network_session.role()!="Solo" or game.participation.active() or not game.persistence_session.pending_notice().is_empty():
 		return ERR_BUSY

@@ -163,6 +163,7 @@ class Recipient extends RefCounted:
 			if amount < int(Vitals.current_hp(_actor)):
 				return _install_loss(amount)
 			return _guarded_loss(func(effects) -> Dictionary: return _install_loss(amount, effects))
+		if _world.is_practice_world(): return _install_loss(amount)
 		# Legacy applies contact status before opening its HP transaction.
 		var saved: Variant = Transactions.run(_world, func() -> Dictionary: return _install_loss(amount))
 		return saved if saved is Dictionary else result(Outcome.UNCOMMITTED)

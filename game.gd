@@ -209,7 +209,7 @@ func _ready() -> void:
 		set_physics_process(false)
 		_refuse_unowned_world.call_deferred()
 		return
-	if has_meta(&"experimental_terrain") or preload("res://persistence_writer_integration.gd").default_route(get_tree()):
+	if not is_practice_world() and (has_meta(&"experimental_terrain") or preload("res://persistence_writer_integration.gd").default_route(get_tree())):
 		var owner_context: Variant = persistence_session if persistence_session.is_guarded() else null
 		if not (owner_context is GuardedTitleSession) or not owner_context.authorizes(local_character.path) or (not network_session.joined_from_title() and not owner_context.authorizes(progress.path)):
 			set_process(false)
@@ -261,7 +261,7 @@ func _ready() -> void:
 	multiplayer.server_disconnected.connect(session_world.server_disconnected)
 	add_player(HOST)
 	if not network_session.joined_from_title():
-		CombatClock.reset_live()
+		if not is_practice_world(): CombatClock.reset_live()
 		if not progress.suspended_expedition.is_empty() and not Continuation.open(self):
 			expedition_open_failed = true
 			set_physics_process(false)
@@ -280,6 +280,7 @@ func _refuse_unowned_world() -> void:
 func _notification(what: int) -> void:
 	if what==NOTIFICATION_WM_WINDOW_FOCUS_OUT: mouse_controls.release(self)
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if is_practice_world(): return # The claimed Garden owns the application close.
 		if persistence_session.is_blocked() and not persistence_session.is_guarded():
 			get_tree().quit()
 			return
@@ -421,10 +422,13 @@ func add_player(id: int) -> void:
 		"carried_parts": Parts.empty_counts(), "secondary": Parts.EMPTY,
 		"prepared_secondary": Parts.EMPTY, Conditions.STATE: Conditions.State.new(), PlayerVitals.STATE: PlayerVitals.Health.new(float(base_health), base_health), "facing": Vector3.FORWARD}
 	restore_class_loadout(players[id])
-	preload("res://garden_growth_service.gd").register(self,id)
+	if not is_practice_world(): preload("res://garden_growth_service.gd").register(self,id)
 
 
 func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("developer_workbench") and preload("res://developer_mode.gd").enter_arena(self):
+		get_viewport().set_input_as_handled()
+		return
 	if preload("res://ability_aim.gd").release_event(self,event):
 		get_viewport().set_input_as_handled()
 		return
@@ -1688,6 +1692,9 @@ func act(id: int, strike: bool) -> void:
 	_act(id,strike)
 	if not strike:Journal.interaction(self,id,"interact","end",request)
 
+func is_practice_world() -> bool:
+	return false
+
 func _act(id: int, strike: bool) -> void:
 	if strike:
 		if not persistence_session.can_simulate(): return
@@ -2095,13 +2102,7 @@ func _process(_delta: float) -> void:
 	session_world.update()
 	if returning_to_title: return
 	if not multiplayer.is_server() and not guest_replication.has_details(): return
-	if not persistence_session.is_guarded() and (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= GuardedTitleSession.RENEW_SECONDS:
-		var slots := preload("res://save_slots.gd").new()
-		slots.root_path = slot_storage_root
-		if slot_claimed: slots.heartbeat(active_slot)
-		if character_slot_claimed:
-			var roster:=preload("res://character_slots.gd").new();roster.root_path=character_storage_root;roster.heartbeat(active_character_slot)
-		slot_heartbeat_at = Time.get_unix_time_from_system()
+	renew_legacy_slot()
 	var local_id := multiplayer.get_unique_id()
 	var view_id: int=spectator_view.focus_id(local_id)
 	var observer: Vector3=actor_presentation.position(view_id)
@@ -2365,6 +2366,15 @@ func _finish_title_return(message: String) -> void:
 	if not report.is_empty(): preload("res://ui/gameplay/expedition_summary.gd").show_at_title(menu,report)
 	queue_free()
 
+
+func renew_legacy_slot() -> void:
+	if not persistence_session.is_guarded() and (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= GuardedTitleSession.RENEW_SECONDS:
+		var slots := preload("res://save_slots.gd").new()
+		slots.root_path = slot_storage_root
+		if slot_claimed: slots.heartbeat(active_slot)
+		if character_slot_claimed:
+			var roster:=preload("res://character_slots.gd").new();roster.root_path=character_storage_root;roster.heartbeat(active_character_slot)
+		slot_heartbeat_at = Time.get_unix_time_from_system()
 
 func release_slot() -> void:
 	if persistence_session.is_guarded():

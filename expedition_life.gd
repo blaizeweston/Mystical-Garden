@@ -44,7 +44,7 @@ static func down(game: Node,id: int,p: Dictionary,effects = null) -> void:
  game.PartyTravel.cancel(game,"A teammate has fallen. Readiness was cleared.",effects)
  var cost: String="%d maximum HP"%Preview.revive_cost()
  game.action_feedback(effects,id,"You have fallen. Watch a living ally while a teammate reaches you. Revival costs %s for this expedition."%cost)
- if living_ids(game).is_empty():
+ if living_ids(game).is_empty() and not game.is_practice_world():
   if effects == null: game.expedition_transitions.finish_failed()
   else: game.expedition_transitions.commit_failed(effects)
 static func nearest(game: Node,p: Dictionary) -> int:
