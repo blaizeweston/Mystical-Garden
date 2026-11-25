@@ -58,7 +58,8 @@ func allowed(index: int, head: int, option: int) -> bool:
 	return masks[index * contract.mask_size + contract.head_offsets[head] + option] != 0
 
 
-func write_intent(index: int, behaviour: int, enemy_target: int, ally_target: int, manoeuvre: int, message_a: int = 0, message_b: int = 0) -> void:
+func write_intent(index: int, behaviour: int, enemy_target: int, ally_target: int, manoeuvre: int, message_a: int = 0, message_b: int = 0,
+		commit: int = 0) -> void:
 	var at := index * Contract.HEAD_COUNT
 	intents[at + Contract.Head.BEHAVIOUR] = behaviour
 	intents[at + Contract.Head.ENEMY_TARGET] = enemy_target
@@ -66,3 +67,4 @@ func write_intent(index: int, behaviour: int, enemy_target: int, ally_target: in
 	intents[at + Contract.Head.MANOEUVRE] = manoeuvre
 	intents[at + Contract.Head.MESSAGE_A] = message_a
 	intents[at + Contract.Head.MESSAGE_B] = message_b
+	intents[at + Contract.Head.COMMIT] = commit

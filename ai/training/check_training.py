@@ -284,6 +284,44 @@ def test_choice_test(schema: MobSchema, folder: Path) -> None:
     check("Does the critic know?" in text and "| b2 |" in text, "the choice report has every section")
 
 
+def test_commit_conversion(folder: Path) -> None:
+    """Converting a checkpoint from 16 symbols and no commit head keeps every kept choice and starts the commit head
+    leaning toward the usual hold."""
+    import json
+    import convert_checkpoint as C
+    from mob_net import MobCritic, MobPolicy
+    from mob_schema import CONTRACT_PATH, SCHEMA_PATH
+    contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+    schema_data = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    contract.pop("commitments_ms")
+    for entry in contract["behaviours"]:
+        entry.pop("commit", None)
+    contract["slots"]["message_symbols"] = 16
+    for block in schema_data["observation"]:
+        for item in block["fields"]:
+            if item["name"] == "message":
+                item["size"] = 32
+    old_files = (folder / "schema_old_commit.json", folder / "contract_old_commit.json")
+    old_files[0].write_text(json.dumps(schema_data), encoding="utf-8")
+    old_files[1].write_text(json.dumps(contract), encoding="utf-8")
+    old, new = MobSchema(*old_files), MobSchema()
+    check(old.head_sizes["commit"] == 0 and new.head_sizes["commit"] == 8, "an old contract has no commit head; the new one has 8 lengths")
+    torch.manual_seed(9)
+    state = {"policy": MobPolicy(old).state_dict(), "critic": MobCritic(old).state_dict()}
+    weights, proof = C.convert(state, old, C.contract_names(old, old_files[1]), new, C.contract_names(new))
+    check(proof["largest_logit_difference"] < 1e-4 and proof["largest_memory_difference"] < 1e-4,
+          f"dropping symbols 8-15 keeps every kept choice when mates never send them ({proof['largest_logit_difference']:.1e})")
+    usual = C.lean_commit(weights, new)
+    policy = MobPolicy(new)
+    policy.load_state_dict(weights["policy"])
+    with torch.no_grad():
+        logits, _hidden = policy(torch.randn(32, new.observation_size), torch.zeros(32, new.network["recurrent_hidden"]))
+    commit = torch.softmax(policy.split_logits(logits)["commit"], 1)
+    check(abs(usual - C.COMMIT_USUAL_SHARE) < 1e-6 and torch.allclose(commit[:, 0], torch.full((32,), usual), atol=1e-5)
+          and torch.allclose(commit[:, 1:], commit[:, 1:2].expand(-1, 7), atol=1e-6),
+          f"the new commit head starts at the usual hold {100 * usual:.0f}% of the time, the set lengths equally")
+
+
 def test_message_warm_start(folder: Path) -> None:
     """Turning messages on keeps the network's choices and makes it ignore mates' symbols until it learns them."""
     import json
@@ -390,6 +428,7 @@ def main() -> int:
         test_replace_waits_for_open_file(folder)
         test_evaluation(schema, folder)
         test_choice_test(schema, folder)
+        test_commit_conversion(folder)
         test_message_warm_start(folder)
         test_dashboard_eras()
     print("PASSED" if not failures else f"FAILED: {len(failures)} check(s)")

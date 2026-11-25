@@ -71,7 +71,8 @@ func _choose(batch: Batch, index: int, slot: int, logits: PackedFloat32Array, ro
 	var manoeuvre := _sample(batch, index, logits, row, Contract.Head.MANOEUVRE, 1.0, false)
 	var message_a := _sample(batch, index, logits, row, Contract.Head.MESSAGE_A, 1.0, false)
 	var message_b := _sample(batch, index, logits, row, Contract.Head.MESSAGE_B, 1.0, false)
-	batch.write_intent(index, behaviour, enemy, ally, manoeuvre, message_a, message_b)
+	var commit := _sample(batch, index, logits, row, Contract.Head.COMMIT, temperature, false) if contract.commit[behaviour] != 0 else 0
+	batch.write_intent(index, behaviour, enemy, ally, manoeuvre, message_a, message_b, commit)
 
 
 ## Samples one head from its legal options. A behaviour that needs a target cannot choose "none".

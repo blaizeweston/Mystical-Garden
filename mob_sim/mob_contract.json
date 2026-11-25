@@ -5,27 +5,28 @@
 		"players": 4,
 		"allies": 6,
 		"attacks": 4,
-		"message_symbols": 16
+		"message_symbols": 8
 	},
 	"party_classes": ["warden", "weaver", "ranger", "reaper", "oracle"],
 	"behaviours": [
-		{"name": "idle_wander", "target": "none", "hold_ms": 400, "summary": "Roam near spawn or leader"},
-		{"name": "search", "target": "enemy", "hold_ms": 500, "summary": "Go to the target's last known position, then sweep"},
-		{"name": "approach", "target": "enemy", "hold_ms": 250, "summary": "Close to preferred range using the manoeuvre"},
+		{"name": "idle_wander", "target": "none", "hold_ms": 400, "commit": true, "summary": "Roam near spawn or leader"},
+		{"name": "search", "target": "enemy", "hold_ms": 500, "commit": true, "summary": "Go to the target's last known position, then sweep"},
+		{"name": "approach", "target": "enemy", "hold_ms": 250, "commit": true, "summary": "Close to preferred range using the manoeuvre"},
 		{"name": "melee_attack", "target": "enemy", "hold_ms": 250, "attack": 0, "delivery": "melee", "summary": "Close and use the basic melee attack"},
 		{"name": "ranged_attack", "target": "enemy", "hold_ms": 250, "attack": 0, "delivery": "ranged", "summary": "Hold range and sight, then use the basic ranged attack"},
 		{"name": "ability_1", "target": "ability", "hold_ms": 250, "attack": 1, "summary": "Get in range and cast the species ability"},
 		{"name": "ability_2", "target": "ability", "hold_ms": 250, "attack": 2, "summary": "Get in range and cast the second ability"},
 		{"name": "ability_3", "target": "ability", "hold_ms": 250, "attack": 3, "summary": "The species' special ability, or a support's fallback attack when no escort is near"},
-		{"name": "flee", "target": "enemy", "hold_ms": 600, "summary": "Move away along the route field"},
-		{"name": "take_cover", "target": "enemy", "hold_ms": 500, "summary": "Move to nearby cover that blocks sight from the target"},
-		{"name": "hide", "target": "enemy", "hold_ms": 800, "available": false, "missing": "Legal only while the host has darkness on (MobSim.set_darkness).", "summary": "Break sight and stay in darkness"},
-		{"name": "defend_ally", "target": "ally", "hold_ms": 600, "summary": "Stay between the ally and its nearest threat"},
-		{"name": "block_enemy", "target": "enemy", "hold_ms": 600, "summary": "Body-block the enemy's path"},
+		{"name": "flee", "target": "enemy", "hold_ms": 600, "commit": true, "summary": "Move away along the route field"},
+		{"name": "take_cover", "target": "enemy", "hold_ms": 500, "commit": true, "summary": "Move to nearby cover that blocks sight from the target"},
+		{"name": "hide", "target": "enemy", "hold_ms": 800, "commit": true, "available": false, "missing": "Legal only while the host has darkness on (MobSim.set_darkness).", "summary": "Break sight and stay in darkness"},
+		{"name": "defend_ally", "target": "ally", "hold_ms": 600, "commit": true, "summary": "Stay between the ally and its nearest threat"},
+		{"name": "block_enemy", "target": "enemy", "hold_ms": 600, "commit": true, "summary": "Body-block the enemy's path"},
 		{"name": "dodge", "target": "none", "hold_ms": 300, "summary": "Sidestep the nearest threat, ignoring hits briefly. Agile species only"},
 		{"name": "channel", "target": "none", "hold_ms": 1000, "summary": "Stand still and refill mana, taking extra damage. Mana species only"},
-		{"name": "roam", "target": "none", "hold_ms": 600, "summary": "Travel a few metres toward the scent of the nearest player. Weaker smell and greater distance make the heading less accurate"}
+		{"name": "roam", "target": "none", "hold_ms": 600, "commit": true, "summary": "Travel a few metres toward the scent of the nearest player. Weaker smell and greater distance make the heading less accurate"}
 	],
+	"commitments_ms": [0, 250, 500, 1000, 1250, 2000, 2500, 3000],
 	"manoeuvres": ["direct", "circle_left", "circle_right", "get_behind", "keep_max_range"],
 	"rules": {
 		"max_attackers_per_player": 6,

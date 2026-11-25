@@ -22,6 +22,7 @@ class ForcedBrain extends "res://mob_sim/mob_brain.gd":
 	var ally := 0
 	var manoeuvre := 0
 	var message := 0
+	var commit := 0
 	var calls := 0
 	var seen_slots := PackedInt32Array()
 	var last_masks := PackedByteArray()
@@ -35,7 +36,7 @@ class ForcedBrain extends "res://mob_sim/mob_brain.gd":
 		seen_slots.append_array(batch.slots)
 		last_masks = batch.masks.duplicate()
 		for index in batch.slots.size():
-			batch.write_intent(index, behaviour, enemy, ally, manoeuvre, message, message)
+			batch.write_intent(index, behaviour, enemy, ally, manoeuvre, message, message, commit)
 
 
 var failures := 0
@@ -101,8 +102,15 @@ func test_contract() -> void:
 	var contract := Contract.new()
 	check(contract.errors.is_empty(), "the contract loads without errors")
 	check(contract.behaviour_count == 16, "the contract defines 16 behaviours")
-	check(contract.head_sizes == PackedInt32Array([16, 5, 8, 5, 16, 16]), "the action heads have the agreed sizes")
-	check(contract.mask_size == 66, "the action heads total 66 options")
+	check(contract.head_sizes == PackedInt32Array([16, 5, 8, 5, 8, 8, 8]), "the action heads have the agreed sizes")
+	check(contract.mask_size == 58, "the action heads total 58 options")
+	check(contract.commitments_ms == PackedInt32Array([0, 250, 500, 1000, 1250, 2000, 2500, 3000]), "commitments run from the usual hold to 3 s")
+	var committing := PackedStringArray()
+	for behaviour in contract.behaviour_count:
+		if contract.commit[behaviour] != 0:
+			committing.append(contract.names[behaviour])
+	check(committing == PackedStringArray(["idle_wander", "search", "approach", "flee", "take_cover", "hide", "defend_ally", "block_enemy", "roam"]),
+		"only positioning behaviours choose a commitment")
 	check(contract.available[contract.id("hide")] == 0, "hide is unavailable until darkness exists")
 	check(contract.available[contract.id("dodge")] != 0 and contract.available[contract.id("channel")] != 0,
 		"dodge and channel are available; species traits decide who may use them")
@@ -221,10 +229,11 @@ func test_locks() -> void:
 		and legal.call(Contract.Head.MANOEUVRE) == PackedInt32Array([2]), "during a hold the targets and manoeuvre stay as they are")
 	var talking := bool(contract.rules.messages_enabled)
 	check(legal.call(Contract.Head.MESSAGE_A).size() == (contract.message_symbols if talking else 1), "messages stay free during a hold")
+	check(legal.call(Contract.Head.COMMIT) == PackedInt32Array([0]), "during a hold the commitment has one option")
 	sim.pool.hold_until[slot] = 0
 	run_ticks(sim, 8)
-	check(legal.call(Contract.Head.BEHAVIOUR).size() > 1 and legal.call(Contract.Head.MANOEUVRE).size() == contract.manoeuvre_count,
-		"choices open again when the hold ends")
+	check(legal.call(Contract.Head.BEHAVIOUR).size() > 1 and legal.call(Contract.Head.MANOEUVRE).size() == contract.manoeuvre_count
+		and legal.call(Contract.Head.COMMIT).size() == contract.commitments_ms.size(), "choices open again when the hold ends")
 
 
 func test_rules() -> void:
@@ -254,6 +263,22 @@ func test_rules() -> void:
 		check(sim.pool.behaviour[slot] == contract.id("flee"), "the minimum hold blocks a new behaviour")
 	run_ticks(sim, 10)
 	check(sim.pool.behaviour[slot] == contract.id("approach") and sim.pool.behaviour_since[slot] > started, "a new behaviour applies after the hold")
+
+	# A chosen commitment sets the hold of a positioning behaviour; other behaviours keep their own.
+	brain.commit = contract.commitments_ms.size() - 1
+	brain.behaviour = contract.id("flee")
+	run_ticks(sim, 30)
+	var committed: int = sim.pool.hold_until[slot] - sim.pool.behaviour_since[slot]
+	check(sim.pool.behaviour[slot] == contract.id("flee") and committed == Clock.from_ms(contract.commitments_ms[brain.commit]),
+		"a positioning behaviour holds for its chosen commitment (%d ticks)" % committed)
+	while sim.clock.tick < sim.pool.hold_until[slot]:
+		sim.tick()
+	brain.behaviour = contract.id("melee_attack")
+	run_ticks(sim, 30)
+	committed = sim.pool.hold_until[slot] - sim.pool.behaviour_since[slot]
+	check(sim.pool.behaviour[slot] == contract.id("melee_attack") and committed == Clock.from_ms(contract.hold_ms[contract.id("melee_attack")]),
+		"a behaviour without commit keeps its own hold whatever the commitment")
+	brain.commit = 0
 
 
 func test_attack_timing() -> void:

@@ -166,7 +166,7 @@
 			{"name": "role_support", "scale": "flag"},
 			{"name": "behaviour", "scale": "flag", "size": 16},
 			{"name": "enemy_target", "scale": "flag", "size": 5},
-			{"name": "message", "scale": "flag", "size": 32}
+			{"name": "message", "scale": "flag", "size": 16}
 		]},
 		{"name": "leader", "encoder": "leader", "fields": [
 			{"name": "present", "scale": "flag"},
@@ -182,7 +182,7 @@
 			{"name": "role_support", "scale": "flag"},
 			{"name": "behaviour", "scale": "flag", "size": 16},
 			{"name": "enemy_target", "scale": "flag", "size": 5},
-			{"name": "message", "scale": "flag", "size": 32},
+			{"name": "message", "scale": "flag", "size": 16},
 			{"name": "ability_cooldown", "scale": "seconds", "size": 3}
 		]}
 	],

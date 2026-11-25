@@ -4,7 +4,9 @@ Use it after the schema or contract gains inputs or options (for example a new b
 still has a place is copied there; inputs that are new start with zero weight, and new options start as a copy
 of a similar existing option (roam starts as idle_wander). When messages are turned on, every symbol starts with
 symbol 0's weights, so the network ignores messages at first, and symbols added later start the same way
-(see open_messages). The optimizer starts fresh when weights change shape. The old checkpoints are moved into
+(see open_messages). When symbols are removed, mates are taken never to send them. A new commit head starts
+leaning toward its option 0, the behaviour's usual hold (see lean_commit). The optimizer starts fresh when weights
+change shape. The old checkpoints are moved into
 checkpoints/schema_<old hash>/ so the trainer cannot fall back to one it can no longer load.
 
 Stop training first. Then:
@@ -35,6 +37,8 @@ from train import default_run_dir, load_settings, pid_alive
 
 ## New options start as a copy of these, so they begin about as likely as the option they resemble.
 SEED_OPTIONS = {("behaviour", "roam"): "idle_wander"}
+## A new commit head picks option 0 (the behaviour's usual hold) this often at first, the set lengths the rest.
+COMMIT_USUAL_SHARE = 0.5
 
 
 def git_versions(path: Path) -> list[str]:
@@ -194,9 +198,11 @@ def prove(state, old, new, old_obs, new_obs, old_options, new_options, policy) -
     old_policy.load_state_dict(state["policy"])
     rows = 256
     old_inputs = torch.clamp(torch.randn(rows, old.observation_size), -old.clip, old.clip)
-    # Masked inputs are always zero, so a masked field that is renamed or dropped loses nothing.
+    # Masked inputs are always zero, so a masked field that is renamed or dropped loses nothing. Inputs with no
+    # place in the new observation (message symbols no longer sent) are taken as never set.
+    kept = set(new_obs)
     for col, key in enumerate(old_obs):
-        if key[2] in next(b for b in old.blocks if b.name == key[0]).masked:
+        if key[2] in next(b for b in old.blocks if b.name == key[0]).masked or key not in kept:
             old_inputs[:, col] = 0.0
     new_inputs = torch.zeros(rows, new.observation_size)
     index = {key: i for i, key in enumerate(old_obs)}
@@ -208,9 +214,26 @@ def prove(state, old, new, old_obs, new_obs, old_options, new_options, policy) -
         old_logits, old_next = old_policy(old_inputs, hidden)
         new_logits, new_next = policy(new_inputs, hidden)
     where = {key: i for i, key in enumerate(new_options)}
-    mapped = torch.stack([new_logits[:, where[key]] for key in old_options], dim=1)
-    return {"largest_logit_difference": float((mapped - old_logits).abs().max()),
+    # Options removed (message symbols) are dropped; a softmax over the rest keeps their relative odds.
+    shared = [i for i, key in enumerate(old_options) if key in where]
+    mapped = torch.stack([new_logits[:, where[old_options[i]]] for i in shared], dim=1)
+    return {"largest_logit_difference": float((mapped - old_logits[:, shared]).abs().max()),
             "largest_memory_difference": float((new_next - old_next).abs().max())}
+
+
+def lean_commit(weights: dict, schema: MobSchema, share: float = COMMIT_USUAL_SHARE) -> float:
+    """Starts a new commit head choosing option 0 (the behaviour's usual hold) with probability share and the set
+    lengths equally the rest of the time, whatever the situation: its weights are zero and only option 0's bias is
+    raised. Returns option 0's probability."""
+    size = schema.head_sizes.get("commit", 0)
+    if size < 2:
+        return 1.0
+    start = sum(schema.head_sizes[h] for h in HEAD_NAMES[:HEAD_NAMES.index("commit")])
+    policy = weights["policy"]
+    policy["heads.weight"][start:start + size] = 0.0
+    policy["heads.bias"][start:start + size] = 0.0
+    policy["heads.bias"][start] = float(torch.log(torch.tensor(share * (size - 1) / (1.0 - share))))
+    return float(torch.softmax(policy["heads.bias"][start:start + size], 0)[0])
 
 
 def messages_enabled(contract_path: Path) -> bool:
@@ -342,6 +365,11 @@ def main() -> int:
         if max(heard.values()) > 1e-4:
             print("The message warm start did not hold; nothing was changed.")
             return 1
+    if old.head_sizes.get("commit", 0) == 0 and new.head_sizes.get("commit", 0) > 1:
+        usual = lean_commit(weights, new)
+        print(f"Commit head added: the usual hold starts at {100 * usual:.0f}%, each set length at {100 * (1 - usual) / (new.head_sizes['commit'] - 1):.0f}%.")
+    if new.head_sizes["message_a"] < old.head_sizes["message_a"]:
+        print(f"Message symbols {new.head_sizes['message_a']}-{old.head_sizes['message_a'] - 1} removed: mates are taken never to send them.")
     converted = dict(state)
     converted.update(weights)
     converted["schema_hash"] = new.hash_hex

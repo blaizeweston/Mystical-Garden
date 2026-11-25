@@ -5,9 +5,9 @@ const PATH := "res://mob_sim/mob_contract.json"
 
 enum TargetKind { NONE, ENEMY, ALLY, ABILITY }
 enum Delivery { ANY, MELEE, RANGED }
-enum Head { BEHAVIOUR, ENEMY_TARGET, ALLY_TARGET, MANOEUVRE, MESSAGE_A, MESSAGE_B }
+enum Head { BEHAVIOUR, ENEMY_TARGET, ALLY_TARGET, MANOEUVRE, MESSAGE_A, MESSAGE_B, COMMIT }
 
-const HEAD_COUNT := 6
+const HEAD_COUNT := 7
 const TARGET_NAMES := {"none": TargetKind.NONE, "enemy": TargetKind.ENEMY, "ally": TargetKind.ALLY, "ability": TargetKind.ABILITY}
 const DELIVERY_NAMES := {"any": Delivery.ANY, "melee": Delivery.MELEE, "ranged": Delivery.RANGED}
 
@@ -25,6 +25,10 @@ var manoeuvre_count := 0
 var names := PackedStringArray()
 var manoeuvres := PackedStringArray()
 var hold_ms := PackedInt32Array()
+## How long a mob commits to a positioning behaviour, chosen with the commit head: option 0 is the behaviour's own
+## hold_ms, the rest are fixed lengths in milliseconds. Behaviours without commit always use their hold_ms.
+var commitments_ms := PackedInt32Array()
+var commit := PackedByteArray()
 var available := PackedByteArray()
 var target_kind := PackedByteArray()
 var attack_slot := PackedInt32Array()
@@ -56,10 +60,13 @@ func _init(path: String = PATH) -> void:
 	perception = data.perception
 	manoeuvres = PackedStringArray(data.manoeuvres)
 	manoeuvre_count = manoeuvres.size()
+	commitments_ms = PackedInt32Array(data.get("commitments_ms", [0]))
+	if commitments_ms.is_empty() or commitments_ms[0] != 0:
+		errors.append("commitments_ms must start with 0 (the behaviour's own hold).")
 	for entry: Dictionary in data.behaviours:
 		_add_behaviour(entry)
 	behaviour_count = names.size()
-	head_sizes = PackedInt32Array([behaviour_count, players + 1, allies + 2, manoeuvre_count, message_symbols, message_symbols])
+	head_sizes = PackedInt32Array([behaviour_count, players + 1, allies + 2, manoeuvre_count, message_symbols, message_symbols, commitments_ms.size()])
 	for size in head_sizes:
 		head_offsets.append(mask_size)
 		mask_size += size
@@ -80,6 +87,7 @@ func _add_behaviour(entry: Dictionary) -> void:
 	attack_slot.append(int(entry.get("attack", -1)))
 	delivery.append(int(DELIVERY_NAMES[str(entry.get("delivery", "any"))]))
 	leader_only.append(int(entry.get("leader_only", false)))
+	commit.append(int(entry.get("commit", false)))
 
 
 func id(label: String) -> int:

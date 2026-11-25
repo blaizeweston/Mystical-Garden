@@ -38,7 +38,8 @@ typedef enum {
 /* Contract enums mirrored from mob_contract.gd. */
 enum { DK_TARGET_NONE, DK_TARGET_ENEMY, DK_TARGET_ALLY, DK_TARGET_ABILITY };
 enum { DK_DELIVERY_ANY, DK_DELIVERY_MELEE, DK_DELIVERY_RANGED };
-enum { DK_HEAD_BEHAVIOUR, DK_HEAD_ENEMY, DK_HEAD_ALLY, DK_HEAD_MANOEUVRE, DK_HEAD_MESSAGE_A, DK_HEAD_MESSAGE_B, DK_HEAD_COUNT };
+/* DK_HEAD_COMMIT is the last head, so its size is the mask size minus its offset. */
+enum { DK_HEAD_BEHAVIOUR, DK_HEAD_ENEMY, DK_HEAD_ALLY, DK_HEAD_MANOEUVRE, DK_HEAD_MESSAGE_A, DK_HEAD_MESSAGE_B, DK_HEAD_COMMIT, DK_HEAD_COUNT };
 
 typedef struct MobDecide MobDecide;
 

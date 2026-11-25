@@ -20,6 +20,8 @@ var events: Events
 ## Mana, channeling and dodging. MobSim sets it; without it mobs never dodge or channel and casts are free.
 var actions: Actions
 var hold_ticks := PackedInt32Array()
+## The commit head's lengths in ticks; option 0 means the behaviour's own hold.
+var commit_ticks := PackedInt32Array()
 var max_attackers := 0
 var messages_enabled := false
 var rejected := 0
@@ -41,6 +43,8 @@ func _init(rules_contract: Contract, mob_pool: Pool, mob_party: Party, table: Sp
 	messages_enabled = bool(contract.rules.messages_enabled)
 	for milliseconds in contract.hold_ms:
 		hold_ticks.append(Clock.from_ms(milliseconds))
+	for milliseconds in contract.commitments_ms:
+		commit_ticks.append(Clock.from_ms(milliseconds))
 	_dodge = contract.id("dodge")
 	_channel = contract.id("channel")
 	_hide = contract.id("hide")
@@ -149,6 +153,9 @@ func _mask_slot(batch: Batch, base: int, slot: int, tick: int) -> void:
 		if messages_enabled:
 			for symbol in range(1, contract.message_symbols):
 				batch.masks[base + contract.head_offsets[head] + symbol] = 1
+	# Every commitment length is legal; the brain keeps option 0 for behaviours without commit.
+	for option in contract.head_sizes[Contract.Head.COMMIT]:
+		batch.masks[base + contract.head_offsets[Contract.Head.COMMIT] + option] = 1
 	for behaviour in contract.behaviour_count:
 		batch.masks[base + behaviour] = int(_behaviour_legal(slot, behaviour, has_enemy, has_ally, tick))
 	_lock_slot(batch, base, slot, tick)
@@ -172,6 +179,9 @@ func _lock_slot(batch: Batch, base: int, slot: int, tick: int) -> void:
 		for option in size:
 			batch.masks[offset + option] = 0
 		batch.masks[offset + (int(entry[1]) if int(entry[1]) < size else 0)] = 1
+	var commit_offset: int = base + contract.head_offsets[Contract.Head.COMMIT]
+	for option in contract.head_sizes[Contract.Head.COMMIT]:
+		batch.masks[commit_offset + option] = int(option == 0)
 
 
 func _behaviour_legal(slot: int, behaviour: int, has_enemy: bool, has_ally: bool, tick: int) -> bool:
@@ -227,7 +237,7 @@ func _commit_slot(batch: Batch, index: int, slot: int, tick: int) -> void:
 		return
 	var previous := pool.behaviour[slot]
 	if behaviour != previous or enemy != pool.enemy_target[slot] or ally != pool.ally_target[slot]:
-		pool.hold_until[slot] = tick + hold_ticks[behaviour]
+		pool.hold_until[slot] = tick + _hold(batch, index, behaviour, batch.intents[at + Contract.Head.COMMIT])
 		pool.behaviour_since[slot] = tick
 		events.push(Events.Kind.INTENT, tick, slot, pool.generation[slot], behaviour, enemy)
 	pool.behaviour[slot] = behaviour
@@ -236,6 +246,13 @@ func _commit_slot(batch: Batch, index: int, slot: int, tick: int) -> void:
 	pool.manoeuvre[slot] = manoeuvre
 	if behaviour != previous and actions != null:
 		actions.on_change(slot, previous, behaviour, tick)
+
+
+## The hold a behaviour change starts: the chosen commitment for a behaviour with commit, else its own hold.
+func _hold(batch: Batch, index: int, behaviour: int, option: int) -> int:
+	if contract.commit[behaviour] == 0 or option <= 0 or option >= commit_ticks.size() or not batch.allowed(index, Contract.Head.COMMIT, option):
+		return hold_ticks[behaviour]
+	return commit_ticks[option]
 
 
 func _message(batch: Batch, index: int, head: int, symbol: int) -> int:

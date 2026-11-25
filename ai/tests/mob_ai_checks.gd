@@ -79,12 +79,12 @@ func check(condition: bool, label: String) -> void:
 
 func test_schema(schema: Schema) -> void:
 	check(schema.errors.is_empty(), "the schema loads without errors " + str(schema.errors))
-	check(schema.observation_size == 744, "the observation has 744 values")
+	check(schema.observation_size == 632, "the observation has 632 values")
 	check(schema.global_size == 52, "the critic state has 52 values")
 	var encoder_sizes := {}
 	for block in schema.ordered_blocks:
 		encoder_sizes[block.encoder] = int(encoder_sizes.get(block.encoder, 0)) + block.stride * block.repeat
-	check(encoder_sizes == {"self": 157, "enemy": 136, "ally": 384, "leader": 67}, "each encoder receives the agreed size")
+	check(encoder_sizes == {"self": 157, "enemy": 136, "ally": 288, "leader": 51}, "each encoder receives the agreed size")
 	var builder := Builder.new(schema)
 	check(builder.errors.is_empty(), "every live field has a source and no masked field does " + str(builder.errors))
 	var file := FileAccess.open(LAYOUT, FileAccess.WRITE)

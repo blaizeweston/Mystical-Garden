@@ -10,7 +10,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = PROJECT_ROOT / "ai" / "schema.json"
 CONTRACT_PATH = PROJECT_ROOT / "mob_sim" / "mob_contract.json"
-HEAD_NAMES = ("behaviour", "enemy_target", "ally_target", "manoeuvre", "message_a", "message_b")
+HEAD_NAMES = ("behaviour", "enemy_target", "ally_target", "manoeuvre", "message_a", "message_b", "commit")
 
 
 @dataclass
@@ -50,6 +50,8 @@ class MobSchema:
             "manoeuvre": len(contract["manoeuvres"]),
             "message_a": int(slots["message_symbols"]),
             "message_b": int(slots["message_symbols"]),
+            # Contracts from before the commit head have none (size 0), so old checkpoints still load.
+            "commit": len(contract.get("commitments_ms", [])),
         }
         self.logit_count = sum(self.head_sizes.values())
 

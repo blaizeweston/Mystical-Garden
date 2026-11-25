@@ -235,6 +235,11 @@ static int behaviour_legal(const View *v, int slot, int behaviour, int has_enemy
     return attack_ready(v, slot, attack);
 }
 
+/* The commit head's option count: it is the last head. */
+static inline int commit_options(const MobDecide *d) {
+    return d->dim[DD_MASK_SIZE] - d->head_offset[DK_HEAD_COMMIT];
+}
+
 /* While an attack winds up or a behaviour holds, the mob is committed: MobRules._commit_slot keeps its behaviour,
  * targets and manoeuvre, and nothing cuts through, not even a dodge. Those are the only legal options, so a
  * committed decision has one choice and training never learns from it. Messages are always free. */
@@ -253,6 +258,9 @@ static void lock_slot(const View *v, uint8_t *row, int slot) {
     uint8_t *manoeuvre = row + d->head_offset[DK_HEAD_MANOEUVRE];
     memset(manoeuvre, 0, (size_t)d->dim[DD_MANOEUVRES]);
     manoeuvre[v->manoeuvre[slot] < d->dim[DD_MANOEUVRES] ? v->manoeuvre[slot] : 0] = 1;
+    uint8_t *commit = row + d->head_offset[DK_HEAD_COMMIT];
+    memset(commit, 0, (size_t)commit_options(d));
+    commit[0] = 1;
 }
 
 static void mask_slot(const View *v, uint8_t *row, int slot) {
@@ -287,6 +295,8 @@ static void mask_slot(const View *v, uint8_t *row, int slot) {
         message[0] = 1;
         if (d->dim[DD_MESSAGES_ENABLED] != 0 && d->dim[DD_SYMBOLS] > 1) memset(message + 1, 1, (size_t)d->dim[DD_SYMBOLS] - 1);
     }
+    /* Every commitment length is legal; the brain keeps option 0 for behaviours without commit. */
+    memset(row + d->head_offset[DK_HEAD_COMMIT], 1, (size_t)commit_options(d));
     uint8_t *behaviours = row + d->head_offset[DK_HEAD_BEHAVIOUR];
     for (int behaviour = 0; behaviour < d->dim[DD_BEHAVIOURS]; behaviour++) {
         behaviours[behaviour] = (uint8_t)behaviour_legal(v, slot, behaviour, has_enemy, has_ally);
@@ -317,6 +327,7 @@ static void write_intent(uint8_t *out, int64_t index, int behaviour, int enemy, 
     row[DK_HEAD_MANOEUVRE] = (uint8_t)manoeuvre;
     row[DK_HEAD_MESSAGE_A] = 0;
     row[DK_HEAD_MESSAGE_B] = 0;
+    row[DK_HEAD_COMMIT] = 0;
 }
 
 static inline int enemy_allowed(const View *v, int64_t index, int player) {

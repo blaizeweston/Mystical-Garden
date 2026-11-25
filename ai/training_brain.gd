@@ -69,8 +69,15 @@ func _choose_recorded(batch: Batch, index: int, logits: PackedFloat32Array, row:
 	var manoeuvre := _sample_head(batch, index, logits, row, Contract.Head.MANOEUVRE, false, masks, actions)
 	var message_a := _sample_head(batch, index, logits, row, Contract.Head.MESSAGE_A, false, masks, actions)
 	var message_b := _sample_head(batch, index, logits, row, Contract.Head.MESSAGE_B, false, masks, actions)
-	total += enemy.y + ally.y + manoeuvre.y + message_a.y + message_b.y
-	batch.write_intent(index, int(behaviour.x), int(enemy.x), int(ally.x), int(manoeuvre.x), int(message_a.x), int(message_b.x))
+	var commit := Vector2(0, 0.0)
+	if contract.commit[int(behaviour.x)] != 0:
+		commit = _sample_head(batch, index, logits, row, Contract.Head.COMMIT, false, masks, actions)
+	else:
+		# A behaviour without commit keeps its own hold: the head has one option and nothing to learn.
+		masks[schema.contract.head_offsets[Contract.Head.COMMIT]] = 1
+		actions[Contract.Head.COMMIT] = 0
+	total += enemy.y + ally.y + manoeuvre.y + message_a.y + message_b.y + commit.y
+	batch.write_intent(index, int(behaviour.x), int(enemy.x), int(ally.x), int(manoeuvre.x), int(message_a.x), int(message_b.x), int(commit.x))
 	return total
 
 

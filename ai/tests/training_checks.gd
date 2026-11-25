@@ -4,6 +4,7 @@ extends SceneTree
 ## Uses ai/training/out/policy.bin, which ai/training/check_model.py writes (run_checks.ps1 runs it first).
 
 const Choice = preload("res://ai/choice_test.gd")
+const Contract = preload("res://mob_sim/mob_contract.gd")
 const Env = preload("res://ai/training_env.gd")
 const NavWorld = preload("res://mob_sim/mob_nav_world.gd")
 const Recorder = preload("res://ai/rollout_recorder.gd")
@@ -129,6 +130,26 @@ func test_episodes() -> void:
 			offset += schema.contract.head_sizes[head]
 		probable = probable and recorder._log_prob[row] <= 0.0001
 	check(legal and probable, "every recorded choice was legal and has a log-probability at most 0")
+	# The commitment is a choice only for positioning behaviours; for the rest it is fixed at the behaviour's own hold.
+	var contract: Contract = schema.contract
+	var commit_offset: int = contract.head_offsets[Contract.Head.COMMIT]
+	var commit_options: int = contract.head_sizes[Contract.Head.COMMIT]
+	var fixed_ok := true
+	var free_rows := 0
+	var long_holds := 0
+	for row in recorder.rows:
+		var behaviour: int = recorder._actions[row * heads + Contract.Head.BEHAVIOUR]
+		var choice: int = recorder._actions[row * heads + Contract.Head.COMMIT]
+		var open := 0
+		for option in commit_options:
+			open += int(recorder._masks[row * recorder.mask_size + commit_offset + option] != 0)
+		if contract.commit[behaviour] == 0:
+			fixed_ok = fixed_ok and open == 1 and choice == 0
+		elif open == commit_options:
+			free_rows += 1
+			long_holds += int(choice > 0)
+	check(fixed_ok and free_rows > 0 and long_holds > 0,
+		"only positioning behaviours choose a commitment (%d free choices, %d chose a set length)" % [free_rows, long_holds])
 	var terminal := 0
 	for row in recorder.rows:
 		terminal += int(ends[row] == Recorder.End.TERMINAL)
