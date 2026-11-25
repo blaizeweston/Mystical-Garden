@@ -14,6 +14,7 @@ const Party = preload("res://mob_sim/mob_party.gd")
 const Perception = preload("res://mob_sim/mob_perception.gd")
 const Pool = preload("res://mob_sim/mob_pool.gd")
 const Rules = preload("res://mob_sim/mob_rules.gd")
+const Command = preload("res://mob_sim/mob_command.gd")
 const ScriptedBrain = preload("res://mob_sim/mob_scripted_brain.gd")
 const ReferenceScriptedBrain = preload("res://mob_sim/mob_scripted_brain_reference.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
@@ -34,6 +35,8 @@ var events: Events
 var locomotion: Locomotion
 var perception: Perception
 var rules: Rules
+## The fight's commander (contract rules.commander).
+var command: Command
 var abilities: Abilities
 ## Native executors, or the GDScript reference after use_reference_executors().
 var executors: RefCounted
@@ -68,6 +71,8 @@ func _init(slots: int, awake_brain: Brain = null) -> void:
 	rules = Rules.new(contract, pool, party, species, perception, events)
 	actions = Actions.new(contract, pool, party, species, perception, locomotion)
 	rules.actions = actions
+	command = Command.new(pool, bool(contract.rules.get("commander", false)))
+	rules.command = command
 	status = StatusSystem.new(pool, species.count)
 	fields = Fields.new(pool, species)
 	abilities = Abilities.new(pool, party, species, rules, events, locomotion)
@@ -209,6 +214,7 @@ func tick() -> void:
 	if timers.enabled:
 		_timed_tick(now)
 		return
+	command.refresh()
 	perception.update(now)
 	_decide(now)
 	executors.run(now)
@@ -249,6 +255,7 @@ func add_player_field(at: Vector2, radius: float, duration_ms: int, player := -1
 ## The same steps as tick(), charged to each system. Kept separate so untimed ticks pay nothing.
 func _timed_tick(now: int) -> void:
 	timers.begin_tick()
+	command.refresh()
 	perception.update(now)
 	timers.lap(SystemTimers.System.PERCEPTION)
 	_decide(now)

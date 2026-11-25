@@ -24,6 +24,8 @@ extends RefCounted
 ##   of the fight earn nothing for it, so hiding until the others finish the party no longer pays.
 ## - Changing intent: an optional cost (intent_change, now 0: behaviour holds already stop thrashing).
 ## A share of every reward (squad mix) goes to the mob's nearest allies, so mobs also value their squad's success.
+## - The fight's commander (MobCommand) also earns commander_team_share times the average of what its followers
+##   earn, so its orders are judged by how the whole fight goes.
 
 const Clock = preload("res://mob_sim/mob_clock.gd")
 const Events = preload("res://mob_sim/mob_events.gd")
@@ -38,6 +40,7 @@ var sim: RefCounted
 var weights: Dictionary = {}
 ## Share of each reward given to the mob's allies. The trainer moves it from squad_mix_start to squad_mix_end.
 var squad_mix := 0.0
+var _followers := 0
 ## Reward earned since each slot's last take().
 var pending := PackedFloat32Array()
 ## Totals since the last reset, for reports: damage, healing, downs, killing_blows, wipes, found, evaded, dodged, landed, sight, support,
@@ -98,6 +101,8 @@ func take(slot: int) -> float:
 
 func tick() -> void:
 	var now: int = sim.clock.tick
+	var command = sim.get("command")
+	_followers = command.follower_count() if command != null else 0
 	for event in sim.events.read_since(_cursor):
 		_event(event, now)
 	_cursor = sim.events.head
@@ -217,6 +222,19 @@ func _keep(slot: int, value: float, kind: String) -> void:
 		return
 	totals[kind] = totals.get(kind, 0) + 1
 	pending[slot] += value
+	_relay(slot, value, kind)
+
+
+## Passes the commander its share of a follower's reward: commander_team_share of the followers' average.
+func _relay(slot: int, value: float, kind: String) -> void:
+	var share := float(weights.get("commander_team_share", 0.0))
+	var command = sim.get("command")
+	if share <= 0.0 or kind == "command" or command == null or _followers <= 0:
+		return
+	var chief: int = command.commander
+	if chief < 0 or slot == chief or not command.commands(chief) or sim.pool.leader_of(slot) != chief:
+		return
+	_keep(chief, value * share / _followers, "command")
 
 
 ## Adds a reward, keeping (1 - squad_mix) for the mob and sharing the rest among its allies.
@@ -224,6 +242,7 @@ func _give(slot: int, value: float, kind: String) -> void:
 	if value == 0.0 or slot < 0 or slot >= pending.size():
 		return
 	totals[kind] = totals.get(kind, 0) + (1 if kind in ["downs", "wipes", "deaths", "found", "evaded", "dodged", "landed"] else value)
+	_relay(slot, value, kind)
 	var allies := _allies(slot) if squad_mix > 0.0 else PackedInt32Array()
 	if allies.is_empty():
 		pending[slot] += value
@@ -245,7 +264,7 @@ func _allies(slot: int) -> PackedInt32Array:
 
 
 func _value(slot: int) -> float:
-	var elite: bool = sim.pool.flags[slot] & (Pool.FLAG_ELITE | Pool.FLAG_LEADER) != 0
+	var elite: bool = sim.pool.flags[slot] & Pool.FLAG_ELITE != 0
 	return float(weights.get("mob_value_elite" if elite else "mob_value_basic", 1.0))
 
 

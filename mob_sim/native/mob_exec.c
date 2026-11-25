@@ -25,6 +25,8 @@
 #define COVER_STOP 0.3
 /* Matches MobPerception: a cell is lit at a quarter light, and players see unlit mobs only this close. */
 #define LIT_THRESHOLD 0.25f
+/* MobPool.FLAG_ELITE. */
+#define POOL_FLAG_ELITE 2
 #define PLAYER_DARK_SIGHT 2.5
 #define DEFEND_DISTANCE 1.6
 #define BLOCK_DISTANCE 1.5
@@ -68,7 +70,7 @@ static const MeKind input_kinds[EI_COUNT] = {
     [EI_PARTY_X] = ME_FLOATS, [EI_PARTY_Z] = ME_FLOATS, [EI_PARTY_VX] = ME_FLOATS, [EI_PARTY_VZ] = ME_FLOATS,
     [EI_COMMANDS] = ME_FLOATS, [EI_TARGETS] = ME_FLOATS,
     [EI_APPROACH_UNTIL] = ME_INTS, [EI_APPROACH_X] = ME_FLOATS, [EI_APPROACH_Z] = ME_FLOATS, [EI_COMMAND_UNTIL] = ME_INTS,
-    [EI_COMMAND_VIA] = ME_BYTES, [EI_COMMAND_VIA_X] = ME_FLOATS, [EI_COMMAND_VIA_Z] = ME_FLOATS,
+    [EI_COMMAND_VIA] = ME_BYTES, [EI_COMMAND_VIA_X] = ME_FLOATS, [EI_COMMAND_VIA_Z] = ME_FLOATS, [EI_FLAGS] = ME_BYTES,
 };
 
 MeKind me_config_kind(int index) { return config_kinds[index]; }
@@ -103,7 +105,7 @@ typedef struct {
     int tick, goal_tick;
     const int *generation, *species, *mutations, *leader, *leader_generation, *behaviour_since;
     const int *windup_until, *stun_until, *ready_at, *cooldown_until, *seen_tick, *allies, *approach_until, *command_until;
-    const uint8_t *command_via;
+    const uint8_t *command_via, *flags;
     const float *approach_x, *approach_z, *command_via_x, *command_via_z;
     const uint8_t *alive, *behaviour, *enemy_target, *ally_target, *manoeuvre, *visible, *party_present, *party_alive;
     const float *xz, *spawn_x, *spawn_z, *reach_bonus, *seen_x, *seen_z, *party_x, *party_z, *party_vx, *party_vz;
@@ -407,7 +409,9 @@ static void do_attack(Run *r, int slot) {
 
 static void do_idle(const Run *r, int slot) {
     if (r->behaviour_since[slot] != r->tick && (r->tick + slot * 7) % WANDER_TICKS != 0) return;
+    /* An idle mob wanders near an elite leader, as a pack; a regular commander only gives orders. */
     int leader = leader_of(r, slot);
+    if (leader >= 0 && (r->flags[leader] & POOL_FLAG_ELITE) == 0) leader = -1;
     double home_x = leader >= 0 ? (double)r->xz[leader * 2] : (double)r->spawn_x[slot];
     double home_z = leader >= 0 ? (double)r->xz[leader * 2 + 1] : (double)r->spawn_z[slot];
     if (distance_to(r, slot, home_x, home_z) > WANDER_LEASH) {
@@ -622,6 +626,7 @@ MeResult me_run(MobExec *e, const MobNav *nav, const MobSense *sense, const void
             || lengths[EI_COOLDOWN_UNTIL] != (int64_t)capacity * attacks || lengths[EI_VISIBLE] != (int64_t)capacity * players
             || lengths[EI_ALLIES] != (int64_t)capacity * e->dim[ED_ALLIES] || lengths[EI_APPROACH_UNTIL] != capacity
             || lengths[EI_COMMAND_UNTIL] != capacity || lengths[EI_COMMAND_VIA] != capacity || lengths[EI_COMMAND_VIA_X] != capacity
+            || lengths[EI_FLAGS] != capacity
             || lengths[EI_PARTY_X] != players || lengths[EI_COMMANDS] != command_floats || lengths[EI_TARGETS] != target_floats) {
         return ME_ERR_ARGUMENT;
     }
@@ -646,6 +651,7 @@ MeResult me_run(MobExec *e, const MobNav *nav, const MobSense *sense, const void
     BIND(approach_until, EI_APPROACH_UNTIL, int); BIND(approach_x, EI_APPROACH_X, float); BIND(approach_z, EI_APPROACH_Z, float);
     BIND(command_until, EI_COMMAND_UNTIL, int); BIND(command_via, EI_COMMAND_VIA, uint8_t);
     BIND(command_via_x, EI_COMMAND_VIA_X, float); BIND(command_via_z, EI_COMMAND_VIA_Z, float);
+    BIND(flags, EI_FLAGS, uint8_t);
     r.commands = out;
     r.targets = out + command_floats;
     r.requests = out + command_floats + target_floats + 1;

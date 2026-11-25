@@ -78,6 +78,8 @@ var message_b := PackedByteArray()
 var hold_until := PackedInt32Array()
 ## The tick the current hold began (a change of intent, or a set commitment chosen again).
 var hold_start := PackedInt32Array()
+## Until this tick a commander's messages cannot change (MobRules: orders last long enough to matter).
+var message_until := PackedInt32Array()
 var behaviour_since := PackedInt32Array()
 
 var ready_at := PackedInt32Array()
@@ -131,7 +133,7 @@ func _init(slots: int, attack_slots: int) -> void:
 		table.resize(slots)
 		table.fill(0)
 	for table: PackedInt32Array in [generation, species, mutations, leader, leader_generation, next_decision, decision_interval, decided_at,
-			hold_until, hold_start, behaviour_since, ready_at, windup_until, stun_until, root_until, slow_until, haste_until, last_sensed,
+			hold_until, hold_start, message_until, behaviour_since, ready_at, windup_until, stun_until, root_until, slow_until, haste_until, last_sensed,
 			dot_until, dot_next, dodge_until, channel_until, approach_until, command_until, channel_from, dodge_ready_at, hurt_at]:
 		table.resize(slots)
 		table.fill(0)
@@ -193,6 +195,7 @@ func spawn_at(slot: int, request: Spawn, table: Species, tick: int, interval: in
 	message_b[slot] = 0
 	hold_until[slot] = 0
 	hold_start[slot] = tick
+	message_until[slot] = 0
 	behaviour_since[slot] = tick
 	ready_at[slot] = tick + request.ready_delay_ticks
 	for attack in attacks:

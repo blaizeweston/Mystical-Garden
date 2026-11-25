@@ -10,6 +10,7 @@ const Perception = preload("res://mob_sim/mob_perception.gd")
 const Pool = preload("res://mob_sim/mob_pool.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
 const Actions = preload("res://mob_sim/mob_actions.gd")
+const Command = preload("res://mob_sim/mob_command.gd")
 
 var contract: Contract
 var pool: Pool
@@ -19,6 +20,9 @@ var perception: Perception
 var events: Events
 ## Mana, channeling and dodging. MobSim sets it; without it mobs never dodge or channel and casts are free.
 var actions: Actions
+## The fight's commander (MobSim sets it). Its messages hold for commander_message_ticks once they change.
+var command: Command
+var commander_message_ticks := 0
 var hold_ticks := PackedInt32Array()
 ## The commit head's lengths in ticks; option 0 means the behaviour's own hold.
 var commit_ticks := PackedInt32Array()
@@ -41,6 +45,7 @@ func _init(rules_contract: Contract, mob_pool: Pool, mob_party: Party, table: Sp
 	events = event_log
 	max_attackers = int(contract.rules.max_attackers_per_player)
 	messages_enabled = bool(contract.rules.messages_enabled)
+	commander_message_ticks = Clock.from_ms(float(contract.rules.get("commander_message_ms", 0)))
 	for milliseconds in contract.hold_ms:
 		hold_ticks.append(Clock.from_ms(milliseconds))
 	for milliseconds in contract.commitments_ms:
@@ -117,11 +122,30 @@ func build_masks(batch: Batch, _tick: int) -> void:
 		push_error("The native mask builder refused this decision's input.")
 		return
 	batch.masks = built
+	hold_orders(batch, _tick)
 
 
 func build_masks_reference(batch: Batch, tick: int) -> void:
 	for index in batch.slots.size():
 		_mask_slot(batch, index * contract.mask_size, batch.slots[index], tick)
+	hold_orders(batch, tick)
+
+
+## While a commander's messages hold, its only legal messages are the ones it is sending, so it cannot change
+## its orders faster than commander_message_ticks and training does not learn from choices that do nothing.
+## Applied after either mask builder.
+func hold_orders(batch: Batch, tick: int) -> void:
+	if command == null or commander_message_ticks <= 0:
+		return
+	for index in batch.slots.size():
+		var slot := batch.slots[index]
+		if not command.commands(slot) or tick >= pool.message_until[slot]:
+			continue
+		var base := index * contract.mask_size
+		for entry: Array in [[Contract.Head.MESSAGE_A, pool.message_a[slot]], [Contract.Head.MESSAGE_B, pool.message_b[slot]]]:
+			var offset: int = base + contract.head_offsets[entry[0]]
+			for symbol in contract.head_sizes[entry[0]]:
+				batch.masks[offset + symbol] = int(symbol == int(entry[1]))
 
 
 func _mask_slot(batch: Batch, base: int, slot: int, tick: int) -> void:
@@ -230,8 +254,17 @@ func _commit_slot(batch: Batch, index: int, slot: int, tick: int) -> void:
 			enemy = 0
 			ally = 0
 			manoeuvre = 0
-	pool.message_a[slot] = _message(batch, index, Contract.Head.MESSAGE_A, batch.intents[at + Contract.Head.MESSAGE_A])
-	pool.message_b[slot] = _message(batch, index, Contract.Head.MESSAGE_B, batch.intents[at + Contract.Head.MESSAGE_B])
+	var message_a := _message(batch, index, Contract.Head.MESSAGE_A, batch.intents[at + Contract.Head.MESSAGE_A])
+	var message_b := _message(batch, index, Contract.Head.MESSAGE_B, batch.intents[at + Contract.Head.MESSAGE_B])
+	var reordered := message_a != pool.message_a[slot] or message_b != pool.message_b[slot]
+	if reordered and command != null and command.commands(slot) and commander_message_ticks > 0:
+		if tick < pool.message_until[slot]:
+			message_a = pool.message_a[slot]
+			message_b = pool.message_b[slot]
+		else:
+			pool.message_until[slot] = tick + commander_message_ticks
+	pool.message_a[slot] = message_a
+	pool.message_b[slot] = message_b
 	# A committed mob (winding up, or inside its behaviour's hold) keeps its intent; nothing cuts through.
 	if pool.windup_until[slot] > 0 or tick < pool.hold_until[slot]:
 		return

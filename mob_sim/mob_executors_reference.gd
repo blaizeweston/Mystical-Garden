@@ -175,7 +175,10 @@ func _attack(slot: int, tick: int) -> void:
 func _do_idle_wander(slot: int, tick: int) -> void:
 	if pool.behaviour_since[slot] != tick and (tick + slot * 7) % WANDER_TICKS != 0:
 		return
+	# An idle mob wanders near an elite leader, as a pack; a regular commander only gives orders.
 	var leader := pool.leader_of(slot)
+	if leader >= 0 and pool.flags[leader] & Pool.FLAG_ELITE == 0:
+		leader = -1
 	var home_x := pool.xz[leader * 2] if leader >= 0 else pool.spawn_x[slot]
 	var home_z := pool.xz[leader * 2 + 1] if leader >= 0 else pool.spawn_z[slot]
 	if pool.distance_to(slot, home_x, home_z) > WANDER_LEASH:

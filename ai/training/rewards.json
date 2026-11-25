@@ -21,6 +21,7 @@
 		"mob_value_basic": 1.0,
 		"mob_value_elite": 3.0,
 		"intent_change": 0.0,
+		"commander_team_share": 1.0,
 		"squad_mix_start": 0.2,
 		"squad_mix_end": 0.3
 	},
