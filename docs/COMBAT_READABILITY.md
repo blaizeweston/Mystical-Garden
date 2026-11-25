@@ -101,6 +101,48 @@ Each frame-time sample ran for 6.5 seconds in the solo Testing Arena at 1100 × 
 
 VFX02 reported 8.75 ms capped p95 for single-target combat and 8.83 ms for its overlapping-effects workload with VSync on. VFX03's Garden measurements describe a different scene. The peaks above count active combat receipts, excluding actor-owned edge strips and floating captions. The warmed camera recordings peaked at 13 edge samples for the Rootblade, spear and maul (24 triangles per strip) and nine for a knife (16 triangles). Weapon contact retains six splinters and three glints (54 triangles). The dodge uses six triangles. Short runs on this machine leave the 26 ms outliers, GPU headroom, lower-end devices and four-player rendering open for review.
 
+## Reviewing the three affinity families
+
+Enter the solo Developer Testing Arena from the Developer Garden. Open **F4 → Tuning → Visuals** to play Ember Wake, both Rime Bloom phases, Thorn Line, the circular Thorn patch, or each target status. **Brittle rupture** retains its separate contact preview. Choose one, three or six instances. Pause, step by 1/60 second, or switch between baseline and experimental settings at the same time and seed. Save the preferred differences in **Presets** and use the existing review export.
+
+For actual combat, load **Sustained damage** and place Ember Fern, Frostbell or Thorn Bloom in the Core and Form slots. Try an Ember Wake lengthwise along a row of targets, a Frost cast centered on a cluster, or a Rootblade hit alongside an existing Thorn Line. In the **Build** and **Upgrades** tabs, a Vanguard Warden with Thorn Core, Frost Form, Fire Catalyst and Shatterwave can combine a bramble field, Brittle weapon hits and Burning from Root Quake. A Frost Core with Shatterwave makes the difference between target fracture and area damage easier to see.
+
+| Family | Workbench controls | Ordinary combat cue |
+|---|---|---|
+| Fire | Flame height and flicker, ember lift speed, smoke opacity | Rooted fire persists over the admitted lane. The smaller body flame and stack count follow Burning. |
+| Frost | Petal height, frost mist opacity, existing fragment count, size, speed, lifetime, hue and flash | Two opening stacks, then an ordinary closing stack at 625 ms. Three shared stacks fracture on the affected target. |
+| Thorn | Bramble girth and thorn height | The Core draws a transverse capsule. Form and Catalyst patches grow from their confirmed positions. Bleed persists on the body after leaving the patch. |
+| All three | Target-marking opacity and the existing detailed captions setting | The compact status icons and counts remain available at zero decorative opacity. |
+
+The Fire Form applies Burning on direct weapon contact. Its Catalyst uses supported offensive applications, actual blocks or a single-use response to incoming damage. Ordinary Burning ticks every 250 ms on the combat owner’s clock. Frost Form and mapped Catalyst contacts add Brittle, which expires after 3.6 seconds without refreshing. The remaining one or two crystals show this shared stack count. Thorn Form can create a 1.25 m patch for 4.6 seconds. Catalyst growth lasts four seconds with a 1.85 m ordinary or 2.4 m ward radius. Ordinary Bleed lasts 4.5 seconds after application and ticks every 900 ms. Art follows the confirmed status and field boundaries, including changes from legal upgrades.
+
+### VFX05A rendered evidence
+
+The [moving comparison](vfx05a-affinity-motion.webp) pairs independent VFX04 and VFX05A fights at the same camera and sampling interval. Each panel shows the whole viewport above an original-scale detail. The [stress recording](vfx05a-affinity-stress.webp) includes six confirmed ruptures in one cluster, three enemies burning along the same trail, overlapping families, Shatterwave and Flashover.
+
+Measurements used the solo Testing Arena, an RTX 5080, Godot 4.7.2 GL Compatibility, 1100 × 720 and VSync disabled. Each sample covers 6.5 seconds of whole-frame time. The recordings use a separate run so image readback stays outside the timing samples.
+
+| Core and Rootblade workload | Capped p95, VFX04 → VFX05A | Uncapped p95, VFX04 → VFX05A |
+|---|---:|---:|
+| Ember Wake | 8.83 → 8.81 ms | 4.01 → 3.97 ms |
+| Rime Bloom | 8.74 → 8.80 ms | 4.12 → 3.87 ms |
+| Thorn Line | 8.74 → 8.76 ms | 3.74 → 3.74 ms |
+
+| VFX05A stress scene | 120 FPS median / p95 / worst (ms) | Uncapped median / p95 / worst (ms) | Sampled peak affinity batches / triangles |
+|---|---:|---:|---:|
+| Three burning targets in one trail | 8.52 / 8.95 / 46.92 | 3.62 / 4.21 / 10.40 | 4 / 566 |
+| Six clustered ruptures | 8.32 / 8.87 / 14.64 | 3.63 / 4.29 / 8.85 | 19 / 836 |
+| Three overlapping bramble fields | 8.07 / 8.80 / 9.41 | 3.43 / 3.95 / 8.87 | 4 / 2,170 |
+| Three families on a Vanguard Warden | 8.07 / 8.74 / 10.31 | 3.46 / 4.01 / 9.74 | 4 / 542 |
+
+The stress capture sampled visible affinity meshes every 100 ms. Counts include target marks and fracture fragments, and exclude ordinary captions and the footprint outlines. One Fire field shares a single batch for 25 flame masks, 19 ember masks, eight smoke masks and its charred roots. Overlapping translucent layers still incur overdraw. Three Thorn fields submitted the most triangles, while simultaneous ruptures required the most separate batches. These short samples do not isolate GPU cost. Lower-end graphics and rendered multiplayer performance remain unmeasured.
+
+The reported stress samples used a fresh disposable save root and logged zero engine errors. Reopening an unusually long disposable path produced 14 OpenGL shader-cache initialization errors at startup. A blank project with no game scripts reproduced all 14 on its second launch in that path. The same blank project logged zero on both launches in a short disposable path. The engine initializes its cache directories in this routine. [Godot GL Compatibility cache initialization](https://github.com/godotengine/godot/blob/ed1daf0bf/drivers/gles3/shader_gles3.cpp)
+
+The focused planner still reports both pre-existing Garden layout mismatches in `experiment_garden.gd`, identified as `saved_garden_layout_3` and `saved_garden_layout_15`. VFX05A ran the scoped affinity, status, developer-session, expedition accounting and ordinary multiplayer fixtures directly. Their results are independent of the Garden layout evidence.
+
+At normal zoom, the flame reads along the length of the field and the radial Frost petals leave gaps through which enemies remain visible. The six-target case still crowds the overhead stack counts. Review the contrast of those counts and of the burgundy Bleed motes on dark enemies before increasing density or emission.
+
 ## Installed verification
 
 Updated the highest desktop revision, `Mystical Garden v0.5.2.0.exe`. All 73 source suites have current passing evidence (28 executed and 45 reused in the final connected run, following the focused run). All 40 selected packaged suites passed, plus startup/catalog and real host/three-guest connection smoke. The installed file matches the verified package SHA-256: `590ba2d95469db81347c121a6846ca81ac2cafc925a49ad0a3e24efcc1326dd7`.

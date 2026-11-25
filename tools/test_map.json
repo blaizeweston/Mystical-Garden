@@ -301,7 +301,7 @@
     },
     "presentation": {
       "label": "HUD, world drawing, animation and effects",
-      "files": ["traveller_avatar.gd", "root_ui.gd", "stage.gd", "combat_effects.gd", "contact_particles.gd", "contact_particles.gd.uid", "weapon_delivery_visuals.gd", "weapon_delivery_visuals.gd.uid", "weapon_motion_trail.gd", "weapon_motion_trail.gd.uid", "assets/shaders/weapon_edge.gdshader", "assets/shaders/weapon_edge.gdshader.uid", "assets/shaders/contact_fragments.gdshader", "assets/shaders/contact_fragments.gdshader.uid", "enemy_death_effects.gd", "boss_lair_visuals.gd", "weapon_visuals.gd", "game_metrics.gd", "network_movement.gd", "network_movement.gd.uid", "combat_feedback.gd", "combat_feedback.gd.uid", "assets/characters/weapon_actions.json", "status_feedback.gd", "status_feedback.gd.uid"]
+      "files": ["traveller_avatar.gd", "root_ui.gd", "stage.gd", "combat_effects.gd", "contact_particles.gd", "contact_particles.gd.uid", "affinity_glyphs.gd", "affinity_glyphs.gd.uid", "assets/shaders/affinity_growth.gdshader", "assets/shaders/affinity_growth.gdshader.uid", "assets/shaders/affinity_masks.svg", "assets/shaders/affinity_masks.svg.import", "weapon_delivery_visuals.gd", "weapon_delivery_visuals.gd.uid", "weapon_motion_trail.gd", "weapon_motion_trail.gd.uid", "assets/shaders/weapon_edge.gdshader", "assets/shaders/weapon_edge.gdshader.uid", "assets/shaders/contact_fragments.gdshader", "assets/shaders/contact_fragments.gdshader.uid", "enemy_death_effects.gd", "boss_lair_visuals.gd", "weapon_visuals.gd", "game_metrics.gd", "network_movement.gd", "network_movement.gd.uid", "combat_feedback.gd", "combat_feedback.gd.uid", "assets/characters/weapon_actions.json", "status_feedback.gd", "status_feedback.gd.uid"]
     },
     "diagnostics": {
       "label": "Saved diagnostic logs and report export",
@@ -7201,6 +7201,8 @@
     "combat_effects.gd": {
       "newline": "crlf",
       "regions": {
+          "affinity_field_projection": {"systems":["presentation"]},
+          "affinity_phase_captions": {"systems":["presentation"]},
           "vfx04_circular_warning": {"systems":["presentation"]},
           "vfx04_sweep_warning": {"systems":["presentation"]},
           "vfx04_flight_wake": {"systems":["presentation"]},

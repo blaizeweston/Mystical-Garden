@@ -275,7 +275,8 @@ static func hints(game: Node) -> Array:
 		if line.skill.affinity_family == "fire":
 			var hint := field_hint(line.id,line.center,maxf(0.0,(int(line.field_until)-elapsed)/1000.0),line.skill)
 			hint.core_shapes = Footprint.encode(line.shapes)
-			hint.core_phase = preload("res://fire_combat.gd").FIELD_MS - maxi(0,int(line.field_until)-elapsed)
+			var started:int=line.get("field_started",int(line.field_until)-preload("res://fire_combat.gd").FIELD_MS)
+			hint.core_phase = maxi(0,elapsed-started)
 			result.append(hint)
 		elif line.skill.affinity_family == "void":
 			result.append(field_hint(line.id,line.center,maxf(0.0,(int(line.well_until)-elapsed)/1000.0),line.skill))

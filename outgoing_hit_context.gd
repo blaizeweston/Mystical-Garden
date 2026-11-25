@@ -197,7 +197,10 @@ func finish_contact(target: int, token: int, origin: Vector3, point: Vector3, co
 			if not visual_contact.is_finite():
 				visual_contact=contact_point.move_toward(origin,preload("res://enemy_hurtbox.gd").radius(_world,target))
 			presentation.strike_point=[visual_contact.x,visual_contact.y,visual_contact.z]
-		if stats.get("stat_affinity","") == "Brittle rupture": presentation.damage_cue = "frost_rupture"
+		match stats.get("stat_affinity",""):
+			"Brittle rupture": presentation.damage_cue="frost_rupture"
+			"Burning": presentation.damage_cue="burn_tick"
+			"Bleed": presentation.damage_cue="bleed_tick"
 		_world.emit_combat_event("impact", "hit", origin, point, .85, stats.get("affinity_color", _world.weapon_effect_color(_actor)), float(applied), target, presentation)
 	if _roster.death_pending(target, token):
 		load("res://thorn_affinity.gd").on_death(_world, target, now, stats.get("card_secondary",false))

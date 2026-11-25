@@ -272,6 +272,7 @@ static func field(game: Node, cast: Dictionary, now: int) -> bool:
 	var elapsed := Clock.now(game)
 	if not cast.grown:
 		cast.grown = true
+		cast.field_started = elapsed
 		cast.field_until = elapsed + FIELD_MS + int(cast.affinity_action.potency().get("field_duration_ms",0))
 		cast.shapes = Footprint.build(game.battlefield, cast, cast.cast_origin)
 		cast.next_maintain = elapsed

@@ -14,6 +14,9 @@ func fingerprint(id: String) -> String:
 	if FileAccess.file_exists(path):
 		var hash := FileAccess.get_sha256(path)
 		if not hash.is_empty():
+			if Tune.Affinities.CONTROLS.has(id):
+				for source in ["res://assets/shaders/affinity_growth.gdshader","res://assets/shaders/affinity_masks.svg"]:
+					if FileAccess.file_exists(source): hash=(hash+FileAccess.get_sha256(source)).sha256_text()
 			if id.begins_with("trail."):
 				for source in ["res://weapon_motion_trail.gd","res://assets/shaders/weapon_edge.gdshader"]:
 					if FileAccess.file_exists(source): hash=(hash+FileAccess.get_sha256(source)).sha256_text()

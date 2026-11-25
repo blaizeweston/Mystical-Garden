@@ -298,5 +298,6 @@ static func hints(game: Node) -> Array:
 		result.append({"id":field.id,"role":"core_field","from":at,"to":at,
 			"radius":CORE_HALF_LENGTH+CORE_WIDTH if field.slot=="core" else RADIUS.ward,
 			"remaining":(int(field.until)-elapsed)/1000.0,"color":"#a7bf67","skill":"thorn_line",
+			"core_phase":int(LIFETIME[field.slot])-(int(field.until)-elapsed),
 			"core_shapes":Footprint.encode(field.shapes)})
 	return result

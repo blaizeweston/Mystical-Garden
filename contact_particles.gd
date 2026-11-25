@@ -1,5 +1,6 @@
 extends RefCounted
 ## Analytically animated, target-local geometry. One draw per burst, no particle nodes.
+const Affinities = preload("res://affinity_glyphs.gd")
 const PROGRAM = preload("res://assets/shaders/contact_fragments.gdshader")
 const Motion = preload("res://weapon_motion.gd")
 const DEFAULTS := {
@@ -88,7 +89,11 @@ static func create(parent: Node3D, family: String, at: Vector3, incoming: Vector
 		# Show the first contact at the near surface of the body before the flecks travel on.
 		glyph.position-=direction*0.24
 	glyph.rotation.y=-atan2(direction.z,direction.x)
-	return {"root":glyph,"mesh":glyph,"material":material,"family":family,"life":life,"age":0.0}
+	var burst:={"root":glyph,"mesh":glyph,"material":material,"family":family,"life":life,"age":0.0}
+	if frost:
+		burst.mist=Affinities.create(glyph,"mist",Vector3.DOWN*.19,Vector2.ONE,0.,sequence,values)
+	return burst
 
 static func pose(burst: Dictionary, age: float) -> void:
 	burst.material.set_shader_parameter("elapsed",age)
+	if burst.has("mist"): Affinities.seek(burst.mist,age,burst.life-age)

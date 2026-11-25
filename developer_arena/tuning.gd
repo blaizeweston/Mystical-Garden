@@ -1,6 +1,7 @@
 extends RefCounted
 ## One instance belongs to the title-issued developer world. Practice borrows it.
 const Developer = preload("res://developer_mode.gd")
+const Affinities = preload("res://affinity_glyphs.gd")
 const Contacts = preload("res://contact_particles.gd")
 const Delivery = preload("res://weapon_delivery_visuals.gd")
 const Ambient = preload("res://assets/terrain_m02/garden_ambient.gd")
@@ -62,6 +63,11 @@ static func _property_definitions() -> Dictionary:
 		properties[id] = {"type":"float","category":"Visuals","object_name":Ambient.OBJECTS[id.get_slice(".",0)],
 			"label":d[4],"unit":d[5],"minimum":d[1],"maximum":d[2],"step":d[3],
 			"timing":"Live Garden and experimental playback","source":"assets/terrain_m02/garden_ambient.gd","symbol":"CONTROLS."+id}
+	for id:String in Affinities.CONTROLS:
+		var d:Array=Affinities.CONTROLS[id]
+		properties[id]={"type":"float","category":"Visuals","object_name":Affinities.LABELS[id.get_slice(".",0)],
+			"label":d[4],"unit":d[5],"minimum":d[1],"maximum":d[2],"step":d[3],
+			"timing":"Local combat and experimental playback","source":"affinity_glyphs.gd","symbol":"CONTROLS."+id}
 	for id: String in Delivery.CONTROLS:
 		var d: Array=Delivery.CONTROLS[id]
 		var group: String={"trail":"Weapon edge","projectile":"Projectile","dodge":"Ordinary dodge","text":"Combat captions"}[id.get_slice(".",0)]
@@ -100,6 +106,7 @@ func baseline(id: String) -> float:
 		SPEAR: return preload("res://class_catalog.gd").DEFINITIONS[0].weapons[1].reach
 		WATER: return preload("res://garden_irrigation.gd").RADIUS_M
 		FLORA: return preload("res://wild_flora_generation.gd").SPAWN_CHANCE * 100.0
+	if Affinities.CONTROLS.has(id): return Affinities.CONTROLS[id][0]
 	if Delivery.CONTROLS.has(id): return Delivery.CONTROLS[id][0]
 	if Ambient.CONTROLS.has(id): return Ambient.CONTROLS[id][0]
 	return Contacts.DEFAULTS.get(id,NAN)
@@ -115,7 +122,7 @@ func applied(id: String) -> float: return _applied.get(id, baseline(id))
 func request(world: Node, id: String, value: Variant) -> bool:
 	if not authorized(world) or not valid(id,value): return false
 	_set_difference(_requested,id,value)
-	if id in [SUN,IMPACT] or Contacts.DEFAULTS.has(id) or Ambient.CONTROLS.has(id) or Delivery.CONTROLS.has(id): return apply(world,[id])
+	if id in [SUN,IMPACT] or Contacts.DEFAULTS.has(id) or Ambient.CONTROLS.has(id) or Delivery.CONTROLS.has(id) or Affinities.CONTROLS.has(id): return apply(world,[id])
 	return true
 
 func _set_difference(values: Dictionary, id: String, value: float) -> void:
@@ -183,6 +190,7 @@ func _set_scene(world: Node, sun: float, water: float, emission: float) -> void:
 	var effects: Node = world.stage.get_node("CombatEffects")
 	effects.impact_emission = emission
 	effects.contact_overrides = contact_values()
+	effects.set_affinity_tuning(affinity_values())
 	world.stage.weapon_vfx_values = motion_values()
 	effects.motion_overrides = world.stage.weapon_vfx_values
 	var plot: Node = world.stage.experimental_garden
@@ -200,6 +208,12 @@ func _set_scene(world: Node, sun: float, water: float, emission: float) -> void:
 	var garden: Node = world.stage.experimental_garden
 	if garden != null and garden.ghost != null and garden.ghost.visible: garden._show_ghost()
 
+func affinity_values() -> Dictionary:
+	var result:={}
+	for id in _applied:
+		if Affinities.CONTROLS.has(id): result[id]=_applied[id]
+	return result
+
 func motion_values() -> Dictionary:
 	var result := {}
 	for id in _applied:
@@ -214,6 +228,7 @@ func ambient_values() -> Dictionary:
 
 func contact_values() -> Dictionary:
 	var result := {}
+	if _applied.has("frost.mist"): result["frost.mist"]=_applied["frost.mist"]
 	for id in Contacts.DEFAULTS:
 		if _applied.has(id): result[id] = _applied[id]
 	return result

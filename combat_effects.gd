@@ -5,6 +5,8 @@ const EnemyFeedback = preload("res://enemy_move_feedback.gd")
 var stage: Node3D
 const Contacts = preload("res://contact_particles.gd")
 const Delivery = preload("res://weapon_delivery_visuals.gd")
+const Affinities = preload("res://affinity_glyphs.gd")
+var affinity_overrides := {}
 var motion_overrides := {}
 var contact_overrides := {}
 const IMPACT_EMISSION := 0.65
@@ -21,6 +23,18 @@ var feedback=preload("res://combat_feedback.gd").new()
 func _ready() -> void:
  feedback.stage=stage;add_child(feedback)
  statuses.stage=stage;add_child(statuses)
+
+func set_affinity_tuning(values:Dictionary) -> void:
+ if values==affinity_overrides:return
+ affinity_overrides=values
+ statuses.settings=values
+ for hint in hints.values():
+  for plant in hint.get("plants",[]): Affinities.configure(plant,values)
+ for effect in active.values():
+  for key in ["petals","mist","payoff"]:
+   if effect.has(key):Affinities.configure(effect[key],values)
+ for item in statuses.active.values():
+  if item.has("mark"):Affinities.configure(item.mark,values)
 
 func material(color: Color, emission := IMPACT_EMISSION) -> StandardMaterial3D:
  var result:=StandardMaterial3D.new();result.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;result.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA;result.cull_mode=BaseMaterial3D.CULL_DISABLED;result.vertex_color_use_as_albedo=true;result.albedo_color=color;result.emission_enabled=true;result.emission=color;result.emission_energy_multiplier=emission;return result
@@ -59,12 +73,17 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    continue
   var at:=point(event.to)
   var visible_hit:=at.distance_to(observer)<=sight
+  if event.kind=="ability" and event.shape=="ember_trail":
+   # The field snapshot owns the rooted trail, including when joining mid-cast.
+   if visible_hit and not str(event.get("label","")).is_empty():
+    feedback.text_at(str(event.label),at,Color("#bcebdd"),int(event.id),true)
+   continue
   var family:=Contacts.kind(event)
   if event.kind=="impact" and visible_hit:
    var flash:=float(contact_overrides.get("impact.flash",Contacts.DEFAULTS["impact.flash"])) if family=="impact" else 1.0
-   feedback.confirmed(event,at,0.0 if event.get("damage_cue","")=="frost_rupture" else flash)
+   feedback.confirmed(event,at,0.0 if event.get("damage_cue","") in ["frost_rupture","burn_tick","bleed_tick"] else flash)
   # The rupture already supplies the contact visual; its damage receipt still shows HP.
-  if event.get("damage_cue","")=="frost_rupture":continue
+  if event.get("damage_cue","") in ["frost_rupture","burn_tick","bleed_tick"]:continue
   var age:=float(event.get("age",0))
   var effect: Dictionary
   if not family.is_empty():
@@ -73,6 +92,13 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    effect=Contacts.create(self,family,stage.WILD_OFFSET+strike,strike-point(event.from),event.get("form",""),int(event.id),contact_overrides,impact_emission,event.has("strike_point"))
   else:
    effect=visual(Color(event.color), impact_emission if event.kind=="impact" else IMPACT_EMISSION)
+   if event.kind=="ability" and event.shape in ["frost_open","frost_close"]:
+    var phase: String="open" if event.shape=="frost_open" else "close"
+    effect.petals=Affinities.create(effect.root,phase,at,Vector2.ONE*float(event.reach),0.,0,affinity_overrides)
+    effect.mesh.hide()
+   elif event.kind=="ability" and event.shape in ["flashover","wildfire","hemorrhagic_rupture"]:
+    # The existing area cue owns the real radius. This burst stays at the source.
+    effect.payoff=Affinities.create(effect.root,event.shape,at+Vector3.UP*.35,Vector2.ONE*.56,0.,int(event.id),affinity_overrides)
   effect.event=event
   effect.age=age
   if event.kind=="proc" and visible_hit:
@@ -82,7 +108,8 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    if event.shape=="pulled":feedback.text_at("Pulled",point(event.to),Color(event.color),int(event.id),true,3.45)
    elif event.shape=="restored" and int(event.reach)>0:feedback.text_at("+%d"%int(event.reach),point(event.to),Color(event.color),int(event.id))
    elif event.shape=="trophy":feedback.text_at("Trophy stolen",point(event.to),Color(event.color),int(event.id),true)
-  if event.kind=="ability" and visible_hit and not str(event.get("label",event.shape)).is_empty():
+  var phase_caption: bool=event.shape=="frost_close" and motion_overrides.get("text.detail",Delivery.CONTROLS["text.detail"][0])==0
+  if event.kind=="ability" and visible_hit and not phase_caption and not str(event.get("label",event.shape)).is_empty():
    if family!="rupture" or contact_overrides.get("rupture.repeat_labels",0)>0 or not feedback.recent_rupture_near(at):
     feedback.text_at(str(event.get("label",event.shape)),at,Color("#bcebdd"),int(event.id),true)
     if family=="rupture":feedback.labels.back().rupture_at=at
@@ -160,6 +187,11 @@ func circle(mesh: ImmediateMesh,center: Vector3,radius: float,width: float=.06) 
   ribbon(mesh,center+Vector3(cos(first),0,sin(first))*radius,center+Vector3(cos(second),0,sin(second))*radius,width)
 func pose(effect: Dictionary) -> void:
  var event: Dictionary=effect.event
+ if effect.has("payoff"):Affinities.seek(effect.payoff,effect.age,float(event.duration)-float(effect.age))
+ if effect.has("petals"):
+  Affinities.seek(effect.petals,effect.age,float(event.duration)-float(effect.age))
+  effect.root.visible=point(event.to).distance_to(observer)<=sight+float(event.reach)
+  return
  if effect.has("family"):
   Contacts.pose(effect,effect.age)
   effect.root.visible=effect.has("preview") or point(event.to).distance_to(observer)<=sight
@@ -397,6 +429,26 @@ func snare_roots(mesh: ImmediateMesh, center: Vector3, radius: float, count: int
 
 func draw_hint(hint: Dictionary) -> void:
  var event: Dictionary=hint.event
+ if event.role=="core_field" and event.get("skill","") in ["ember_wake","thorn_line"] and not event.get("core_shapes",[]).is_empty():
+  if not hint.has("plants"):
+   hint.plants=[]
+   var boundary:ImmediateMesh=hint.mesh.mesh
+   boundary.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+   for shape in event.core_shapes:
+    hint.plants.append(Affinities.field(hint.root,event.skill,shape,str(event.id).hash(),affinity_overrides))
+    CoreVisuals.outline(self,boundary,shape,.027)
+   boundary.surface_end()
+   var edge:StandardMaterial3D=hint.mesh.material_override
+   edge.albedo_color=Color(event.color,.34)
+   edge.emission_enabled=false
+  # Interpolate briefly between snapshots. An unchanged or paused field keeps its phase.
+  hint.phase_anchor=maxf(0.,event.get("core_phase",0)*.001)
+  hint.ttl_anchor=float(event.remaining)
+  hint.age=clampf(hint.age,hint.phase_anchor,hint.phase_anchor+.10)
+  hint.left=clampf(hint.get("left",hint.ttl_anchor),maxf(0.,hint.ttl_anchor-.10),hint.ttl_anchor)
+  hint.root.visible=point(event.to).distance_to(observer)<=sight+float(event.radius)
+  for plant in hint.plants: Affinities.seek(plant,hint.age,hint.left)
+  return
  var mesh: ImmediateMesh=hint.mesh.mesh;mesh.clear_surfaces();mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
  var from:=point(event.from)+Vector3.UP*.055;var to:=point(event.to)+Vector3.UP*.055
  var role:=str(event.role);var radius:=float(event.radius)
@@ -620,6 +672,11 @@ func step(delta: float) -> void:
   else: pose(effect)
  feedback.step(delta)
  statuses.step(delta)
+ for hint in hints.values():
+  if hint.has("plants") and hint.root.visible:
+   hint.age=minf(hint.phase_anchor+.10,float(hint.age)+delta)
+   hint.left=maxf(maxf(0.,hint.ttl_anchor-.10),float(hint.left)-delta)
+   for plant in hint.plants: Affinities.seek(plant,hint.age,hint.left)
  for id in active.keys():
   var effect: Dictionary=active[id];effect.age+=delta
   if effect.age>=float(effect.get("life",effect.event.duration)): effect.root.queue_free();active.erase(id)

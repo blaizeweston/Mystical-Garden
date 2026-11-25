@@ -3,6 +3,13 @@ extends VBoxContainer
 const Contacts = preload("res://contact_particles.gd")
 const Tune = preload("res://developer_arena/tuning.gd")
 const Exhibit = preload("res://developer_arena/garden_exhibit.gd")
+const Affinities=preload("res://affinity_glyphs.gd")
+const Fire=preload("res://fire_combat.gd")
+const Thorn=preload("res://thorn_affinity.gd")
+const Frost=preload("res://frost_balance.gd")
+const AFFINITY_START:=11
+const AFFINITY_KINDS:=["fire","open","thorn","burning","brittle","bleeding","patch"]
+var affinity_samples:Array[MeshInstance3D]=[]
 const WEAPON_SEQUENCE := 9
 const DODGE := 10
 const DODGE_LIFE := preload("res://weapon_delivery_visuals.gd").DODGE_DURATION
@@ -38,7 +45,7 @@ var started := false
 func setup(panel: Control, legacy_controls: Control) -> void:
 	world=panel.world
 	equipped=legacy_controls
-	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom","Reviewed weapon sequence","Dodge foot scuff"]:
+	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom","Reviewed weapon sequence","Dodge foot scuff","Ember Wake","Rime Bloom · both phases","Thorn Line","Burning · target","Brittle · two stacks","Bleed · target","Thorn Form patch"]:
 		selection.add_item(item)
 	add_child(selection)
 	selection.item_selected.connect(func(_index): select_effect())
@@ -111,7 +118,7 @@ func select_effect() -> void:
 	stop()
 	transport.visible=selection.selected!=3
 	equipped.visible=selection.selected==3
-	formation.visible=selection.selected<3
+	formation.visible=selection.selected<3 or selection.selected>=AFFINITY_START
 	targets.visible=formation.visible
 	weapon_choice.visible=selection.selected==WEAPON_SEQUENCE
 	variant_choice.visible=weapon_choice.visible
@@ -122,6 +129,8 @@ func select_effect() -> void:
 	camera.look_at(center)
 	camera.size=3.7 if selection.selected==5 else 5.8 if selection.selected==4 else 2.35 if selection.selected>5 else float([2.35,3.,3.7][formation.selected])
 
+	if selection.selected>=AFFINITY_START:
+		frame_affinity()
 	if selection.selected==DODGE:
 		camera.look_at(Vector3(0,.12,0))
 		camera.size=1.9
@@ -130,12 +139,29 @@ func select_effect() -> void:
 		camera.look_at(Vector3(0,1.,.6))
 		camera.size=3.15
 
+func frame_affinity() -> void:
+	camera.look_at(Vector3(0,.6,0))
+	camera.size=float([3.3,4.6,5.8][formation.selected])
+
 func duration() -> float:
+	if selection.selected>=AFFINITY_START:
+		match AFFINITY_KINDS[selection.selected-AFFINITY_START]:
+			"fire": return Fire.FIELD_MS*.001
+			"open": return Affinities.OPEN_SECONDS+.42
+			"thorn": return Thorn.LIFETIME.core*.001
+			"patch": return Thorn.LIFETIME.form*.001
+			_: return 3.0
 	if selection.selected==WEAPON_SEQUENCE:
 		return weapon_exhibit.duration+.3 if is_instance_valid(weapon_exhibit) else 1.
 	return 16.0 if selection.selected in range(4,9) else CYCLE
 
 func refresh_ambient() -> void:
+	if not affinity_samples.is_empty() and mode.selected==1:
+		var latest:Dictionary=world.developer_tuning.affinity_values()
+		if latest!=captured_values:
+			captured_values=latest
+			for glyph in affinity_samples:Affinities.configure(glyph,latest)
+			seek(clock)
 	if is_instance_valid(scuff) and mode.selected==1:
 		captured_values=world.developer_tuning.motion_values()
 		seek(clock)
@@ -162,6 +188,7 @@ func arrange_targets() -> void:
 		targets.remove_child(old)
 		old.queue_free()
 	camera.size=[2.35,3.0,3.7][formation.selected]
+	if selection.selected>=AFFINITY_START: frame_affinity()
 	var body := CapsuleMesh.new()
 	body.radius=.26
 	body.height=1.3
@@ -178,6 +205,25 @@ func play(advance: bool) -> void:
 	if not world.developer_tuning.authorized(world) or selection.selected==3: return
 	stop()
 	var tune=world.developer_tuning
+	if selection.selected>=AFFINITY_START:
+		var kind:String=AFFINITY_KINDS[selection.selected-AFFINITY_START]
+		var dims:=Vector2.ONE*.55
+		match kind:
+			"fire": dims=Vector2(Fire.HALF_LENGTH,Fire.WIDTH)
+			"thorn": dims=Vector2(Thorn.CORE_HALF_LENGTH,Thorn.CORE_WIDTH)
+			"patch": dims=Vector2.ONE*Thorn.RADIUS.form
+			"open": dims=Vector2.ONE*Frost.BLOOM_RADIUS
+		captured_values=tune.affinity_values() if mode.selected==1 else {}
+		for point in origins():
+			var offset:=Vector3.UP*.24 if kind in Affinities.STATUS else Vector3.ZERO
+			var seed_value:=17+affinity_samples.size()
+			affinity_samples.append(Affinities.create(scene,kind,point+offset,dims,0.,seed_value,captured_values,2))
+			if kind=="open":
+				affinity_samples.append(Affinities.create(scene,"close",point,dims,0.,seed_value,captured_values))
+		started=true
+		running=advance
+		seek(0)
+		return
 	if selection.selected==DODGE:
 		scuff=MeshInstance3D.new()
 		scuff.mesh=ImmediateMesh.new()
@@ -239,6 +285,14 @@ func rebuild_at_phase() -> void:
 
 func seek(seconds: float) -> void:
 	clock=clampf(seconds,0,duration())
+	for glyph in affinity_samples:
+		var phase_time:=clock
+		var end:=duration()
+		var phase_id:int=glyph.material_override.get_shader_parameter("effect")
+		if phase_id==Affinities.PHASES.find("open"):end=Affinities.OPEN_SECONDS
+		if phase_id==Affinities.PHASES.find("close"):phase_time-=Affinities.OPEN_SECONDS
+		glyph.visible=phase_time>=0. and clock<end
+		if glyph.visible: Affinities.seek(glyph,phase_time,end-clock)
 	if is_instance_valid(scuff):
 		scuff.visible=clock<DODGE_LIFE
 		if scuff.visible:
@@ -268,6 +322,10 @@ func single_step() -> void:
 	seek(clock+FRAME)
 
 func stop() -> void:
+	for glyph in affinity_samples:
+		glyph.hide()
+		glyph.queue_free()
+	affinity_samples.clear()
 	if is_instance_valid(scuff):
 		scuff.hide()
 		scuff.queue_free()

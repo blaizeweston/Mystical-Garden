@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 64" width="256" height="64">
+  <defs>
+    <radialGradient id="soft"><stop stop-color="white" stop-opacity=".92"/><stop offset=".38" stop-color="white" stop-opacity=".61"/><stop offset=".74" stop-color="white" stop-opacity=".19"/><stop offset="1" stop-color="white" stop-opacity="0"/></radialGradient>
+    <linearGradient id="tongue" x2=".35" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#fff" stop-opacity=".53"/><stop offset=".55" stop-color="#fff" stop-opacity=".85"/><stop offset="1" stop-color="#fff" stop-opacity=".42"/></linearGradient>
+  </defs>
+  <path fill="url(#tongue)" d="M28 60C12 59 13 46 21 32Q24 41 27 41C18 23 41 18 34 3C50 20 28 29 38 38Q43 36 44 25C52 43 42 61 28 60Z"/>
+  <path fill="#fff" opacity=".93" d="M28 57Q22 53 28 43Q29 46 31 45Q30 38 36 31C36 40 42 49 32 56Z"/>
+  <g fill="url(#soft)"><ellipse cx="97" cy="39" rx="25" ry="16"/><ellipse cx="89" cy="28" rx="18" ry="19"/><ellipse cx="106" cy="26" rx="16" ry="13"/></g>
+  <ellipse cx="160" cy="32" rx="17" ry="26" fill="url(#soft)"/><path fill="white" opacity=".9" d="M156 42Q157 28 165 18Q164 34 156 42Z"/>
+  <path fill="#fff" opacity=".93" d="M223 9C224 27 239 37 232 47C223 59 211 49 215 37Q220 23 223 9Z"/>
+</svg>

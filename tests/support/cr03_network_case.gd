@@ -1025,7 +1025,8 @@ func guest(menu: Node, role: String) -> void:
 		if not check(await until(func():
 			for visual in renderer.active.values():
 				if visual.has("family"): seen[visual.family]=true
-			return seen.has_all(["impact","rupture"])),"guest renders both confirmed contact families"):return
+				if visual.has("mist") and is_instance_valid(visual.mist):seen["fracture_mist"]=true
+			return seen.has_all(["impact","rupture","fracture_mist"])),"guest renders weapon contact and target-local crystalline rupture"):return
 	if connected_warden_case:
 		if not check(await until(func():return read("ct-q")=="ok"),"connected Warden receives Q timing"):return
 		game.send_garden_action("class_skill")

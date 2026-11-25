@@ -15,7 +15,7 @@ static func garden(world: Node) -> String:
 	for entry in [[Tune.SPEAR,NAN],[Tune.WATER,-1],[Tune.FLORA,101],[Tune.SUN,"2"],["unknown",1]]:
 		if tune.request(world,entry[0],entry[1]): return "bad property accepted"
 	var fake:=Node.new()
-	var refused: bool=not tune.request(fake,Tune.SUN,3.0) and not tune.replace(fake,{}) and tune.directory(fake).is_empty()
+	var refused: bool=not tune.request(fake,Tune.SUN,3.0) and not tune.request(fake,"fire.height",1.3) and not tune.replace(fake,{}) and tune.directory(fake).is_empty()
 	fake.free()
 	if not refused: return "forged session"
 	tune.request(world,Tune.SUN,2.4)
@@ -233,6 +233,8 @@ static func arena(world: Node) -> String:
 	lab.seek(.4)
 	if lab.scuff.visible: return "foot dust survived decay"
 	lab.stop()
+	var affinity_error:=affinity_replay(world,lab,tune,presets)
+	if not affinity_error.is_empty():return affinity_error
 	if world.round_stats().party!=before or world.combat_events!=events: return "visual replay modified combat"
 	tune.reset(world,[Tune.IMPACT])
 	var actor: Dictionary=world.players[1]
@@ -263,6 +265,58 @@ static func arena(world: Node) -> String:
 	tune.reset(world,Tune.PROPERTIES.keys())
 	world.reset_statistics()
 	world.clear_enemies()
+	return ""
+
+static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCounted) -> String:
+	var fx:Node=world.stage.get_node("CombatEffects")
+	var strip:={"kind":"capsule","from":[-1.,0.,0.],"to":[2.,0.,0.],"width":.68}
+	var field:={"id":"field-5","role":"core_field","skill":"ember_wake","from":[0,0,0],"to":[0,0,0],"radius":2.15,"remaining":2.,"core_phase":1200,"color":"f29b57","core_shapes":[strip]}
+	var wake:={"id":907,"kind":"ability","shape":"ember_trail","from":[-1,0,0],"to":[2,0,0],"duration":3.2,"reach":.68,"color":"f29b57","core_shapes":[strip],"label":"Ember Wake"}
+	fx.sync([wake,wake],[field],"affinity-floor",Vector3.ZERO)
+	var plant:MeshInstance3D=fx.hints[field.id].plants[0]
+	if fx.active.has(907) or plant.position!=Vector3(.5,0,0) or plant.material_override.get_shader_parameter("extent")!=Vector2(1.5,.68):return "duplicate or displaced Ember Wake"
+	if not is_equal_approx(plant.material_override.get_shader_parameter("elapsed"),1.2):return "mid-field snapshot phase"
+	fx.sync([],[field],"affinity-floor",Vector3.ZERO)
+	if fx.hints[field.id].plants[0]!=plant:return "field rebuilt on repeated snapshot"
+	fx.sync([],[],"affinity-floor",Vector3.ZERO)
+	if not fx.hints.is_empty() or not plant.get_parent().is_queued_for_deletion():return "stale field after withdrawal"
+	for payoff in ["flashover","wildfire","hemorrhagic_rupture"]:
+		var receipt:=wake.duplicate(true)
+		receipt.id+=payoff.length()
+		receipt.shape=payoff
+		receipt.erase("core_shapes")
+		fx.sync([receipt,receipt],[],"payoff-"+payoff,Vector3.ZERO)
+		if fx.active.size()!=1 or not fx.active[receipt.id].has("payoff"):return "missing or duplicate "+payoff
+	fx.clear()
+	lab.formation.select(2)
+	lab.arrange_targets()
+	for i in lab.AFFINITY_KINDS.size():
+		lab.selection.select(lab.AFFINITY_START+i)
+		lab.select_effect()
+		lab.mode.select(0)
+		lab.play(false)
+		lab.seek(.22)
+		var count:=12 if i==1 else 6
+		if lab.affinity_samples.size()!=count:return "affinity formation"
+		if i==1:
+			lab.seek(lab.Affinities.OPEN_SECONDS+.01)
+			if lab.affinity_samples[0].visible or not lab.affinity_samples[1].visible:return "opening/closing handoff"
+		var stamp:float=lab.clock
+		var id:String=["fire.height","frost.petals","thorn.bark","fire.embers","affinity.status","affinity.status","thorn.spines"][i]
+		var proposed:float=Tune.PROPERTIES[id].maximum
+		if not tune.request(world,id,proposed):return "affinity slider "+id
+		lab.mode.select(1)
+		lab.compare_at_phase()
+		if not is_equal_approx(stamp,lab.clock) or not is_equal_approx(lab.affinity_samples[0].material_override.get_shader_parameter(id.replace(".","_")),proposed):return "affinity phase or value "+id
+		tune.reset(world,[id])
+		lab.stop()
+		if not lab.affinity_samples.is_empty():return "affinity reset"
+	if not tune.request(world,"fire.smoke",.43) or not presets.save_new("Smoldering roots").is_empty():return "affinity preset write"
+	tune.reset(world,["fire.smoke"])
+	if not presets.load_named("Smoldering roots").is_empty() or not is_equal_approx(tune.applied("fire.smoke"),.43):return "affinity preset read"
+	var export_path:String=presets.export_review("Smoldering roots")
+	if not presets._read(export_path.path_join("changes.json")).differences.any(func(row):return row.id=="fire.smoke"):return "affinity preset export"
+	tune.reset(world,["fire.smoke"])
 	return ""
 
 static func wild(world: Node) -> String:
