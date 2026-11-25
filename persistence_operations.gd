@@ -12,7 +12,7 @@ const Inspection = preload("res://persistence_save_inspection.gd")
 const MAX_AUXILIARIES := 64
 const MAX_AUXILIARY_BYTES := 1024 * 1024
 const MIGRATION_BACKUPS = [
- ".pre-tier-growth-v2.bak", ".pre-timed-research-v2.bak", ".pre-immediate-heart-v3.bak", ".pre-construction-v1.bak", ".pre-irrigation-v2.bak", ".pre-cultivation-v5.bak", ".pre-content-v2.bak",
+ ".pre-tier-growth-v2.bak", ".pre-timed-research-v2.bak", ".pre-immediate-heart-v3.bak", ".pre-construction-v1.bak", ".pre-irrigation-v2.bak", ".pre-cultivation-v5.bak", ".pre-heart-economy-v6.bak", ".pre-content-v2.bak",
  ".pre-altar-v1.bak", ".pre-inventory-v1.bak", ".pre-heart-v1.bak", ".pre-plots-v2.bak",
 ]
 

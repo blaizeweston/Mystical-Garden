@@ -11,9 +11,9 @@ static func enabled(zone: Dictionary,unlocked: Array) -> bool:
  return true
 static func describe(id: String,before: Dictionary,after: Dictionary) -> Dictionary:
  var node:=Heart.get_node(id);var result: Dictionary={"technology":id,"name":node.get("name","The Garden grows"),"kind":"heart","from_phase":before.phase,"to_phase":after.phase,"from_level":before.level,"to_level":after.level}
- result.from_growth=preload("res://heart_growth_visuals.gd").count(before.tech);result.to_growth=preload("res://heart_growth_visuals.gd").count(after.tech)
+ result.from_growth=before.get("development",before.tech.size()-1);result.to_growth=after.get("development",after.tech.size()-1)
  if node.has("clearing"):result.kind="clearing"
- elif id in ["seed_archive","monster_studies","living_archive"]:result.kind="station";result.station=id
+ elif id in ["seed_archive","monster_studies"]:result.kind="station";result.station=id
  for zone in Places.ZONES:
   if zone.get("water_access",false) and not enabled(zone,before.tech) and enabled(zone,after.tech):result.kind="spring";result.zone=zone.id;result.name="The Garden shares its water"
  for zone in Places.ZONES:

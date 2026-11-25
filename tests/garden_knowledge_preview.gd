@@ -31,9 +31,9 @@ func run() -> void:
 	var panel = view.knowledge_dialog
 	check(panel.visible and panel.capabilities.text.contains("Research Reaching Roots"),
 		"the real modal displays the growth prerequisite")
-	_choose(panel, "clearing_2")
+	_choose(panel, "irrigation")
 	check(panel.study.disabled and panel.detail.text.contains("Reaching Roots"), "the modal displays prerequisite refusal")
-	check(not progress.research("clearing_2") and not progress.research("clearing_1"), "cannot bypass parents or knowledge")
+	check(not progress.research("irrigation") and not progress.research("clearing_1"), "cannot bypass parents or knowledge")
 	panel.grant.pressed.emit()
 	_choose(panel, "cultivation_grounds")
 	panel.study.pressed.emit()
@@ -63,12 +63,12 @@ func run() -> void:
 	check(_grow(view, [4, 6, 1, 0, 2, 5]), "the player chooses the first eligible frontier")
 	for i in 5:
 		progress.grant_test_knowledge()
-	check(progress.research("clearing_2") and progress.research("clearing_3"),
-		"higher tiers can be researched in prerequisite order")
+	check(not progress.research("clearing_2") and not progress.research("clearing_3"),
+		"retired discounts cannot be purchased")
 	check(progress.research("seed_archive")
 		and progress.research("monster_studies"), "existing altar prerequisites unlock lab structures")
 	_choose(panel, "irrigation")
-	check(panel.detail.text.contains("Grants a Water Intake and a Living Sprinkler")
+	check(panel.detail.text.contains("Grants one Water Intake and one Living Sprinkler")
 		and not panel.detail.text.contains("Watering basin in Build"),
 		"Knowledge details describe water access rather than retired construction")
 	check(progress.research("irrigation") and not model.CATALOG.has("spring"),
@@ -77,7 +77,7 @@ func run() -> void:
 		"research cannot overwrite the first crop or automatically add unlocked structures")
 	check(_grow(view, [6, 1, 0, 2, 5, 4]) and _grow(view, [2, 3, 5, 6, 0, 1, 4]),
 		"later growth can be used after construction")
-	check(progress.clearing_tier() == 3 and not view.enter.disabled
+	check(progress.clearing_tier() == 1 and not view.enter.disabled
 		and view.state.revision == 3 and view.state.landmarks == landmarks,
 		"research does not cap growth and fixed landmarks remain intact")
 	build.toggle.button_pressed = true
@@ -94,7 +94,7 @@ func run() -> void:
 	check(not view.enter.disabled and model.records.has(id), "leaving test mode preserves earned growth and buildings")
 	view.reset_garden()
 	check(view.state.revision == 0 and view.construction.model.records.is_empty()
-		and progress.clearing_tier() == 3 and view.offerings.energy == 0, "Reset Garden resets layout and energy while retaining research")
+		and progress.clearing_tier() == 1 and view.offerings.energy == 0, "Reset Garden resets layout and energy while retaining research")
 	if errors == 0:
 		print("PASS: Knowledge prerequisites, limits, construction, relocation and chosen growth")
 	quit(int(errors != 0))

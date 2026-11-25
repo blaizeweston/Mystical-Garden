@@ -551,6 +551,13 @@ layout_mode = 2
 text = "Not Ready"
 focus_mode = 0
 
+[node name="ExtractAlone" type="Button" parent="Surface/TravelPanel/Readiness/Actions"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Extract individually"
+tooltip_text = "Bank your carried finds and return to the Garden. Your party can continue."
+
 [node name="ConnectionPanel" type="PanelContainer" parent="Surface"]
 unique_name_in_owner = true
 layout_mode = 0

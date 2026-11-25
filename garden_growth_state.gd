@@ -3,17 +3,18 @@ const Catalog=preload("res://garden_growth_catalog.gd")
 ## Replicated event kinds and acknowledgements. Version 2 adds frontier expansion playback.
 const NETWORK_VERSION := 2
 const LIMIT:=64
+const RETIRED_TECH := ["rift_hook","infusion","flowering","living_conduit","clearing_2","clearing_3","spore_bench","living_archive","memory_grove","memory_mire","memory_hollow"]
 static func snapshot(owner: RefCounted) -> Dictionary:
- return {"tech":owner.heart.unlocked.duplicate(),"phase":owner.heart.phase(owner),"level":Catalog.level(owner.knowledge,int(owner.veilcap_discovered)+owner.heart.clearing_bonus())}
+ return {"tech":owner.heart.unlocked.duplicate(),"development":maxi(owner.heart.historical_scale,owner.heart.development(owner)),"phase":owner.heart.phase(owner),"level":Catalog.level(owner.knowledge,int(owner.veilcap_discovered)+owner.heart.clearing_bonus())}
 static func load_history(data: Dictionary,owner: RefCounted) -> Dictionary:
  var result:=initialize(data,snapshot(owner))
  if result.get("version",1)!=1 or not result.get("growth") is Dictionary or result.growth.get("version")!=1:return result
  var growth: Dictionary=result.growth
  if growth.get("baseline") is Dictionary and growth.baseline.get("tech") is Array:
-  for retired in ["rift_hook","infusion","flowering","living_conduit"]: growth.baseline.tech.erase(retired)
+  for retired in RETIRED_TECH: growth.baseline.tech.erase(retired)
  if growth.get("events") is Array:
   # Keep sequence numbers and per-viewer acknowledgements for surviving events.
-  growth.events=growth.events.filter(func(event):return not (event is Dictionary and event.get("technology") in ["rift_hook","infusion","flowering","living_conduit"]))
+  growth.events=growth.events.filter(func(event):return not (event is Dictionary and event.get("technology") in RETIRED_TECH))
  return result
 static func initialize(data: Dictionary,current: Dictionary) -> Dictionary:
  var result:=data.duplicate(true)

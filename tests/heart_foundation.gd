@@ -63,7 +63,7 @@ func run() -> void:
 	for attempt in 2:
 		check(loaded.load_garden() == OK, "load existing v2 record")
 		check(loaded.knowledge == 61 and loaded.heart.spent == 9 and loaded.heart.available_insight(loaded)==52, "unpaid Knowledge and five-point spend refund each apply once")
-		check(not loaded.heart.has("flowering") and loaded.heart.has("cultivation_grounds") and loaded.heart.has("clearing_1") and loaded.heart.has("monster_studies") and not loaded.heart.has("living_archive") and not loaded.heart.has("infusion"), "funded and already-owned projects survive, unbought Archive stays locked")
+		check(not loaded.heart.has("flowering") and loaded.heart.has("cultivation_grounds") and loaded.heart.has("clearing_1") and loaded.heart.has("monster_studies") and not loaded.heart.has("living_archive") and not loaded.heart.has("infusion"), "funded and already-owned projects survive without adding retired research")
 		check(loaded.garden_development.energy == 61 and not loaded.garden_development.has("queue") and loaded.structures.instances.size()==6 and loaded.parts[0]==33 and loaded.plots.size()==3 and loaded.plots[0].age==17.0, "no repeated energy, material debit, lost crop or changed structures")
 	check(FileAccess.get_file_as_bytes(path)==old_bytes, "loading never writes conversion")
 	check(loaded.save_garden()==OK and FileAccess.get_file_as_bytes(path+".pre-immediate-heart-v3.bak")==old_bytes,"first normal save backs up original bytes")

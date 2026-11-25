@@ -23,6 +23,7 @@ var _cinematic: Node
 @onready var _travel_panel: PanelContainer = %TravelPanel
 @onready var _travel_label: Label = %TravelLabel
 @onready var _ready_button: Button = %ReadyButton
+var _individual_ticket := ""
 @onready var _unready_button: Button = %UnreadyButton
 @onready var _connection_panel: PanelContainer = %ConnectionPanel
 @onready var _connection_label: Label = %ConnectionLabel
@@ -84,6 +85,8 @@ func _ready() -> void:
 	%TitleButton.pressed.connect(func(): requested.emit("title",{}))
 	_arena_button.pressed.connect(func(): requested.emit("arena_open",{}))
 	_arena_setup_button.pressed.connect(func(): requested.emit("arena_setup",{}))
+	%ExtractAlone.pressed.connect(func():
+		if not _individual_ticket.is_empty(): requested.emit("garden_action",{"action":_individual_ticket}))
 	_ready_button.pressed.connect(func(): requested.emit("ready",{"unready":false}))
 	_unready_button.pressed.connect(func(): requested.emit("ready",{"unready":true}))
 	%CancelConnection.pressed.connect(func(): requested.emit("cancel_connection",{}))
@@ -225,6 +228,8 @@ func visible_expedition_result() -> Dictionary:
 	return _visible_report.duplicate(true) if panel_is_open("expedition_results") else {}
 
 func present_travel(state: Dictionary) -> void:
+	_individual_ticket = state.get("individual","")
+	%ExtractAlone.visible = not _individual_ticket.is_empty()
 	_travel_panel.visible=not state.is_empty() and not _overlay.visible
 	if state.is_empty(): return
 	var count := 0

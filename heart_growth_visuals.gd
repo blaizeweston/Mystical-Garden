@@ -9,7 +9,7 @@ static func trunk_height(completed: float) -> float:return .85+minf(8.8,.9+compl
 static func height(completed: float) -> float:return trunk_height(completed) if completed>=3 else 1.4+completed*.18
 static func counts(event: Dictionary,pending: Array,unlocked: Array) -> Vector2i:
  var total:=count(unlocked)
- if event.has("from_growth") and event.has("to_growth"):return Vector2i(clampi(int(event.from_growth),0,total),clampi(int(event.to_growth),0,total))
+ if event.has("from_growth") and event.has("to_growth"):return Vector2i(maxi(0,int(event.from_growth)),maxi(0,int(event.to_growth)))
  # Old queued scenes infer their place from the remaining researched unlocks.
  var after:=total
  for value in pending:
@@ -24,7 +24,7 @@ static func animate(stage: Node3D,range_value: Vector2i,amount: float) -> void:
 static func clear(stage: Node3D) -> void:
  stage.remove_meta("garden_growth_heart");sync(stage,{"unlocked":stage.heart_unlocked})
 static func sync(stage: Node3D,state: Dictionary) -> void:
- var actual:=count(state.get("unlocked",[]));var reveal: Dictionary=stage.get_meta("garden_growth_heart",{})
+ var actual := int(state.get("development",stage.heart_development));var reveal: Dictionary=stage.get_meta("garden_growth_heart",{})
  var target:=clampi(int(reveal.get("to",actual)),0,actual)
  if stage.experimental_garden==null:return
  var sculpt: Node3D=stage.experimental_garden.heart

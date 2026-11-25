@@ -18,7 +18,7 @@ A material result is usable in the normal crafting system but does **not** award
 
 Failed combinations consume the two offerings and return one deterministic salvage material plus a clue. With Seed Conservation, a failed seed offering also returns the parent whose material was not salvaged. For matching parents that means one net seed consumed. The recorded failure preview lists both outputs. Repeating the failed pair previews the salvage, rather than implying a hidden successful result. Mixed seed/material offerings, missing ingredients and attempts away from the Garden altar are rejected without consuming anything.
 
-New seed discoveries grant their usual four Knowledge. A newly recorded seed recipe whose species was already known grants two; first successful material recipes grant four. Repeating known recipes grants the item without repeatedly farming discovery Knowledge. Outputs go to the offering player's personal stash, including outputs made from shared materials.
+New seed discoveries grant their usual four Knowledge. The first successful seed recipe independently earns two Knowledge, giving six when it also discovers a species. A first successful material recipe earns four Knowledge. Repeating known recipes grants the item without repeatedly farming discovery Knowledge. Outputs go to the offering player's personal stash, including outputs made from shared materials.
 
 All ingredient counts are revalidated on confirmation. If saving fails, ingredients, output, recipe records, discovery flags and Knowledge are restored.
 

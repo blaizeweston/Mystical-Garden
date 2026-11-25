@@ -609,6 +609,9 @@ func _garden_action(id: int, action: String) -> void:
 		expedition_transitions.abandon(id,action.trim_prefix("abandon_run:") if action.begins_with("abandon_run:") else "")
 		return
 	if garden_commands.handle(id,action):return
+	if action.begins_with("extract_one:"):
+		expedition_transitions.extract_individually(id,action.trim_prefix("extract_one:"))
+		return
 	if action.begins_with("travel_ready:") or action.begins_with("travel_unready:"):
 		var token:=action.get_slice(":",1)
 		if not token.is_valid_int() or int(token)!=participation.travel_epoch() or participation.travel_kind().is_empty(): return
@@ -2485,12 +2488,12 @@ func heart_state() -> Dictionary:
 	return {"unlocked":["heart"],"spent":0,"insight":0,"phase":0,"clearing":0}
 
 func monster_cargo_limit() -> int:
-	return Weapons.MONSTER_CARGO_LIMIT+(2 if heart_state().get("unlocked",[]).has("spore_bench") else 0)
+	return Weapons.MONSTER_CARGO_LIMIT
 
 func at_garden_station(player: Dictionary,id: String) -> bool:
 	if player.is_empty() or Participation.is_wild(player) or PlayerLifecycle.fallen(player) or participation.active() or not participation.travel_kind().is_empty():
 		return false
-	return Stage.HEART_STATIONS.has(id) and heart_state().get("unlocked",[]).has(id) and stage.station_position(id).distance_to(player.get("pos",Vector3.INF))<=1.8
+	return Stage.HEART_STATIONS.has(id) and (id == "living_archive" or heart_state().get("unlocked",[]).has(id)) and stage.station_position(id).distance_to(player.get("pos",Vector3.INF))<=1.8
 
 func show_heart_tree(id: int) -> void:
 	if id==HOST:

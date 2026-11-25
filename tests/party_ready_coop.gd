@@ -15,7 +15,8 @@ func until(predicate: Callable) -> bool:
  return predicate.call()
 func cleared(number: int):
  ExpeditionCase.set_world(game, {"encounter_number": number});game.deepest_milestone=number;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
- for p in game.players.values(): p.pos=game.battlefield.advance
+ for p in game.players.values():
+  if ExpeditionCase.is_wild(p): p.pos=game.battlefield.advance
 func run():
  var role: String=OS.get_cmdline_user_args()[0]
  game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/party_net_"+role+Crypto.new().generate_random_bytes(8).hex_encode()+".cfg";game.local_character.path=game.progress.path+".character";game.guest_character.path=game.progress.path+".guest";root.add_child(game)
@@ -45,9 +46,12 @@ func run():
   check(game.participation.floor()==6,"cards do not advance without host travel consent")
   game.expedition_transitions.checkpoint(1,true)
   check(await until(func():return game.participation.floor()==7),"checkpoint advances after both ready")
-  cleared(12);host.carried_seeds=[0];guest.carried_seeds=[1];game.expedition_transitions.checkpoint(1,false)
+  var knowledge: int=game.progress.knowledge
+  cleared(12);game.encounter_rewarded=true;host.carried_seeds=[0];guest.carried_seeds=[1];game.expedition_transitions.checkpoint(1,false)
   check(ExpeditionCase.is_wild(host) and ExpeditionCase.is_wild(guest),"host cannot extract guest without consent")
-  check(await until(func():return not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(guest)),"party extraction completes together")
+  check(await until(func():return not ExpeditionCase.is_wild(guest)) and ExpeditionCase.is_wild(host) and game.progress.knowledge==knowledge+6,"guest extracts independently after twelve clears")
+  cleared(24);game.encounter_rewarded=true;game.expedition_transitions.checkpoint(1,false)
+  check(not ExpeditionCase.is_wild(host) and game.progress.knowledge==knowledge+14,"remaining player banks only the additional eight Knowledge")
   check(game.progress.unknown.has(0) and game.seed_reserve(guest).unknown.has(1),"both inventories bank separately")
   host.pos=game.stage.gate_position();guest.pos=game.stage.gate_position();game.expedition_transitions.enter(1)
   check(await until(func():return game.players.size()==1),"guest disconnect processed")
@@ -72,7 +76,10 @@ func run():
   check(await until(func():return not UIFixture.control(game,"checkpoint_menu").visible),"card confirmation closes cards")
   game.send_travel_ready(false)
   check(await until(func():return game.party_travel_state().get("kind","")=="extract" and game.participation.floor()==12),"extraction ready check arrives")
-  game.send_travel_ready(false)
+  var individual=game.ui.get_node("%ExtractAlone")
+  check(await until(func():return individual.is_visible_in_tree()),"individual extraction button appears")
+  var old_ticket: String=game.party_travel_state().get("individual","")
+  individual.pressed.emit();game.send_garden_action(old_ticket)
   check(await until(func():return game.players.has(game.multiplayer.get_unique_id()) and not ExpeditionCase.is_wild(game.players[game.multiplayer.get_unique_id()])),"guest returns to Garden with party")
   check(await until(func():return game.party_travel_state().get("kind","")=="depart"),"next departure needs new confirmations")
   game.session_world.leave("Ready-check disconnect fixture")

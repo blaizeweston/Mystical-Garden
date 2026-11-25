@@ -69,8 +69,10 @@ func _station_frame(world: Node, actor: Dictionary, station: String) -> Dictiona
 	if actor.is_empty():return {}
 	var result: Dictionary={"present":true,"status":world.status}
 	if station=="living_archive":
+		result.decoded=world.heart_state().get("decoded",[false,false,false]).duplicate()
 		result.campaign=(world.campaign_snapshot() if world.multiplayer.is_server() else world.guest_replication.campaign()).duplicate()
 		return result
+	if station=="monster_studies": result.studied=world.heart_state().get("offered",[]).duplicate()
 	var garden: Array=world.garden_snapshot() if world.multiplayer.is_server() else world.guest_replication.garden_progress()
 	if garden.size()<=13:return result
 	result.counts=(world.stored_counts(actor) if world.multiplayer.is_server() else actor.get("stored_parts",world.Parts.empty_counts())).duplicate()

@@ -87,8 +87,8 @@ static func combine(game,player: Dictionary,draft: Array,effects = null) -> Stri
  if not recipe.is_empty():
   var item:=Items.get_item(output)
   if item.has("legacy_seed"):
-   var discovered: bool=game.progress.discover(int(item.legacy_seed))
-   if fresh and not discovered: game.progress.knowledge+=2
+   game.progress.discover(int(item.legacy_seed))
+   if fresh: game.progress.knowledge+=2
   elif fresh: game.progress.knowledge+=4
   message=("Discovered " if fresh else "Created ")+str(item.name)+". One added to your personal stash."
  else:

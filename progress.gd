@@ -43,6 +43,7 @@ var personal_parts := Parts.empty_counts()
 const Structures = preload("res://garden_structure_inventory.gd")
 var structures := Structures.new_garden()
 var irrigation := preload("res://garden_irrigation.gd").new()
+var needs_heart_economy_backup := false
 var needs_cultivation_backup := false
 var needs_irrigation_backup := false
 var needs_construction_backup := false
@@ -232,7 +233,7 @@ func _read_garden() -> Error:
 		return ERR_FILE_CORRUPT
 	needs_inventory_backup=not file.has_section("inventory")
 	var heart_data: Variant = file.get_value("heart", "state", {})
-	if not heart_data is Dictionary or heart_data.get("version", 0) not in [0, 1, 2, 3, 4, heart.VERSION]:
+	if not heart_data is Dictionary or heart_data.get("version", 0) not in [0, 1, 2, 3, 4, 5, heart.VERSION]:
 		garden_development_error = "Unsupported Heart research record."
 		return ERR_FILE_CORRUPT
 	needs_research_backup = heart_data.get("version") in [1, 2] or garden_development.get("version") == 1
@@ -242,7 +243,8 @@ func _read_garden() -> Error:
 		for batch in garden_development.queue: knowledge += int(batch.knowledge)
 		garden_development.erase("queue")
 		garden_development.version = 2
-	needs_cultivation_backup = int(heart_data.get("version",0)) < heart.VERSION
+	needs_cultivation_backup = int(heart_data.get("version",0)) < 5
+	needs_heart_economy_backup = int(heart_data.get("version",0)) < heart.VERSION
 	needs_heart_backup=heart.load_state(file,self)
 	needs_irrigation_backup = false
 	needs_construction_backup = not file.has_section_key("construction","inventory")
@@ -265,7 +267,7 @@ func _read_garden() -> Error:
 		if needs_irrigation_backup and heart.has("irrigation"):
 			Structures.grant_research(inventory,"irrigation")
 		structures = inventory
-	if int(heart_data.get("version", 0)) < heart.VERSION:
+	if int(heart_data.get("version", 0)) < 5:
 		for tech in ["nursery","vital_roots","bud_sanctuary"]:
 			if heart.has(tech): Structures.grant_research(structures,tech)
 		garden_interactions.erase("conduit")
@@ -301,11 +303,12 @@ func save_garden_guarded() -> Dictionary:
 	return outcome
 
 func migration_backup_paths() -> PackedStringArray:
-	return PackedStringArray([path + ".pre-cultivation-v5.bak", path + ".pre-irrigation-v2.bak", path + ".pre-construction-v1.bak", path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-immediate-heart-v3.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak"])
+	return PackedStringArray([path + ".pre-heart-economy-v6.bak", path + ".pre-cultivation-v5.bak", path + ".pre-irrigation-v2.bak", path + ".pre-construction-v1.bak", path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-immediate-heart-v3.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak"])
 
 func confirm_migration(saved_path: String) -> void:
 	if path != saved_path:
 		return
+	needs_heart_economy_backup = false
 	needs_cultivation_backup = false
 	needs_irrigation_backup = false
 	needs_construction_backup = false
@@ -332,6 +335,9 @@ func _serialize_save(stage := Callable()) -> Error:
 		if not operations.authorizes_serializer(self, stage):
 			return SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, path)
 	ensure_storage()
+	if needs_heart_economy_backup and FileAccess.file_exists(path):
+		var copied := _migration_backup(path + ".pre-heart-economy-v6.bak", stage.is_valid())
+		if copied != OK: return copied
 	if needs_cultivation_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-cultivation-v5.bak", stage.is_valid())
 		if copied != OK: return copied
@@ -504,11 +510,15 @@ func record_part_craft(part: int) -> int:
 			seen = crafted_heartwood
 			crafted_heartwood = true
 		_:
-			seen = crafted[Seeds.species_for_part(part)]
-			crafted[Seeds.species_for_part(part)] = true
+			var species := Seeds.species_for_part(part)
+			seen = species >= 0 and crafted[species]
+			if species >= 0: crafted[species] = true
 	var id: String=Parts.DEFINITIONS[part].id
 	if component_crafts.has(id): seen=bool(component_crafts[id])
-	elif Parts.DEFINITIONS[part].get("rare",false): seen=false
+	elif Parts.DEFINITIONS[part].get("rare",false) or part == Seeds.DEFINITIONS[Seeds.index_of("crownroot")].part:
+		# Crownroot shipped with component receipts. Older negative species indices
+		# could mark the last legacy flag without ever crafting its ordinary part.
+		seen=false
 	component_crafts[id]=true
 	var gained := 1 if seen else 4
 	knowledge += gained

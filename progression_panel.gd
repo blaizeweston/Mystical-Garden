@@ -10,6 +10,8 @@ signal refresh_requested(selection: Dictionary)
 signal requested(command: String, data: Dictionary)
 var _facts: Dictionary = {}
 var _inspect_active_class := false
+var research_tabs: TabBar
+var research_list: ItemList
 var tree_scroll: ScrollContainer
 var scroll_reset_version: int=0
 var tree: Control
@@ -46,6 +48,14 @@ func _ready() -> void:
 		class_pick.add_item("Class path: "+Classes.DEFINITIONS[c].name,c)
 	add_child(class_pick)
 	class_pick.item_selected.connect(func(index): inspected_class=class_pick.get_item_id(index);chosen="";previewed="";refresh())
+	research_tabs = TabBar.new()
+	research_tabs.focus_mode = Control.FOCUS_ALL
+	for branch in HeartCatalog.BRANCHES: research_tabs.add_tab(branch)
+	add_child(research_tabs)
+	research_tabs.tab_changed.connect(func(_index):
+		chosen = ""
+		previewed = ""
+		refresh())
 	var row := HBoxContainer.new()
 	add_child(row)
 	var scroll := ScrollContainer.new()
@@ -56,6 +66,11 @@ func _ready() -> void:
 	scroll.add_child(tree)
 	tree.node_selected.connect(select_node)
 	tree.node_hovered.connect(func(id): previewed=id; show_details())
+	research_list = ItemList.new()
+	research_list.custom_minimum_size = Vector2(520,scroll.custom_minimum_size.y)
+	research_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	research_list.item_selected.connect(func(index): select_node(research_list.get_item_metadata(index)))
+	row.add_child(research_list)
 	var side := VBoxContainer.new()
 	side.custom_minimum_size.x = 240
 	row.add_child(side)
@@ -147,6 +162,9 @@ func present(facts: Dictionary) -> void:
 	var care_tab: bool=tabs.current_tab==3
 	var class_tab: bool=tabs.current_tab==2
 	var heart_tab: bool=tabs.current_tab==1
+	research_tabs.visible=heart_tab
+	research_list.visible=heart_tab
+	tree_scroll.visible=not heart_tab
 	care.visible=care_tab
 	tree_scroll.get_parent().visible=not care_tab
 	tree_hint.visible=not care_tab
@@ -159,7 +177,9 @@ func present(facts: Dictionary) -> void:
 	var known := known_flags()
 	var counts := stocks()
 	nodes = seed_nodes(known,counts) if tabs.current_tab==0 else heart_nodes() if tabs.current_tab==1 else class_nodes()
-	tree.set_nodes(nodes)
+	if heart_tab:
+		_refresh_research_list()
+	else: tree.set_nodes(nodes)
 	var at_altar := bool(_facts.at_altar)
 	refund_button.disabled=not bool(_facts.may_respec)
 	var can_learn:=false
@@ -178,7 +198,7 @@ func present(facts: Dictionary) -> void:
 		var owns: bool=bool(_facts.may_start_research)
 		var id: String=chosen.trim_prefix("heart_") if chosen.begins_with("heart_") else ""
 		var definition: Dictionary=HeartCatalog.get_node(id)
-		heart_start_button.disabled=not owns or definition.is_empty() or state.unlocked.has(id) or definition.has("memory")
+		heart_start_button.disabled=not owns or definition.is_empty() or state.unlocked.has(id)
 		heart_start_button.text="Unlocked" if state.unlocked.has(id) else "Unlock · %d Knowledge" % int(definition.get("insight",0))
 		if owns and not definition.is_empty(): heart_start_button.disabled=not str(_facts.research_refusal).is_empty()
 	notice.text = ("Combine seeds at the Altar. Failed combinations return materials and a clue." if at_altar else "Identify and combine seeds at the Altar.")
@@ -239,43 +259,41 @@ func seed_nodes(known: Array,counts: Array) -> Array:
 		result.append({"id":str(i),"label":d.name,"parents":parents,"position":Vector2(x,base_y-(int(d.tier)-1)*70),"unlocked":unlocked,"detail":info,"color":d.color,"icon":portrait(str(d.id)) if unlocked else null,"summary":(str(d.name)+" · "+str(d.rarity)+"\n"+Seeds.modifier_text(i)) if unlocked else ("An undiscovered species of the Wilds." if Seeds.wild_only(i) else "Undiscovered seed\n"+(str(d.hint) if visible_hint else "Discover lower lineages to reveal a clue."))})
 	return result
 func heart_nodes() -> Array:
-	var state: Dictionary=_facts.get("heart",{})
-	var memories: Array=_facts.memories
-	var known: Array=state.get("unlocked",["heart"])
-	var result: Array=[]
-	for d in HeartCatalog.DEFINITIONS:
-		if not HeartCatalog.enabled(str(d.id)): continue
-		var id: String=d.id
-		var owned: bool=known.has(id)
-		var parents: Array=[]
-		var is_ready:=true
-		for parent in d.parents:
-			parents.append("heart_"+str(parent))
-			is_ready=is_ready and known.has(parent)
-		var ratio := 0.0
-		var description: String="[b]%s[/b]\n%s\n\n"%[d.name,d.description]
-		if d.has("memory"):
-			var index:=int(d.memory)
-			var current:=int(memories[index])
-			var needed:=int(Campaign.MEMORY_REQUIREMENTS[index])
-			ratio=current/float(needed)
-			description+="Guardian expeditions: %d/%d. Decode through the Living Archive."%[current,needed]
-			is_ready=false
-		else:
-			description+="Price: %d available Knowledge.\n"%d.insight
-			if not parents.is_empty():
-				var names: Array[String]=[]
-				for parent in d.parents: names.append(HeartCatalog.get_node(str(parent)).name)
-				description+="Prerequisites: "+", ".join(names)+".\n"
-			is_ready=is_ready and int(state.get("insight",0))>=int(d.insight)
-		description+="\nRestored." if owned else "\nAvailable." if is_ready else "\nUnavailable."
-		var icon: Texture2D=null
-		if id=="heart":
-			var path: String="res://assets/ui/heart/phase_%d.png"%int(state.get("phase",0))
-			if ResourceLoader.exists(path): icon=load(path)
-		result.append({"id":"heart_"+id,"label":d.name,"parents":parents,"position":Vector2(float(d.position[0]),float(d.position[1])),"unlocked":owned,"detail":description,"summary":d.name+"\n"+d.description,"color":"#93b78a","available":is_ready,"progress":ratio if not owned else 0.0,"icon":icon})
+	var state: Dictionary = _facts.get("heart",{})
+	var known: Array = state.get("unlocked",["heart"])
+	var result: Array = []
+	for node in HeartCatalog.DEFINITIONS:
+		if node.get("branch","") != HeartCatalog.BRANCHES[research_tabs.current_tab]: continue
+		var owned: bool = known.has(node.id)
+		var reason := ""
+		var parents: Array[String] = []
+		for parent in node.parents:
+			var dependency := HeartCatalog.get_node(parent)
+			var label := str(dependency.name)
+			if dependency.get("branch",node.branch) != node.branch: label += " (" + str(dependency.branch) + ")"
+			parents.append(label)
+			if not known.has(parent): reason = "Requires " + label + "."
+		if reason.is_empty() and int(state.get("insight",0)) < node.insight:
+			reason = "Need %d more Knowledge." % (node.insight - int(state.get("insight",0)))
+		var status := "Unlocked" if owned else "Available" if reason.is_empty() else "Locked"
+		var detail := "[b]%s[/b]\n%s\n\n%d Knowledge · %s\nRequires %s." % [node.name,node.description,node.insight,status,", ".join(parents)]
+		if not owned and not reason.is_empty(): detail += "\n" + reason
+		var indent := "    " if str(node.id).ends_with("_coverage") or str(node.id).ends_with("_effectiveness") else ""
+		result.append({"id":"heart_"+str(node.id),"label":"%s%s   ·   %d K   ·   %s" % [indent,node.name,node.insight,status],"detail":detail})
 	return result
 
+func _refresh_research_list() -> void:
+	# Retain focus and scroll position while the panel polls detached multiplayer facts.
+	var rebuild := research_list.item_count != nodes.size()
+	if not rebuild and not nodes.is_empty(): rebuild = research_list.get_item_metadata(0) != nodes[0].id
+	if rebuild: research_list.clear()
+	for i in nodes.size():
+		var entry: Dictionary = nodes[i]
+		if rebuild:
+			research_list.add_item(entry.label)
+			research_list.set_item_metadata(i, entry.id)
+		elif research_list.get_item_text(i) != entry.label: research_list.set_item_text(i,entry.label)
+		if chosen == entry.id: research_list.select(i)
 func class_nodes() -> Array:
 	return connected_nodes(_facts.profile,inspected_class)
 
@@ -365,17 +383,17 @@ func change_tab(index: int) -> void:
 
 
 func request_tree_base() -> void:
-	if tabs==null or tabs.current_tab not in [1,2]: return
+	if tabs==null or tabs.current_tab!=2: return
 	scroll_reset_version+=1
 	apply_tree_base.call_deferred(scroll_reset_version)
 func apply_tree_base(version: int) -> void:
 	# Containers need their visible layout before scrollbar limits are trustworthy.
 	await get_tree().process_frame
 	await get_tree().process_frame
-	if version!=scroll_reset_version or not is_visible_in_tree() or tabs.current_tab not in [1,2]: return
+	if version!=scroll_reset_version or not is_visible_in_tree() or tabs.current_tab!=2: return
 	var bar:=tree_scroll.get_v_scroll_bar()
 	tree_scroll.scroll_vertical=maxi(0,ceili(bar.max_value-bar.page))
-	var base_id: String="heart_heart" if tabs.current_tab==1 else "class_%d_base"%inspected_class
+	var base_id: String="class_%d_base"%inspected_class
 	for node in nodes:
 		if node.id==base_id:
 			tree_scroll.scroll_horizontal=maxi(0,roundi(Vector2(node.position).x-tree_scroll.size.x*.5))

@@ -6,7 +6,7 @@ const ZONES: Array=[
   "footprint":Rect2(2.1,-3.0,6.5,7.2),"beds":["bed_1","bed_2"],
   "water_access":true,
   "ambience":{"family":"moth","count":8,"range":11.0,"requires_point":"spring_water"}},
- {"id":"cultivation_terrace","parent":"sanctuary","requires":["clearing_2"],
+ {"id":"cultivation_terrace","parent":"sanctuary","requires":[],
   "name":"The cultivation terrace opens","footprint":Rect2(-8.6,-7.3,4.8,3.6),"beds":["bed_4"],"reveal":{"position":Vector3(-7,0,-5.5)}}
 ]
 const POINTS: Array=[{
@@ -40,7 +40,7 @@ const POINTS: Array=[{
  "requires":[],"action":"observe","cue":"quiet_pulse","visual":"root_scar","clue_species":"whispervine",
  "description":"Weathered stones cradle a living channel. Old root grooves repeat the pattern of a familiar vine. The nearby bed remains open to every seed species.",
  "recorded":"You traced the old cultivation channels. The terrace remembers a refinement in the vine roots.",
- "hint":"Record the root pattern to find a use for familiar vine parts. The Heart may learn to redirect the water here."
+ "hint":"Record the root pattern to find a use for familiar vine parts. The journal keeps this observation for everyone in the Garden."
 }]
 static var signature: String=var_to_str([ZONES,POINTS]).sha256_text()
 static func point(id: String) -> Dictionary:

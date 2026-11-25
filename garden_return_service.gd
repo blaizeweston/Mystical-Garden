@@ -38,6 +38,37 @@ static func bank(progress: RefCounted, member: Member, seeds: Array, source: Str
   if species is int and species>=0 and species<Seeds.DEFINITIONS.size():stable.append(str(Seeds.DEFINITIONS[species].id))
  if stable.is_empty() and not ancient:return
  State.credit(value,member.actor(),member.run(),source,stable,ancient)
+## The caller has validated a standing extraction at a cleared checkpoint. This
+## watermark lives in the same saved Garden transaction as the shared currency.
+@warning_ignore("integer_division")
+static func extraction_reward(clears: int) -> int:
+ var blocks := maxi(0,clears) / 6
+ return 0 if blocks == 0 else 2 + 4 * (blocks - 1)
+
+static func settle_extraction(progress: RefCounted, member: Member, clears: int, guardians: Array) -> int:
+ var state := _state(progress)
+ if state.is_empty() or member==null or not member.participating(): return 0
+ var run: Dictionary = state.active
+ if run.get("id","") != member.run() or run.get("closed",true): return 0
+ var actor: Dictionary = run.members.get(member.actor(),{})
+ if actor.is_empty() or actor.status != "": return 0
+ var previous := int(run.get("extraction_knowledge",0))
+ var gain := maxi(0,extraction_reward(clears) - previous)
+ run.extraction_knowledge = previous + gain
+ progress.knowledge += gain
+ # Like Knowledge, a guardian record can come home with the first extractor.
+ var recorded: Array = run.get("extracted_guardians",[0,0,0])
+ for site in progress.Campaign.BIOME_COUNT:
+  var count := int(guardians[site])
+  if count > int(recorded[site]):
+   var increment := [0,0,0]
+   increment[site] = count - int(recorded[site])
+   progress.campaign.record_guardian_memories(1 << site,increment)
+   progress.campaign.record_clear(site)
+   recorded[site] = count
+ run.extracted_guardians = recorded
+ return gain
+
 static func outcome(progress: RefCounted, member: Member, status: String) -> void:
  var value:=_state(progress)
  if not value.is_empty() and member!=null:State.outcome(value,member.actor(),member.run(),status)

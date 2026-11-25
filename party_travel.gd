@@ -151,4 +151,8 @@ static func snapshot(game: Node,id: int) -> Dictionary:
   if game.players.has(peer): voters.append({"id":peer,"name":game.players[peer].character.get("name","Wanderer"),"ready":game.participation.has_vote(peer)})
  var goal: String=game.Campaign.NAMES[game.participation.route()]
  if game.participation.travel_kind()=="depart" and game.Campaign.SHORTCUT_COST[game.participation.route()]>0: goal+=" (%d shared parts)"%game.Campaign.SHORTCUT_COST[game.participation.route()]
- return {"goal":goal,"kind":game.participation.travel_kind(),"epoch":game.participation.travel_epoch(),"ready":game.participation.has_vote(id),"members":voters}
+ var result := {"goal":goal,"kind":game.participation.travel_kind(),"epoch":game.participation.travel_epoch(),"ready":game.participation.has_vote(id),"members":voters}
+ if result.kind == "extract" and voters.size() > 1 and game.participation.contains(id):
+  var stamp := preload("res://network_action_identity.gd").current_stamp(game,game.players[id])
+  if not stamp.is_empty(): result.individual = "extract_one:%d:%s" % [result.epoch,stamp]
+ return result

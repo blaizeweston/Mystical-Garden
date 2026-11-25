@@ -7,9 +7,6 @@ func check(ok: bool,message: String) -> void:
  if not ok:failed=true;printerr("FAIL Garden cleanup: ",message)
 func frames(count: int=4) -> void:
  for i in count: await process_frame
-func bottom(panel: Node) -> bool:
- var bar=panel.tree_scroll.get_v_scroll_bar()
- return bar.max_value>bar.page and absi(panel.tree_scroll.scroll_vertical-roundi(bar.max_value-bar.page))<=1
 func capture(game: Node,name: String) -> void:
  if DisplayServer.get_name()=="headless": return
  await RenderingServer.frame_post_draw
@@ -62,14 +59,15 @@ func run() -> void:
  check(restored.load_garden()==OK and restored.plots[0].species==0 and restored.heart.spent==valid_spending and restored.campaign.cleared.all(func(x):return x),
   "reload preserves the planted bed and guardian progress without repeating the refund")
  p.pos=game.Stage.HEART;game.open_heart_tree();await frames()
- check(bottom(panel),"Heart opens at the actual bottom after visible layout")
- check(not panel.nodes.any(func(n):return n.id=="heart_perfect_recollection") and panel.nodes.size()==preload("res://heart_catalog.gd").DEFINITIONS.filter(func(n):return preload("res://heart_catalog.gd").enabled(n.id)).size(),"active tree hides deferred final node without renumbering technologies")
- var root_node: Dictionary=panel.tree.node_at("heart_heart")
- var view=Rect2(Vector2(panel.tree_scroll.scroll_horizontal,panel.tree_scroll.scroll_vertical),panel.tree_scroll.size)
- check(view.has_point(root_node.position),"starting Heart root is visible and centered")
+ check(panel.research_list.is_visible_in_tree() and panel.research_tabs.current_tab==0,"opening Knowledge displays Garden Development")
+ check(panel.nodes.size()==2 and panel.research_tabs.tab_count==3,"starting branch shows its two purchases")
+ panel.research_tabs.current_tab=1;await frames()
+ var index: int=panel.research_list.item_count-1
+ panel.research_list.select(index);panel.research_list.item_selected.emit(index);await frames()
+ check(panel.details.text.contains("Reclamation Altar") and panel.chosen=="heart_seed_archive","the last cultivation row can be selected and inspected")
  await capture(game,"knowledge")
- panel.tree_scroll.scroll_vertical=0;panel.refresh();await frames()
- check(panel.tree_scroll.scroll_vertical==0,"research refreshes do not fight manual scrolling")
+ panel.refresh();await frames()
+ check(panel.research_list.is_selected(index),"refresh preserves the inspected purchase")
  panel.tabs.current_tab=3;panel.refresh();await frames()
  check(panel.care.visible and panel.care.stories!=null,"Heart tab is a read-only Garden stories recap")
  var personal: Array=game.seed_reserve(p).parts;personal[1]=2
@@ -82,8 +80,8 @@ func run() -> void:
  game.handle_inventory_action(1,p,JSON.stringify({"operation":"transfer","source":"shared","target":"stash","item":item,"quantity":2}))
  check(personal[1]==2 and game.progress.part_count(1)==shared_before,"inventory transfer back to personal stash remains intact")
  await capture(game,"care")
- panel.tabs.current_tab=1;await frames();check(bottom(panel),"switching back to Knowledge starts at its base")
- game.ui.close_panels();panel.tree_scroll.scroll_vertical=0;game.open_heart_tree();await frames();check(bottom(panel),"reopening the same Knowledge tab also resets to the base")
+ panel.tabs.current_tab=1;await frames();check(panel.research_list.is_visible_in_tree(),"switching back to Knowledge restores the branch list")
+ game.ui.close_panels();game.open_heart_tree();await frames();check(panel.research_tabs.is_visible_in_tree(),"reopening Knowledge restores branch navigation")
  game.queue_free();await process_frame
- if not failed:print("PASS: Knowledge-only bed expansion, retired offshoot/finale routes, released legacy beds, save preservation, clean care tabs and bottom-anchored Knowledge view")
+ if not failed:print("PASS: Knowledge-only bed expansion, retired offshoot/finale routes, released legacy beds, save preservation, Garden stories and Knowledge branch navigation")
  quit(1 if failed else 0)

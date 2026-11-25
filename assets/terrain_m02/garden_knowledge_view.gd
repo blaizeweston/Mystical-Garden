@@ -114,8 +114,6 @@ func _update_detail() -> void:
 		effect = "Unlocks one extra cultivation bed. Place it using Build."
 	elif selected == "clearing_1":
 		effect = "Unlocks repeatable expansion funded by Heart offerings."
-	elif row.has("clearing"):
-		effect = "Reduces the growth energy required for each expansion."
 	elif selected == "seed_archive":
 		effect = "Unlocks the Seed cache in Build."
 	elif selected == "monster_studies":

@@ -120,7 +120,7 @@ func host(menu: Node) -> void:
 	var tenth: int = garden.bed_ids[9]
 	var site := preload("res://tests/support/garden_placement_case.gd").find(garden.construction,"bed",garden.construction.records[tenth].at,0.2,Vector2(0,1.5),tenth)
 	if not check(garden.place("bed",site,0.2,tenth) and garden.construct("bed",game.progress.structures.revision),"relocate tenth and buy one stored bed"): return
-	for tech in ["sprinkler_effectiveness","pollination_bloom","pollination_bloom_effectiveness","clearing_2","bud_sanctuary","bud_sanctuary_effectiveness"]: game.garden_action(1,"heart_start_"+tech)
+	for tech in ["sprinkler_effectiveness","pollination_bloom","pollination_bloom_effectiveness","nursery","bud_sanctuary","bud_sanctuary_effectiveness"]: game.garden_action(1,"heart_start_"+tech)
 	var sprinkler: int=placement.deploy_irrigation(garden,"sprinkler",site)
 	if not check(sprinkler>0 and game.progress.irrigation.watered_slots.has(9),"host waters relocated tenth bed"): return
 	if not check(placement.deploy_irrigation(garden,"pollination_bloom",site)>0,"host deploys pollinator"): return

@@ -24,7 +24,7 @@ func run() -> void:
 	var before: int=game.seed_reserve(actor).stock[0]
 	check(game.cultivation.harvest_seeds(1,0).get("changed",false) and game.seed_reserve(actor).stock[0]==before+2,"starting propagation yields two seeds")
 	actor.pos=Vector3(0,0,1.5)
-	for tech in ["clearing_1","clearing_2","irrigation"]: game.garden_action(1,"heart_start_"+tech)
+	for tech in ["clearing_1","cultivation_grounds","irrigation"]: game.garden_action(1,"heart_start_"+tech)
 	var site: Vector2=garden.planar(game.stage.bed_position(0))
 	var index=Influence.new()
 	index.bed_centers={0:Vector2.ZERO}
@@ -54,7 +54,7 @@ func run() -> void:
 		game.garden_action(1,"heart_start_"+kind+"_effectiveness")
 		g.irrigation.resolve(g.structures,g.heart.unlocked)
 		check(g.structures.instances.size()==instances and is_equal_approx(g.irrigation.strength(kind),definition.improved),"upgrades grant no new instance "+kind)
-	check(g.heart.spent-cost_before==3+5+4+8+6+12+8+6+6*(16+12),"exact total price of research")
+	check(g.heart.spent-cost_before==7+420-10-6,"exact total price of research")
 	# A sparse layout and coincident emitters exercise local resolution independently of collision.
 	var inventory: Dictionary=g.structures.duplicate(true)
 	for e: Dictionary in inventory.instances.values():

@@ -15,7 +15,7 @@ func run() -> void:
 	check(g.heart.spent==4 and g.structures.instances.size()==5 and not g.structures.instances[granted].placed,"one stored reward at the exact purchase price")
 	check(not garden.construct("bed",g.structures.revision),"unaffordable construction refused")
 	g.knowledge=100
-	for tech in ["clearing_1","flowering","seed_archive","monster_studies"]:
+	for tech in ["clearing_1","seed_archive","monster_studies"]:
 		game.garden_action(1,"heart_start_"+tech)
 		game.garden_action(1,"heart_start_"+tech)
 	check(g.structures.instances.size()==7 and not garden.construct("archive",g.structures.revision),"unique stations granted exactly once")
@@ -66,7 +66,7 @@ func run() -> void:
 	var old_price_revision: int = g.structures.revision
 	check(garden.retire_structure(historical,old_price_revision,true) and garden.funds.energy==10017 and g.part_count(game.Parts.THORN)==prior_parts+2,"refund the recorded payment including historical materials")
 	check(not garden.retire_structure(historical,old_price_revision,true) and g.part_count(game.Parts.THORN)==prior_parts+2,"retired identity cannot reclaim its receipt")
-	for tech in ["flowering","irrigation"]: game.garden_action(1,"heart_start_"+tech)
+	game.garden_action(1,"heart_start_irrigation")
 	var bed_center: Vector2 = garden.planar(game.stage.bed_position(0))
 	check(Placement.deploy_irrigation(garden,"intake",garden.planar(Water.anchor(game.stage)))>0,"supply scale garden")
 	for copy in 3:
@@ -74,7 +74,6 @@ func run() -> void:
 		check(Placement.deploy_irrigation(garden,"sprinkler",bed_center)>0,"place overlapping sprinklers")
 	# Exercise live roots, network payload and crop processing with every field type.
 	g.knowledge=1000
-	game.garden_action(1,"heart_start_clearing_2")
 	Placement.reclaim_orchard(garden)
 	for kind in ["pollination_bloom","nursery","refinement_grove","vital_roots","bud_sanctuary"]:
 		game.garden_action(1,"heart_start_"+kind)

@@ -18,12 +18,12 @@ const CAPABILITIES := {
 	"action_identity": ActionIdentity.VERSION,
 	"native_class_request": 1,
 	"guest_profile_projection": 1,
-	"expedition_travel_consent": 1,
+	"expedition_travel_consent": 2,
 	"expedition_abandonment_forfeiture": 1,
 	"wild_flora_harvest": 2,
 	"returning_root": 1,
 	"botanical_acquisition": 2,
-	"immediate_heart_research": 1,
+	"immediate_heart_research": 2,
 	"structure_inventory": 3,
 }
 

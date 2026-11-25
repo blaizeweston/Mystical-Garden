@@ -220,7 +220,7 @@ func show_heart_stage(index: int) -> void:
 	var id := "living_archive"
 	if not stage.heart_stations.has(id):
 		stage.heart_stations[id]=preload("res://heart_visuals.gd").station(stage,id,stage.HEART_STATIONS[id])
-	stage.heart_stations[id].visible=stage.heart_unlocked.has(id)
+	stage.heart_stations[id].visible=true
 	if heart.stage != mini(index, 4):
 		heart.show_stage(mini(index, 4))
 		_refresh_connections()

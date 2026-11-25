@@ -26,17 +26,17 @@ func run():
  check(h.serialize()==new_state,"a stale completion cannot restore a retired node or spend Knowledge")
  for n in Catalog.DEFINITIONS:
   check(not seen.has(n.id),"unique id "+n.id)
-  for parent in n.parents: check(not Catalog.get_node(parent).is_empty(),"valid parent")
+  for parent in n.parents: check(seen.has(parent),"each prerequisite precedes its dependent (acyclic graph)")
   seen.append(n.id)
  g.knowledge=400;g.parts.fill(500)
- check(h.phase(g)==1,"knowledge begins organic growth")
+ check(h.phase(g)==0,"unspent lifetime Knowledge alone does not grow the Heart")
  var research_progress=Progress.new()
  research_progress.knowledge=200
  var tree=research_progress.heart
  for blocked in ["wild_harvest","refined_gathering","root_resonance","deep_root_network","reaching_tendrils"]:
   tree.purchase(research_progress,blocked)
   check(not tree.has(blocked) and tree.spent==0,"missing prerequisite refuses "+blocked)
- for row in [["careful_gathering",8],["wild_harvest",10],["refined_gathering",16],["botanical_awareness",6],["root_resonance",12],["checkpoint_deposit",8],["reaching_tendrils",16],["deep_root_network",16]]:
+ for row in [["careful_gathering",8],["wild_harvest",16],["refined_gathering",30],["botanical_awareness",6],["root_resonance",20],["checkpoint_deposit",8],["reaching_tendrils",20],["deep_root_network",30]]:
   var original_spent: int=tree.spent
   tree.purchase(research_progress,row[0])
   tree.purchase(research_progress,row[0])
@@ -77,7 +77,7 @@ func run():
  var parts: Array=g.parts.duplicate()
  var path: String=g.path
  g.path="res://.godot/no-such-directory/heart.cfg"
- game.run_heart_save(h.purchase.bind(g,"clearing_2"))
+ game.run_heart_save(h.purchase.bind(g,"seed_conservation"))
  check(h.serialize()==snapshot and g.parts==parts,"failed save rolls back technology and costs")
  g.path=path
  for id in Catalog.required_core(): h.complete(g,id)
@@ -85,12 +85,13 @@ func run():
  g.veilcap_discovered=true
  g.campaign.memories.assign(g.Campaign.MEMORY_REQUIREMENTS)
  h.sync_memories(g)
- check(["memory_grove","memory_mire","memory_hollow"].all(func(id):return h.has(id)),
+ check(h.decoded==[true,true,true] and not h.has("memory_grove"),
   "the three living guardian memories unlock at their earned thresholds")
  g.save_garden()
  var reload=Progress.new();reload.path=g.path
  check(reload.load_garden()==OK and reload.heart.serialize()==h.serialize(),"Heart state round-trips across saves")
  check_rift_retirement(g.path)
+ check_heart_economy_migration(g.path)
  # Legacy earned restoration remains available and receives a recovery backup.
  var legacy_file=ConfigFile.new();legacy_file.load(g.path);legacy_file.erase_section("heart")
  legacy_file.set_value("garden","flowering_unlocked",true)
@@ -149,7 +150,14 @@ func run():
  p.pos=game.Stage.HEART;ExpeditionCase.set_membership(game, p, false)
  UIFixture.control(game,"progression_view").tabs.current_tab=1
  UIFixture.control(game,"progression_view").refresh()
- check(UIFixture.control(game,"progression_view").tree.nodes.size()==Catalog.DEFINITIONS.filter(func(n):return Catalog.enabled(n.id)).size(),"reusable tree displays active Heart catalog")
+ var panel=UIFixture.control(game,"progression_view")
+ var costs: Array=[]
+ for branch in 3:
+  panel.research_tabs.current_tab=branch;panel.refresh()
+  var group=Catalog.DEFINITIONS.filter(func(n):return n.get("branch","")==Catalog.BRANCHES[branch])
+  check(panel.research_list.item_count==group.size(),"each branch lists all of its purchases")
+  costs.append(group.reduce(func(a,n):return a+n.insight,0))
+ check(seen.size()==32 and costs==[7,420,142],"31 purchases plus starting Heart, 569 Knowledge")
  game.free()
  if not failed: print("PASS: Heart catalog, costs, immediate unlocks, rollback, save persistence, current imported Heart stages and stations")
  quit(1 if failed else 0)
@@ -196,3 +204,20 @@ func check_rift_retirement(source: String) -> void:
    and not written.has_section_key("garden","studying_rift_hook") and not written.has_section_key("garden","rift_research_points"),
    "new saves omit retired top-level fields")
 
+
+func check_heart_economy_migration(source: String) -> void:
+ for version in [2,5]:
+  var file:=ConfigFile.new()
+  check(file.load(source)==OK,"read disposable historical Garden")
+  var historical:=["heart","clearing_1","clearing_2","clearing_3","spore_bench","living_archive","memory_mire"]
+  var record:={"version":version,"unlocked":historical,"spent":29,"offered":[]}
+  if version==2: record.paid=historical.slice(1,6)
+  file.set_value("heart","state",record)
+  file.set_value("garden","knowledge",75)
+  var g:=Progress.new();g.path=source+".retired"+str(version)
+  check(file.save(g.path)==OK and g.load_garden()==OK,"migrate historical investment")
+  var balance:int=g.heart.available_insight(g)
+  check(balance==(72 if version==2 else 46) and g.knowledge==75,"explicit receipts refunded once, aggregate-only debits retained")
+  check(g.heart.decoded[1] and g.heart.phase(g)==4 and g.heart.clearing_bonus()==3,"preserve guardian flags, highest historical sculpt and 20% discount")
+  check(g.save_garden()==OK and g.load_garden()==OK and g.heart.available_insight(g)==balance,"repeat loading cannot credit another refund")
+  check(FileAccess.file_exists(g.path+".pre-heart-economy-v6.bak"),"retain original economy save")

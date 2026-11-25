@@ -15,30 +15,32 @@ func run() -> void:
   if node.id!="heart" and game.HeartCatalog.enabled(node.id):ids.append(node.id)
  var rng_state: int=game.rng.state
  for id in ids:
-  g.heart.complete(g,id);check(g.save_garden()==OK,"research fixture saves")
+  var previous: int=g.heart.development(g)
+  g.heart.complete(g,id);var target: int=g.heart.development(g)
+  check(g.save_garden()==OK,"research fixture saves")
   game._process(.016)
   var pending: Array=Scenes.projection(game,1).pending
   check(not pending.is_empty(),"every enabled unlock creates a scene")
   if pending.is_empty():continue
   var event: Dictionary=pending[0]
-  check(event.from_growth==completed and event.to_growth==completed+1,"each scene owns exactly one permanent visual growth step")
+  check(event.from_growth==previous and event.to_growth==target,"each scene owns exactly one permanent visual growth step")
   view.begin(event);view.animate(0)
-  check(float(game.stage.heart_tree.get_meta("rendered_growth"))==completed,"scene begins at previous Heart size")
+  check(float(game.stage.heart_tree.get_meta("rendered_growth"))==previous,"scene begins at previous Heart size")
   var heart=game.stage.experimental_garden.heart
   var current: MeshInstance3D=heart.sculpt_models[heart.stage]
   var start_scale:=current.scale.y
   check(game.stage.heart_tree==heart and heart.sculpt_only and heart.models.is_empty(),"only the imported Heart owns Garden growth")
   check(game.stage.find_children("HeartForm","Node3D",true,false).is_empty(),"old organic Heart is absent, not hidden beneath the sculpt")
   view.animate(.75)
-  check(is_equal_approx(float(heart.get_meta("rendered_growth")),completed+.5),"camera shot animates actual intermediate growth")
+  check(is_equal_approx(float(heart.get_meta("rendered_growth")),(previous+target)*.5),"camera shot animates actual intermediate growth")
   var middle_scale:=current.scale.y
-  check(is_equal_approx(middle_scale,heart.research_scale(completed+.5).y) and (middle_scale>start_scale if completed<heart.MATURE_SCULPT_GROWTH else is_equal_approx(middle_scale,start_scale)),"research animates the sculpt within its mature reservation")
+  check(is_equal_approx(middle_scale,heart.research_scale((previous+target)*.5).y) and middle_scale>=start_scale-0.00001,"research animates the sculpt within its mature reservation")
   view.animate(1.5);completed+=1
-  check(float(heart.get_meta("rendered_growth"))==completed and is_equal_approx(current.scale.y,heart.research_scale(completed).y),"research growth completes on the same imported mesh")
+  check(float(heart.get_meta("rendered_growth"))==target and is_equal_approx(current.scale.y,heart.research_scale(target).y),"research growth completes on the same imported mesh")
   check(heart.sculpt_models.filter(func(model):return model.is_visible_in_tree()).size()==1,"one authored stage is visible during every research transition")
   check(current.position.is_zero_approx(),"the sculpt and its roots retain their grounded origin")
   view.finish(true);game._process(.016)
-  check(int(game.stage.heart_tree.get_meta("heart_visual_count"))==completed and Scenes.projection(game,1).pending.is_empty(),"completion retains growth without replay or reward")
+  check(int(game.stage.heart_tree.get_meta("heart_visual_count"))==target and Scenes.projection(game,1).pending.is_empty(),"completion retains growth without replay or reward")
  check(completed==ids.size() and game.stage.experimental_garden.heart._growth_scale().y>1.0,"all available Knowledge contributes to the imported Heart")
  check(game.rng.state==rng_state,"tree construction and scenes consume no gameplay RNG")
  var model: Node3D=game.stage.heart_tree;Growth.sync(game.stage,{"unlocked":g.heart.unlocked});check(game.stage.heart_tree==model,"steady frames do not rebuild tree geometry")

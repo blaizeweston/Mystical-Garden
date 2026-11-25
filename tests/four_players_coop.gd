@@ -32,7 +32,8 @@ func until(predicate: Callable,seconds: float=25.0) -> bool:
 func _initialize():call_deferred("run")
 func clear_floor(number: int):
  ExpeditionCase.set_world(game, {"encounter_number": number});game.deepest_milestone=number;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter_rewarded=true
- for p in game.players.values():p.pos=game.battlefield.advance
+ for p in game.players.values():
+  if ExpeditionCase.is_wild(p):p.pos=game.battlefield.advance
 func finish():
  game.queue_free();await process_frame
  if not failed:print("PASS: four players ",role," 100 HP, crafting, exact vitals, guest revival, party gates, cards, extraction and reconnect")
@@ -146,10 +147,16 @@ func host_run():
  check(game.participation.floor()==6,"card choices do not imply host travel consent")
  game.expedition_transitions.checkpoint(1,true)
  check(await until(func():return game.participation.floor()==7),"checkpoint advances with all confirmations")
+ var starting_knowledge: int=game.progress.knowledge
  clear_floor(12)
  for id in game.players:game.players[id].carried_seeds=[SessionCase.Session.slot_for(game.players[id])]
  game.expedition_transitions.checkpoint(1,false)
- check(await until(func():return game.players.values().all(func(p):return not ExpeditionCase.is_wild(p))),"all four extract together")
+ check(await until(func():return game.participation.participants().size()==3) and game.progress.knowledge==starting_knowledge+6,"first independent extraction pays six shared Knowledge")
+ game.expedition_transitions.checkpoint(1,false);mark("second-extract")
+ check(await until(func():return game.participation.participants().size()==2) and game.progress.knowledge==starting_knowledge+6,"same-depth extraction pays no second award")
+ clear_floor(24)
+ game.expedition_transitions.checkpoint(1,false)
+ check(await until(func():return not game.participation.active()) and game.progress.knowledge==starting_knowledge+14,"remaining party extracts together for the eight-point difference")
  check(PlayerVitals.current_hp(game.players[thorn_guest])==100 and game.players[thorn_guest].lost_health==0,"extraction restores the sealed capacity")
  if not await publish_vitals("restored",thorn_guest):return
  for id in game.players:
@@ -261,7 +268,8 @@ func verify_vitals_marker(stage: String,index: int) -> void:
   var report: Dictionary=game.ui.visible_expedition_result()
   if report.is_empty():return
   check(report.players.size()==4 and report.players[report.personal_index].name=="Player "+str(index) and report.party.kills==1,"four bound records and one party kill")
-  check(report.players.all(func(row):return row.outcome=="Extraction"),"party extraction finalized together")
+  var finished: int=report.players.filter(func(row):return row.outcome=="Extraction").size()
+  check(finished==([1,2,4][index-1]),"each recipient sees the expedition as of their own committed extraction")
   game.ui.close_panels()
   check(not game.ui.is_overlay_open(),"summary dismisses into normal play")
  mark(ack)
@@ -319,7 +327,10 @@ func guest_run(index: int):
     game.send_action(false)
     revive_requested=true
    var state=game.party_travel_state()
-   if not state.is_empty() and not epochs.has(state.epoch) and not marked("disconnect"):
+   if state.get("kind","")=="extract" and game.participation.floor()==12:
+    if (index==1 or (index==2 and marked("second-extract"))) and not epochs.has(state.epoch) and not state.get("individual","").is_empty():
+     game.send_garden_action(state.individual);game.send_garden_action(state.individual);epochs[state.epoch]=true
+   elif not state.is_empty() and not epochs.has(state.epoch) and not marked("disconnect") and (state.kind=="depart" or ExpeditionCase.is_wild(game.players.get(id,{}))):
     if state.kind!="depart" or index!=3 or marked("last_ready"):
      if not UIFixture.control(game,"checkpoint_menu").visible:
       game.send_travel_ready(false);epochs[state.epoch]=true

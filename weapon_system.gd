@@ -2,7 +2,7 @@ extends RefCounted
 const Traits=preload("res://combat_traits.gd")
 const Classes=preload("res://class_catalog.gd")
 const Preview=preload("res://combat_balance_preview.gd")
-const MONSTER_CARGO_LIMIT := 6
+const MONSTER_CARGO_LIMIT := 8
 const SLOT_NAMES := ["Core","Form","Catalyst"]
 
 static func add_effects(result: Dictionary,effects: Dictionary,scale: float=1.0) -> void:

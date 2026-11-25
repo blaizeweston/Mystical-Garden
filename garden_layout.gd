@@ -18,7 +18,7 @@ static func zone_beds(id: String,count: int) -> Array[int]:
 static func destinations(stage: Node3D) -> Array:
  var result: Array=[stage.gate_position(),stage.altar_position()].filter(func(at):return at.is_finite())+stage.bed_positions().filter(func(at):return at.is_finite())
  for id in stage.HEART_STATIONS:
-  if stage.heart_unlocked.has(id) and stage.station_position(id).is_finite():result.append(stage.station_position(id))
+  if (id=="living_archive" or stage.heart_unlocked.has(id)) and stage.station_position(id).is_finite():result.append(stage.station_position(id))
  for point in Catalog.POINTS:
   if enabled(point,stage.heart_unlocked):
    var at: Vector3=preload("res://garden_water.gd").anchor(stage) if point.id=="spring_water" else point.position

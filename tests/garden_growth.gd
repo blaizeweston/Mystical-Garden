@@ -107,21 +107,15 @@ func verify_permanent_structures(game: Node,view: Node) -> void:
  var g=game.progress
  while not Service.projection(game,1).pending.is_empty():
   Service.acknowledge(game,1,str(Service.projection(game,1).pending[0].sequence))
- for id in game.Stage.HEART_STATIONS:
+ for id in ["seed_archive","monster_studies"]:
   g.heart.complete(g,id);g.save_garden();game._process(.016)
   var pending: Array=Service.projection(game,1).pending
   check(pending.size()==1 and pending[0].kind=="station" and pending[0].station==id,"research queues one station reveal: "+id)
   if pending.is_empty():continue
   view.begin(pending[0]);view.animate(0);view.animate(view.DURATION);view.finish(true);game._process(.016)
   check(Service.projection(game,1).pending.is_empty(),"watching acknowledges this viewer once: "+id)
-  if id=="living_archive":
-   var model: Node3D=game.stage.heart_stations[id]
-   check(model.visible and model.scale.is_equal_approx(Vector3.ONE),"the supported native Living Archive remains visible")
-   view.begin(pending[0]);view.animate(0);view.finish(false)
-   check(model.visible and model.scale.is_equal_approx(Vector3.ONE),"interruption restores the native Archive")
-  else:
-   check(not game.stage.station_position(id).is_finite(),"research grants placement permission, not an automatic station: "+id)
- g.heart.complete(g,"clearing_2");g.save_garden();game._process(.016)
+  check(not game.stage.station_position(id).is_finite(),"research grants placement permission: "+id)
+ g.heart.complete(g,"seed_conservation");g.save_garden();game._process(.016)
  check(game.stage.heart_stations.living_archive.visible,"later research preserves the native Archive")
  ExpeditionCase.set_membership(game,game.players[1],true);game._process(.016)
  ExpeditionCase.set_membership(game,game.players[1],false);game._process(.016)
@@ -132,7 +126,7 @@ func verify_reloaded_structures(path: String,expected_plots: int) -> void:
  root.add_child(fresh);fresh.set_process(false);fresh.set_physics_process(false);fresh.get_node("GardenInteractions/GrowthScenes").set_process(false)
  check(fresh.progress.load_garden()==OK,"reload uses saved fixture research")
  fresh._process(.016)
- check(fresh.progress.heart.has("living_archive") and fresh.stage.heart_stations.living_archive.visible,"saved research reconstructs the supported native Archive")
+ check(not fresh.progress.heart.has("living_archive") and fresh.stage.heart_stations.living_archive.visible,"saved research reconstructs the supported native Archive")
  check(fresh.stage.active_plots==expected_plots,"saved crops retain their owned bed slots")
  for index in expected_plots:check(fresh.stage.bed_position(index).is_finite(),"owned beds have a valid adopted position on load")
  check(not fresh.stage.station_position("spring").is_finite(),"loading research alone cannot build a watering basin")

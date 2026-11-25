@@ -193,6 +193,7 @@ func host_run() -> void:
   check(false,"guest sees committed advancement")
   return
  ExpeditionCase.set_world(world, {"encounter_number": 6})
+ var knowledge_before_extract: int=world.progress.knowledge
  world.deepest_milestone=6
  world.encounter.set_hp(-1, 0)
  world.encounter.clear_scouts()
@@ -211,7 +212,7 @@ func host_run() -> void:
  # now that no further simulation or canonical writes are allowed.
  world.set_physics_process(true)
  var committed:=Slots._save_digest(G)
- check(world.progress.reserve(guest_identity).unknown==[0] and FileAccess.file_exists(G+".transaction")
+ check(world.progress.knowledge==knowledge_before_extract+2 and world.progress.reserve(guest_identity).unknown==[0] and FileAccess.file_exists(G+".transaction")
   and world.run_wallet(leader)==0 and world.run_wallet(guest)==0,"extraction banks the guest seed and clears both wallets")
  if not await until(func():return marked("saw-extraction")):
   check(false,"guest sees Garden transition and retained warning")
@@ -221,7 +222,7 @@ func host_run() -> void:
  if not await until(func():return marked("guest-offline") and world.multiplayer.get_peers().is_empty()):
   check(false,"guest detached before host teardown")
   return
- check(Slots._save_digest(G)==committed and world.progress.reserve(guest_identity).unknown==[0],"pending, duplicate votes and disconnect cannot change committed Garden")
+ check(Slots._save_digest(G)==committed and world.progress.knowledge==knowledge_before_extract+2 and world.progress.reserve(guest_identity).unknown==[0],"pending, duplicate votes and disconnect cannot change committed Garden")
  check(SessionCase.Session.peer_for(guest)==0 and not SessionCase.Session.ready_for(guest),"released guest link cannot authorize later work")
  record("party_extraction_cleanup",before,{"guest_seed":1,"notice":world.persistence_session.pending_notice(),"offline_guest":true})
 

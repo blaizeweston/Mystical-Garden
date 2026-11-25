@@ -1503,7 +1503,7 @@
     "wild_flora_generation": {"kind":"unit","systems":["wild_flora","seeds","hex_terrain","terrain"],"profile":"terrain","package":false},
     "wild_flora_harvest": {"kind":"unit","systems":["wild_flora","seeds","items","expeditions","persistence_operations","expedition_participation","player_lifecycle"],"profile":"terrain","package":false},
     "legacy_departure_rejoin": {"kind":"pair","systems":["expedition_statistics","expedition_participation","departure_settlement","network_session","persistence_operations"],"package":false},
-    "legacy_departure_outcomes": {"kind":"unit","systems":["expedition_statistics","expedition_participation","departure_settlement","loot","persistence_operations"],"package":false},
+    "legacy_departure_outcomes": {"kind":"unit","systems":["knowledge", "garden_returns", "expedition_statistics","expedition_participation","departure_settlement","loot","persistence_operations"],"package":false},
     "expedition_results_rejoin": {"kind":"pair","systems":["expedition_statistics","expedition_participation","departure_settlement","network_session","persistence_operations"],"package":false},
     "expedition_statistics": {"kind":"unit","systems":["expedition_statistics","expedition_participation","combat","incoming_player_hit","life","loot"],"package":false},
     "staff_attacks": {"kind": "unit", "systems": ["weapons", "weapon_attacks", "player_weapon_actions", "avatar_motion_view", "presentation", "combat", "hex_terrain", "world_snapshot", "network_session", "guest_replication"], "profile": "standard", "package": false},
@@ -2002,7 +2002,7 @@
     },
     "guarded_expedition_coop": {
       "kind": "pair",
-      "systems": [
+      "systems": ["knowledge",
         "player_lifecycle",
         "player_vitals",
         "player_cooldowns",
@@ -2309,7 +2309,7 @@
     },
     "checkpoint_extraction": {
       "kind": "unit",
-      "systems": [
+      "systems": ["knowledge", "departure_settlement",
         "expeditions",
         "items",
         "loot",
@@ -2690,7 +2690,7 @@
     },
     "four_players_coop": {
       "kind": "party",
-      "systems": ["expedition_statistics", "garden_development", "garden_heart_view", "garden_canopy",
+      "systems": ["knowledge", "garden_returns", "departure_settlement", "expedition_statistics", "garden_development", "garden_heart_view", "garden_canopy",
         "loot",
         "world_snapshot",
         "health_pool_hud",
@@ -3455,7 +3455,7 @@
     },
     "party_ready_coop": {
       "kind": "pair",
-      "systems": [
+      "systems": ["knowledge", "departure_settlement",
         "expeditions",
         "party_ui",
         "weapons",
@@ -5086,7 +5086,9 @@
       }
     },
 
-    "_garden_action": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"], "additive": true},
+    "_garden_action": {
+      "individual_extraction": {"systems": ["knowledge", "departure_settlement", "expedition_participation", "party_ui"], "additive": true},
+      "ar08_lifecycle_1": {"systems": ["player_lifecycle"], "additive": true},
       "experimental_terrain_5": {
         "systems": [
           "hex_terrain",
@@ -5292,7 +5294,9 @@
         "additive": true
       }
     },
-    "at_garden_station": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"], "additive": true},
+    "at_garden_station": {
+      "starting_archive": {"systems": ["garden_stations", "knowledge"], "additive": true},
+      "ar08_lifecycle_1": {"systems": ["player_lifecycle"], "additive": true},
       "experimental_terrain_1": {
         "systems": [
           "hex_terrain",
@@ -5602,6 +5606,16 @@
       }
     }},
   "script_functions": {
+    "heart_catalog.gd": {
+      "garden_development": ["knowledge","garden_development"],
+      "cultivation": ["knowledge","garden_cultivation_structures","garden_development"],
+      "wilds_exploration": ["knowledge","wild_flora","garden_returns"]
+    },
+    "expedition_transitions.gd": {"extract_individually": ["knowledge","expeditions","departure_settlement","party_ui"]},
+    "garden_return_service.gd": {
+      "extraction_reward": ["knowledge","departure_settlement","garden_returns"],
+      "settle_extraction": ["knowledge","departure_settlement","garden_returns"]
+    },
     "battlefield.gd": {
       "root_random": ["wild_flora"],
       "generate_returning_root": ["wild_flora"],
@@ -6180,6 +6194,14 @@
     "progress.gd": {
       "newline": "lf",
       "regions": {
+      "hg06_economy_7": {"systems": ["knowledge", "persistence_operations", "items"]},
+      "hg06_economy_6": {"systems": ["knowledge", "persistence_operations", "items"]},
+      "hg06_economy_5": {"systems": ["knowledge", "persistence_operations", "items"]},
+      "hg06_economy_4": {"systems": ["knowledge", "persistence_operations", "items"]},
+      "hg06_economy_3": {"systems": ["knowledge", "persistence_operations", "items"]},
+      "hg06_economy_2": {"systems": ["knowledge", "persistence_operations", "items"]},
+      "hg06_economy_1": {"systems": ["knowledge", "persistence_operations", "items"]},
+      "hg06_economy_0": {"systems": ["knowledge", "persistence_operations", "items"]},
         "hg04_historical_crop_draw_1": {"systems": ["cultivation_growth","garden_care","persistence_operations"]},
         "hg04_historical_crop_draw_2": {"systems": ["cultivation_growth","garden_care","persistence_operations"]},
         "hg04_historical_crop_draw_3": {"systems": ["cultivation_growth","garden_care","persistence_operations"]},
@@ -6935,6 +6957,7 @@
     "garden_layout.gd": {
       "newline": "lf",
       "regions": {
+      "hg06_economy_0": {"systems": ["garden_stations", "garden_development"]},
         "hg02_zone_beds_1": {"systems": ["garden_development", "knowledge"]},
         "saved_garden_layout_1": {
           "systems": [
@@ -6963,6 +6986,7 @@
     "garden_growth_catalog.gd": {
       "newline": "lf",
       "regions": {
+      "hg06_economy_0": {"systems": ["knowledge", "garden_cinematics"]},
         "hg02_describe_1": {"systems": ["garden_development", "knowledge"]},
         "heart_counts": {
           "systems": [
@@ -7513,68 +7537,7 @@
       }
     },
 
-    "heart_catalog.gd": {
-      "newline": "lf",
-      "regions": {
-      "hg05_exploration_0": {"systems": ["wild_flora", "knowledge"]},
-        "hg04_definitions_5": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},
-        "hg04_definitions_4": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},
-        "hg04_definitions_3": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},
-        "hg04_definitions_2": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},
-        "hg04_definitions_1": {"systems": ["knowledge", "garden_cultivation_structures", "garden_development"]},
-        "ui_copy_17": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_16": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_15": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_14": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_13": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_12": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_10": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_9": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_8": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
 
-        "ui_copy_6": {
-          "systems": [
-            "ui_copy"
-          ]
-        }
-      }
-    },
     "class_catalog.gd": {
       "newline": "crlf",
       "regions": {

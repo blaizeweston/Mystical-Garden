@@ -23,14 +23,20 @@ func run():
  var seeds:=pair(Items.seed_id(0),Items.seed_id(1))
  var preview:=Service.preview(game,p,seeds)
  check(preview.can_combine and not preview.known and preview.item=="","unknown result is a concealed question mark")
+ var crafts:=preload("res://progress.gd").new()
+ crafts.ensure_storage()
+ var crown: int=crafts.Seeds.DEFINITIONS[crafts.Seeds.index_of("crownroot")].part
+ check([crafts.record_part_craft(crafts.Parts.rare_part(1)),crafts.record_part_craft(crown),crafts.record_part_craft(crown)]==[4,4,1],"refined craft cannot mark unseen ordinary Crownroot as crafted")
+ crafts.component_crafts.erase(crafts.Parts.DEFINITIONS[crown].id)
+ check(crafts.record_part_craft(crown)==4,"a contaminated historical flag without a Crownroot receipt is repaired on its first real craft")
  var before_knowledge: int=g.knowledge
  var outcome:=Service.combine(game,p,seeds)
- check(outcome.contains("Discovered") and reserve.stock[0]==4 and reserve.stock[1]==4 and reserve.stock[2]==1 and g.discoveries[2] and g.knowledge==before_knowledge+4,"seed sacrifice consumes one per slot and discovers a higher plant")
+ check(outcome.contains("Discovered") and reserve.stock[0]==4 and reserve.stock[1]==4 and reserve.stock[2]==1 and g.discoveries[2] and g.knowledge==before_knowledge+6,"seed sacrifice consumes one per slot and discovers a higher plant")
  check(Service.preview(game,p,seeds).known and Service.preview(game,p,seeds).item==Items.seed_id(2),"known seed result replaces question mark")
  var reverse: Array=[seeds[1],seeds[0]]
  check(Service.preview(game,p,reverse).item==Items.seed_id(2),"recipe order does not matter")
  Service.combine(game,p,reverse)
- check(g.knowledge==before_knowledge+4 and reserve.stock[2]==2,"repeat recipe grants output without farming discovery Knowledge")
+ check(g.knowledge==before_knowledge+6 and reserve.stock[2]==2,"repeat recipe grants output without farming discovery Knowledge")
  var parts:=pair(Items.part_id(1),Items.part_id(2))
  preview=Service.preview(game,p,parts)
  check(not preview.known,"part recipe discovery is distinct from seed recipe")

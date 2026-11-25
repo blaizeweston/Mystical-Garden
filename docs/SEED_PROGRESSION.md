@@ -7,28 +7,28 @@ Prices and probabilities are provisional. These are shared, immediate Heart purc
 | Research | Knowledge | Requires | Effect |
 |---|---:|---|---|
 | Careful Gathering | 8 | Sheltered Heart | Each personal harvest has a 25% chance of a second seed of the same species. |
-| Wild Harvest | 10 | Careful Gathering | Each harvest also yields one ordinary part from the specimen. |
-| Refined Gathering | 16 | Wild Harvest | Independent 15% chance of one additional refined part. |
+| Wild Harvest | 16 | Careful Gathering | Each harvest also yields one ordinary part from the specimen. |
+| Refined Gathering | 30 | Wild Harvest | Independent 15% chance of one additional refined part. |
 | Botanical Awareness | 6 | Sheltered Heart | An unclaimed specimen catches the light within 6 m and a clear line of sight. |
-| Root Resonance | 12 | Botanical Awareness | One brief floor hint when the specimen is unfamiliar to the shared Garden. |
+| Root Resonance | 20 | Botanical Awareness | One brief floor hint when the specimen is unfamiliar to the shared Garden. |
 | Returning Root | 8 | Sheltered Heart | An eligible floor has a 25% chance of one root. Each explorer can secure one carried resource unit there. |
-| Deep Root Network | 16 | Returning Root | Two individually selected units per explorer per root. |
-| Reaching Tendrils | 16 | Returning Root | Increase the per-floor chance to 40%. |
+| Deep Root Network | 30 | Returning Root | Two individually selected units per explorer per root. |
+| Reaching Tendrils | 20 | Returning Root | Increase the per-floor chance to 40%. |
 
 A specimen always supplies its concealed base seed. Both bonus draws depend on the floor specimen and the participant. Wild material recovery grants no familiarity or discovery Knowledge. Identify recovered seeds at the Garden altar. The two Returning Root upgrades can be purchased in either order.
 
 ## Local cultivation tuning (HG04)
 
-Each initial research grants a stored structure. The first sprinkler purchase also grants a unique Water Intake. Effectiveness costs 16 Knowledge and coverage costs 12 Knowledge for each type. Each upgrade requires only that type’s initial research. The two upgrades apply to placed and future instances independently.
+Each initial research grants a stored structure. The first sprinkler purchase also grants a unique Water Intake. Prices below list base, effectiveness and coverage research in that order. Each upgrade requires only that type’s initial research. The two upgrades apply to placed and future instances independently.
 
-| Structure | Initial Knowledge | Additional construction | Base to improved effect | Base to extended radius |
+| Structure | Research Knowledge | Additional construction | Base to improved effect | Base to extended radius |
 |---|---:|---|---|---|
-| Living Sprinkler | 4 | 24 Energy | Watering ×1.25 to ×1.40, including manual watering | 3.5 to 5 m |
-| Pollination Bloom | 8 | 32 Energy | 3 to 4 seeds per seed harvest | 3 to 4.5 m |
-| Symbiotic Nursery | 6 | 28 Energy | 2 to 3 familiarity per harvest for the harvesting character | 3 to 4.5 m |
-| Refinement Grove | 12 | 40 Energy + 1 Ironwood Core | +15 to +25 percentage points of refined chance | 2.5 to 4 m |
-| Vital Roots | 8 | 32 Energy | Growth ×1.30 to ×1.50 | 4 to 6 m |
-| Bud Sanctuary | 6 | 36 Energy + 1 Pristine Dewcap material | Automatic standard care, then optional enhanced care | 3 to 4.5 m |
+| Living Sprinkler | 4 / 30 / 20 | 24 Energy | Watering ×1.25 to ×1.40, including manual watering | 3.5 to 5 m |
+| Pollination Bloom | 10 / 42 / 24 | 32 Energy | 3 to 4 seeds per seed harvest | 3 to 4.5 m |
+| Symbiotic Nursery | 8 / 24 / 16 | 28 Energy | 2 to 3 familiarity per harvest for the harvesting character | 3 to 4.5 m |
+| Refinement Grove | 20 / 38 / 22 | 40 Energy + 1 Ironwood Core | +15 to +25 percentage points of refined chance | 2.5 to 4 m |
+| Vital Roots | 16 / 44 / 28 | 32 Energy | Growth ×1.30 to ×1.50 | 4 to 6 m |
+| Bud Sanctuary | 12 / 28 / 18 | 36 Energy + 1 Pristine Dewcap material | Automatic standard care, then optional enhanced care | 3 to 4.5 m |
 
 An ordinary harvest gives one material or two same-species seeds and one familiarity. Propagation is available from the start. Independent effects can cover the same bed. An effect applies once across overlapping sources. Only automatic watering requires an active intake. Growth combines watering, Vital Roots and the ×2 expedition rate. Moving infrastructure changes future work. Seed yield, familiarity gain and Grove bonus use the layout at harvest.
 
@@ -36,7 +36,7 @@ The base refined chance uses the harvester’s familiarity before the reward. It
 
 Sanctuaries begin with automatic care disabled. The host chooses standard or researched enhanced care under **Build → Placed**. The strongest enabled eligible sanctuary in range acts once in the young-bud stage. Moving it later preserves the accepted care. Manual tending offers the same tradeoffs. The crop owns a hidden draw and its inspection panel shows only probabilities. Historical preserved buds keep their saved draw. Older ordinary crops with a valid cycle and no draw derive one deterministically from that cycle. For saves predating crop cycles, conversion derives a stable identity and draw from the historical save contents and bed slot, including when a migration write must be retried.
 
-Seed Conservation costs 6 Knowledge and requires Sheltered Heart. A failed two-seed offering salvages the ordinary material of the lexically first stable seed ID and returns the other parent to the actor’s reserve. Identical parents cost one net seed. Known failures preview both outputs. Successful offerings and material synthesis follow the existing altar rules.
+Seed Conservation costs 10 Knowledge and requires Sheltered Heart. A failed two-seed offering salvages the ordinary material of the lexically first stable seed ID and returns the other parent to the actor’s reserve. Identical parents cost one net seed. Known failures preview both outputs. Successful offerings and material synthesis follow the existing altar rules.
 
 ## Current botanical progression (WF02)
 
@@ -66,7 +66,7 @@ Theoretical natural chances per eligible floor are shown below. Each range spans
 
 Ordinary caches retain their 20% opportunity, depth, biome and starter rules, drawing from the 19 open species. New Ancient seeds have their contents fixed at the boss's global encounter. Available Rare, Epic and Mythic tiers have relative weights of 25, 55 and 20. Early bosses use the highest available tier if none of those qualify. The altar reveals the concealed result. Pre-WF02 quantity-only Ancient stock retains its original identification roll, including the original chance of a now-exclusive species.
 
-A discovered plant and a tested recipe are separate Garden records. Only a successful offering reveals a seed recipe in Living Roots. A failed pair records its one-material salvage. First species discovery grants 4 Knowledge. Testing a valid seed recipe for an already known species grants 2 once. See [Garden Altar](GARDEN_ALTAR.md) for the transaction rules.
+A discovered plant and a tested recipe are separate Garden records. Only a successful offering reveals a seed recipe in Living Roots. A failed pair records its one-material salvage. First species discovery grants 4 Knowledge. The first successful seed recipe independently grants 2 Knowledge, for a total of 6 if it also discovers a species. See [Garden Altar](GARDEN_ALTAR.md) for the transaction rules.
 
 ## Historical initial collection
 
@@ -100,7 +100,7 @@ stage.gd:build_lineage_crop builds seed/sprout/young/mature forms from the same 
 
 progression_tree.gd is a reusable view. It accepts node id, label, parent IDs, position, unlocked, detail and color; emits node_selected; draws dormant nodes and animated enclosing roots. See assets/data/progression_node_template.json. Unlock rules, currency costs and persistence stay in each progression system.
 
-progression_panel.gd adapts plant discoveries, existing Heart flags and character class XP into that view. Extend those adapters as Heart and class progression are built out. Class levels 2–5 now each grant a choice row; see CLASSES_AND_WEAPONS.md.
+progression_panel.gd adapts plant discoveries and character class XP into that view. Heart research uses the three branch lists in the same panel. Extend those adapters as Heart and class progression are built out. Class levels 2–5 now each grant a choice row; see CLASSES_AND_WEAPONS.md.
 
 ## Compatibility and verification
 

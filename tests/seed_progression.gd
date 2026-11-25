@@ -73,7 +73,7 @@ func run():
 				continue
 			var outcome: String=game.Altar.combine(game,player,ingredients(b,a))
 			check(not outcome.is_empty() and g.stock[i]==1 and g.stock[a]==0 and g.stock[b]==0,"reverse recipe consumes exactly parents "+d.name)
-			check(g.discoveries[i] and g.knowledge==knowledge+4,"permanent first discovery "+d.name)
+			check(g.discoveries[i] and g.knowledge==knowledge+6,"first recipe and permanent species discovery "+d.name)
 			g.stock[a]=1
 			g.stock[b]+=1
 			knowledge=g.knowledge
@@ -151,7 +151,7 @@ func run():
 	check(panel.details.text.contains("Worldseed"),"discovered node reveals details")
 	panel.tabs.current_tab=1
 	panel.refresh()
-	check(panel.tree.nodes.size()==preload("res://heart_catalog.gd").DEFINITIONS.filter(func(n):return preload("res://heart_catalog.gd").enabled(n.id)).size(),"same tree accepts active Heart progression")
+	check(panel.research_tabs.tab_count==3 and panel.research_list.item_count==2,"Heart presents its two Garden Development purchases")
 	panel.tabs.current_tab=2
 	panel.refresh()
 	check(panel.tree.nodes.size()==1+game.Classes.connected_tree(panel.inspected_class).nodes.size(),"same tree accepts selectable class choices")

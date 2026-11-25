@@ -46,11 +46,11 @@ func run() -> void:
 	var base := "res://.godot/modern-terrain-"+str(Time.get_ticks_usec())
 	world.progress.path=base+".cfg"
 	world.local_character.path=base+".character"
-	world.progress.knowledge=0
-	for index in range(world.progress.plots.size(),world.Stage.PLOTS.size()):
-		world.progress.plots.append(world.progress.empty_plot())
-	world.progress.plots[7].species=0
-	check(world.progress.save_garden()==OK,"historical crop fixture serializes to its disposable path")
+	var previous := ConfigFile.new()
+	var plots: Array = []
+	for index in world.Stage.PLOTS.size(): plots.append({"species": 0 if index == 7 else -1, "age": 0.0})
+	previous.set_value("garden","plots_v2",plots)
+	check(previous.save(world.progress.path)==OK,"write the historical crop-only format to a disposable path")
 	root.add_child(world)
 	world.set_process(false);world.set_physics_process(false)
 	world._process(.016)
@@ -58,7 +58,6 @@ func run() -> void:
 	check(garden!=null and world.progress.player_placed_beds,"a plain world starts with the generated Garden and placed-bed system")
 	check(garden.state!=null and garden.construction!=null and garden.funds!=null,"Garden expansion, construction and offerings remain integrated")
 	check(garden.state.entrance_clear(),"the new Garden entrance remains traversable")
-	world.progress.heart.complete(world.progress,"living_archive")
 	world.stage.update_heart_progress(world.heart_state())
 	check(world.stage.station_position("living_archive").is_finite(),"native Living Archive retains an on-site interaction")
 	check(world.progress.plots.size()==9 and world.progress.plots[7].species==0 and garden.bed_ids.size()==9,"all previously owned beds and their crop contents survive load")

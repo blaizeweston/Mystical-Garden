@@ -29,7 +29,7 @@ func run() -> void:
 	check(funds.quote({Items.seed_id(0): 1}).is_empty() and funds.quote({plant: -1}).is_empty()
 		and funds.quote({plant: 1.5}).is_empty() and funds.quote({plant: funds.available(plant) + 1}).is_empty(),
 		"reject seed, invalid quantities, and reserved stock")
-	var rates := {"Common":Vector2i(2,1),"Uncommon":Vector2i(3,2),"Rare":Vector2i(3,3),"Epic":Vector2i(4,4),"Mythic":Vector2i(4,5)}
+	var rates := {"Common":Vector2i(2,1),"Uncommon":Vector2i(3,2),"Rare":Vector2i(4,3),"Epic":Vector2i(6,5),"Mythic":Vector2i(9,8)}
 	var checked := {}
 	for id: String in funds.items:
 		var rarity: String = funds.items[id].rarity

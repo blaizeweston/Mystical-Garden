@@ -2,8 +2,8 @@ extends RefCounted
 ## Session-only inventory and energy. Quotes are valid for one inventory revision.
 
 const Items = preload("res://item_catalog.gd")
-const GROWTH_BY_RARITY := {"Common": 2, "Uncommon": 3, "Rare": 3, "Epic": 4, "Mythic": 4}
-const KNOWLEDGE_BY_RARITY := {"Common": 1, "Uncommon": 2, "Rare": 3, "Epic": 4, "Mythic": 5}
+const GROWTH_BY_RARITY := {"Common": 2, "Uncommon": 3, "Rare": 4, "Epic": 6, "Mythic": 9}
+const KNOWLEDGE_BY_RARITY := {"Common": 1, "Uncommon": 2, "Rare": 3, "Epic": 5, "Mythic": 8}
 const ENERGY_PER_CELL := 1.0
 const CELLS_PER_SURCHARGE := 8
 const TIER_DISCOUNT := 0.10

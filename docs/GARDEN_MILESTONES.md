@@ -708,3 +708,7 @@ Updated only `C:/Users/sutte/Desktop/Mystical Garden v0.5.2.2.exe`; installed SH
 ## Heart form correction — 2026-11-10
 
 Removed the overlapping old seed-organ from grown stages. It now shrinks away as the sapling emerges; the tree has its own ground-connected roots. Save/guest/skip/reload checks pass, and the highest EXE was updated with a retained previous build. See [Heart visual growth correction and release evidence](HEART_VISUAL_GROWTH.md). Garden milestone statuses and the deferred ending are unchanged.
+
+## HG06B playtest handoff
+
+The 31-node Heart, shared checkpoint Knowledge, independent Archive, migrated frontier discounts and five development stages are ready for gameplay review. Mixed-solo and exploration-solo pacing figures are model estimates. See [architecture and provisional pacing](ARCHITECTURE.md#heart-progression-and-the-garden-economy-hg06b).

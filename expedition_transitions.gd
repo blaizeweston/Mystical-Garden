@@ -10,6 +10,7 @@ const Participation = preload("res://expedition_participation.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const WeaponActions = preload("res://player_weapon_actions.gd")
 const Session = preload("res://network_session.gd")
+const Returns = preload("res://garden_return_service.gd")
 
 var _world: WeakRef
 
@@ -230,10 +231,30 @@ func checkpoint(id: int, descend: bool) -> void:
 # change remain separate actions in the guarded route.
 
 
-func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding := 0) -> bool:
+## An individual may leave an open party extraction vote while another standing
+## member continues. The ticket binds the button to this vote, life and floor.
+func extract_individually(peer: int, ticket: String) -> void:
 	var game = _world.get_ref()
-	if _actor(id,expected_binding).is_empty(): return false
-	if not game.players.has(id) or not game.Life.alive(game.players[id]):
+	var actor := _actor(peer)
+	if actor.is_empty() or not Participation.is_wild(actor) or not game.persistence_session.can_write(): return
+	var stamp := preload("res://network_action_identity.gd").current_stamp(game,actor)
+	if stamp.is_empty() or ticket != "%d:%s" % [game.participation.travel_epoch(),stamp]: return
+	if game.participation.travel_kind() != "extract" or game.PartyTravel.members(game,"extract").size() < 2: return
+	if not game.extraction_checkpoint_open() or not game.encounter_rewarded or not game.Life.alive(actor): return
+	if actor.pos.distance_to(game.battlefield.advance) > preload("res://gate_interaction.gd").RANGE: return
+	var binding: int = game.network_session.binding(peer)
+	if game.persistence_session.is_guarded():
+		game.run_guarded_action(peer,game.Transactions.Scope.PAIR,func(effects):
+			return commit_checkpoint(peer,false,effects,binding,true))
+	else:
+		if game.Transactions.run(game,func(): return commit_checkpoint(peer,false,null,binding,true)):
+			game.close_flow_for(peer)
+
+
+func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding := 0, individual := false) -> bool:
+	var game = _world.get_ref()
+	if _actor(id,expected_binding).is_empty() or not game.participation.contains(id): return false
+	if not game.Life.alive(game.players[id]):
 		return false
 	if not descend and not game.extraction_checkpoint_open():
 		game.action_feedback(effects,id, "Extraction opens after clearing every sixth gate.")
@@ -246,7 +267,7 @@ func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding :
 		return false
 	var checkpoint_index: Vector3 = game.battlefield.advance
 	for player in game.players.values():
-		if game.Life.alive(player) and checkpoint_index.distance_to(player.pos) > preload("res://gate_interaction.gd").RANGE+preload("res://gate_interaction.gd").READY_MARGIN:
+		if not individual and Participation.is_wild(player) and game.Life.alive(player) and checkpoint_index.distance_to(player.pos) > preload("res://gate_interaction.gd").RANGE+preload("res://gate_interaction.gd").READY_MARGIN:
 			game.action_feedback(effects,id, "Gather your expedition party at this checkpoint.")
 			return false
 	if descend and game.upgrade_checkpoint_open():
@@ -276,35 +297,45 @@ func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding :
 					" A grafting shrine waits off the main path." if game.graft_altar_open() else ""])
 		return true
 	if effects != null: game.settle_expedition_rewards(effects, true)
+	var recipients: Array = [id] if individual else game.participation.participants()
 	var banked := 0
 	var banked_parts := 0
-	for player in game.players.values():
-		if Participation.is_wild(player) and game.PlayerLifecycle.fallen(player):
+	var gained := 0
+	for peer_id in recipients:
+		var player: Dictionary = game.players[peer_id]
+		var member := Returns.Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),Participation.is_wild(player))
+		if game.PlayerLifecycle.fallen(player):
 			if effects == null: game.recover_pouch(player)
 			else: game._recover_pouch(player)
-		elif Participation.is_wild(player):
-			game.InventoryModel.bank_safe(game,player)
-			game.InventoryModel.bank_extra(game,player)
-			banked += player.carried_seeds.size()
-			game.garden_commands.credit_return(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),player.carried_seeds,"extract")
-			game.seed_reserve(player).unknown.append_array(player.carried_seeds)
-			for part in range(1, game.Parts.DEFINITIONS.size()):
-				var count: int = player.carried_parts[part]
-				game.seed_reserve(player).parts[part] += count
-				banked_parts += count
+			game.garden_commands.return_outcome(member,"fallen")
+			_return_member(player,"Returned fallen")
+			continue
+		game.InventoryModel.bank_safe(game,player)
+		game.InventoryModel.bank_extra(game,player)
+		banked += player.carried_seeds.size()
+		game.garden_commands.credit_return(member,player.carried_seeds,"extract")
+		game.seed_reserve(player).unknown.append_array(player.carried_seeds)
+		for part in range(1, game.Parts.DEFINITIONS.size()):
+			var count: int = player.carried_parts[part]
+			game.seed_reserve(player).parts[part] += count
+			banked_parts += count
+		var clears: int = game.deepest_milestone
+		gained += Returns.settle_extraction(game.progress,member,clears,game.guardian_counts)
+		game.garden_commands.return_outcome(member,"extracted")
+		_return_member(player,"Extraction")
+	var message := "Extracted with %d seed(s) and %d part(s). Shared Garden Knowledge +%d." % [banked,banked_parts,gained]
 	var milestone: int = game.deepest_milestone
-	var message: String = game.milestone_message("Extracted with %d seed(s) and %d weapon part(s)." % [banked, banked_parts], true)
-	game.progress.campaign.record_guardian_memories(game.run_guardians,game.guardian_counts)
-	for site in game.Campaign.BIOME_COUNT:
-		if (game.run_guardians & (1 << site)) != 0:
-			game.progress.campaign.record_clear(site)
-	for peer_id in game.players:
-		var player: Dictionary = game.players[peer_id]
-		if Participation.is_wild(player):
-			game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"fallen" if game.PlayerLifecycle.fallen(player) else "extracted")
-			_return_member(player,"Returned fallen" if game.PlayerLifecycle.fallen(player) else "Extraction")
-			if peer_id != id:
-				game.action_feedback(effects,peer_id, message)
+	if individual:
+		game.progress.campaign.record_expedition(milestone,true)
+		game.PartyTravel.clear(game)
+		game.checkpoint_ready.erase(id)
+		game.save_action_profile(id,effects)
+		game.action_feedback(effects,id,message)
+		if effects != null: effects.append(game.close_flow_for.bind(id))
+		return true
+	message = game.milestone_message(message,true)
+	for peer_id in recipients:
+		if peer_id != id: game.action_feedback(effects,peer_id,message)
 	game.participation.select_route(game.Campaign.GROVE)
 	reset()
 	if effects == null and (banked > 0 or banked_parts > 0 or milestone > 0):

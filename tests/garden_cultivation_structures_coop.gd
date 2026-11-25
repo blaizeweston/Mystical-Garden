@@ -38,7 +38,7 @@ func host_run() -> void:
  var garden=game.stage.experimental_garden
  game.slot_claimed=true
  game.players[1].pos=Vector3(0,0,1.5)
- for tech in ["clearing_1","clearing_2","irrigation","bud_sanctuary","bud_sanctuary_effectiveness","pollination_bloom","nursery"]:
+ for tech in ["clearing_1","cultivation_grounds","irrigation","nursery","bud_sanctuary","bud_sanctuary_effectiveness","pollination_bloom"]:
   g.heart.complete(g,tech)
  var site: Vector2=garden.planar(game.stage.bed_position(0))
  for kind in ["bud_sanctuary","pollination_bloom","nursery"]:

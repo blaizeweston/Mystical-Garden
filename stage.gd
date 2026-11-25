@@ -71,6 +71,7 @@ var graft_altar: Node3D
 var briar_vines: MeshInstance3D
 var longlimb_legs: Node3D
 var heart_phase := 0
+var heart_development := 0
 var heart_stations := {}
 var heart_unlocked: Array=[]
 var heart_size := 0.9
@@ -889,6 +890,7 @@ func update_heart_progress(state: Dictionary) -> void:
 		garden_tier = -1
 		heart_unlocked = unlocked.duplicate()
 	heart_phase = clampi(int(get_meta("garden_growth_phase", state.get("phase", 0))), 0, 4)
+	heart_development = int(state.get("development",unlocked.size()-1))
 	experimental_garden.show_heart_stage(heart_phase)
 	preload("res://heart_growth_visuals.gd").sync(self, state)
 

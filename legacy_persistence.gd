@@ -7,7 +7,7 @@ const Layout = preload("res://persistence_save_layout.gd")
 const Plan = preload("res://persistence_recovery_plan.gd")
 static var _scope := PackedStringArray()
 static var _held := false
-const BACKUPS = [".pre-tier-growth-v2.bak", ".pre-timed-research-v2.bak", ".pre-immediate-heart-v3.bak", ".pre-construction-v1.bak", ".pre-irrigation-v2.bak", ".pre-cultivation-v5.bak", ".pre-content-v2.bak",
+const BACKUPS = [".pre-tier-growth-v2.bak", ".pre-timed-research-v2.bak", ".pre-immediate-heart-v3.bak", ".pre-construction-v1.bak", ".pre-irrigation-v2.bak", ".pre-cultivation-v5.bak", ".pre-heart-economy-v6.bak", ".pre-content-v2.bak",
  ".pre-altar-v1.bak", ".pre-inventory-v1.bak", ".pre-heart-v1.bak", ".pre-plots-v2.bak"]
 
 static func fixture_path(path: String) -> bool:

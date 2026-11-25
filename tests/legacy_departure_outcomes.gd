@@ -85,6 +85,41 @@ func restart(expect_commit: bool, expected: Array) -> void:
 	var transcript := "".join(output)
 	check(code == 0 and transcript.contains("Recovered original journal") and not transcript.contains("ERROR:"),"independent recovery process: " + transcript)
 
+func checkpoint_with_fault(fault: String) -> Dictionary:
+	return Tx.run_gameplay(world,Tx.Scope.PAIR,func():
+		if fault in ["cleanup","uncertain"]: lock(G+".recovery",FileAccess.WRITE)
+		if fault in ["rollback","uncertain"]: lock(C,FileAccess.READ)
+		return world.expedition_transitions.commit_checkpoint(1,false))
+
+func verify_extraction_faults() -> void:
+	for fault in ["rollback","cleanup","uncertain"]:
+		open_world()
+		var actor: Dictionary=world.players[1]
+		enter(1)
+		world.garden_commands.begin_returns()
+		world.garden_commands.join_returns(1)
+		Fixture.set_world(world,{"encounter_number":24})
+		world.deepest_milestone=24
+		world.encounter.set_hp(-1,0);world.encounter.clear_scouts()
+		actor.pos=world.battlefield.advance
+		check(Tx.run_gameplay(world,Tx.Scope.PAIR,func():return true).completed,"save original checkpoint")
+		var baseline:=disk()
+		var knowledge: int=world.progress.knowledge
+		var result:=checkpoint_with_fault(fault)
+		var active: Dictionary=world.progress.garden_interactions.returns.active
+		if fault=="rollback":
+			check(confirms(result,Batch.Outcome.ABORTED_RESTORED) and world.participation.active() and world.progress.knowledge==knowledge and active.get("extraction_knowledge",0)==0 and disk()==baseline,"both milestone and balance roll back")
+			unlock()
+			check(checkpoint_with_fault("retry").completed and world.progress.knowledge==knowledge+14,"verified rollback permits a single real extraction")
+		elif fault=="cleanup":
+			check(confirms(result,Batch.Outcome.COMMITTED_CLEANUP_PENDING) and not world.participation.active() and active.extraction_knowledge==14 and read(G,"garden","knowledge")==knowledge+14,"confirmed extraction and shared milestone installed together")
+			check(not checkpoint_with_fault("retry").completed,"cleanup hold refuses replay")
+			unlock();restart(true,disk())
+		else:
+			check(confirms(result,Batch.Outcome.UNCERTAIN) and not checkpoint_with_fault("retry").completed,"uncertain extraction is held")
+			unlock();restart(false,baseline)
+		world.free()
+
 func run() -> void:
 	if OS.get_environment("MYSTICAL_VALIDATION_RUN").is_empty() or not OS.get_user_data_dir().replace("\\","/").contains("/.godot/vd/"):
 		printerr("Disposable save root required"); quit(1); return
@@ -97,6 +132,7 @@ func run() -> void:
 		# Only the parent writes the runner verdict. It checks this process's output and exit.
 		super.quit(int(failed)); return
 	for path in [G,C]: DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	verify_extraction_faults()
 	open_world()
 	var player: Dictionary = world.players[1]
 	enter(1)
