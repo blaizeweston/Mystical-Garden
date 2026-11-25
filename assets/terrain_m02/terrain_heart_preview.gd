@@ -25,6 +25,7 @@ var stage := 0
 var models: Array[MeshInstance3D] = []
 var sculpted: Node3D
 var sculpt_models: Array[MeshInstance3D] = []
+var ambient_fissure := ShaderMaterial.new()
 var sculpt_bark: ShaderMaterial
 var use_sculpt := false
 var pulse: OmniLight3D
@@ -103,6 +104,8 @@ func set_sculpt(enabled: bool) -> void:
 	if use_sculpt == enabled:
 		return
 	if enabled and sculpted == null:
+		ambient_fissure.shader = preload("res://assets/shaders/garden_fissure.gdshader")
+		preload("res://assets/terrain_m02/garden_ambient.gd").configure(ambient_fissure,"heart",{})
 		sculpt_bark = ShaderMaterial.new()
 		sculpt_bark.shader = BARK_SHADER
 		sculpted = SCULPT.instantiate() as Node3D
@@ -122,6 +125,7 @@ func _apply_sculpt_pigment(model: MeshInstance3D) -> void:
 			model.set_surface_override_material(surface, sculpt_bark)
 		elif material.emission_enabled:
 			var vein := material.duplicate() as StandardMaterial3D
+			vein.next_pass = ambient_fissure
 			vein.set_meta("rest_energy", vein.emission_energy_multiplier)
 			model.set_surface_override_material(surface, vein)
 			fissures.append(vein)

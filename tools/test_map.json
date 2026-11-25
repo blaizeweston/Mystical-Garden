@@ -9,7 +9,7 @@
   "full_after_days": 7,
   "systems": {
     "developer_scenarios": {"label":"Reproducible developer practice scenarios","files":["developer_arena/scenarios.gd","developer_arena/scenarios.gd.uid","developer_arena/scenario_editor.gd","developer_arena/scenario_editor.gd.uid","tests/support/dev04_scenario_case.gd"]},
-    "developer_live_tuning": {"label":"Developer Workbench property tuning and presets","files":["developer_arena/named_files.gd","developer_arena/named_files.gd.uid","developer_arena/tuning.gd","developer_arena/tuning.gd.uid","developer_arena/tuning_editor.gd","developer_arena/tuning_editor.gd.uid","developer_arena/contact_lab.gd","developer_arena/contact_lab.gd.uid","developer_arena/tuning_presets.gd","developer_arena/tuning_presets.gd.uid","tests/support/dev03_tuning_case.gd"]},
+    "developer_live_tuning": {"label":"Developer Workbench property tuning and presets","files":["developer_arena/named_files.gd","developer_arena/named_files.gd.uid","developer_arena/tuning.gd","developer_arena/tuning.gd.uid","developer_arena/tuning_editor.gd","developer_arena/tuning_editor.gd.uid","developer_arena/contact_lab.gd","developer_arena/contact_lab.gd.uid","developer_arena/garden_exhibit.gd","developer_arena/garden_exhibit.gd.uid","developer_arena/tuning_presets.gd","developer_arena/tuning_presets.gd.uid","tests/support/dev03_tuning_case.gd"]},
     "developer_testing_arena": {"label":"Isolated Developer Testing Arena","files":["developer_arena/session.gd","developer_arena/practice_world.gd","developer_arena/practice_encounter.gd","developer_arena/workbench.gd","developer_arena/build_editor.gd","developer_arena/build_plan.gd","developer_arena/session.gd.uid","developer_arena/practice_world.gd.uid","developer_arena/practice_encounter.gd.uid","developer_arena/workbench.gd.uid","developer_arena/build_editor.gd.uid","developer_arena/build_plan.gd.uid","tools/dev02_release_probe.py","tests/support/dev02_combat_case.gd","tests/support/dev02_build_case.gd","tests/support/dev02_release_boundary.gd"]},
     "living_archive": {"label":"Living Archive records and character copies","files":["living_archive.gd","living_archive.gd.uid","living_archive_view.gd","living_archive_view.gd.uid"]},
     "wild_flora": {"label":"Natural Wilds specimens, deterministic selection and per-character harvest","files":["returning_root.gd","returning_root.gd.uid","wild_flora.gd","wild_flora.gd.uid","wild_flora_generation.gd","wild_flora_generation.gd.uid"]},
@@ -34,7 +34,11 @@
           "garden_structure_catalog.gd.uid",
           "garden_irrigation.gd", "garden_irrigation.gd.uid",
           "garden_infrastructure_view.gd", "garden_infrastructure_view.gd.uid",
-          "assets/shaders/garden_sprinkler.gdshader", "assets/shaders/garden_sprinkler.gdshader.uid"
+          "assets/terrain_m02/garden_ambient.gd", "assets/terrain_m02/garden_ambient.gd.uid",
+          "assets/shaders/garden_fissure.gdshader", "assets/shaders/garden_fissure.gdshader.uid",
+          "assets/shaders/garden_flower.gdshader", "assets/shaders/garden_flower.gdshader.uid",
+          "assets/shaders/garden_motes.gdshader", "assets/shaders/garden_motes.gdshader.uid",
+          "assets/terrain_m02/garden_motes.svg", "assets/terrain_m02/garden_motes.svg.import"
         ]
       },
     "garden_heart_view": {"label": "Imported-only Garden Heart, authored stages and research growth", "files": ["assets/terrain_m02/terrain_heart_preview.gd", "assets/terrain_m02/terrain_heart_preview.gd.uid"]},

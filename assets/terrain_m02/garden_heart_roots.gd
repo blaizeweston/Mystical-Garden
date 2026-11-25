@@ -49,6 +49,7 @@ static func plan(path: PackedVector2Array, stage: int, garden, network: Array[Di
 			point.y = lerpf(0.12 + 0.06 * sin(i * 0.71), 0.015, smoothstep(0.82, 1.0, t))
 			point = _bury(point, exclusions, root_radius, footprints)
 		points.append(point)
+	var flow_start := start.length()
 	var connection := _connection(points, socket, network)
 	if not connection.is_empty():
 		var parent: Dictionary = network[connection.parent]
@@ -56,6 +57,7 @@ static func plan(path: PackedVector2Array, stage: int, garden, network: Array[Di
 		var inherited: Array[Vector3] = parent.main
 		var index: int = connection.index
 		var resume: int = connection.resume
+		flow_start = parent.get("flow_start",0.0) + _arc_length(inherited,index)
 		var from := inherited[index]
 		var to := points[resume]
 		var heading := (inherited[index] - inherited[index - 1]).normalized()
@@ -87,10 +89,15 @@ static func plan(path: PackedVector2Array, stage: int, garden, network: Array[Di
 			var at := branch[3] + tangent * (0.21 * j) + side * (0.10 * j)
 			at.y -= 0.034 * j
 			fork.append(_bury(at, exclusions, 0.12, footprints))
-		branches.append({"points": branch, "join": i, "radius": root_radius * 0.33})
-		branches.append({"points": fork, "join": i + 4, "radius": root_radius * 0.15})
+		branches.append({"points": branch, "join": i, "flow_start": flow_start + _arc_length(points,i), "radius": root_radius * 0.33})
+		branches.append({"points": fork, "join": i + 4, "flow_start": flow_start + _arc_length(points,i) + _arc_length(branch,3), "radius": root_radius * 0.15})
 	return {"socket": socket, "main": points, "branches": branches, "radius": root_radius,
-		"connection": connection}
+		"connection": connection, "flow_start": flow_start}
+
+static func _arc_length(path: Array[Vector3], end: int) -> float:
+	var distance := 0.0
+	for i in range(1,end+1): distance += path[i-1].distance_to(path[i])
+	return distance
 
 static func _connection(incoming: Array[Vector3], socket: int, network: Array[Dictionary]) -> Dictionary:
 	var result := {}
@@ -161,13 +168,13 @@ static func mesh(root_plan: Dictionary) -> ArrayMesh:
 ## The growth shader reads longitudinal bark UVs and per-vertex reveal progress.
 static func append_root(tool: SurfaceTool, root_plan: Dictionary, first_vertex := 0) -> int:
 	var main: Array[Vector3] = root_plan.main
-	var next := _sweep(tool, main, root_plan.radius, 0.0, 0.89, 15, first_vertex)
+	var next := _sweep(tool, main, root_plan.radius, 0.0, 0.89, 15, first_vertex, root_plan.get("flow_start",0.0))
 	for branch: Dictionary in root_plan.branches:
 		var start: float = branch.join * 0.89 / (main.size() - 1)
-		next = _sweep(tool, branch.points, branch.radius, start, minf(start + 0.095, 1.0), 8, next)
+		next = _sweep(tool, branch.points, branch.radius, start, minf(start + 0.095, 1.0), 8, next, branch.get("flow_start",0.0))
 	return next
 
-static func _sweep(tool: SurfaceTool, path: Array[Vector3], width: float, from: float, to: float, sides: int, first_vertex: int) -> int:
+static func _sweep(tool: SurfaceTool, path: Array[Vector3], width: float, from: float, to: float, sides: int, first_vertex: int, flow_start: float) -> int:
 	var length := 0.0
 	var stride := sides + 1 # The bark UV wraps at this seam.
 	for i in path.size():
@@ -188,6 +195,7 @@ static func _sweep(tool: SurfaceTool, path: Array[Vector3], width: float, from: 
 			pigment.a = lerpf(from, to, t)
 			tool.set_color(pigment)
 			tool.set_uv(Vector2(around, length))
+			tool.set_uv2(Vector2(flow_start+length,0.0))
 			tool.set_normal(radial.normalized())
 			tool.add_vertex(path[i] + radial * taper * rib)
 			if i > 0 and j < sides:

@@ -23,7 +23,48 @@ static func garden(world: Node) -> String:
 	if not is_equal_approx(world.get_node("Stage/Sun").light_energy,2.4): return "light lost during presentation"
 	tune.reset(world,[Tune.SUN])
 	if not is_equal_approx(world.get_node("Stage/Sun").light_energy,1.05): return "light reset"
+	var plot=world.stage.experimental_garden
+	var digest:=var_to_bytes([world.progress.plots,world.progress.structures,world.progress.heart.unlocked,world.progress.garden_development])
+	var editor=panel.tuning_editor
+	var lab=editor.lab
+	for i in 5:
+		lab.selection.select(4+i)
+		lab.select_effect()
+		editor.populate_visual_properties()
+		lab.play(false)
+		lab.seek(1.375)
+		var group: String=lab.Exhibit.GROUPS[i]
+		var knob: String=["heart.duration","root.width","intake.opacity","spray.height","pollen.size"][i]
+		var mat: ShaderMaterial=lab.exhibit.controlled.back()
+		var base: float=tune.baseline(knob)
+		if not is_equal_approx(mat.get_shader_parameter(knob.get_slice(".",1)),base): return "ambient baseline "+group
+		var proposed: float=Tune.PROPERTIES[knob].maximum
+		if not tune.request(world,knob,proposed): return "ambient edit "+group
+		lab.mode.select(1)
+		lab.compare_at_phase()
+		mat=lab.exhibit.controlled.back()
+		if not is_equal_approx(mat.get_shader_parameter(knob.get_slice(".",1)),proposed) or not is_equal_approx(mat.get_shader_parameter("sample_time"),1.375): return "ambient phase comparison "+group
+		if i==0:
+			for age in 5:
+				lab.heart_stage.select(age)
+				lab.rebuild_at_phase()
+				if not lab.exhibit.get_child(0).sculpt_models[age].visible: return "missing Heart stage"
+		if group in ["intake","spray"]:
+			lab.water.button_pressed=false
+			if not lab.exhibit.controlled.is_empty(): return "dry station emitting"
+			lab.water.button_pressed=true
+		if group=="spray" and not is_equal_approx(plot.infrastructure.spray.material_override.get_shader_parameter("height"),proposed): return "Garden did not use experimental water height"
+		lab.stop()
+		lab.mode.select(0)
+	if digest!=var_to_bytes([world.progress.plots,world.progress.structures,world.progress.heart.unlocked,world.progress.garden_development]): return "ambient lab changed Garden activity"
 	var store:=Presets.new(world)
+	if not store.save_new("Living Garden").is_empty(): return "ambient preset"
+	tune.reset(world,Tune.PROPERTIES.keys())
+	if not store.load_named("Living Garden").is_empty() or tune.ambient_values().size()!=5: return "ambient load"
+	var review:=store.export_review("Living Garden")
+	if store._read(review.path_join("changes.json")).differences.size()!=5: return "ambient review export"
+	tune.reset(world,Tune.PROPERTIES.keys())
+	if not is_equal_approx(plot.infrastructure.spray.material_override.get_shader_parameter("height"),tune.baseline("spray.height")): return "ambient reset"
 	tune.request(world,Tune.SPEAR,4.6)
 	var tracked := {}
 	for d: Dictionary in Tune.PROPERTIES.values(): tracked[d.source]=FileAccess.get_sha256("res://"+str(d.source))

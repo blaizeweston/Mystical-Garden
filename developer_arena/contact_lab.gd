@@ -2,6 +2,10 @@ extends VBoxContainer
 ## Only a local camera, reference targets and cosmetic meshes enter this viewport.
 const Contacts = preload("res://contact_particles.gd")
 const Tune = preload("res://developer_arena/tuning.gd")
+const Exhibit = preload("res://developer_arena/garden_exhibit.gd")
+var exhibit: Node3D
+var water := CheckButton.new()
+var heart_stage := OptionButton.new()
 const FRAME := 1.0 / 60.0
 const CYCLE := 0.85
 var world: Node
@@ -26,7 +30,7 @@ var started := false
 func setup(panel: Control, legacy_controls: Control) -> void:
 	world=panel.world
 	equipped=legacy_controls
-	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay"]:
+	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom"]:
 		selection.add_item(item)
 	add_child(selection)
 	selection.item_selected.connect(func(_index): select_effect())
@@ -63,6 +67,13 @@ func setup(panel: Control, legacy_controls: Control) -> void:
 	for item in ["One target","Three · cluster","Six · ring"]: formation.add_item(item)
 	formation.item_selected.connect(func(_index): stop(); arrange_targets())
 	options.add_child(formation)
+	water.text="Water supplied"
+	water.button_pressed=true
+	water.toggled.connect(func(_on): rebuild_at_phase())
+	options.add_child(water)
+	for title in Exhibit.Heart.STAGES: heart_stage.add_item(title)
+	heart_stage.item_selected.connect(func(_index): rebuild_at_phase())
+	options.add_child(heart_stage)
 	mode.add_item("Production baseline")
 	mode.add_item("Experimental")
 	mode.item_selected.connect(func(_index): compare_at_phase())
@@ -85,6 +96,25 @@ func select_effect() -> void:
 	stop()
 	transport.visible=selection.selected!=3
 	equipped.visible=selection.selected==3
+	formation.visible=selection.selected<3
+	targets.visible=formation.visible
+	heart_stage.visible=selection.selected in [4,5]
+	water.visible=selection.selected in [6,7]
+	var center:=Vector3(3.5,.55,1.5) if selection.selected==5 else Vector3(0,1.6,0) if selection.selected==4 else Vector3(0,.78,0)
+	camera.position=center+(Vector3(0,4.1,7.4) if selection.selected==5 else Vector3(2.5,3.42,6.8))
+	camera.look_at(center)
+	camera.size=3.7 if selection.selected==5 else 5.8 if selection.selected==4 else 2.35 if selection.selected>5 else float([2.35,3.,3.7][formation.selected])
+
+func duration() -> float:
+	return 16.0 if selection.selected>=4 else CYCLE
+
+func refresh_ambient() -> void:
+	if not is_instance_valid(exhibit) or mode.selected!=1: return
+	var values: Dictionary=world.developer_tuning.ambient_values()
+	if values==captured_values: return
+	captured_values=values
+	exhibit.configure(Exhibit.GROUPS[selection.selected-4],captured_values,clock)
+	viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
 
 func origins() -> Array[Vector3]:
 	var points: Array[Vector3]=[]
@@ -116,6 +146,18 @@ func play(advance: bool) -> void:
 	if not world.developer_tuning.authorized(world) or selection.selected==3: return
 	stop()
 	var tune=world.developer_tuning
+	if selection.selected>=4:
+		var group: String=Exhibit.GROUPS[selection.selected-4]
+		exhibit=Exhibit.new()
+		scene.add_child(exhibit)
+		exhibit.create(group,water.button_pressed,heart_stage.selected)
+		if group=="heart": exhibit.frame_heart(camera,heart_stage.selected)
+		captured_values=tune.ambient_values() if mode.selected==1 else {}
+		exhibit.configure(group,captured_values,0.)
+		started=true
+		running=advance
+		seek(0)
+		return
 	var settings: Dictionary=tune.contact_values() if mode.selected==1 else {}
 	var emission: float=tune.applied(Tune.IMPACT) if mode.selected==1 else tune.baseline(Tune.IMPACT)
 	captured_values=settings
@@ -131,13 +173,21 @@ func play(advance: bool) -> void:
 	seek(0)
 
 func compare_at_phase() -> void:
+	if is_instance_valid(exhibit):
+		captured_values=world.developer_tuning.ambient_values() if mode.selected==1 else {}
+		exhibit.configure(Exhibit.GROUPS[selection.selected-4],captured_values,clock)
+		viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
+	else: rebuild_at_phase()
+
+func rebuild_at_phase() -> void:
 	if not started: return
 	var previous_time:=clock
 	play(running)
 	seek(previous_time)
 
 func seek(seconds: float) -> void:
-	clock=clampf(seconds,0,CYCLE)
+	clock=clampf(seconds,0,duration())
+	if is_instance_valid(exhibit): exhibit.seek(clock)
 	for sample in samples:
 		sample.root.visible=clock<sample.life
 		Contacts.pose(sample,clock)
@@ -146,17 +196,21 @@ func seek(seconds: float) -> void:
 
 func pause_resume() -> void:
 	if not world.developer_tuning.authorized(world):return
-	if not started or clock>=CYCLE: play(true); return
+	if not started or clock>=duration(): play(true); return
 	running=not running
 	seek(clock)
 
 func single_step() -> void:
 	if not world.developer_tuning.authorized(world):return
-	if not started or clock>=CYCLE: play(false)
+	if not started or clock>=duration(): play(false)
 	running=false
 	seek(clock+FRAME)
 
 func stop() -> void:
+	if is_instance_valid(exhibit):
+		exhibit.hide()
+		exhibit.queue_free()
+		exhibit=null
 	for sample in samples:
 		sample.root.hide()
 		sample.root.queue_free()
@@ -175,11 +229,11 @@ func update_visibility() -> void:
 func _process(delta: float) -> void:
 	if not running: return
 	if not world.developer_tuning.authorized(world): stop(); return
-	if clock+delta>=CYCLE:
+	if clock+delta>=duration():
 		if repeat.button_pressed:
-			var next_time:=fposmod(clock+delta,CYCLE)
+			var next_time:=fposmod(clock+delta,duration())
 			var tune=world.developer_tuning
-			if mode.selected==1 and (captured_values!=tune.contact_values() or not is_equal_approx(captured_emission,tune.applied(Tune.IMPACT))):
+			if selection.selected<3 and mode.selected==1 and (captured_values!=tune.contact_values() or not is_equal_approx(captured_emission,tune.applied(Tune.IMPACT))):
 				play(true)
 			seek(next_time)
 		else: stop()

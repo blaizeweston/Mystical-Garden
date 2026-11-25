@@ -50,9 +50,29 @@ func run() -> void:
 		check(bark.shader == garden.heart.sculpt_bark.shader and bark.get_shader_parameter("growing_root") and is_zero_approx(bark.get_shader_parameter("root_progress")), "placement starts the frontier bark reveal")
 		garden.infrastructure._growth.custom_step(1.0)
 		check(is_equal_approx(bark.get_shader_parameter("root_progress"), 1.0), "the new limb finishes growing")
+	check(garden.infrastructure.intake.mesh!=null and garden.infrastructure.get_child_count()==3,"supplied inlet ripple and three fixed particle batches")
+	var roots=garden.infrastructure.HeartRoots
+	var planned: Array[Dictionary]=[]
+	for destination: Vector2 in [Vector2(8,.5),Vector2(7,2.6)]:
+		planned.append(roots.plan(garden.infrastructure._route(destination,1),0,garden.state,planned,true))
+	var junction: Dictionary=planned[1].connection
+	check(not junction.is_empty(),"representative routes share a physical branch")
+	if not junction.is_empty():
+		var inherited: float=planned[0].flow_start+roots._arc_length(planned[0].main,junction.index)
+		var coordinates: PackedVector2Array=roots.mesh(planned[1]).surface_get_arrays(0)[Mesh.ARRAY_TEX_UV2]
+		check(is_equal_approx(coordinates[0].x,inherited) and coordinates[16].x>coordinates[0].x,"child pulse starts at parent arc length and advances along the limb")
+	game.app_settings.values.ambient_motion=false
+	garden._apply_ambient()
+	check(not garden.infrastructure.spray.visible and is_zero_approx(garden.heart.ambient_fissure.get_shader_parameter("intensity")) and g.irrigation.supplied,"motion preference only quiets the display")
+	game.app_settings.values.ambient_motion=true
+	garden._apply_ambient()
 	var mask: Dictionary=g.irrigation.watered_slots.duplicate()
 	var paths: Dictionary=garden.infrastructure.paths.duplicate(true)
 	garden.infrastructure.rebuild(garden.construction.records,garden.state,garden.heart.stage,garden.network,garden.game.progress.irrigation.supplied)
+	var spray_material: Material=garden.infrastructure.spray.material_override
+	for refresh in 6:
+		garden.infrastructure.rebuild(garden.construction.records,garden.state,garden.heart.stage,garden.network,true)
+	check(garden.infrastructure.get_child_count()==3 and garden.infrastructure.spray.material_override==spray_material,"layout refreshes reuse the three emitters and spray material")
 	check(paths==garden.infrastructure.paths and paths.values().any(func(path):return Vector2(path[0].x,path[0].z).length()>0.1),"deterministic branching paths")
 	check(garden.infrastructure.find_children("*","CollisionObject3D",true,false).is_empty(),"roots and spray add no collision")
 	var boundary := Coverage.new()
@@ -94,6 +114,7 @@ func run() -> void:
 	check(is_equal_approx(bed.age,38),"manual plus automatic still uses one multiplier and doubles in Wilds")
 	var shore: Vector2=g.structures.instances[intake].at
 	check(garden.retire_structure(intake,g.structures.revision,false) and not g.irrigation.supplied and not garden.infrastructure.paths.has(intake) and garden.infrastructure.spray.mesh==null,"storing intake stops supply and spray immediately")
+	check(garden.infrastructure.intake.mesh==null,"stored intake removes shore animation")
 	g.advance_growth(8)
 	check(is_equal_approx(bed.age,48) and Growth.watered(bed),"manual watering survives removal of supply")
 	check(garden.place("intake",shore,0,intake) and g.irrigation.watered_slots==mask,"redeploy intake restores coverage")

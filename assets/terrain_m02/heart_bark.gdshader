@@ -1,5 +1,12 @@
 shader_type spatial;
 
+uniform bool living = false;
+uniform float sample_time = -1.;
+uniform float frequency;
+uniform float intensity;
+uniform float speed;
+uniform float width;
+uniform vec4 tint : source_color;
 uniform bool growing_root = false;
 uniform float root_progress = 1.0;
 uniform float reclaim_pulse = 0.0;
@@ -23,6 +30,14 @@ void fragment() {
 		float gaps = smoothstep(0.14, 0.65, sin(grain.y * 4.1 + grain.x * 10.0));
 		float near_heart = exp(-grain.y * 0.62) * (1.0 - smoothstep(0.12, 0.38, COLOR.a));
 		EMISSION = vec3(0.38, 0.012, 0.015) * seam * gaps * near_heart * (0.34 + reclaim_pulse);
+	}
+	if (living) {
+		float t = sample_time < 0. ? TIME : sample_time;
+		float period = speed/frequency;
+		float distance_from_crest = abs(mod((t+.11*sin(t*1.37))*speed-UV2.x+period*.5,period)-period*.5);
+		float band = 1.-smoothstep(0.,width,distance_from_crest);
+		float threads = smoothstep(.42,.97,sin(grain.x*TAU*5.+grain.y*.84+bend));
+		EMISSION += tint.rgb*(intensity*band*threads*(.38+.62*grain_break));
 	}
 	ROUGHNESS = 0.91 - 0.09 * grooves;
 }

@@ -2,13 +2,14 @@ extends RefCounted
 ## One instance belongs to the title-issued developer world. Practice borrows it.
 const Developer = preload("res://developer_mode.gd")
 const Contacts = preload("res://contact_particles.gd")
+const Ambient = preload("res://assets/terrain_m02/garden_ambient.gd")
 const IMPACT := "impact.emission"
 const SUN := "scene.sun_energy"
 const SPEAR := "briar_spear.reach"
 const WATER := "living_sprinkler.base_radius"
 const FLORA := "wild_flora.probability"
 # All entries are finite floats. Source symbols own the production numbers.
-const PROPERTIES := {
+const CORE_PROPERTIES := {
 	IMPACT: {"type":"float", "category":"Visuals", "object_name":"Combat impact", "label":"Emission", "unit":"×",
 		"minimum":0, "maximum":4, "step":0.05,
 		"timing":"Next impact or visual replay", "source":"combat_effects.gd", "symbol":"IMPACT_EMISSION"},
@@ -51,6 +52,17 @@ const PROPERTIES := {
 		"minimum":0, "maximum":100, "step":1,
 		"timing":"Next eligible generated floor", "source":"wild_flora_generation.gd", "symbol":"SPAWN_CHANCE"}
 }
+static var PROPERTIES := _property_definitions()
+
+static func _property_definitions() -> Dictionary:
+	var properties := CORE_PROPERTIES.duplicate()
+	for id: String in Ambient.CONTROLS:
+		var d: Array = Ambient.CONTROLS[id]
+		properties[id] = {"type":"float","category":"Visuals","object_name":Ambient.OBJECTS[id.get_slice(".",0)],
+			"label":d[4],"unit":d[5],"minimum":d[1],"maximum":d[2],"step":d[3],
+			"timing":"Live Garden and experimental playback","source":"assets/terrain_m02/garden_ambient.gd","symbol":"CONTROLS."+id}
+	return properties
+
 var _owner: WeakRef
 var _active_stage: WeakRef
 var _requested := {}
@@ -83,6 +95,7 @@ func baseline(id: String) -> float:
 		SPEAR: return preload("res://class_catalog.gd").DEFINITIONS[0].weapons[1].reach
 		WATER: return preload("res://garden_irrigation.gd").RADIUS_M
 		FLORA: return preload("res://wild_flora_generation.gd").SPAWN_CHANCE * 100.0
+	if Ambient.CONTROLS.has(id): return Ambient.CONTROLS[id][0]
 	return Contacts.DEFAULTS.get(id,NAN)
 
 static func valid(id: String, value: Variant) -> bool:
@@ -96,7 +109,7 @@ func applied(id: String) -> float: return _applied.get(id, baseline(id))
 func request(world: Node, id: String, value: Variant) -> bool:
 	if not authorized(world) or not valid(id,value): return false
 	_set_difference(_requested,id,value)
-	if id in [SUN,IMPACT] or Contacts.DEFAULTS.has(id): return apply(world,[id])
+	if id in [SUN,IMPACT] or Contacts.DEFAULTS.has(id) or Ambient.CONTROLS.has(id): return apply(world,[id])
 	return true
 
 func _set_difference(values: Dictionary, id: String, value: float) -> void:
@@ -164,6 +177,8 @@ func _set_scene(world: Node, sun: float, water: float, emission: float) -> void:
 	var effects: Node = world.stage.get_node("CombatEffects")
 	effects.impact_emission = emission
 	effects.contact_overrides = contact_values()
+	var plot: Node = world.stage.experimental_garden
+	if is_instance_valid(plot): plot.set_ambient_tuning(ambient_values())
 	var coverage = world.progress.irrigation
 	if is_equal_approx(coverage.radius_base_sprinkler,water): return
 	# Settle the partial growth tick at its previous rate before recomputing coverage.
@@ -176,6 +191,12 @@ func _set_scene(world: Node, sun: float, water: float, emission: float) -> void:
 	coverage.set_sprinkler_radius(water,world.progress.structures,world.progress.heart.unlocked)
 	var garden: Node = world.stage.experimental_garden
 	if garden != null and garden.ghost != null and garden.ghost.visible: garden._show_ghost()
+
+func ambient_values() -> Dictionary:
+	var result := {}
+	for id in _applied:
+		if Ambient.CONTROLS.has(id): result[id] = _applied[id]
+	return result
 
 func contact_values() -> Dictionary:
 	var result := {}

@@ -30,11 +30,7 @@ static func build(id: String, decorative_bed_shoots := true) -> ArrayMesh:
 				Wood._tube(tool,[Vector3.UP*0.23,outward*0.08+Vector3.UP*(height-0.18),outward*0.28+Vector3.UP*height],[0.095,0.073,0.028],OLIVE)
 			Wood._crown(tool, _fixed_random(), Vector3.UP*(0.36 if intake else 0.61),Vector3(0.14,0.16,0.14),Color("#61958d"))
 		"pollination_bloom":
-			Wood._tube(tool,[Vector3.ZERO,Vector3(0.04,0.34,0),Vector3.UP*0.68],[0.09,0.055,0.03],OLIVE)
-			for i in 7:
-				var dir := Vector3(cos(i*TAU/7),0,sin(i*TAU/7))
-				Wood._crown(tool,_fixed_random(),Vector3.UP*0.68+dir*0.20,Vector3(0.14,0.07,0.14),Color("#de8b98"))
-			Wood._crown(tool,_fixed_random(),Vector3.UP*0.75,Vector3.ONE*0.09,Color("#edc466"))
+			_pollination_flower(tool)
 		"nursery":
 			_basin(tool,0.38,0.20,BARK,SOIL)
 			for i in 3:
@@ -65,6 +61,29 @@ static func build(id: String, decorative_bed_shoots := true) -> ArrayMesh:
 		_:
 			_archive(tool, id)
 	return tool.commit()
+
+## A tall, reflexed corolla around an exposed pollen cone reads above the beds.
+static func _pollination_flower(tool: SurfaceTool) -> void:
+	var head := Vector3(0,1.09,0)
+	Wood._tube(tool,[Vector3.ZERO,Vector3(-.09,.42,.04),Vector3(.07,.79,0),head],[.092,.065,.045,.05],OLIVE)
+	for i in 8:
+		var radial := Vector3(cos(i*TAU/8),0,sin(i*TAU/8))
+		var side := radial.cross(Vector3.UP)
+		var base := head + radial*.04
+		var shoulder := head + radial*.26 + Vector3.UP*.095
+		var tip := head + radial*(.44+.035*(i%2)) - Vector3.UP*(.12+.055*(i%3))
+		var left := shoulder - side*.095
+		var right := shoulder + side*.095
+		var ridge := shoulder + Vector3.UP*.035
+		Wood._face(tool,base,left,ridge,Color("#dbc28e"))
+		Wood._face(tool,base,ridge,right,Color("#e6d7ab"))
+		Wood._face(tool,left,tip,ridge,Color("#ca9e76"))
+		Wood._face(tool,ridge,tip,right,Color("#dfb988"))
+		if i%2==0:
+			var start := Vector3.UP*(.32+.12*(i%3))
+			var middle := start + radial*.20 + Vector3.UP*.065
+			_quad(tool,start,middle+side*.08,start+radial*.34+Vector3.UP*.18,middle-side*.08,OLIVE.lightened(.12))
+	Wood._crown(tool,_fixed_random(),head+Vector3.UP*.13,Vector3(.125,.19,.125),Color("#ba8939"))
 
 static func _fixed_random() -> RandomNumberGenerator:
 	var random := RandomNumberGenerator.new()

@@ -8,6 +8,13 @@ const Knowledge = preload("res://assets/terrain_m02/garden_knowledge.gd")
 const Heart = preload("res://assets/terrain_m02/terrain_heart_preview.gd")
 const Stations = preload("res://assets/terrain_m02/garden_station_art.gd")
 const Motion = preload("res://assets/terrain_m02/terrain_actor_motion.gd")
+# The taller flower head overhangs its base. Preserve the walking outline of existing Gardens.
+const BLOOM_WALK := [
+	Vector2(-.299799979,-.043299999), Vector2(-.254999995,-.216299996), Vector2(-.119300000,-.324499995),
+	Vector2(-.023899999,-.312000006), Vector2(.073500000,-.294000000), Vector2(.242699996,-.255299985),
+	Vector2(.317999989,-.098999999), Vector2(.323799998,0), Vector2(.310999990,.093199998),
+	Vector2(.235699996,.249499992), Vector2(.149800003,.298899978), Vector2(-.019399999,.337599993),
+	Vector2(-.112799995,.313199997), Vector2(-.248499990,.204999998), Vector2(-.299799979,.130300000)]
 static var _walking_outlines := {}
 const WALK_RADIUS := Motion.RADIUS_M
 const STEP := 0.47
@@ -145,7 +152,7 @@ func _sync_obstacles() -> void:
 
 func walking_footprint(kind: String, at: Vector2, yaw: float) -> Dictionary:
 	if not _walking_outlines.has(kind):
-		_walking_outlines[kind] = Shape.mesh_outline(Stations.build(CATALOG[kind].art, false))
+		_walking_outlines[kind] = PackedVector2Array(BLOOM_WALK) if kind=="pollination_bloom" else Shape.mesh_outline(Stations.build(CATALOG[kind].art, false))
 	var points := PackedVector2Array()
 	for point: Vector2 in _walking_outlines[kind]: points.append(at + point.rotated(yaw))
 	return Shape.shape("construction", kind, points)

@@ -17,6 +17,14 @@ func fingerprint(id: String) -> String:
 			if Tune.Contacts.DEFAULTS.has(id):
 				var shader_path := "res://assets/shaders/contact_fragments.gdshader"
 				if FileAccess.file_exists(shader_path): hash = (hash+FileAccess.get_sha256(shader_path)).sha256_text()
+			if Tune.Ambient.CONTROLS.has(id):
+				var group := id.get_slice(".",0)
+				var shader := "assets/shaders/garden_fissure.gdshader" if group=="heart" else "assets/terrain_m02/heart_bark.gdshader" if group=="root" else "assets/shaders/garden_motes.gdshader"
+				var paths := [shader]
+				if group in ["intake","spray","pollen"]: paths.append("assets/terrain_m02/garden_motes.svg")
+				if group=="pollen": paths.append_array(["assets/terrain_m02/garden_station_art.gd","assets/shaders/garden_flower.gdshader"])
+				for source: String in paths:
+					if FileAccess.file_exists("res://"+source): hash = (hash+FileAccess.get_sha256("res://"+source)).sha256_text()
 			if id == Tune.SUN:
 				var climate := "res://assets/terrain_m02/wilds_biome.gd"
 				if FileAccess.file_exists(climate): hash = (hash+FileAccess.get_sha256(climate)).sha256_text()

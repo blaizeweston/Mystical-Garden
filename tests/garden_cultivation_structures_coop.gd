@@ -43,6 +43,8 @@ func host_run() -> void:
  var site: Vector2=garden.planar(game.stage.bed_position(0))
  for kind in ["bud_sanctuary","pollination_bloom","nursery"]:
   if not check_placed(garden,kind,site):return
+ if not check_placed(garden,"intake",garden.planar(preload("res://garden_water.gd").anchor(game.stage))):return
+ if not check_placed(garden,"sprinkler",-site):return
  var sanctuary: int=g.structures.instances.keys().filter(func(key):return g.structures.instances[key].kind=="bud_sanctuary")[0]
  check(garden.configure_sanctuary(sanctuary,"enhanced",g.structures.revision),"host configures enhanced care")
  var host: Dictionary=game.players[1];host.pos=game.stage.bed_position(0);host.seed_choice=0;game.seed_reserve(host).stock[0]+=1
@@ -66,6 +68,7 @@ func guest_run() -> void:
  check(game.session_world.join()==OK,"guest joins")
  if not await until(func():return game.network_session.role()=="Guest" and marked("ready") and game.cultivation.projection(game.local_player_id()).get("beds",[]).any(func(b):return b.stage==3 and b.preserved and b.seeds==3 and b.familiarity==2)):check(false,"recipient sees actual mature yield");return
  var garden=game.stage.experimental_garden
+ check(await until(func():return garden.infrastructure.spray.mesh!=null and garden.infrastructure.intake.mesh!=null and garden.infrastructure.pollen.mesh!=null),"remote water and pollen batches follow the shared layout")
  var inventory: Dictionary=garden.remote_development.layout.inventory
  var id: int=inventory.instances.keys().filter(func(key):return inventory.instances[key].kind=="bud_sanctuary")[0]
  check(inventory.instances[id].care_mode=="enhanced" and not garden.configure_sanctuary(id,"disabled",inventory.revision),"guest sees the setting and cannot change it")
@@ -76,4 +79,5 @@ func guest_run() -> void:
  if not await until(func():return marked("rejoin")):check(false,"harvest confirmed");return
  game.session_world.leave("Cultivation rejoin fixture");game.ui.close_panels();check(game.session_world.join()==OK,"guest rejoins")
  if not await until(func():return game.network_session.role()=="Guest" and garden.remote_development.get("layout",{}).get("inventory",{}).get("instances",{}).get(id,{}).get("care_mode")=="enhanced"):check(false,"sanctuary setting synchronized after rejoin");return
+ check(garden.infrastructure.pollen.mesh!=null and garden.infrastructure.spray.mesh!=null,"rejoined layout reconstructs active effects")
  mark("rejoined");check(await until(func():return marked("done")),"host completes")

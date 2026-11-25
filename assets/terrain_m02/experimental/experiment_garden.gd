@@ -43,6 +43,9 @@ var roots: Node3D
 var network: Array[Dictionary] = []
 var material: ShaderMaterial
 var base_rim: PackedFloat32Array
+const Ambient = preload("res://assets/terrain_m02/garden_ambient.gd")
+var ambient_values := {}
+var flower_material := Ambient.bloom_material()
 var infrastructure := preload("res://garden_infrastructure_view.gd").new()
 var remote_irrigation := preload("res://garden_irrigation.gd").new()
 var coverage_preview := MeshInstance3D.new()
@@ -209,6 +212,8 @@ func configure(world_node: Node, presentation: Node3D) -> void:
 		_restore_development(game.progress.garden_development)
 	_refresh_structure_views()
 	_refresh_root_views()
+	game.settings_dialog.applied.connect(_apply_ambient)
+	_apply_ambient()
 	barrier.begin_shape(state.outline, state.outline)
 	barrier.update_shape(1.0)
 	_update_rim()
@@ -274,7 +279,7 @@ func _make_station(id: String, art: String, world_position: Vector3, yaw: float)
 		instance.mesh = Stations.build(art)
 		var colors := StandardMaterial3D.new()
 		colors.vertex_color_use_as_albedo = true
-		instance.material_override = colors
+		instance.material_override = flower_material if art=="pollination_bloom" else colors
 		add_child(instance)
 		structure_nodes[id] = instance
 	instance.position = world_position
@@ -1078,6 +1083,24 @@ func _add_root(plan: Dictionary) -> MeshInstance3D:
 	root.mesh = Roots.mesh(plan)
 	var shader := ShaderMaterial.new()
 	shader.shader = Bark
+	shader.set_shader_parameter("living",game.app_settings.values.get("ambient_motion",true))
+	Ambient.configure(shader,"root",ambient_values)
 	root.material_override = shader
 	roots.add_child(root)
 	return root
+
+
+func set_ambient_tuning(values: Dictionary) -> void:
+	if ambient_values == values: return
+	ambient_values = values.duplicate()
+	_apply_ambient()
+
+func _apply_ambient() -> void:
+	var moving: bool=game.app_settings.values.get("ambient_motion",true)
+	Ambient.configure(heart.ambient_fissure,"heart",ambient_values)
+	if not moving: heart.ambient_fissure.set_shader_parameter("intensity",0.)
+	flower_material.set_shader_parameter("sample_time",-1. if moving else 0.)
+	infrastructure.apply_ambient(ambient_values,moving)
+	for root in roots.get_children():
+		root.material_override.set_shader_parameter("living",moving)
+		Ambient.configure(root.material_override,"root",ambient_values)

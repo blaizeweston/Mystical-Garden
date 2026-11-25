@@ -108,6 +108,7 @@ func change(id: String,value: float) -> void:
 
 func refresh() -> void:
 	if not tuning.authorized(panel.world): return
+	if lab!=null: lab.refresh_ambient()
 	for id in rows:
 		var row: Dictionary=rows[id]
 		var d: Dictionary = Catalog.PROPERTIES[id]
@@ -156,6 +157,7 @@ func playback(page: Control) -> void:
 func populate_visual_properties() -> void:
 	visual_property.clear()
 	var prefix := "rupture." if lab.selection.selected==2 else "impact."
+	if lab.selection.selected>=4: prefix=lab.Exhibit.GROUPS[lab.selection.selected-4]+"."
 	for id: String in Catalog.PROPERTIES:
 		if not id.begins_with(prefix) and id!=Catalog.SUN: continue
 		var definition: Dictionary=Catalog.PROPERTIES[id]

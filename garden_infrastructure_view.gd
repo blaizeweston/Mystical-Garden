@@ -6,7 +6,11 @@ const Water = preload("res://garden_water.gd")
 const Irrigation = preload("res://garden_irrigation.gd")
 
 var paths := {} # stable structure ID -> ground path, for inspection
-var spray := MeshInstance3D.new()
+const Ambient = preload("res://assets/terrain_m02/garden_ambient.gd")
+var spray := Ambient.batch("spray")
+var pollen := Ambient.batch("pollen")
+var intake := Ambient.batch("intake")
+var _supplied := false
 var _sites := {}
 var _terrain_revision := -1
 var _stage := -1
@@ -23,8 +27,9 @@ func sync_layout(records: Dictionary, garden, stage: int, frontiers: Array[Dicti
 		sites[id] = Vector3(at.x, at.y, records[id].yaw)
 		if live and _stage >= 0 and (not _sites.has(id) or Vector2(_sites[id].x, _sites[id].y) != at):
 			new_limbs[id] = true
-	if stage == _stage and garden.revision == _terrain_revision and is_same(garden.layout.water, _water) and sites == _sites:
+	if stage == _stage and garden.revision == _terrain_revision and is_same(garden.layout.water, _water) and supplied == _supplied and sites == _sites:
 		return
+	_supplied = supplied
 	_sites = sites
 	_stage = stage
 	_terrain_revision = garden.revision
@@ -36,11 +41,17 @@ func _init() -> void:
 	_bark.shader = Bark
 	_growing_bark.shader = Bark
 	_growing_bark.set_shader_parameter("growing_root", true)
-	add_child(spray)
-	var moisture := ShaderMaterial.new()
-	moisture.shader = preload("res://assets/shaders/garden_sprinkler.gdshader")
-	spray.material_override = moisture
-	spray.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for effect in [spray,pollen,intake]: add_child(effect)
+	apply_ambient({})
+
+func apply_ambient(values: Dictionary, moving := true) -> void:
+	for bark: ShaderMaterial in [_bark,_growing_bark]:
+		bark.set_shader_parameter("living",moving)
+		Ambient.configure(bark,"root",values)
+	for effect in [spray,pollen,intake]:
+		effect.visible = moving
+		Ambient.configure(effect.material_override,effect.name.to_lower(),values)
+
 
 func rebuild(records: Dictionary, garden, stage: int, frontiers: Array[Dictionary], supplied: bool, new_limbs := {}) -> void:
 	paths.clear()
@@ -55,6 +66,12 @@ func rebuild(records: Dictionary, garden, stage: int, frontiers: Array[Dictionar
 	growing.set_material(_growing_bark)
 	var drops := SurfaceTool.new()
 	drops.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var flowers := SurfaceTool.new()
+	flowers.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var ripples := SurfaceTool.new()
+	ripples.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var blooming := false
+	var sipping := false
 	var spraying := false
 	var settled_vertices := 0
 	var growing_vertices := 0
@@ -84,10 +101,17 @@ func rebuild(records: Dictionary, garden, stage: int, frontiers: Array[Dictionar
 				var tip := shore + (shore-target).normalized()*0.26
 				var mid := target.lerp(shore,0.54)
 				var inlet: Array[Vector3] = [Vector3(target.x,0.23,target.y),Vector3(mid.x,0.13,mid.y),Vector3(shore.x,0.06,shore.y),Vector3(tip.x,-0.02,tip.y)]
-				next = HeartRoots.append_root(surface,{"main":inlet,"radius":0.15,"branches":[]},next)
+				next = HeartRoots.append_root(surface,{"main":inlet,"radius":0.15,"branches":[],
+					"flow_start":plan.flow_start+HeartRoots._arc_length(main,main.size()-1)},next)
+				if supplied:
+					Ambient.emitter(ripples,"intake",Vector3(tip.x,.065,tip.y),entry.yaw)
+					sipping = true
 		elif entry.kind=="sprinkler" and supplied:
-			_spray(drops,target,id)
+			Ambient.emitter(drops,"spray",Vector3(target.x,0,target.y),entry.yaw)
 			spraying = true
+		elif entry.kind=="pollination_bloom":
+			Ambient.emitter(flowers,"pollen",Vector3(target.x,0,target.y),entry.yaw)
+			blooming = true
 		if is_growing:
 			growing_vertices = next
 		else:
@@ -102,6 +126,8 @@ func rebuild(records: Dictionary, garden, stage: int, frontiers: Array[Dictionar
 		_growth.tween_property(_growing_bark, "shader_parameter/root_progress", 1.0, 0.85)
 	mesh = batch if not records.is_empty() else null
 	spray.mesh = drops.commit() if spraying else null
+	pollen.mesh = flowers.commit() if blooming else null
+	intake.mesh = ripples.commit() if sipping else null
 
 ## A short route to the structure supplies the same socket and branch planner used by reclamation.
 static func _route(target: Vector2, id: int) -> PackedVector2Array:
@@ -114,17 +140,6 @@ static func _route(target: Vector2, id: int) -> PackedVector2Array:
 		route.append(target*t+side*curve)
 	route[-1] = target
 	return route
-
-static func _spray(tool: SurfaceTool, at: Vector2, id: int) -> void:
-	for arm in 5:
-		var dir := Vector3(cos(arm*TAU/5),0,sin(arm*TAU/5))
-		var side := dir.cross(Vector3.UP) * 0.019
-		for segment in 10:
-			for vertex: Vector2i in [Vector2i(0,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(0,-1),Vector2i(1,1),Vector2i(0,1)]:
-				var t := (segment+vertex.x)/10.0
-				var p := Vector3(at.x,0,at.y)+dir*(0.28+t*1.15)+Vector3.UP*(0.82+1.3*t-2.06*t*t)
-				tool.set_uv(Vector2(t,fmod(id*0.19+arm*0.10,1.0)))
-				tool.add_vertex(p+side*vertex.y)
 
 static func preview(center: Vector2, beds: Dictionary, slots: Array[int], radius := Irrigation.RADIUS_M) -> ImmediateMesh:
 	var rings := ImmediateMesh.new()
