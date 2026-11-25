@@ -11,7 +11,10 @@ critic and policy:
 - entropy per action head, so the dashboard's summed entropy can be read.
 
   python evaluate.py [--run-dir <folder>] [--checkpoints a.pt b.pt ...] [--episodes 240] [--processes <n>]
-                     [--seed 7] [--no-scripted] [--record 12] [--milestones 3] [--out <folder>]
+                     [--seed 7] [--no-scripted] [--record 12] [--milestones 3] [--game-temperature] [--out <folder>]
+
+--game-temperature also plays every checkpoint as the game samples it (sharper for brighter mobs, see
+ai/game_temperature_brain.gd), since training's temperature 1 understates how mobs play in the game.
 
 With no --checkpoints it takes the run folder's newest checkpoint and up to --milestones milestones, spread
 over the run. It only reads the run folder: results go to --out (default: an evaluations folder next to the
@@ -154,6 +157,11 @@ def sharpened(contestant: Contestant, temperature: float, schema: MobSchema, out
     return Contestant(f"{contestant.label} T{temperature:g}", file, contestant.state, kind="sharpened")
 
 
+def game_tempered(contestant: Contestant) -> Contestant:
+    """The checkpoint played as the game samples it: behaviour, targets and commitment sharper for brighter mobs."""
+    return Contestant(f"{contestant.label} game", contestant.policy_file, contestant.state, kind="game")
+
+
 def squad_mix(samples: int, settings: dict) -> float:
     mob = json.loads(REWARDS_PATH.read_text(encoding="utf-8"))["mob"]
     start, end = float(mob.get("squad_mix_start", 0.2)), float(mob.get("squad_mix_end", 0.2))
@@ -185,6 +193,8 @@ def run_jobs(contestants: list[Contestant], settings: dict, args, out: Path) -> 
                        "--out", str(result), "--squad-mix", f"{mix:.4f}"]
             if contestant.scripted:
                 command.append("--scripted")
+            elif contestant.kind == "game":
+                command.append("--game-temperature")
             elif contestant.kind == "policy" and block == 0 and args.record > 0:
                 command += ["--record", str(min(args.record, count)), "--shards", str(out / "shards" / f"c{index:02d}")]
             jobs.append((name, command))
@@ -523,6 +533,8 @@ def main() -> int:
     parser.add_argument("--no-random", action="store_true", help="leave out the random brain (uniform over legal options)")
     parser.add_argument("--temperatures", type=float, nargs="*", default=[],
                         help="also play the newest checkpoint at these sampling temperatures (below 1 is sharper)")
+    parser.add_argument("--game-temperature", action="store_true",
+                        help="also play every checkpoint as the game samples it (temperature by intelligence)")
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
     if args.episodes < 1:
@@ -546,6 +558,8 @@ def main() -> int:
         raise SystemExit("None of the checkpoints could be used.")
     contestants.sort(key=lambda c: c.samples)
     newest = contestants[-1]
+    if args.game_temperature:
+        contestants += [game_tempered(c) for c in list(contestants)]
     for temperature in args.temperatures:
         if not 0.0 < temperature < 10.0:
             raise SystemExit("--temperatures must be between 0 and 10.")

@@ -12,6 +12,10 @@ checkpoints/schema_<old hash>/ so the trainer cannot fall back to one it can no 
 Stop training first. Then:
   python convert_checkpoint.py [--run-dir <folder>]
 
+To convert one saved checkpoint (an anchor for benchmark.py, say) without touching any run folder:
+  python convert_checkpoint.py --checkpoint <file.pt> --out-folder <folder>
+It writes ckpt_<version>.pt and its checksum into --out-folder and leaves the original as it is.
+
 The checkpoint's schema is found in the repository's history by its hash, so no old files are needed.
 """
 
@@ -319,30 +323,23 @@ def wall_seconds(metrics: Path) -> float | None:
     return sum(b - a for a, b in zip(stamps, stamps[1:]) if 0 < b - a < 600)
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--run-dir", type=Path)
-    args = parser.parse_args()
-    run_dir = args.run_dir or default_run_dir(load_settings())
-    holder = S.read_json(run_dir / "trainer.lock") or {}
-    if pid_alive(int(holder.get("pid", 0))):
-        print("Training is running. Stop it first (stop_training.ps1).")
-        return 1
-    folder = run_dir / "checkpoints"
-    loaded = S.load_checkpoint(folder)
-    if loaded is None:
-        print(f"No good checkpoint in {folder}.")
-        return 1
-    state, path = loaded
+def read_state(path: Path) -> dict | None:
+    data = S.verified_bytes(path)
+    if data is None:
+        if path.with_name(path.name + ".sha256").exists():
+            return None
+        data = path.read_bytes()
+    return torch.load(io.BytesIO(data), map_location="cpu", weights_only=True)
+
+
+def convert_state(state: dict, path: Path) -> dict | None:
+    """The checkpoint converted to the current schema, proven to score its old options the same, or None."""
     new = MobSchema()
-    if state["schema_hash"] == new.hash_hex:
-        print(f"{path.name} already uses the current schema. Nothing to convert.")
-        return 0
     with tempfile.TemporaryDirectory() as temporary:
         old = find_schema(state["schema_hash"], Path(temporary))
         if old is None:
             print("The checkpoint's schema is not in this repository's history; it cannot be converted.")
-            return 1
+            return None
         old_contract = Path(temporary) / "contract.json"
         if not old_contract.exists():
             old_contract = CONTRACT_PATH
@@ -354,7 +351,7 @@ def main() -> int:
     print(f"Old options score the same: largest difference {proof['largest_logit_difference']:.2e}, memory {proof['largest_memory_difference']:.2e}.")
     if proof["largest_logit_difference"] > 1e-4 or proof["largest_memory_difference"] > 1e-4:
         print("The converted policy does not match the old one; nothing was changed.")
-        return 1
+        return None
     first_new = 1 if was_quiet else old.head_sizes["message_a"]
     if messages_enabled(CONTRACT_PATH) and new.head_sizes["message_a"] > first_new:
         open_messages(weights, new, first_new)
@@ -364,7 +361,7 @@ def main() -> int:
               f"and start as likely as symbol 0 (spread {heard['symbol_spread']:.2e}).")
         if max(heard.values()) > 1e-4:
             print("The message warm start did not hold; nothing was changed.")
-            return 1
+            return None
     if old.head_sizes.get("commit", 0) == 0 and new.head_sizes.get("commit", 0) > 1:
         usual = lean_commit(weights, new)
         print(f"Commit head added: the usual hold starts at {100 * usual:.0f}%, each set length at {100 * (1 - usual) / (new.head_sizes['commit'] - 1):.0f}%.")
@@ -378,6 +375,54 @@ def main() -> int:
     same_shapes = all(tuple(state["policy"][k].shape) == tuple(v.shape) for k, v in weights["policy"].items()) and         all(tuple(state["critic"][k].shape) == tuple(v.shape) for k, v in weights["critic"].items())
     if not same_shapes:
         converted.pop("optimizer", None)
+    return converted
+
+
+def convert_file(path: Path, out_folder: Path) -> int:
+    state = read_state(path)
+    if state is None:
+        print(f"{path.name} does not match its checksum.")
+        return 1
+    if state["schema_hash"] == MobSchema().hash_hex:
+        print(f"{path.name} already uses the current schema. Nothing to convert.")
+        return 0
+    converted = convert_state(state, path)
+    if converted is None:
+        return 1
+    out_folder.mkdir(parents=True, exist_ok=True)
+    saved = S.save_checkpoint(out_folder, converted, int(state["version"]), 0)
+    print(f"Saved {saved} for the current schema; {path} is unchanged.")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--run-dir", type=Path)
+    parser.add_argument("--checkpoint", type=Path, help="convert this one file into --out-folder instead of a run's newest")
+    parser.add_argument("--out-folder", type=Path)
+    args = parser.parse_args()
+    if args.checkpoint is not None:
+        if args.out_folder is None or args.out_folder.resolve() == args.checkpoint.parent.resolve():
+            print("Pass --out-folder, a folder other than the checkpoint's own.")
+            return 1
+        return convert_file(args.checkpoint, args.out_folder)
+    run_dir = args.run_dir or default_run_dir(load_settings())
+    holder = S.read_json(run_dir / "trainer.lock") or {}
+    if pid_alive(int(holder.get("pid", 0))):
+        print("Training is running. Stop it first (stop_training.ps1).")
+        return 1
+    folder = run_dir / "checkpoints"
+    loaded = S.load_checkpoint(folder)
+    if loaded is None:
+        print(f"No good checkpoint in {folder}.")
+        return 1
+    state, path = loaded
+    if state["schema_hash"] == MobSchema().hash_hex:
+        print(f"{path.name} already uses the current schema. Nothing to convert.")
+        return 0
+    converted = convert_state(state, path)
+    if converted is None:
+        return 1
     seconds = wall_seconds(run_dir / "logs" / "metrics.jsonl")
     if seconds is not None:
         converted["seconds"] = seconds

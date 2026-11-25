@@ -111,7 +111,8 @@ func run_episode() -> Dictionary:
 	idle_counter.take()
 	var spawned := _spawn_mobs(start, explore)
 	var report := {"episode": episodes, "mode": "explore" if explore else "engaged", "floor": floor_number, "night": night,
-		"party": classes.size(), "difficulty": snappedf(difficulty, 0.01), "mobs": spawned.count, "elite": spawned.elite}
+		"party": classes.size(), "difficulty": snappedf(difficulty, 0.01), "light": snappedf(light, 0.01), "mobs": spawned.count,
+		"elite": spawned.elite}
 	var limit := Clock.from_ms(float(settings.explore_seconds if explore else settings.engaged_seconds) * 1000.0)
 	var cursor := sim.events.head
 	var began := sim.clock.tick

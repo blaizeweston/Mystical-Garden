@@ -3,12 +3,14 @@ extends SceneTree
 ## identical fights. ai/training/evaluate.py runs it once per brain and seed block and reads the results.
 ##
 ## godot --headless --path <project> --script res://ai/evaluate_policies.gd -- --policy <policy.bin>
-##   --seed <n> --episodes <n> --out <results.jsonl> [--scripted] [--squad-mix <f>]
+##   --seed <n> --episodes <n> --out <results.jsonl> [--scripted] [--game-temperature] [--squad-mix <f>]
 ##   [--shards <folder> --record <n>]
 ##
 ## --policy      the trained policy (ai/training/mob_net.py export). With --scripted the game's scripted brain
 ##               decides instead, and the policy only satisfies the episode setup.
 ## --seed        the same seed gives the same floors, parties and mob groups in the same order for every brain.
+## --game-temperature  samples as the game does (ai/game_temperature_brain.gd: sharper for brighter mobs)
+##               instead of at temperature 1 as in training.
 ## --record      keeps every decision of the first n episodes and writes them as a rollout shard into
 ##               --shards, for the critic diagnosis. Never a training run folder.
 ## Episode settings come from ai/training/training.json (and training.local.json), as in training.
@@ -17,6 +19,7 @@ const NavWorld = preload("res://mob_sim/mob_nav_world.gd")
 const Recorder = preload("res://ai/rollout_recorder.gd")
 const Schema = preload("res://ai/mob_schema.gd")
 const EvalEnv = preload("res://ai/evaluation_env.gd")
+const GameTemperatureBrain = preload("res://ai/game_temperature_brain.gd")
 
 const SETTINGS_PATH := "res://ai/training/training.json"
 const LOCAL_SETTINGS_PATH := "res://ai/training/training.local.json"
@@ -28,6 +31,7 @@ var seed_value := 1
 var episode_count := 0
 var record := 0
 var scripted := false
+var game_temperature := false
 var squad_mix := -1.0
 
 
@@ -57,6 +61,8 @@ func _run() -> int:
 	var recorder := Recorder.new(schema)
 	var env := EvalEnv.new(schema, recorder, settings.episodes.duplicate(true), seed_value)
 	env.use_scripted = scripted
+	if game_temperature:
+		env.brain_script = GameTemperatureBrain
 	env.set_policy(weights, 1)
 	if squad_mix >= 0.0:
 		env.squad_mix = squad_mix
@@ -139,4 +145,6 @@ func _parse_arguments() -> bool:
 				squad_mix = float(value)
 			"--scripted":
 				scripted = true
+			"--game-temperature":
+				game_temperature = true
 	return not policy_path.is_empty() and not out_path.is_empty() and episode_count > 0

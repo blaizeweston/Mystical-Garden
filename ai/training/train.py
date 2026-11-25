@@ -99,6 +99,23 @@ def masked_terms(logits: torch.Tensor, masks: torch.Tensor, actions: torch.Tenso
     return log_prob, entropy
 
 
+def choice_stats(masks: torch.Tensor, actions: torch.Tensor, slices: list[tuple[int, int]]) -> dict:
+    """How often each commitment length and each message A symbol was chosen, over the decisions where that head
+    had a choice: the commitment histogram shows which hold lengths mobs settle on, and the message A share is
+    what the learnability probe watches."""
+    result = {}
+    for name in ("commit", "message_a"):
+        if name not in HEAD_NAMES:
+            continue
+        head = HEAD_NAMES.index(name)
+        offset, width = slices[head]
+        choosing = masks[:, offset:offset + width].sum(-1) > 1
+        if choosing.any():
+            counts = torch.bincount(actions[choosing, head], minlength=width).float()
+            result[f"{name}_choices"] = [round(v, 4) for v in (counts / counts.sum()).tolist()]
+    return result
+
+
 def entropy_weights(cfg: dict) -> tuple[float, float]:
     """The entropy bonuses for the fighting choices (behaviour, targets, manoeuvre) and for the message choices.
     entropy_weight is the older single setting, used for either when its split setting is absent."""
@@ -142,6 +159,9 @@ class Trainer:
         self.pending: dict[Path, R.Rollout] = {}
         self.rejected = 0
         self.stale = 0
+        # Episode settings this run's workers use instead of training.json's, from the run folder's
+        # episode_overrides.json (the learnability probe's planted reward). Normal runs have none.
+        self.episode_overrides = S.read_json(run_dir / "episode_overrides.json") or {}
         self._resume()
 
     # Checkpoints -------------------------------------------------------------------------------------------
@@ -230,8 +250,11 @@ class Trainer:
         data = temporary.read_bytes()
         S.atomic_write_bytes(path, data)
         temporary.unlink(missing_ok=True)
-        S.atomic_write_json(folder / "manifest.json", {"version": self.version, "file": path.name, "sha256": S.sha256_hex(data),
-                                                       "squad_mix": round(self.squad_mix(), 4), "schema_hash": self.schema.hash_hex})
+        manifest = {"version": self.version, "file": path.name, "sha256": S.sha256_hex(data),
+                    "squad_mix": round(self.squad_mix(), 4), "schema_hash": self.schema.hash_hex}
+        if self.episode_overrides:
+            manifest["episodes"] = self.episode_overrides
+        S.atomic_write_json(folder / "manifest.json", manifest)
         keep = int(self.cfg["keep_policies"])
         for old in sorted(folder.glob("policy_*.bin"))[:-keep]:
             old.unlink(missing_ok=True)
@@ -312,6 +335,9 @@ class Trainer:
             if head not in message_heads:
                 free_all |= masks[:, offset:offset + size].sum(-1) > 1
         stats["free_share"] = round(float(free_all.float().mean().item()), 4)
+        stats.update(choice_stats(masks, actions, self.slices))
+        head_entropy = [0.0] * len(self.slices)
+        head_steps = [0] * len(self.slices)
         fight_weight, message_weight = entropy_weights(cfg)
         steps = 0
         # KL is reported from the final pass: by then the policy has moved as far as this update moves it. An
@@ -363,8 +389,15 @@ class Trainer:
                     if epoch == epochs - 1:
                         final_kl += kl
                         final_steps += 1
+                        # Each head's entropy where it has a choice, so a summed rise can be traced to its head.
+                        for head, (offset, width) in enumerate(self.slices):
+                            choosing = (masks[rows][..., offset:offset + width].sum(-1) > 1)[keep]
+                            if choosing.any():
+                                head_entropy[head] += heads[head][keep][choosing].mean().item()
+                                head_steps[head] += 1
                 steps += 1
         stats.update({key: round(value / max(1, steps), 5) for key, value in totals.items()})
+        stats["entropy_heads"] = {HEAD_NAMES[h]: round(head_entropy[h] / head_steps[h], 4) for h in range(len(self.slices)) if head_steps[h]}
         stats["mean_kl"] = stats["approx_kl"]
         stats["approx_kl"] = round(final_kl / max(1, final_steps), 5)
         stats["value_mean"] = round(values.mean().item(), 4)

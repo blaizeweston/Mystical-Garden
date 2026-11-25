@@ -35,7 +35,11 @@ MAX_POINTS = 1500
 RESTART_GAP = 120
 FIELDS = ("wipe_rate", "explore_found_rate", "explore_first_sight_s", "damage_to_party", "life_return",
           "entropy", "entropy_fight", "entropy_messages", "approx_kl", "clip_fraction", "value_loss", "learning_rate",
-          "squad_mix", "replay_gap", "explained_variance", "free_share", "wipe", "cleared", "timeout", "speed", "rows", "episodes")
+          "squad_mix", "replay_gap", "explained_variance", "free_share", "wipe", "cleared", "timeout", "speed", "rows", "episodes",
+          "entropy_behaviour", "entropy_enemy_target", "entropy_ally_target", "entropy_manoeuvre", "entropy_commit",
+          "commit_set_share", "commit_long_share")
+# Commitment options held for 2 s or more (mob_contract.json commitments_ms: usual, 0.25, 0.5, 1, 1.25, 2, 2.5, 3 s).
+LONG_COMMIT_FROM = 5
 ## Compared hour over hour in the summary.
 SUMMARY = ("wipe_rate", "explore_found_rate", "explore_first_sight_s", "damage_to_party", "life_return", "entropy",
            "approx_kl", "explained_variance", "speed")
@@ -85,6 +89,13 @@ class Metrics:
         outcomes = row.get("outcomes", {})
         for name in ("wipe", "cleared", "timeout"):
             row[name] = outcomes.get(name, 0) / episodes
+        # Per-head entropy (logged from the phase 1 fixes on) and how often a set hold length is chosen.
+        for head, value in (row.get("entropy_heads") or {}).items():
+            row[f"entropy_{head}"] = value
+        choices = row.get("commit_choices")
+        if choices:
+            row["commit_set_share"] = 1.0 - float(choices[0])
+            row["commit_long_share"] = float(sum(choices[LONG_COMMIT_FROM:]))
         last = self.rows[-1] if self.rows else None
         resumed_at = row["samples"] - int(row.get("rows", 0))
         if last is not None and row["samples"] <= last["samples"]:
