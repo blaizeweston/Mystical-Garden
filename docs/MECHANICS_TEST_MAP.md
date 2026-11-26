@@ -2079,6 +2079,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `inventory_model.gd` | garden_or_party_has_seed (method body) | wild_flora |
 | `inventory_model.gd` | _reserve_has_seed (method body) | wild_flora |
 | `inventory_model.gd` | admit_wild_harvest (method body) | wild_flora |
+| `inventory_model.gd` | carried_seed_count (method body) | wild_flora, items |
+| `inventory_model.gd` | bank_recovered_stack (method body) | wild_flora, seeds, garden_returns, items |
 | `stage.gd` | set_wilds_art (method body) | hex_terrain, developer_live_tuning |
 | `stage.gd` | show_returning_root (method body) | wild_flora |
 | `stage.gd` | show_wild_flora (method body) | wild_flora |

@@ -25,7 +25,8 @@ static func nearby(root: Dictionary, actor: Dictionary, field) -> bool:
 	return position.is_finite() and position.distance_to(root.position) <= Flora.HARVEST_REACH and field.clear_line(position,root.position)
 
 static func eligible(item: String) -> bool:
-	return item in ["unidentified_seed",Items.Ancient.ITEM] or Parts.is_plant(int(Items.get_item(item).get("legacy_part",-1)))
+	var definition := Items.get_item(item)
+	return item in ["unidentified_seed",Items.Ancient.ITEM] or definition.has("legacy_seed") or Parts.is_plant(int(definition.get("legacy_part",-1)))
 
 static func request(root: Dictionary, stamp: String, item: String) -> String:
 	return COMMAND + "|".join([root.identity,stamp,str(root.used),item])
@@ -56,10 +57,11 @@ static func deposit(game, peer: int, actor: Dictionary, command: String) -> void
 	var saved := Transactions.run_gameplay(game,Transactions.Scope.GARDEN,func() -> bool:
 		var stack := Inventory.take(game,actor,"carry",item,1)
 		if stack.is_empty(): return false
-		Inventory.put(game,actor,"stash",stack)
+		var source := "root:%s:%d"%[root.identity,root.used]
+		Inventory.bank_recovered_stack(game,actor,stack,source)
 		if item in ["unidentified_seed",Items.Ancient.ITEM]:
 			var member := Returns.Member.new(str(actor.get("garden_run_actor","")),str(actor.get("garden_run_id","")),true)
-			game.garden_commands.credit_return(member,stack.get("seeds",[]),"root:%s:%d"%[root.identity,root.used],item==Items.Ancient.ITEM)
+			game.garden_commands.credit_return(member,stack.get("seeds",[]),source,item==Items.Ancient.ITEM)
 		game.wild_flora.record_deposit(character)
 		game.Progress.Archive.activity(game.progress.archive,character,{"roots":1})
 		game.record_character(peer,actor)

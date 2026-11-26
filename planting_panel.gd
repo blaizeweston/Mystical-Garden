@@ -38,7 +38,7 @@ func begin(bed: int,stock: Array):
   button.pressed.connect(func():
    if not selection_enabled:return
    selected=species;details.text="%s · %s · %d available\nBase growth: %s · 2× in the Wilds, plus Knowledge and watering bonuses\n%s"%[species_name.name,species_name.rarity,counts[species],Growth.time_text(float(species_name.grow_seconds)),plant_description];confirm.disabled=false)
- details.text="Choose a seed." if available>0 else "No seeds available. Identify mysterious seeds at the Altar."
+ details.text="Choose a seed." if available>0 else "No seeds available. Bring home a wild plant’s seed or identify a mystery seed at the altar."
 
 
 func set_selection_enabled(allowed: bool) -> void:

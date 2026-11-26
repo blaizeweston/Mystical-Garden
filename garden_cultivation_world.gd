@@ -223,7 +223,7 @@ func plant_seed(id: int, slot: int) -> bool:
 	if world.progress.plots[slot].species >= 0:
 		return false
 	if stock[kind] <= 0:
-		world.tell(id, "Identify seeds at the Altar first.")
+		world.tell(id, "You have no seeds of this species. Gather one in the Wilds or identify a mystery seed at the altar.")
 		return false
 	var before: Dictionary=world.progress.plots[slot].duplicate(true)
 	var planted := Tx.run_gameplay(world, Tx.Scope.GARDEN, func():

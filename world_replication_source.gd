@@ -83,7 +83,7 @@ func diagnostics() -> Dictionary:
 func recipient(peer: int) -> Dictionary:
 	if not _world.players.has(peer): return {}
 	var actor: Dictionary = _world.players[peer]
-	return {"carried":actor.carried_seeds.size(),"dropped":false,"pouch":actor.pouch}
+	return {"carried":Inventory.carried_seed_count(actor),"dropped":false,"pouch":actor.pouch}
 
 func owner_binding(peer: int) -> Dictionary:
 	return {"connection":_world.network_session.connection_key(peer),

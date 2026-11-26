@@ -24,15 +24,18 @@ func run() -> void:
 	actor[PlayerLifecycle.STATE] = active_life.fall()
 	check(not world.harvest_wild_flora(1, first.identity), "fallen character cannot harvest")
 	actor[PlayerLifecycle.STATE] = active_life
-	var original: Array = actor.carried_seeds
-	var locked: Array = []
+	var original: Dictionary = actor.carried_items
+	var locked: Dictionary = {}
 	locked.make_read_only()
-	actor.carried_seeds = locked
+	actor.carried_items = locked
 	check(not world.harvest_wild_flora(1, first.identity) and not world.wild_flora_view(1).claimed, "failed inventory admission leaves harvest available")
-	actor.carried_seeds = original
+	actor.carried_items = original
 	check(not world.encounter_cleared(), "live enemies present at harvest")
 	world.send_action(false)
-	check(actor.carried_seeds == [first.species] and world.wild_flora_view(1).claimed, "E awards exactly the selected hidden species")
+	var first_seed: String = world.Items.seed_id(first.species)
+	check(actor.carried_items == {first_seed:1} and actor.carried_seeds.is_empty() and world.wild_flora_view(1).claimed,"E awards a named, species-specific seed")
+	check(world.status.contains(world.Items.get_item(first_seed).name),"harvest feedback names the seed")
+	check(world.InventoryModel.snapshot(world,actor).carry[0].item==first_seed,"inventory displays the species before banking")
 	var projected: Dictionary = world.wild_flora_view(1)
 	projected.species = -1
 	check(world.wild_flora_view(1).species == first.species, "detached species projection")
@@ -44,7 +47,7 @@ func run() -> void:
 	world.set_meta(&"guarded_gameplay_test_fault", fail_stage)
 	world.expedition_transitions.checkpoint(1, true)
 	world.remove_meta(&"guarded_gameplay_test_fault")
-	check(world.participation.floor() == 1 and world.wild_flora_view(1).claimed and actor.carried_seeds == [first.species], "failed floor transition restores original specimen, claim and cargo")
+	check(world.participation.floor() == 1 and world.wild_flora_view(1).claimed and actor.carried_items == {first_seed:1}, "failed floor transition restores original specimen, claim and cargo")
 	world.expedition_transitions.checkpoint(1, true)
 	var second: Dictionary = world.wild_flora_view(1)
 	check(not second.is_empty() and second.species == 1 and second.identity != first.identity, "Moss available on the second encounter")
@@ -53,23 +56,33 @@ func run() -> void:
 		return
 	actor.pos = second.position
 	check(not world.harvest_wild_flora(1, first.identity), "old-floor intent cannot collect new specimen")
-	check(world.harvest_wild_flora(1, second.identity) and actor.carried_seeds == [0,1], "second starter collected")
+	check(world.harvest_wild_flora(1, second.identity) and actor.carried_items == {"seed_thorn_bloom":1,"seed_lantern_moss":1}, "both named starters carried")
 	world.InventoryModel.put(world,actor,"carry",{"item":"boss_mystery_seed","quantity":1,"lineages":{"ghost_fern":1}})
+	# A cache seed travels in the same inventory, with its contents still hidden.
+	world.InventoryModel.put(world,actor,"carry",{"item":"unidentified_seed","quantity":1,"seeds":[3]})
 	clear_floor(actor, 6)
+	var before_bank: int = world.progress.knowledge
+	world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
+	world.expedition_transitions.checkpoint(1,false)
+	world.remove_meta(&"guarded_gameplay_test_fault")
+	check(world.participation.contains(1) and world.progress.knowledge==before_bank and not world.progress.discoveries[0] and world.seed_reserve(actor).stock[0]==0 and actor.carried_items.get(first_seed)==1,"rolled-back extraction restores named seeds and discovery together")
 	world.expedition_transitions.checkpoint(1, false)
+	reserve=world.seed_reserve(actor)
 	check(world.progress.archive.garden.get("wild")==2 and world.progress.archive.garden.get("extracts")==1,"two accepted specimens and one successful expedition enter the Archive")
-	check(not world.participation.active() and reserve.unknown == [0,1] and reserve.stock[0] == 0 and reserve.stock[1] == 0, "extraction delivers the two unidentified species")
+	check(not world.participation.active() and reserve.unknown == [3] and reserve.stock[0] == 1 and reserve.stock[1] == 1, "specimen seeds are plantable on arrival and the cache seed stays concealed")
 	check(world.wild_flora_view(1).is_empty() and world.wild_flora.savepoint().specimen.is_empty(), "floor discarded at extraction")
 	var extracted: Dictionary=world.InventoryModel.take(world,actor,"stash","boss_mystery_seed",1)
 	check(extracted.get("lineages",{})=={"ghost_fern":1},"extraction retains fixed Ancient contents")
+	check(world.progress.discoveries[0] and world.progress.discoveries[1] and not world.progress.discoveries[3] and world.progress.knowledge==before_bank+8+2,"two first species discoveries and six-encounter extraction paid once")
+	check(world.progress.altar_recipes.is_empty(),"securing named seeds does not discover a breeding recipe")
+	actor.pos=world.stage.bed_position(0)
+	actor.seed_choice=first.species
+	check(world.cultivation.plant_seed(1,0) and world.progress.plots[0].species==first.species and reserve.stock[0]==0,"plant a recovered wild seed without visiting the altar")
 	actor.pos = world.stage.altar_position()
 	var before_identify: int = world.progress.knowledge
 	world.send_altar_action("identify",[],1)
 	world.send_altar_action("identify",[],1)
-	check(reserve.unknown==[1],"duplicate identification leaves second seed concealed")
-	world.send_altar_action("identify",[],2)
-	check(reserve.stock[0] == 1 and reserve.stock[1] == 1 and reserve.unknown.is_empty(), "altar identifies both exact harvested species")
-	check(world.progress.knowledge == before_identify + 8, "shared first discoveries award four Knowledge each")
+	check(reserve.unknown.is_empty() and reserve.stock[3]==1 and world.progress.knowledge==before_identify+4,"only the cache seed needs identification and it grants discovery once")
 	var available: Callable = world.InventoryModel.garden_or_party_has_seed.bind(world.progress, world.players)
 	check(Flora.starter(1, available) == -1 and Flora.starter(2, available) == -1, "established Garden uses ordinary rolls")
 	# Use fresh Garden data per case, with real specimen seeds passing through real settlement.
@@ -82,8 +95,8 @@ func run() -> void:
 		clear_floor(actor, 3)
 		world.progress.heart.unlocked.append("checkpoint_deposit")
 		ExpeditionCase.returning_root(world,actor,"return-seed")
-		world.garden_action(1,ExpeditionCase.deposit_request(world,actor,"unidentified_seed"))
-		check(reserve.unknown == [banked.species] and actor.carried_seeds.is_empty(), "courier banks the exact species")
+		world.garden_action(1,ExpeditionCase.deposit_request(world,actor,world.Items.seed_id(banked.species)))
+		check(reserve.unknown.is_empty() and reserve.stock[banked.species]==1 and actor.carried_items.is_empty() and world.progress.discoveries[banked.species], "courier banks the named seed and records its discovery")
 		clear_floor(actor,6)
 		world.InventoryModel.put(world,actor,"carry",{"item":"boss_mystery_seed","quantity":2,"lineages":{"ironroot":2}})
 		ExpeditionCase.returning_root(world,actor,"return-ancient")
@@ -102,31 +115,32 @@ func run() -> void:
 		world.garden_action(1,deposit)
 		world.expedition_transitions.abandon(1)
 		check(world.InventoryModel.extra_stash(world,actor).get("boss_mystery_seed",{})=={"ironroot":1} and actor.carried_items.is_empty(),"exactly one courier Ancient survives abandonment")
-		check(reserve.unknown == [banked.species] and not world.participation.active(), "courier delivery survives abandonment once")
-	reserve.unknown.clear()
+		check(reserve.stock[banked.species]==1 and not world.participation.active(), "courier delivery survives abandonment once")
+	reserve.stock.fill(0)
+	world.progress.discoveries.fill(false)
 	var lost := enter_fresh(actor)
 	if not lost.is_empty():
 		actor.pos = lost.position
 		world.harvest_wild_flora(1, lost.identity)
 		world.expedition_transitions.abandon(1)
-		check(reserve.unknown.is_empty() and actor.carried_seeds.is_empty(), "unbanked specimen is forfeited")
+		check(reserve.stock[lost.species]==0 and not world.progress.discoveries[lost.species] and actor.carried_items.is_empty(), "unbanked specimen is forfeited without discovery")
 		check(world.progress.archive.garden.get("wild")==4 and world.progress.archive.garden.get("roots")==2,"forfeited loot still counts as harvested, duplicated root requests count only accepted units")
 	var kept := enter_fresh(actor)
 	if not kept.is_empty():
 		actor.pos = kept.position
 		world.harvest_wild_flora(1, kept.identity)
-		world.InventoryModel.transfer(world, actor, "carry", "pouch", "unidentified_seed", 1)
+		world.InventoryModel.transfer(world, actor, "carry", "pouch", world.Items.seed_id(kept.species), 1)
 		clear_floor(actor, 1)
 		world.expedition_transitions.checkpoint(1, true)
 		var other: Dictionary = world.wild_flora_view(1)
 		if not other.is_empty():
 			actor.pos = other.position
 			world.harvest_wild_flora(1, other.identity)
-		check(actor.carried_seeds == [1], "unprotected second seed before wipe")
+		check(actor.carried_items == {"seed_lantern_moss":1}, "unprotected second seed before wipe")
 		actor[PlayerLifecycle.STATE] = actor[PlayerLifecycle.STATE].fall()
 		check(world.expedition_transitions.finish_failed(), "wipe settlement commits")
 		check(world.progress.archive.garden.get("wipes")==1 and world.progress.archive.garden.get("extracts")==1,"one wiped expedition does not count as extraction")
-		check(reserve.unknown == [kept.species] and actor.carried_seeds.is_empty() and actor.safe_items.is_empty(), "only pouched species recovered from wipe")
+		check(reserve.stock[kept.species]==1 and world.progress.discoveries[kept.species] and reserve.stock[1]==0 and not world.progress.discoveries[1] and actor.carried_items.is_empty() and actor.safe_items.is_empty(), "only pouched species recovered from wipe")
 	verify_spawn_equivalence(actor, reserve)
 	verify_gathering(actor)
 	close_world()
@@ -216,16 +230,17 @@ func verify_gathering(actor: Dictionary) -> void:
 		check(plant.resonance and Flora.aware(plant,actor.pos+Vector3.RIGHT*6,func(_a,_b):return true),"unfamiliar and within inclusive six metres")
 		check(not Flora.aware(plant,actor.pos+Vector3.RIGHT*6.01,func(_a,_b):return true) and not Flora.aware(plant,actor.pos,func(_a,_b):return false),"range and occlusion suppress awareness")
 		var parts: Array=actor.carried_parts
-		var seeds: Array=actor.carried_seeds.duplicate()
+		var seed_item: String=world.Items.seed_id(species)
+		var seeds: int=actor.carried_items.get(seed_item,0)
 		var ordinary_before: int=parts[ordinary]
 		var rare_before: int=parts[refined]
 		var locked:=parts.duplicate()
 		locked.make_read_only()
 		actor.carried_parts=locked
-		check(not world.harvest_wild_flora(1,key) and not world.wild_flora_view(1).claimed and actor.carried_seeds==seeds,"rejected bundle credits nothing")
+		check(not world.harvest_wild_flora(1,key) and not world.wild_flora_view(1).claimed and actor.carried_items.get(seed_item,0)==seeds,"rejected bundle credits nothing")
 		actor.carried_parts=parts
 		check(world.harvest_wild_flora(1,key) and not world.harvest_wild_flora(1,key),"retry claims once")
-		check(actor.carried_seeds.slice(seeds.size())==([species,species] if extra else [species]) and parts[ordinary]==ordinary_before+1 and parts[refined]==rare_before+int(rare),"exact deterministic species and part bundle")
+		check(actor.carried_items.get(seed_item,0)==seeds+1+int(extra) and actor.carried_seeds.is_empty() and parts[ordinary]==ordinary_before+1 and parts[refined]==rare_before+int(rare),"exact deterministic species and part bundle")
 		check(not Flora.aware(world.wild_flora_view(1),actor.pos,func(_a,_b):return true),"claimed plant no longer indicated")
 	check(observed.size()==4 and before==world.progress.knowledge and not world.progress.discoveries[species],"independent bonus outcomes, no permanent discovery")
 	world.progress.discoveries[species]=true

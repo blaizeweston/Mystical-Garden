@@ -1501,7 +1501,7 @@ The focused tool tests live under `tools/tests/`. They cover retirement without 
 
 ## Natural Wilds flora (WF01)
 
-A living expedition participant can harvest one unidentified seed from a nearby specimen, even during combat. The host fixes the species and position when the floor opens. Every participant can harvest that same species once. A successful harvest changes only that character’s carried inventory and claim. The Garden altar identifies the stored species and awards the shared first discovery through the existing progression system.
+A living expedition participant can harvest one named seed of the plant’s own species from a nearby specimen, even during combat. The host fixes the species and position when the floor opens. Every participant can harvest that same species once. A successful harvest changes only that character’s carried inventory and claim. A successful extraction, Returning Root delivery or protected pouch recovery puts that seed directly in the character’s planting stock. The Garden earns its usual 4 Knowledge once for the first secured seed of that species. Abandoned-cache seeds remain mysterious until identified at the altar.
 
 | Editing task | Source and rule |
 |---|---|

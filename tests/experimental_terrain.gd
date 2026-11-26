@@ -429,6 +429,8 @@ func run() -> void:
 	await process_frame
 	check(player.cache_claimed and player.carried_seeds.size() == carried_before + 1 and not WorldViewCase.component(game,"map").has_cache,
 		"the cache interaction grants one carried seed once and removes its map marker")
+	check(game.InventoryModel.counts(game,player,"carry").get("unidentified_seed")==player.carried_seeds.size(),
+		"abandoned caches still award the Mysterious Seed item")
 	step_progress(game, 1.0)
 	player.pos = Vector3(game.tactics.position) + Vector3(0.1, 0, 0)
 	var last_hit: Dictionary = game.weapon_stats(player)

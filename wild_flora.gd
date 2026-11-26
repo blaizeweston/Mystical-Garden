@@ -62,8 +62,8 @@ func view(character: String) -> Dictionary:
 	result.claimed = _collected.has(character)
 	return result
 
-static func harvest_description(research: Array) -> String:
-	var benefits := PackedStringArray(["1 seed"])
+static func harvest_description(research: Array, species: int) -> String:
+	var benefits := PackedStringArray(["1 %s Seed" % Seeds.NAMES[species]])
 	if "careful_gathering" in research: benefits.append("25% extra seed")
 	if "wild_harvest" in research: benefits.append("1 ordinary part")
 	if "refined_gathering" in research: benefits.append("15% refined part")

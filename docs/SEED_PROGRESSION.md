@@ -15,7 +15,7 @@ Prices and probabilities are provisional. These are shared, immediate Heart purc
 | Deep Root Network | 30 | Returning Root | Two individually selected units per explorer per root. |
 | Reaching Tendrils | 20 | Returning Root | Increase the per-floor chance to 40%. |
 
-A specimen always supplies its concealed base seed. Both bonus draws depend on the floor specimen and the participant. Wild material recovery grants no familiarity or discovery Knowledge. Identify recovered seeds at the Garden altar. The two Returning Root upgrades can be purchased in either order.
+A specimen always supplies a named, plantable seed of its own species. Both bonus draws depend on the floor specimen and the participant. Wild material recovery grants no familiarity or discovery Knowledge. Securing a named seed awards the usual shared first discovery. The altar identifies mystery seeds from caches and bosses. The two Returning Root upgrades can be purchased in either order.
 
 ## Local cultivation tuning (HG04)
 
@@ -40,7 +40,7 @@ Seed Conservation costs 10 Knowledge and requires Sheltered Heart. A failed two-
 
 ## Current botanical progression (WF02)
 
-All 24 species grow in ordinary Garden beds. Every mature bed can reproduce the species planted. Natural specimens use the WF01 floor roll, depth bands and biome weights. A find fixes one species for everyone. Each participant can recover at least one concealed seed per harvested specimen and identify it at the starting altar.
+All 24 species grow in ordinary Garden beds. Every mature bed can reproduce the species planted. Natural specimens use the WF01 floor roll, depth bands and biome weights. A find fixes one species for everyone. Each participant can recover at least one named seed per harvested specimen and plant it as soon as it reaches their Garden reserve.
 
 | Natural founder | Earliest global encounter | Species reachable after adding this founder |
 |---|---:|---:|

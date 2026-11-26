@@ -1732,10 +1732,14 @@ func _act(id: int, strike: bool) -> void:
 	elif Participation.is_wild(p) and battlefield.has_seed_cache() and (
 			not p.cache_claimed and pos.distance_to(battlefield.cache) <= 1.55):
 		var reserve := seed_reserve(p)
-		var kind := progress.roll_seed(reserve, p.carried_seeds, [], participation.route(), rng.randf(), participation.floor())
+		var carried: Array = p.carried_seeds.duplicate()
+		for item: String in p.carried_items:
+			var species: int = Items.get_item(item).get("legacy_seed",-1)
+			if species >= 0: carried.append(species)
+		var kind := progress.roll_seed(reserve, carried, [], participation.route(), rng.randf(), participation.floor())
 		p.carried_seeds.append(kind)
 		p.cache_claimed = true
-		tell(id, "Seed found. Extract to keep it.")
+		tell(id, "Mysterious Seed found. Return it to the Garden altar to identify it.")
 	elif not Participation.is_wild(p) and pos.distance_to(stage.gate_position()) <= preload("res://gate_interaction.gd").RANGE:
 		show_gate_preparation(id)
 	elif Participation.is_wild(p) and at_graft_altar(p) and preload("res://gate_interaction.gd").shrine_preferred(battlefield,pos):
@@ -1841,7 +1845,7 @@ func wild_flora_view(peer: int) -> Dictionary:
 		var owned: Array = progress.heart.unlocked
 		specimen.awareness = "botanical_awareness" in owned and Life.alive(actor)
 		specimen.resonance = "root_resonance" in owned and not progress.discoveries[specimen.species]
-		specimen.benefits = WildFlora.harvest_description(owned)
+		specimen.benefits = WildFlora.harvest_description(owned,specimen.species)
 		return specimen
 	if peer != multiplayer.get_unique_id() or ActionIdentity.current_stamp(self, actor).is_empty(): return {}
 	return actor.get("wild_flora", {}).duplicate()
@@ -1861,8 +1865,8 @@ func harvest_wild_flora(peer: int, identity: String) -> bool:
 		return false
 	if not wild_flora.collect(identity,character,actor.pos,battlefield.clear_line,admitted): return false
 	expedition_statistics.count(participation.run_id(),character,"wild")
-	Journal.event("expedition", "flora_harvest", {"specimen":identity, "character":character, "species":Seeds.DEFINITIONS[actor.carried_seeds.back()].id})
-	var rewards := PackedStringArray(["%d unidentified seed%s" % [receipt.seeds,"s" if receipt.seeds > 1 else ""]])
+	Journal.event("expedition", "flora_harvest", {"specimen":identity, "character":character, "species":Seeds.DEFINITIONS[receipt.species].id})
+	var rewards := PackedStringArray(["%s ×%d" % [Items.get_item(receipt.seed_item).name,receipt.seeds]])
 	for part: int in receipt.parts: rewards.append(Parts.part_name(part))
 	tell(peer, "Collected %s. Return with your finds to secure them." % ", ".join(rewards))
 	return true
@@ -2165,7 +2169,7 @@ func _process(_delta: float) -> void:
 		"thief_routes":preload("res://thief_escape.gd").map_routes(self,p) if wild else [],
 		"cache_available":not p.get("cache_claimed",false),"overlay_open":ui.is_overlay_open(),
 		"graft_open":graft_altar_open(),"ground_items":inventory_floor_snapshot(p) if multiplayer.is_server() else p.get("ground_items",[])})
-	var carried: int = p.carried_seeds.size() if multiplayer.is_server() and wild else guest_replication.carried_count()
+	var carried: int = InventoryModel.carried_seed_count(p) if multiplayer.is_server() and wild else guest_replication.carried_count()
 	var health := PlayerVitals.current_hp(p)
 	var garden_facts := {}
 	if not wild:

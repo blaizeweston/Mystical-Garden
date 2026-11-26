@@ -109,6 +109,7 @@ static func take(game,player: Dictionary,bucket: String,id: String,amount: int,p
 ## Read-only supply check at floor generation. Opening a reserve here would
 ## create an empty saved stash for a guest who has never recovered anything.
 static func garden_or_party_has_seed(species: int, progress, players: Dictionary) -> bool:
+ var item := Items.seed_id(species)
  if progress.discoveries[species] or progress.stock[species] > 0 or progress.unknown.has(species):
   return true
  if _reserve_has_seed(progress.guest_seeds.get(SHARED_OWNER, {}), species):
@@ -116,21 +117,34 @@ static func garden_or_party_has_seed(species: int, progress, players: Dictionary
  for player: Dictionary in players.values():
   var stored: Dictionary = progress.guest_seeds.get(Session.inventory_owner(player), {})
   if _reserve_has_seed(stored, species) or player.carried_seeds.has(species): return true
+  if player.get("carried_items",{}).get(item,0)>0: return true
   for stack: Dictionary in player.safe_items:
-   if stack.get("seeds", []).has(species): return true
+   if stack.item==item or stack.get("seeds", []).has(species): return true
  return false
 
 static func _reserve_has_seed(stored: Dictionary, species: int) -> bool:
  return not stored.is_empty() and (stored.stock[species] > 0 or stored.unknown.has(species))
 
-## Carried unidentified seeds retain their species through transfer, banking and identification.
+## Loose seeds shown in the expedition HUD. Named and Ancient seeds use the ordinary item bag.
+static func carried_seed_count(player: Dictionary) -> int:
+ var count: int = player.get("carried_seeds",[]).size()
+ var bag: Dictionary = player.get("carried_items",{})
+ for item: String in bag:
+  if item==Ancient.ITEM: count+=Ancient.quantity(bag[item])
+  elif Items.get_item(item).has("legacy_seed"): count+=int(bag[item])
+ return count
+
+## A specimen awards its own ready-to-plant seed. Discovery waits for recovery.
 static func admit_wild_harvest(species: int, game: Node, player: Dictionary, identity: String, character: String) -> Dictionary:
  const Flora=preload("res://wild_flora.gd")
- if not Participation.is_wild(player) or not player.get("carried_seeds") is Array: return {}
- if player.carried_seeds.is_read_only() or species < 0 or species >= game.Seeds.DEFINITIONS.size(): return {}
+ if not Participation.is_wild(player) or species < 0 or species >= game.Seeds.DEFINITIONS.size(): return {}
+ if not player.get("carried_items") is Dictionary or player.carried_items.is_read_only(): return {}
+ var seed_item := Items.seed_id(species)
  var owned: Array=game.progress.heart.unlocked
- var seeds := [species]
- if "careful_gathering" in owned and Flora.bonus_roll(identity,character,"seed") < Flora.BONUS_SEED: seeds.append(species)
+ var quantity := 1
+ if "careful_gathering" in owned and Flora.bonus_roll(identity,character,"seed") < Flora.BONUS_SEED: quantity+=1
+ var held: Variant = player.carried_items.get(seed_item,0)
+ if not held is int or held<0 or held>9223372036854775807-quantity: return {}
  var parts := []
  if "wild_harvest" in owned: parts.append(game.Seeds.DEFINITIONS[species].part)
  if "refined_gathering" in owned and Flora.bonus_roll(identity,character,"refined") < Flora.REFINED_MATERIAL:
@@ -139,9 +153,9 @@ static func admit_wild_harvest(species: int, game: Node, player: Dictionary, ide
  for part: int in parts:
   if not game.Parts.is_plant(part) or not player.get("carried_parts") is Array or player.carried_parts.is_read_only(): return {}
   if part >= player.carried_parts.size() or not player.carried_parts[part] is int or player.carried_parts[part] < 0 or player.carried_parts[part] == 9223372036854775807: return {}
- put(game,player,"carry",{"item":"unidentified_seed","quantity":seeds.size(),"seeds":seeds})
+ put(game,player,"carry",{"item":seed_item,"quantity":quantity})
  for part: int in parts: put(game,player,"carry",{"item":Items.part_id(part),"quantity":1})
- return {"seeds":seeds.size(),"parts":parts}
+ return {"species":species,"seed_item":seed_item,"seeds":quantity,"parts":parts}
 
 static func put(game,player: Dictionary,bucket: String,stack: Dictionary) -> void:
  var id:=str(stack.item);var amount:=int(stack.quantity);var definition:=Items.get_item(id)
@@ -210,12 +224,24 @@ static func transfer(game,player: Dictionary,source: String,target: String,id: S
   undo_put(game,player,target,stack);undo_take(game,player,source,stack)
   return "Could not save the transfer. Items were returned."
  return "Moved %d %s."%[amount,definition.name]
+## Called inside extraction, pouch recovery or a Returning Root deposit. An ordinary
+## inventory transfer must never grant first-discovery Knowledge.
+static func bank_recovered_stack(game,player: Dictionary,stack: Dictionary,source: String) -> void:
+ put(game,player,"stash",stack)
+ var species: int = Items.get_item(stack.item).get("legacy_seed",-1)
+ if species < 0: return
+ const Returns=preload("res://garden_return_service.gd")
+ var member:=Returns.Member.new(player.get("garden_run_actor",""),player.get("garden_run_id",""),Participation.is_wild(player))
+ game.garden_commands.credit_return(member,[species],source+":"+str(stack.item))
+ game.progress.discover(species)
+ Returns.identified(game.progress,species)
+
 static func bank_safe(game,player: Dictionary) -> int:
  normalize_pouch(player)
  game.garden_commands.protected_return(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),player.get("safe_items",[]).duplicate(true))
  var total:=0
  for stack in player.safe_items:
-  put(game,player,"stash",stack)
+  bank_recovered_stack(game,player,stack,"protected")
   total+=int(stack.quantity)
  player.safe_items.clear();player.pouch=false
  return total
@@ -225,7 +251,7 @@ static func bank_extra(game,player: Dictionary) -> void:
   if id==Ancient.ITEM:
    var contents: Dictionary=player.carried_items[id]
    put(game,player,"stash",{"item":id,"quantity":Ancient.quantity(contents),"lineages":contents})
-  else: put(game,player,"stash",{"item":id,"quantity":int(player.carried_items[id])})
+  else: bank_recovered_stack(game,player,{"item":id,"quantity":int(player.carried_items[id])},"extract")
  player.carried_items={}
 static func clean_ground(value,historical: bool=false) -> Array:
  var result: Array=[]

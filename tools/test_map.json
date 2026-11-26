@@ -5649,7 +5649,9 @@
     "inventory_model.gd": {
       "garden_or_party_has_seed": ["wild_flora"],
       "_reserve_has_seed": ["wild_flora"],
-      "admit_wild_harvest": ["wild_flora"]
+      "admit_wild_harvest": ["wild_flora"],
+      "carried_seed_count": ["wild_flora","items"],
+      "bank_recovered_stack": ["wild_flora","seeds","garden_returns","items"]
     },
     "stage.gd": {"set_wilds_art": ["hex_terrain","developer_live_tuning"], "show_returning_root": ["wild_flora"], "show_wild_flora": ["wild_flora"], "update_heart_progress": ["garden", "garden_cinematics", "garden_development", "garden_heart_view", "heart_growth_visual", "hex_terrain", "persistence_operations", "terrain"], "update_plots": ["garden", "garden_cinematics", "garden_development"]}},
   "json_regions": {

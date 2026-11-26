@@ -315,9 +315,12 @@ func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding :
 			game.garden_commands.return_outcome(member,"fallen")
 			_return_member(player,"Returned fallen")
 			continue
+		game.InventoryModel.normalize_pouch(player)
+		banked += game.InventoryModel.carried_seed_count(player)
+		for stack: Dictionary in player.safe_items:
+			if game.Items.get_item(stack.item).get("category") == "seed": banked += int(stack.quantity)
 		game.InventoryModel.bank_safe(game,player)
 		game.InventoryModel.bank_extra(game,player)
-		banked += player.carried_seeds.size()
 		game.garden_commands.credit_return(member,player.carried_seeds,"extract")
 		game.seed_reserve(player).unknown.append_array(player.carried_seeds)
 		for part in range(1, game.Parts.DEFINITIONS.size()):
