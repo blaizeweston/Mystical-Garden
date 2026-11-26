@@ -25,7 +25,7 @@ class DeathView extends Node3D:
 class CombatView extends Node3D:
 	var calls:Array=[]
 	var received:Array=[]
-	func sync(events:Array,warnings:Array,key:String,observer:Vector3):received=[events.duplicate(true),warnings.duplicate(true),key,observer];calls.append("combat")
+	func sync(events:Array,warnings:Array,key:String,observer:Vector3,radius:float):received=[events.duplicate(true),warnings.duplicate(true),key,observer,radius];calls.append("combat")
 class AudioView extends Node:
 	var calls:Array=[]
 	var received:Array=[]
@@ -64,6 +64,7 @@ func run():
 	check(map.received[1]=="1:4:99" and map.looked_at==frame.advance and not stage.sight[3],"map reset and gate visibility use the correct captured floor identity and point")
 	check(not stage.attack_ring.visible and not stage.support_rings[0].visible and map.thief_routes.size()==1,"legacy rings stay hidden and chase routes reach the map")
 	check(audio.received[4]==2 and audio.received[5]>0 and combat.received[0]==frame.events and map.received[8]==frame.ground_items,"audio recipient/time and event/item projections reach their existing consumers")
+	check(combat.received[3]==stage.sight[0] and combat.received[4]==stage.sight[2],"effects and actors share the viewer and sight boundary")
 	check(frame==before,"presentation never mutates input facts")
 	frame.wild=false;frame.deaths=[];calls.clear();view.present_effects(frame)
 	check(combat.received[0].is_empty() and audio.received[0]==frame.events and deaths.received[1]=="1:4:99:false","Garden audio remains available while combat geometry is suppressed")

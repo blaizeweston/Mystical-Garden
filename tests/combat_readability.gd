@@ -154,6 +154,22 @@ func run():
  fx.feedback.confirmed({"shape":"heal","amount":1,"color":Color.GREEN,"id":43},Vector3.ZERO)
  fx.feedback.confirmed({"shape":"block","id":44},Vector3.ZERO)
  check(fx.feedback.labels.size()==3 and game.enemy_health()==health_before,"developer detail, healing and protection survive reduced effects")
+ var arc:={"id":1701,"kind":"link","shape":"storm_arc","from":[6.3,0,0],"to":[8.5,0,0],"duration":.25,"reach":0.0,"color":"#e3d184","combo":1,"form":"fork"}
+ for level in ["Low","High"]:
+  fx.apply_local_visuals(preload("res://visual_preferences.gd").normalize({"level":level}))
+  fx.sync([arc],[],"storm-"+level,Vector3.ZERO)
+  var bolt: Dictionary=fx.active[arc.id]
+  var surface: ShaderMaterial=bolt.astral.material_override
+  check(bolt.root.visible and Vector3(surface.get_shader_parameter("storm_sight")).is_equal_approx(Vector3(-6.3,0,6.8)) and not surface.get_shader_parameter("show_contact"),"Storm clips a crossing filament and withholds hidden endpoint sparks on "+level)
+  fx.sync([],[],"storm-"+level,Vector3.RIGHT*2)
+  fx.step(.01)
+  check(bolt.root.visible and surface.get_shader_parameter("show_contact"),"the original contact becomes visible as the observer moves")
+  fx.sync([],[],"storm-"+level,Vector3.LEFT*2)
+  fx.step(.01)
+  check(not bolt.root.visible,"a wholly hidden segment disappears during playback")
+  fx.sync([],[],"storm-"+level,Vector3.ZERO)
+  fx.step(.01)
+  check(bolt.root.visible and not surface.get_shader_parameter("show_contact"),"a returning viewer sees only the in-range filament")
  game.queue_free();await process_frame
  if not failed:print("PASS: 24 scaled body footprints, swept edge hits, cover, confirmed damage, visual termination, fog, six ability families, smooth packet phases and rollback")
  quit(1 if failed else 0)

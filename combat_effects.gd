@@ -276,6 +276,12 @@ func pose(effect: Dictionary) -> void:
   var near:=start if start.is_equal_approx(end) else Geometry3D.get_closest_point_to_segment(observer,start,end)
   var present:bool=event.shape not in Astral.BODIES or stage.avatar_models.get(int(event.combo),{}).get("living_in_wilds",false)
   effect.root.visible=present and near.distance_to(observer)<=sight+float(event.reach)
+  if effect.root.visible and event.shape in ["storm_arc","storm_burst"]:
+   # Clip the original filaments in glyph space. A hidden contact has no visible spark, even at the edge.
+   var offset:=observer-start
+   var surface:ShaderMaterial=effect.astral.material_override
+   surface.set_shader_parameter("storm_sight",Vector3(offset.x,offset.z,sight))
+   surface.set_shader_parameter("show_contact",end.distance_to(observer)<=sight)
   Astral.seek(effect.astral,effect.age,event.duration)
   return
  if effect.has("shelter"):

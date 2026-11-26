@@ -14,6 +14,10 @@ uniform bool burst;
 uniform bool singularity;
 uniform float storm_width = 1.0;
 uniform float storm_kink = 1.0;
+// xy is the observer on the glyph's ground plane. A negative radius leaves the laboratory exhibit unrestricted.
+uniform vec3 storm_sight = vec3(0.0, 0.0, -1.0);
+uniform bool show_contact = true;
+varying vec2 ground_position;
 uniform float spirit_wisp = 0.72;
 uniform float spirit_veil = 0.49;
 uniform float void_flow = 1.0;
@@ -95,6 +99,9 @@ void vertex(){
 	vec4 color;
 	vec3 p=point_on_strip(role,UV2.y,UV.x,width,color);
 	ink=color;
+	if (role==1 && !burst && !show_contact) {
+		ink.a=0.0;
+	}
 	float ignored;
 	vec4 other;
 	float dt=UV.x>.997?-.003:.003;
@@ -102,8 +109,12 @@ void vertex(){
 	vec3 view_axis=role==6?vec3(0.,1.,0.):normalize((inverse(MODELVIEW_MATRIX)*vec4(0.,0.,1.,0.)).xyz);
 	vec3 normal=cross(tangent,view_axis);
 	VERTEX=p+(UV.y-.5)*width*normal/max(.000001,length(normal));
+	ground_position=VERTEX.xz;
 }
 void fragment(){
+	if (storm_sight.z>=0.0 && distance(ground_position,storm_sight.xy)>storm_sight.z) {
+		discard;
+	}
 	float edge=1.-smoothstep(.38,1.,abs(UV.y*2.-1.));
 	ALBEDO=ink.rgb;
 	ALPHA=clamp(ink.a*edge,0.,1.);

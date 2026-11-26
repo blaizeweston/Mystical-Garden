@@ -25,7 +25,7 @@ func present_effects(frame: Dictionary) -> void:
 	var key := floor_key+":"+str(frame.wild)
 	_deaths.sync(frame.deaths,key,frame.observer)
 	_audio.sync(frame.events,key,frame.wild,frame.observer,frame.local_id,Time.get_ticks_msec())
-	_combat.sync(frame.events if frame.wild else [],frame.warnings,key,frame.observer)
+	_combat.sync(frame.events if frame.wild else [],frame.warnings,key,frame.observer,Exploration.SIGHT)
 	_stage.attack_ring.visible=false
 	for ring in _stage.support_rings: ring.visible=false
 	_map.thief_routes=frame.thief_routes

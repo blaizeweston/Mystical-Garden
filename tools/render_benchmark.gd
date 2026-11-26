@@ -51,7 +51,7 @@ func run() -> void:
 		printerr("REJECT unmarked graphical fixture"); quit(2); return
 	cases = OS.get_environment("VFX08_CASES").split(",",false)
 	for name in cases:
-		if name not in ["garden","world","combat","probe","isolate","quality"] and not BUILDS.has(name):
+		if name not in ["garden","world","combat","probe","isolate","quality","storm_sight"] and not BUILDS.has(name):
 			printerr("REJECT unknown workload ", name); quit(2); return
 	window_us = clampi(OS.get_environment("VFX08_SECONDS").to_int(),3,120)*1000000
 	trace_stalls = OS.get_environment("VFX08_STALLS") == "1"
@@ -81,7 +81,7 @@ func run() -> void:
 	if "probe" in cases: await floor_probe()
 	if "isolate" in cases: await component_probe()
 	if "garden" in cases: await garden_workloads()
-	var combat := "combat" in cases or "world" in cases or "quality" in cases
+	var combat := "combat" in cases or "world" in cases or "quality" in cases or "storm_sight" in cases
 	for name in BUILDS: combat = combat or name in cases
 	if combat and not failed:
 		if not Dev.enter_arena(garden):
@@ -91,6 +91,7 @@ func run() -> void:
 		for name: String in BUILDS:
 			if allowed(name,"combat"): await practice(name,0,0)
 		if "quality" in cases: await practice("quality",10,137)
+		if "storm_sight" in cases: await practice("storm_sight",10,137)
 		if "world" in cases:
 			for spec in [[2,136],[10,137],[16,129],[2,136]]:
 				await practice("biome_%d"%spec[0],spec[0],spec[1])
@@ -100,6 +101,74 @@ func run() -> void:
 	if failed: quit(5); return
 	report("complete",{})
 	quit()
+
+## Paired frames from live presentation receipts on remembered terrain.
+func storm_sight_probe() -> void:
+	var stage: Node = world.stage
+	var fx: Node = stage.get_node("CombatEffects")
+	var exploration: Node = world.get_node("Exploration")
+	var center := Vector3(-3,0,0)
+	var outer := center + Vector3.RIGHT * 8.5
+	world.players[1].pos = center
+	world._process(.016)
+	world.set_process(false)
+	world.set_physics_process(false)
+	fx.set_process(false)
+	stage.focus(stage.WILD_OFFSET+center,true,10.)
+	stage.apply_exploration_sight(center,true,exploration.SIGHT)
+	for eye: Vector3 in [outer,center]:
+		exploration.update_floor(stage.visual_field,"storm-review",eye,stage.camera,true,false,false)
+	if not exploration.seen(outer):
+		printerr("REJECT far endpoint was never explored"); failed=true; return
+	var segments := {
+		"visible":[[3.0,5.0,"chain"]], "outbound":[[6.3,8.5,"chain"]],
+		"inbound":[[8.5,6.3,"return"]], "crossing":[[-8.5,8.5,"chain"]],
+		"hidden":[[7.2,8.5,"form"]], "branches":[[3.0,6.3,"chain"],[6.3,8.5,"fork"],[8.5,6.3,"return"]]}
+	Engine.time_scale=0.0
+	for level in ["Low","High"]:
+		var prefs:=requested_graphics(level)
+		stage.apply_local_visuals(prefs)
+		fx.apply_local_visuals(prefs)
+		for setup: String in segments:
+			var events: Array=[]
+			var hidden_ends: Array[Vector3]=[]
+			for leg: Array in segments[setup]:
+				var a:=center+Vector3.RIGHT*float(leg[0])
+				var b:=center+Vector3.RIGHT*float(leg[1])
+				if leg[2]=="fork": b.z+=1.0
+				if setup=="branches" and leg[2]=="return": a.z+=1.0
+				for point: Vector3 in [a,b]:
+					if point.distance_to(center)>exploration.SIGHT: hidden_ends.append(point)
+				events.append({"id":500+events.size(),"kind":"link","shape":"storm_arc",
+					"from":[a.x,0,a.z],"to":[b.x,0,b.z],"reach":0.0,"duration":0.25,"age":0.04,
+					"color":"#e3d184","combo":1,"form":leg[2]})
+			fx.sync(events,[],level+setup,center,exploration.SIGHT)
+			var background: Image
+			for drawing in [false,true]:
+				fx.visible=drawing
+				await RenderingServer.frame_post_draw
+				var image: Image=arena.surface.get_texture().get_image()
+				var filename: String="storm-%s-%s-%s.png"%[level,setup,"effect" if drawing else "background"]
+				if image.save_png(storage.path_join(filename))!=OK: failed=true; return
+				if not drawing:
+					background=image
+					continue
+				# Compare the frozen battlefield, excluding updating HUD elements.
+				var bounds:=Rect2i(image.get_size()/Vector2i(12,4),image.get_size()*Vector2i(5,2)/Vector2i(6,4))
+				var changed:=image.get_region(bounds).get_data()!=background.get_region(bounds).get_data()
+				if changed==(setup=="hidden"):
+					printerr("REJECT unexpected Storm visibility ",level," ",setup);failed=true;return
+				for point in hidden_ends:
+					var pixel:Vector2i=stage.camera.unproject_position(stage.WILD_OFFSET+point+Vector3.UP*.83)
+					var margin:=Vector2i.ONE*roundi(image.get_height()*.018)
+					var area:=Rect2i(pixel-margin,margin*2)
+					if image.get_region(area).get_data()!=background.get_region(area).get_data():
+						printerr("REJECT Storm marked a hidden endpoint ",level," ",setup);failed=true;return
+		report("storm_sight",{"level":level,"seen_endpoint":exploration.seen(outer),"sight":exploration.SIGHT,
+			"start_px":str(stage.camera.unproject_position(stage.WILD_OFFSET+center+Vector3(6.3,.83,0))),
+			"edge_px":str(stage.camera.unproject_position(stage.WILD_OFFSET+center+Vector3(6.8,.83,0))),
+			"end_px":str(stage.camera.unproject_position(stage.WILD_OFFSET+outer+Vector3.UP*.83))})
+	Engine.time_scale=1.0
 
 func quality_probe() -> void:
 	var stage: Node = world.stage
@@ -249,6 +318,8 @@ func practice(name: String, depth: int, seed_value: int) -> void:
 	world.rng.seed=18478
 	report("transition",{"case":name,"ms":(Time.get_ticks_usec()-start)*.001,"layout":hash(world.battlefield.generated.layout),"seed":seed_value})
 	var actor: Dictionary=world.players[1]
+	if name=="storm_sight":
+		await storm_sight_probe(); return
 	if name=="quality":
 		await quality_probe(); return
 	if depth:
