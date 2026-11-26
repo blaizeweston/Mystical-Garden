@@ -417,10 +417,15 @@ func host(menu: Node) -> void:
 		# Run the checkpoint UI on the cleared arena from the real combat
 		# above. Select encounter 3 to exercise the production card cadence.
 		ExpeditionCase.set_world(game, {"encounter_number": 3})
+		# Reproduce the occupied gate with the actual kill drops. Ordinary E
+		# collects owned ground loot before it opens a checkpoint offer.
+		for drop in game.wild_item_drops:
+			drop.position = [local.pos.x,local.pos.y,local.pos.z]
 		var planned := {}
 		for id in game.players:
 			var fixture := plan_speed_offer(game, game.players[id], id == ids[0])
 			if not check(not fixture.is_empty(),"seeded checkpoint can draw Light Grip"):return
+			fixture.gate_drops = game.inventory_floor_snapshot(game.players[id]).map(func(drop):return str(drop.id))
 			planned[id] = fixture
 			mark("attack-speed-"+str(id), JSON.stringify(fixture))
 			mark("wallet-"+str(id), str(fixture.balance))
@@ -1098,10 +1103,28 @@ func guest(menu: Node, role: String) -> void:
 		var offer_received := func() -> bool:
 			return read("affinity-cards")=="ok" and game.ui.checkpoint_revision()>0 and UIFixture.control(game,"checkpoint_cards").get_child_count()==3
 		if not check(await until(func():return read("affinity-cards")=="ok"),"host completed its own selection"):return
+		var speed: Dictionary = JSON.parse_string(read("attack-speed-"+str(id)))
+		var gate_ready := func() -> bool:
+			var actor: Dictionary = game.players.get(id,{})
+			if actor.is_empty() or game.participation.floor()!=3: return false
+			if actor.pos.distance_to(game.stage.visual_field.advance)>0.25: return false
+			var visible: Array = []
+			for drop in actor.get("ground_items",[]):
+				if game.nearest_visible_inventory_drop({"pos":actor.pos,"ground_items":[drop]})==drop.id:
+					visible.append(drop.id)
+			return speed.gate_drops.all(func(key):return key in visible)
+		if not check(await until(gate_ready),"guest sees the checkpoint and its own settled drops"):return
 		check(not UIFixture.control(game,"checkpoint_menu").visible,"nearby guest picker stays closed until interaction")
+		for _drop in speed.gate_drops:
+			var key: String = game.nearest_visible_inventory_drop(game.players[id])
+			if not check(key in speed.gate_drops,"the next interaction targets an owned gate drop"):return
+			game.send_action(false)
+			var collected := func() -> bool:
+				return game.players[id].get("ground_items",[]).all(func(drop):return drop.id!=key)
+			if not check(await until(collected),"guest sees the targeted pickup leave the floor"):return
+			check(not UIFixture.control(game,"checkpoint_menu").visible,"picking up an item does not also open an offer")
 		game.send_action(false)
 		if not check(await until(offer_received),"mixed-class guest receives three eligible cards"):return
-		var speed: Dictionary = JSON.parse_string(read("attack-speed-"+str(id)))
 		if int(speed.spent) > 0:
 			var revision: int = game.ui.checkpoint_revision()
 			var reroll: String = game.affinity_checkpoint_action(revision, "reroll")
