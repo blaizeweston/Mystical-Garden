@@ -240,6 +240,11 @@ func _ready() -> void:
 	deaths.name="DeathEffects";deaths.stage=stage;stage.add_child(deaths)
 	var effects=preload("res://combat_effects.gd").new()
 	effects.name="CombatEffects";effects.stage=stage;stage.add_child(effects)
+	var apply_graphics := func():
+		stage.apply_local_visuals(app_settings.values.graphics)
+		effects.apply_local_visuals(app_settings.values.graphics)
+	apply_graphics.call()
+	settings_dialog.applied.connect(apply_graphics)
 	if preload("res://developer_mode.gd").is_test_garden(self):
 		developer_tuning = preload("res://developer_arena/tuning.gd").new()
 		developer_tuning.attach(self)

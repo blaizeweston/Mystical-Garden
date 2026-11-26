@@ -46,7 +46,7 @@
     "combat_effects": {"label":"Owned Core/native effect timelines, lifecycle, bounded execution and rollback", "files":["combat_effect_timeline.gd", "combat_effect_timeline.gd.uid", "native_effects_world.gd", "native_effects_world.gd.uid"]},
     "actor_presentation": {"label":"Detached avatar, spectator and dropped-item presentation", "files":["actor_presentation_world.gd","actor_presentation_world.gd.uid","spectator_view.gd","spectator_view.gd.uid","inventory_drop_visuals.gd","inventory_drop_visuals.gd.uid"]},
     "garden_view_ports": {"label":"Detached Garden observation, crop, station, return and ambience presentation ports", "files":["garden_presentation_world.gd"]},
-    "world_presentation": {"label":"Ordered effects, event audio, exploration and Garden scene presentation", "files":["world_presentation.gd"]},
+    "world_presentation": {"label":"Ordered effects, event audio, exploration and Garden scene presentation", "files":["world_presentation.gd","tools/render_network_case.gd"]},
     "world_guidance": {"label":"Pure world interaction guidance, warnings and session labels", "files":["ui/gameplay/world_guidance.gd"]},
     "guest_replication": {"label":"Accepted guest state, health reconciliation, owner details and transient events", "files":["guest_replication.gd","guest_replication_world.gd"]},
     "combat_builds": {"label":"Shared resolved native, basic, class and preview values", "files":["resolved_combat_build.gd"]},
@@ -293,6 +293,7 @@
     "settings": {
       "label": "Bindings, audio, display and aim settings",
       "files": [
+        "visual_preferences.gd",
         "preference_file.gd",
         "preference_file.gd.uid",
         "app_settings.gd",
@@ -6672,6 +6673,7 @@
     "app_settings.gd": {
       "newline": "crlf",
       "regions": {
+          "local_graphics_16": {"systems":["settings"]},
         "guarded_lifecycle_1": {
           "systems": [
             "persistence_operations",
@@ -6753,6 +6755,9 @@
     "settings_panel.gd": {
       "newline": "crlf",
       "regions": {
+          "local_graphics_189": {"systems":["settings"]},
+          "local_graphics_106": {"systems":["settings"]},
+          "local_graphics_60": {"systems":["settings"]},
         "display_hint_field": {
           "systems": [
             "menu_layout",

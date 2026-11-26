@@ -1118,7 +1118,14 @@ func guest(menu: Node, role: String) -> void:
 				and has_attack_speed(game,player,player.get("weapon_stats",{}),speed.after)
 		if not check(await until(received),"the guest's replicated copy and Tab projection match the host"):return
 		mark("owned-"+str(id))
-	if not check(await until(func():return not read("advance").is_empty() and game.enemy_health()==0 and int(game.party_travel_state().get("epoch",-1))==int(read("advance"))),"guest sees cleared Gate"):return
+	# A failing host can close the world while another guest is waiting at the gate.
+	var gate_world: WeakRef = weakref(game)
+	var gate_finished := await until(func():
+		var current: Node = gate_world.get_ref()
+		if current == null: return true
+		var expected_epoch := read("advance")
+		return not expected_epoch.is_empty() and current.enemy_health()==0 and int(current.party_travel_state().get("epoch",-1))==int(expected_epoch))
+	if not check(gate_finished and gate_world.get_ref()!=null,"guest sees cleared Gate"):return
 	if connected_warden_case:
 		var canonical := ConfigFile.new()
 		var expected := int(read("ct-xp"))

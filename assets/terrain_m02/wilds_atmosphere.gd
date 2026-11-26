@@ -4,6 +4,7 @@ const FOLIAGE = preload("res://assets/terrain_m02/wilds_foliage.gdshader")
 const AIR = preload("res://assets/terrain_m02/wilds_air.gdshader")
 const SurfaceArt = preload("res://assets/terrain_m02/wilds_surface_art.gd")
 var materials := {}
+var floaters: MultiMeshInstance3D
 var observer_position := Vector2.INF
 var observer_radius := INF
 
@@ -22,7 +23,7 @@ func build(features: Node3D, plants: Array, weights: Vector3, integrated: bool) 
 			elif key.contains("fungus"):
 				type = "fungus"
 			batch.material_override = foliage(type, weights)
-	var floaters := MultiMeshInstance3D.new()
+	floaters = MultiMeshInstance3D.new()
 	var instances := MultiMesh.new()
 	instances.transform_format = MultiMesh.TRANSFORM_3D
 	instances.mesh = QuadMesh.new()
@@ -55,6 +56,8 @@ func foliage(type: String, weights: Vector3) -> ShaderMaterial:
 	return materials[type]
 
 func tune(changes: Dictionary) -> void:
+	if is_instance_valid(floaters):
+		floaters.visible = changes.get("wilds.motes",SurfaceArt.CONTROLS["wilds.motes"][0]) > 0.0
 	for type in materials:
 		var material: ShaderMaterial = materials[type]
 		var ids := ["motes"] if type == "air" else ["sway","wound","veil"]

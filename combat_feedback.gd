@@ -7,6 +7,8 @@ var stage: Node3D
 var shader: Shader
 var observer:=Vector3.ZERO
 var sight:=6.8
+var damage_numbers := true
+var routine_captions := true
 func _ready() -> void:
  shader=Shader.new()
  shader.code="shader_type spatial; render_mode unshaded, blend_add, depth_draw_never; uniform float strength=0.0; uniform vec4 tint:source_color=vec4(1.0); void fragment(){ALBEDO=tint.rgb; ALPHA=strength*0.6;}"
@@ -35,6 +37,7 @@ func text_at(text: String,at: Vector3,color: Color,_id: int,ability: bool=false,
  label.position=stage.WILD_OFFSET+at+offset
  labels.append({"at":at,"lane":lane,"node":label,"start":label.position,"color":color,"age":0.0,"life":.85 if not ability else 1.0})
 func proc_caption(caption: String,at: Vector3,color: Color,id: int,detailed: bool, grouping_distance_sq:=2.25) -> void:
+ if not detailed and not routine_captions:return
  if not detailed:
   for item in labels:
    if item.get("caption","")==caption and item.age<.38 and at.distance_squared_to(item.at)<grouping_distance_sq:
@@ -62,7 +65,7 @@ func confirmed(event: Dictionary,at: Vector3,strength:=1.0) -> void:
   return
  var hurt: bool=event.shape=="hurt"
  var tint:=Color("#ff957d") if hurt else Color("#fff2ca")
- text_at(("−" if hurt else "")+str(amount),at,tint,int(event.id))
+ if damage_numbers:text_at(("−" if hurt else "")+str(amount),at,tint,int(event.id))
  var root: Node3D
  var target:=int(event.get("target_id",-2))
  if hurt:root=stage.avatars.get(target)

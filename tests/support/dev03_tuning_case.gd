@@ -155,6 +155,13 @@ static func arena(world: Node) -> String:
 	tune.compare_wilds(world,false)
 	if not is_zero_approx(habitat.materials.air.get_shader_parameter("motes")): return "fixed-floor experimental comparison"
 	tune.reset(world,["wilds.motes"])
+	var local: Dictionary = world.app_settings.values.graphics.duplicate()
+	var low := preload("res://visual_preferences.gd").normalize({"level":"Low"})
+	world.stage.apply_local_visuals(low)
+	if not tune.request(world,"wilds.motes",0.8) or habitat.floaters.visible: return "local low graphics composes with live tuning"
+	tune.reset(world,["wilds.motes"])
+	if world.stage.local_graphics.level!="Low" or not is_equal_approx(tune.baseline("wilds.motes"),0.6): return "reset preserves local quality and art baseline"
+	world.stage.apply_local_visuals(local)
 	var art_store := Presets.new(world)
 	if not tune.request(world,"wilds.trail_blend",0.9) or tune.request(world,"wilds.trail_blend",-1): return "Wilds control bounds"
 	if not is_equal_approx(material.get_shader_parameter("trail_blend"),0.9) or world.battlefield.configured_key != cache_key: return "live ground blend"

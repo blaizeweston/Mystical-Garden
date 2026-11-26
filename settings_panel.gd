@@ -57,6 +57,7 @@ func _ready() -> void:
  display.add_child(fps)
  for value in Settings.FPS:fps.add_item("Unlimited" if value==0 else str(value)+" FPS",int(value))
  display_hint=label(display,"")
+ graphics_rows(display)
 
  var audio:=add_page(pages,"Audio")
  audio.add_theme_constant_override("separation",12)
@@ -102,6 +103,52 @@ func _ready() -> void:
  button(actions,"Back",cancel)
  button(actions,"Apply",save)
  hide()
+var quality := OptionButton.new()
+var shadow_quality := OptionButton.new()
+var graphics_controls := {}
+
+func graphics_rows(page: Control) -> void:
+ label(page,"Graphics quality")
+ page.add_child(quality)
+ for name_value in Settings.Visuals.LEVELS.keys()+["Custom"]:quality.add_item(name_value)
+ quality.item_selected.connect(func(index):
+  draft.graphics.level=quality.get_item_text(index)
+  draft.graphics=Settings.Visuals.normalize(draft.graphics)
+  refresh_graphics())
+ label(page,"Directional shadows")
+ page.add_child(shadow_quality)
+ for caption in ["Off","Single shadow map","Detailed shadows"]:shadow_quality.add_item(caption)
+ shadow_quality.item_selected.connect(func(index):edit_graphics("shadows",index,true))
+ for spec in [["air","Airborne motes",0,150],["mist","Environmental mist",0,150],["flash","Hit and rupture flash intensity",0,100],["fragments","Contact fragment density",40,100],["spectral","Spectral character opacity",40,100]]:
+  var key: String=spec[0]
+  var title:=label(page,spec[1])
+  var bar:=HSlider.new()
+  bar.min_value=spec[2];bar.max_value=spec[3];bar.step=5
+  page.add_child(bar)
+  graphics_controls[key]=[bar,title,spec[1]]
+  bar.value_changed.connect(func(value):edit_graphics(key,value/100.0,key in ["air","mist"]))
+ for spec in [["damage_numbers","Show damage numbers"],["captions","Show routine combat captions"],["reduced_motion","Reduce Wilds motion (foliage, water, and airborne motes)"]]:
+  var key: String=spec[0]
+  var toggle:=check(page,spec[1])
+  graphics_controls[key]=[toggle]
+  toggle.toggled.connect(func(value):edit_graphics(key,value,false))
+
+func edit_graphics(key: String,value: Variant,custom: bool) -> void:
+ draft.graphics[key]=value
+ if custom:draft.graphics.level="Custom"
+ refresh_graphics()
+
+func refresh_graphics() -> void:
+ var values: Dictionary=draft.graphics
+ quality.select((Settings.Visuals.LEVELS.keys()+["Custom"]).find(values.level))
+ shadow_quality.select(values.shadows)
+ for key in graphics_controls:
+  var row: Array=graphics_controls[key]
+  if row.size()==1:row[0].set_pressed_no_signal(values[key])
+  else:
+   row[0].set_value_no_signal(roundf(values[key]*100))
+   row[1].text="%s   %d%%"%[row[2],roundi(values[key]*100)]
+
 func add_page(pages: TabContainer, page_name: String) -> VBoxContainer:
  var scroll:=ScrollContainer.new()
  scroll.name=page_name
@@ -139,6 +186,7 @@ func fit_to_viewport() -> void:
  min_size=Vector2i(400,250).min(limit)
  popup_centered(size.min(limit))
 func refresh() -> void:
+ refresh_graphics()
  developer_controls.setup(draft.get("developer_mode",false))
  get_meta("garden_motion_toggle").button_pressed=draft.get("ambient_motion",true)
  get_meta("garden_cinematic_toggle").button_pressed=draft.get("garden_cinematics",true)

@@ -33,16 +33,25 @@ func report(kind: String, values: Dictionary) -> void:
 func allowed(name: String, group: String) -> bool:
 	return name in cases or group in cases
 
+func requested_graphics(level: String) -> Dictionary:
+	var draft := {"level":level}
+	if level == "Custom":
+		draft.merge({"air":0.3,"mist":0.5,"shadows":1,"reduced_motion":true,"flash":0.45,"spectral":0.7,"damage_numbers":false})
+	return preload("res://visual_preferences.gd").normalize(draft)
+
 func run() -> void:
 	storage = OS.get_environment("VFX08_ROOT").replace("\\","/").simplify_path()
 	var prefix := ProjectSettings.globalize_path("res://.godot/vfx08/").replace("\\","/").trim_suffix("/")
 	var marker := storage.path_join("fixture.marker")
 	var profile := OS.get_user_data_dir().replace("\\","/").simplify_path()
-	if storage.get_base_dir()!=prefix or not profile.begins_with(storage+"/") or not FileAccess.file_exists(marker) or FileAccess.get_file_as_string(marker)!=storage.get_file() or DisplayServer.get_name()=="headless":
+	var fixture_profile := OS.get_environment("VFX08_PROFILE").replace("\\","/").simplify_path()
+	if fixture_profile.is_empty():fixture_profile=storage
+	var verified_profile := fixture_profile==storage or (fixture_profile.get_file().begins_with("mg-v8-"+storage.get_file().left(8)+"-") and FileAccess.get_file_as_string(fixture_profile.path_join("fixture.marker"))==storage.get_file())
+	if storage.get_base_dir()!=prefix or not verified_profile or not profile.begins_with(fixture_profile+"/") or not FileAccess.file_exists(marker) or FileAccess.get_file_as_string(marker)!=storage.get_file() or DisplayServer.get_name()=="headless":
 		printerr("REJECT unmarked graphical fixture"); quit(2); return
 	cases = OS.get_environment("VFX08_CASES").split(",",false)
 	for name in cases:
-		if name not in ["garden","world","combat","probe","isolate"] and not BUILDS.has(name):
+		if name not in ["garden","world","combat","probe","isolate","quality"] and not BUILDS.has(name):
 			printerr("REJECT unknown workload ", name); quit(2); return
 	window_us = clampi(OS.get_environment("VFX08_SECONDS").to_int(),3,120)*1000000
 	trace_stalls = OS.get_environment("VFX08_STALLS") == "1"
@@ -51,12 +60,18 @@ func run() -> void:
 		RenderingServer.frame_post_draw.connect(func(): draw_ended=Time.get_ticks_usec())
 	recording = OS.get_environment("VFX08_CAPTURE")=="1"
 	report("device",{"adapter":RenderingServer.get_video_adapter_name(),"renderer":RenderingServer.get_current_rendering_method(),"size":str(root.size),"cpu":OS.get_processor_name(),"screen":str(DisplayServer.screen_get_size())})
+	var quality := OS.get_environment("VFX08_QUALITY")
+	if OS.get_environment("VFX08_VERIFY_PREF")=="1":
+		var saved := preload("res://app_settings.gd").new()
+		if saved.load_settings()!=OK or saved.values.graphics!=requested_graphics(quality): quit(6); return
+		print("PREFERENCE_RELOADED ",quality);quit();return
 	var menu: Node = preload("res://main_menu.tscn").instantiate()
 	menu.storage.root_path = "user://saves"
 	menu.import_legacy = false
 	menu.restore_last_selection = false
 	root.add_child(menu)
 	current_scene = menu
+	if not quality.is_empty():menu.app_settings.values.graphics=requested_graphics(quality)
 	menu.app_settings.values.developer_mode = true
 	if menu.app_settings.save_settings(menu.app_settings.values)!=OK or Dev.open_garden(menu,false)!=OK:
 		printerr("REJECT developer Garden"); quit(3); return
@@ -66,7 +81,7 @@ func run() -> void:
 	if "probe" in cases: await floor_probe()
 	if "isolate" in cases: await component_probe()
 	if "garden" in cases: await garden_workloads()
-	var combat := "combat" in cases or "world" in cases
+	var combat := "combat" in cases or "world" in cases or "quality" in cases
 	for name in BUILDS: combat = combat or name in cases
 	if combat and not failed:
 		if not Dev.enter_arena(garden):
@@ -75,6 +90,7 @@ func run() -> void:
 		world = arena.combat
 		for name: String in BUILDS:
 			if allowed(name,"combat"): await practice(name,0,0)
+		if "quality" in cases: await practice("quality",10,137)
 		if "world" in cases:
 			for spec in [[2,136],[10,137],[16,129],[2,136]]:
 				await practice("biome_%d"%spec[0],spec[0],spec[1])
@@ -85,9 +101,38 @@ func run() -> void:
 	report("complete",{})
 	quit()
 
+func quality_probe() -> void:
+	var stage: Node = world.stage
+	var field: Dictionary = stage.visual_field.generated
+	var layout_digest := hash(field.layout)
+	var center: Vector3 = world.players[1].pos
+	var warnings := preload("res://enemy_attack.gd").warning(712,"charge",center,center+Vector3.RIGHT*3.5,1.1,0.75,0.65)
+	var fx: Node = stage.get_node("CombatEffects")
+	world._process(0.016)
+	world.set_process(false)
+	world.set_physics_process(false)
+	stage.terrain.show()
+	stage.focus(stage.WILD_OFFSET+center,true)
+	stage.apply_exploration_sight(center,true,8.)
+	var air: Node = stage.wilds_air
+	var baseline_vertices := 0
+	for level in ["Low","Medium","High","Ultra","Custom"]:
+		var prefs := preload("res://visual_preferences.gd").normalize({"level":level,"air":0.3,"mist":0.5,"shadows":1,"reduced_motion":level=="Custom"})
+		stage.apply_local_visuals(prefs)
+		fx.apply_local_visuals(prefs)
+		fx.sync([],[warnings],"quality",center,8.)
+		var hint: Dictionary = fx.hints[warnings.id]
+		var vertices: PackedVector3Array = hint.mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		if not baseline_vertices:baseline_vertices=hash(vertices)
+		if baseline_vertices!=hash(vertices) or not hint.root.is_visible_in_tree() or layout_digest!=hash(stage.visual_field.generated.layout):
+			printerr("REJECT danger geometry or terrain changed at ",level);failed=true;return
+		await RenderingServer.frame_post_draw
+		var image:=root.get_texture().get_image()
+		if image.save_png(storage.path_join("quality-"+level+".png"))!=OK:failed=true
+		report("visual_check",{"level":level,"danger_vertices":vertices.size(),"geometry_digest":hash(vertices),"shadow":stage.get_node("Sun").shadow_enabled,"air":air.materials.air.get_shader_parameter("motes"),"air_visible":air.floaters.visible,"terrain":hash(field.layout)})
+
 func floor_probe() -> void:
-	for i in 4:
-		var family: int = [0,1,2,0][i]
+	for family: int in [0,1,2,0,1,2]:
 		var features := Features.new()
 		var start := Time.get_ticks_usec()
 		var assets: Dictionary = features._wilds_assets(family)
@@ -204,6 +249,8 @@ func practice(name: String, depth: int, seed_value: int) -> void:
 	world.rng.seed=18478
 	report("transition",{"case":name,"ms":(Time.get_ticks_usec()-start)*.001,"layout":hash(world.battlefield.generated.layout),"seed":seed_value})
 	var actor: Dictionary=world.players[1]
+	if name=="quality":
+		await quality_probe(); return
 	if depth:
 		var floor: Dictionary=world.battlefield.generated.layout
 		actor.pos=world.battlefield.entry
@@ -258,6 +305,10 @@ func sample(name: String, fighting: bool, pass_index: int) -> void:
 	var last_primitives:=0
 	var resources:=Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)
 	var pipeline_start:=int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW))
+	var cpu_draw := PackedFloat64Array()
+	var gpu_draw := PackedFloat64Array()
+	var viewport_rid := root.get_viewport_rid()
+	if trace_stalls: RenderingServer.viewport_set_measure_render_time(viewport_rid,true)
 	var fx: Node = world.stage.get_node("CombatEffects") if fighting else null
 	while Time.get_ticks_usec()-start<window_us:
 		await process_frame
@@ -275,6 +326,9 @@ func sample(name: String, fighting: bool, pass_index: int) -> void:
 			beat+=1
 		if now-start>=next_observe:
 			next_observe+=200000
+			if trace_stalls:
+				cpu_draw.append(RenderingServer.viewport_get_measured_render_time_cpu(viewport_rid))
+				gpu_draw.append(RenderingServer.viewport_get_measured_render_time_gpu(viewport_rid))
 			last_draws=int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
 			last_primitives=int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))
 			process_peak_ms=maxf(process_peak_ms,Performance.get_monitor(Performance.TIME_PROCESS)*1000.)
@@ -289,6 +343,10 @@ func sample(name: String, fighting: bool, pass_index: int) -> void:
 			image.resize(550,360,Image.INTERPOLATE_BILINEAR)
 			if image.save_jpg(storage.path_join("frame-%06d.jpg"%output_index),.82)!=OK: failed=true
 			output_index+=1
+	if trace_stalls:
+		RenderingServer.viewport_set_measure_render_time(viewport_rid,false)
+		cpu_draw.sort();gpu_draw.sort()
+		report("viewport_sample",{"case":name,"pass":pass_index,"n":cpu_draw.size(),"cpu_p50":percentile(cpu_draw,.5),"cpu_peak":cpu_draw[-1],"gpu_p50":percentile(gpu_draw,.5),"gpu_peak":gpu_draw[-1]})
 	frames.sort()
 	report("frames",{"case":name,"pass":pass_index,"cap":Engine.max_fps,"n":frames.size(),"median":percentile(frames,.5),
 		"p95":percentile(frames,.95),"p99":percentile(frames,.99),"p999":percentile(frames,.999) if frames.size()>=1000 else null,

@@ -13,6 +13,13 @@ func run():
  var window=load("res://settings_panel.gd").new();root.add_child(window);window.begin(model)
  var pages: TabContainer=window.find_child("SettingsCategories",true,false)
  check(pages!=null and pages.get_tab_count()==5 and pages.get_tab_title(0)=="Gameplay" and pages.get_tab_title(3)=="Controls","settings groups gameplay, display, audio, controls and diagnostics")
+ window.quality.item_selected.emit(0)
+ check(window.draft.graphics.level=="Low" and window.draft.graphics.air==0.0,"quality preset fills local display controls")
+ window.graphics_controls.air[0].value=35
+ window.graphics_controls.flash[0].value=40
+ check(window.draft.graphics.level=="Custom" and window.draft.graphics.air==0.35,"individual atmosphere change selects Custom")
+ window.quality.item_selected.emit(2)
+ check(window.draft.graphics.flash==0.4 and window.draft.graphics.air==1.0,"quality switch preserves independent comfort settings")
  pages.current_tab=3
  check(window.binding_buttons.attack[0].is_visible_in_tree(),"controls tab exposes key bindings")
  window.capture_binding("attack",0)
@@ -29,6 +36,8 @@ func run():
  window.cancel()
  var invalid=Settings.normalize({"master":-9,"effects":NAN,"fps":7,"bindings":{"attack":[{"kind":"key","code":KEY_ESCAPE}],"session_menu":[]}})
  check(invalid.master==0 and invalid.effects==.5 and invalid.fps==120 and invalid.bindings.session_menu.size()==1 and invalid.bindings.attack.is_empty(),"invalid configuration clamped and Escape retained")
+ var graphics=Settings.Visuals.normalize({"level":"Custom","air":NAN,"mist":12.0,"shadows":-4,"spectral":0.0,"damage_numbers":"no"})
+ check(graphics.air==1.0 and graphics.mist==1.5 and graphics.shadows==0 and graphics.spectral==0.4 and graphics.damage_numbers,"invalid local graphics normalize safely")
  var old_core=Settings.normalize({"bindings":{"attack":[{"kind":"key","code":KEY_B}]}})
  check(old_core.bindings.core_skill==[{"kind":"key","code":KEY_X}] and old_core.bindings.card_active_two.is_empty(),"new card defaults cannot displace migrated Core control")
  var customized_cards=Settings.normalize({"bindings":{"attack":[{"kind":"key","code":KEY_B}],"card_active_two":[{"kind":"key","code":KEY_X}]}})

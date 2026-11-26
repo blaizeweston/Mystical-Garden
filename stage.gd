@@ -128,16 +128,29 @@ static func make_environment() -> Environment:
 	return env
 
 
+const VisualPreferences = preload("res://visual_preferences.gd")
+var local_graphics := VisualPreferences.normalize({})
+var reference_shadow_mode: int
+
+func apply_local_visuals(prefs: Dictionary) -> void:
+	local_graphics = prefs
+	var sun := get_node_or_null("Sun") as DirectionalLight3D
+	if sun != null:
+		sun.shadow_enabled = prefs.shadows != 0
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL if prefs.shadows == 1 else reference_shadow_mode
+	set_wilds_art(wilds_art_values)
+
 var wilds_art_values: Dictionary = {}
 const WildsAtmosphere = preload("res://assets/terrain_m02/wilds_atmosphere.gd")
 var wilds_air: WildsAtmosphere
 
 func set_wilds_art(values: Dictionary) -> void:
 	wilds_art_values = values
-	if is_instance_valid(wilds_air): wilds_air.tune(values)
+	var applied := VisualPreferences.wilds(values, local_graphics)
+	if is_instance_valid(wilds_air): wilds_air.tune(applied)
 	var floor_surface := terrain.get_node_or_null("Wilds/Ground") as MeshInstance3D if terrain != null else null
 	if floor_surface != null:
-		preload("res://assets/terrain_m02/wilds_surface_art.gd").apply(floor_surface.material_override, values)
+		preload("res://assets/terrain_m02/wilds_surface_art.gd").apply(floor_surface.material_override, applied)
 
 var production_sun_energy: float
 var preview_sun_energy := NAN
@@ -153,6 +166,7 @@ func _ready() -> void:
 		var sun := $Sun as DirectionalLight3D
 		sun.light_color = Color("#ffe9c6")
 		apply_scene_sun(1.35)
+		reference_shadow_mode = sun.directional_shadow_mode
 		sun.shadow_enabled = true
 		sun.shadow_bias = 0.04
 		sun.shadow_blur = 1.4
@@ -708,7 +722,7 @@ func redraw_terrain(site: int, depth: int, map_seed: int, boss: int = -1, phase:
 		if detail!=wild_portal and not detail is Label3D:detail.hide()
 	experimental_exit=preload("res://assets/terrain_m02/experimental/experiment_terrain_view.gd").draw_wilds(terrain,WILD_OFFSET,visual_field.generated,map_seed)
 	wilds_air = terrain.get_node("Wilds/Features").atmosphere
-	if not wilds_art_values.is_empty(): set_wilds_art(wilds_art_values)
+	set_wilds_art(wilds_art_values)
 	if boss>=0:preload("res://boss_lair_visuals.gd").build(self,terrain,visual_field)
 	preload("res://game_metrics.gd").record("floor_generation",{"seed":map_seed,"biome":site,"depth":depth,
 		"terrain":Battlefield.SIGNATURE,"layout_kind":visual_field.generated.layout.get("layout_kind","generated"),

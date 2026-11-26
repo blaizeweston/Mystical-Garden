@@ -139,6 +139,21 @@ func run():
  var committed=game.Transactions.run(game,func():OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, stats, Time.get_ticks_msec());game.SaveBatch.failure=ERR_CANT_CREATE)
  check(committed==false and game.enemy_health()==old_hp and game.combat_events.is_empty(),"rolled-back damage cannot leave a confirmed-hit event")
  fx.sync([],[],"garden",Vector3.ZERO);check(fx.feedback.labels.is_empty() and fx.feedback.flashes.is_empty(),"floor cleanup includes labels and material overlays")
+ var comfort=preload("res://visual_preferences.gd").normalize({"level":"Low","fragments":0.4,"flash":0.0,"captions":false,"damage_numbers":false,"spectral":0.4})
+ fx.apply_local_visuals(comfort)
+ var hit=arrow_hit.duplicate(true)
+ hit.age=0.0
+ var health_before=game.enemy_health()
+ fx.sync([hit],[],"local quality",fx.point(hit.to))
+ check(fx.active.has(hit.id) and fx.feedback.labels.is_empty() and fx.feedback.flashes.is_empty(),"reducing flashes and numbers keeps the confirmed impact")
+ var burst: ShaderMaterial=fx.active[hit.id].material
+ check(is_zero_approx(burst.get_shader_parameter("flash_strength")) and burst.get_shader_parameter("fragment_count")==2.0,"local contact controls reach the actual shader")
+ fx.feedback.proc_caption("Test",Vector3.ZERO,Color.WHITE,42,false)
+ check(fx.feedback.labels.is_empty(),"routine captions can be hidden independently")
+ fx.feedback.proc_caption("Test",Vector3.ZERO,Color.WHITE,42,true)
+ fx.feedback.confirmed({"shape":"heal","amount":1,"color":Color.GREEN,"id":43},Vector3.ZERO)
+ fx.feedback.confirmed({"shape":"block","id":44},Vector3.ZERO)
+ check(fx.feedback.labels.size()==3 and game.enemy_health()==health_before,"developer detail, healing and protection survive reduced effects")
  game.queue_free();await process_frame
  if not failed:print("PASS: 24 scaled body footprints, swept edge hits, cover, confirmed damage, visual termination, fog, six ability families, smooth packet phases and rollback")
  quit(1 if failed else 0)

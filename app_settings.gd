@@ -1,4 +1,5 @@
 extends RefCounted
+const Visuals = preload("res://visual_preferences.gd")
 const Preferences=preload("res://preference_file.gd")
 const ACTIONS: Dictionary={"up":"Move up","down":"Move down","left":"Move left","right":"Move right","attack":"Strike (hold to repeat)","interact":"Interact / collect","dodge":"Dodge","class_skill":"Class skill 1","class_skill_two":"Class skill 2","core_skill":"Core skill","card_active_one":"Card action 1","card_active_two":"Card action 2","card_active_three":"Card action 3","card_active_four":"Card action 4","extract":"Extract","pouch":"Safe pouch","flower":"Harvest seeds","graft":"Grafting altar","pack_menu":"Inventory","progression":"Progression trees","developer_workbench":"Developer Testing Arena","workbench":"Weapon workbench","field_guide":"Field guide","floor_map":"Expand floor map","run_summary":"Expedition summary","session_menu":"Pause / menu","upgrade_power":"Upgrade card 1","upgrade_technique":"Upgrade card 2","upgrade_synergy":"Upgrade card 3","upgrade_fourth":"Upgrade card 4"}
 const KEYS: Dictionary={"up":[KEY_W,KEY_UP],"down":[KEY_S,KEY_DOWN],"left":[KEY_A,KEY_LEFT],"right":[KEY_D,KEY_RIGHT],"attack":[KEY_SPACE],"interact":[KEY_E],"dodge":[KEY_SHIFT],"class_skill":[KEY_Q],"class_skill_two":[KEY_R],"core_skill":[KEY_B],"card_active_one":[KEY_Z],"card_active_two":[KEY_X],"card_active_three":[],"card_active_four":[],"extract":[KEY_T],"pouch":[KEY_P],"flower":[KEY_F],"graft":[KEY_G],"pack_menu":[KEY_I],"progression":[KEY_O],"developer_workbench":[KEY_F4],"workbench":[KEY_F2],"field_guide":[KEY_F1],"floor_map":[KEY_M],"run_summary":[KEY_TAB],"session_menu":[KEY_ESCAPE],"upgrade_power":[KEY_1],"upgrade_technique":[KEY_2],"upgrade_synergy":[KEY_3],"upgrade_fourth":[KEY_4]}
@@ -12,7 +13,7 @@ static func defaults() -> Dictionary:
   bindings[action]=[]
   for code in KEYS[action]:bindings[action].append({"kind":"key","code":int(code)})
  bindings.attack.append({"kind":"mouse","code":MOUSE_BUTTON_LEFT})
- return {"bindings":bindings,"fullscreen":false,"vsync":true,"fps":120,"master":.5,"effects":.5,"music":.5,"ambience":.5,"aim_indicator":true,"ambient_motion":true,"garden_cinematics":true,"developer_mode":false}
+ return {"graphics":Visuals.normalize({}),"bindings":bindings,"fullscreen":false,"vsync":true,"fps":120,"master":.5,"effects":.5,"music":.5,"ambience":.5,"aim_indicator":true,"ambient_motion":true,"garden_cinematics":true,"developer_mode":false}
 static func binding(value) -> Dictionary:
  if not value is Dictionary:return {}
  var code=value.get("code",0)
@@ -23,6 +24,7 @@ static func binding(value) -> Dictionary:
 static func normalize(value) -> Dictionary:
  var result=defaults()
  if not value is Dictionary:return result
+ result.graphics=Visuals.normalize(value.get("graphics",{}))
  for key in ["fullscreen","vsync","aim_indicator","ambient_motion","garden_cinematics","developer_mode"]:
   if value.get(key) is bool:result[key]=value[key]
  if value.get("fps") is int and FPS.has(int(value.fps)):result.fps=int(value.fps)

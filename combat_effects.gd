@@ -11,6 +11,9 @@ var overlap_layout:Dictionary={}
 const ClassArt = preload("res://class_release_visuals.gd")
 const Astral = preload("res://astral_visuals.gd")
 const Shelter = preload("res://shelter_visuals.gd")
+const VisualPreferences = preload("res://visual_preferences.gd")
+var local_graphics := VisualPreferences.normalize({})
+var affinity_art := {}
 var affinity_overrides := {}
 var motion_overrides := {}
 var contact_overrides := {}
@@ -29,7 +32,17 @@ func _ready() -> void:
  feedback.stage=stage;add_child(feedback)
  statuses.stage=stage;add_child(statuses)
 
-func set_affinity_tuning(values:Dictionary) -> void:
+func apply_local_visuals(prefs: Dictionary) -> void:
+ local_graphics = prefs
+ feedback.damage_numbers = prefs.damage_numbers
+ feedback.routine_captions = prefs.captions
+ set_affinity_tuning(affinity_art)
+
+func set_affinity_tuning(art:Dictionary) -> void:
+ affinity_art=art
+ var values:=art.duplicate()
+ if local_graphics.spectral != 1.0:
+  values["spirit.veil"]=maxf(0.15,float(art.get("spirit.veil",Astral.CONTROLS["spirit.veil"][0]))*float(local_graphics.spectral))
  if values==affinity_overrides:return
  affinity_overrides=values
  statuses.settings=values
@@ -96,7 +109,7 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
   if event.kind=="impact" and event.shape!="heal" and visible_hit:
    var flash:=float(contact_overrides.get("impact.flash",Contacts.DEFAULTS["impact.flash"])) if family=="impact" else 1.0
    if event.get("damage_cue")=="storm_arc":flash*=.16
-   feedback.confirmed(event,at,0.0 if event.get("damage_cue","") in ["frost_rupture","burn_tick","bleed_tick"] else flash)
+   feedback.confirmed(event,at,0.0 if event.get("damage_cue","") in ["frost_rupture","burn_tick","bleed_tick"] else flash * float(local_graphics.flash))
   # The rupture already supplies the contact visual; its damage receipt still shows HP.
   if event.get("damage_cue","") in ["frost_rupture","burn_tick","bleed_tick","storm_arc"]:continue
   var age:=float(event.get("age",0))
@@ -104,7 +117,7 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
   if not family.is_empty():
    if age>=float(contact_overrides.get(family+".lifetime",Contacts.DEFAULTS[family+".lifetime"])):continue
    var strike:=point(event.strike_point) if event.has("strike_point") else at
-   effect=Contacts.create(self,family,stage.WILD_OFFSET+strike,strike-point(event.from),event.get("form",""),int(event.id),contact_overrides,impact_emission,event.has("strike_point"))
+   effect=Contacts.create(self,family,stage.WILD_OFFSET+strike,strike-point(event.from),event.get("form",""),int(event.id),VisualPreferences.contact(contact_overrides,family,local_graphics),impact_emission,event.has("strike_point"))
   elif Payoffs.accepts(event):
    var root:=Node3D.new()
    add_child(root)

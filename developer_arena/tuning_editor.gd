@@ -12,6 +12,7 @@ var lab: Control
 var visual_property := OptionButton.new()
 var name_entry := LineEdit.new()
 var saved := OptionButton.new()
+var graphics_info := Label.new()
 var feedback := Label.new()
 var decision := ConfirmationDialog.new()
 var confirm_action: Callable
@@ -34,11 +35,14 @@ func setup(workbench: Control, parent: Control) -> void:
 			continue
 		if group=="World":
 			var original := CheckButton.new()
-			original.text = "Compare Wilds scenery at production settings"
+			original.text = "Use production Wilds art with local graphics"
 			original.button_pressed = tuning.showing_wilds_baseline
 			original.toggled.connect(func(enabled: bool): tuning.compare_wilds(panel.world,enabled))
 			page.add_child(original)
-		if group=="Visuals": playback(page)
+		if group=="Visuals":
+			graphics_info.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+			page.add_child(graphics_info)
+			playback(page)
 		var ids: Array=[]
 		for id in Catalog.PROPERTIES:
 			if Catalog.PROPERTIES[id].category!=group: continue
@@ -114,6 +118,7 @@ func change(id: String,value: float) -> void:
 
 func refresh() -> void:
 	if not tuning.authorized(panel.world): return
+	graphics_info.text="Local graphics: %s. Live scenes apply local preferences after artistic tuning. Lab comparisons and exports show the artistic values." % panel.world.app_settings.values.graphics.level
 	if lab!=null: lab.refresh_ambient()
 	for id in rows:
 		var row: Dictionary=rows[id]

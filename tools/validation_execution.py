@@ -189,7 +189,7 @@ def fixture_environment(project, experimental_terrain=False):
     return env
 
 
-def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=None, port=None):
+def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=None, port=None, *, rendered=False):
     if not IDENTIFIER.fullmatch(run_id) or not IDENTIFIER.fullmatch(fixture):
         raise ValueError("invalid fixture name or run ID")
     folder = folder.resolve()
@@ -221,6 +221,10 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
         frames = "4800"
     arguments = [str(engine), "--headless", "--path", str(runtime), "--script", str(driver),
                  "--max-fps", "60" if kind == "party" else "120", "--quit-after", frames]
+    if rendered:
+        if pack or not terrain_coop or kind not in ("pair", "party") or script.name != "render_network_case.gd":
+            raise ValueError("render diagnostics require the isolated ordinary multiplayer fixture")
+        arguments[1:2] = ["--rendering-method", "gl_compatibility", "--resolution", "800x520"]
     if pack:
         arguments.extend(["--main-pack", str(pack)])
     processes = {}
