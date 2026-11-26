@@ -14,10 +14,10 @@ config/name="Mystical Garden"
 run/main_scene="res://main_menu.tscn"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="Mystical Garden Prototype"
-config/custom_user_dir_name.template_release="Mystical Garden Guarded 1"
-config/disable_project_settings_override.template_release=true
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/Thumbnail/game_icon.png"
+config/custom_user_dir_name.template_release="Mystical Garden Guarded 1"
+config/disable_project_settings_override.template_release=true
 
 [autoload]
 

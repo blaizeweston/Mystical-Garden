@@ -477,7 +477,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Thorn Line",
 	  "consumer": [
-	    "res://thorn_affinity.gd",
+		"res://thorn_affinity.gd",
 	    "apply_occupancy"
 	  ],
 	  "requires": THORN_CORE,
@@ -488,10 +488,10 @@ const DEFINITIONS := {
 	  "description": "Thorn Line applies an additional %s percentage points of your personal Bleed cap.",
 	  "detail": "Provisional CE02 tuning. Actual occupants only; the existing one-second application interval and shared cap remain unchanged.",
 	  "values": [
-	    5,
-	    8,
-	    11,
-	    14
+		5,
+		8,
+		11,
+		14
 	  ]
 	},
 	"creeping_briars": {
@@ -501,7 +501,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Thorn Line",
 	  "consumer": [
-	    "res://thorn_affinity.gd",
+		"res://thorn_affinity.gd",
 	    "release"
 	  ],
 	  "requires": THORN_CORE,
@@ -512,10 +512,10 @@ const DEFINITIONS := {
 	  "description": "Thorn Line extends %s m farther on each side.",
 	  "detail": "Provisional CE02 tuning. Extends the real lane and its preview. It obeys ground support and does not spread Bleed.",
 	  "values": [
-	    20,
-	    30,
-	    40,
-	    50
+		20,
+		30,
+		40,
+		50
 	  ]
 	},
 	"serrated_edge": {
@@ -525,7 +525,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible direct basic hit",
 	  "consumer": [
-	    "res://thorn_affinity.gd",
+		"res://thorn_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": THORN_FORM,
@@ -536,10 +536,10 @@ const DEFINITIONS := {
 	  "description": "Eligible basic hits add %s%% of your personal Bleed cap.",
 	  "detail": "Provisional CE02 tuning. Additional direct buildup alongside the native stationary patch; no extra contact or proc.",
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"relentless_cuts": {
@@ -549,7 +549,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible direct basic hit",
 	  "consumer": [
-	    "res://thorn_affinity.gd",
+		"res://thorn_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": THORN_FORM,
@@ -560,13 +560,13 @@ const DEFINITIONS := {
 	  "description": "Each successive basic hit on the same enemy adds %s percentage points more Bleed buildup.",
 	  "detail": "Provisional CE02 tuning. The first hit starts the sequence. Target changes or three seconds without a hit reset it. Buildup stops at your build-derived cap.",
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ],
 	  "tuning": {
-	    "window_ms": 3000
+		"window_ms": 3000
 	  }
 	},
 	"opening_wound": {
@@ -576,7 +576,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible direct basic hit",
 	  "consumer": [
-	    "res://thorn_affinity.gd",
+		"res://thorn_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": THORN_FORM,
@@ -587,10 +587,10 @@ const DEFINITIONS := {
 	  "description": "Your first qualifying basic hit adds %s%% of your personal Bleed cap.",
 	  "detail": "Provisional CE02 tuning. Once per enemy while your Bleed contribution remains active; resets after your contribution expires.",
 	  "values": [
-	    5,
-	    8,
-	    11,
-	    14
+		5,
+		8,
+		11,
+		14
 	  ]
 	},
 	"crimson_conduit": {
@@ -600,7 +600,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Qualifying Thorn class response",
 	  "consumer": [
-	    "res://thorn_affinity.gd",
+		"res://thorn_affinity.gd",
 	    "apply_occupancy"
 	  ],
 	  "requires": THORN_CATALYST,
@@ -611,10 +611,10 @@ const DEFINITIONS := {
 	  "description": "Catalyst growth applies an additional %s percentage points of your personal Bleed cap.",
 	  "detail": "Provisional CE02 tuning. Requires an actual Thorn Catalyst response; empty placement gives no buildup.",
 	  "values": [
-	    5,
-	    8,
-	    11,
-	    14
+		5,
+		8,
+		11,
+		14
 	  ]
 	},
 	"barbed_momentum": {
@@ -624,7 +624,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Qualifying Thorn class response",
 	  "consumer": [
-	    "res://thorn_affinity.gd",
+		"res://thorn_affinity.gd",
 	    "apply_occupancy"
 	  ],
 	  "requires": THORN_CATALYST,
@@ -635,13 +635,13 @@ const DEFINITIONS := {
 	  "description": "A qualifying Catalyst Bleed application prepares +%s damage on your next basic attack.",
 	  "detail": "Provisional CE02 tuning. Launch within four seconds; a miss spends it. Only the first direct enemy contact benefits, with no extra proc.",
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ],
 	  "tuning": {
-	    "duration_ms": 4000
+		"duration_ms": 4000
 	  }
 	},
 	"sanguine_growth": {
@@ -651,7 +651,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Functioning Thorn source",
 	  "consumer": [
-	    "res://thorn_affinity.gd",
+		"res://thorn_affinity.gd",
 	    "apply_occupancy"
 	  ],
 	  "requires": ANY_BLEED_SOURCE,
@@ -662,10 +662,10 @@ const DEFINITIONS := {
 	  "description": "Increase your personal Bleed tick cap by %s damage across functioning Thorn sources.",
 	  "detail": "Provisional CE02 tuning. Counts once per player, not once per slot. Raising the cap supplies no free accumulated Bleed.",
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"unclosing_wounds": {
@@ -675,7 +675,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Functioning Thorn source",
 	  "consumer": [
-	    "res://thorn_affinity.gd",
+		"res://thorn_affinity.gd",
 	    "apply_occupancy"
 	  ],
 	  "requires": ANY_BLEED_SOURCE,
@@ -686,10 +686,10 @@ const DEFINITIONS := {
 	  "description": "Eligible Bleed applications retain your contribution for an additional %s seconds.",
 	  "detail": "Provisional CE02 tuning. Extends your own maintained contribution, not another player’s or the stationary field lifetime.",
 	  "values": [
-	    250,
-	    400,
-	    550,
-	    700
+		250,
+		400,
+		550,
+		700
 	  ]
 	},
 	"hemorrhagic_rupture": {
@@ -699,7 +699,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Functioning Thorn source",
 	  "consumer": [
-	    "res://thorn_affinity.gd",
+		"res://thorn_affinity.gd",
 	    "on_death"
 	  ],
 	  "requires": ANY_BLEED_SOURCE,
@@ -710,14 +710,14 @@ const DEFINITIONS := {
 	  "description": "A heavily Bleeding enemy’s death bursts for %s%% of its accumulated Bleed tick damage.",
 	  "detail": "Provisional CE02 tuning. Requires at least 50% of the shared cap. Hits other enemies within 3 m and clear line. One strongest eligible owner supplies the burst; it spreads no Bleed and cannot chain death bursts.",
 	  "values": [
-	    50,
-	    75,
-	    100,
-	    125
+		50,
+		75,
+		100,
+		125
 	  ],
 	  "tuning": {
-	    "threshold_percent": 50,
-	    "radius_m": 3.0
+		"threshold_percent": 50,
+		"radius_m": 3.0
 	  }
 	},
 	"bloodletting": {
@@ -727,7 +727,7 @@ const DEFINITIONS := {
 	  "policy": "unique",
 	  "trigger": "Functioning Thorn source",
 	  "consumer": [
-	    "res://card_active_actions.gd",
+		"res://card_active_actions.gd",
 	    "command"
 	  ],
 	  "requires": ANY_BLEED_SOURCE,
@@ -738,10 +738,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE02 tuning. Additional configurable card action, default Z. Requires an eligible Bleeding enemy within 8 m and combat sight; eight-second cooldown. Does not trigger Form, Catalyst, grafts or recursive death bursts.",
 	  "fixed": 1,
 	  "tuning": {
-	    "cooldown_ms": 8000,
-	    "range_m": 8.0,
-	    "damage_percent": 200,
-	    "min_aim_dot": 0.3
+		"cooldown_ms": 8000,
+		"range_m": 8.0,
+		"damage_percent": 200,
+		"min_aim_dot": 0.3
 	  },
 	  "grants": [
 	    "bloodletting"
@@ -756,7 +756,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible core Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "apply"
 	  ],
 	  "requires": FROST_CORE,
@@ -767,10 +767,10 @@ const DEFINITIONS := {
 	  "description": "Rime Bloom applications gain +%s maximum shatter damage.",
 	  "detail": "Provisional CE02 tuning. Each applied stack freezes one third of this source-specific increase.",
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"returning_winter": {
@@ -780,7 +780,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible core Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "bloom_phase"
 	  ],
 	  "requires": FROST_CORE,
@@ -791,10 +791,10 @@ const DEFINITIONS := {
 	  "description": "Rime Bloom closing petals apply %s additional Brittle stacks.",
 	  "detail": "Provisional CE02 tuning. Separate from Avalanche and Shatterwave. Every completed three-stack group ruptures normally.",
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"fracturing_edge": {
@@ -804,7 +804,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible form Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "apply"
 	  ],
 	  "requires": FROST_FORM,
@@ -815,10 +815,10 @@ const DEFINITIONS := {
 	  "description": "Basic-attack Brittle gains +%s maximum shatter damage.",
 	  "detail": "Provisional CE02 tuning. Only the source-weighted contribution of eligible basic-hit stacks changes.",
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"relentless_chill": {
@@ -828,7 +828,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible form Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": FROST_FORM,
@@ -839,10 +839,10 @@ const DEFINITIONS := {
 	  "description": "Each eligible basic hit earns %s additional Brittle stack credit.",
 	  "detail": "Provisional CE02 tuning. Whole credits apply extra stacks to that hit; fractional credit carries between hits. No random roll.",
 	  "values": [
-	    250,
-	    400,
-	    550,
-	    700
+		250,
+		400,
+		550,
+		700
 	  ]
 	},
 	"cold_precision": {
@@ -852,7 +852,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible form Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "ordinary_bonus"
 	  ],
 	  "requires": FROST_FORM,
@@ -863,10 +863,10 @@ const DEFINITIONS := {
 	  "description": "Basic hits deal +%s damage per Brittle stack already on their target.",
 	  "detail": "Provisional CE02 tuning. Counts the current zero, one or two shared stacks before this hit applies its Form. No secondary contact.",
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"winters_judgment": {
@@ -876,7 +876,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible catalyst Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "apply"
 	  ],
 	  "requires": FROST_CATALYST,
@@ -887,10 +887,10 @@ const DEFINITIONS := {
 	  "description": "Class-action Brittle gains +%s maximum shatter damage.",
 	  "detail": "Provisional CE02 tuning. Only stacks actually supplied by the equipped Frost Catalyst gain this frozen contribution.",
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"spreading_chill": {
@@ -900,7 +900,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible catalyst Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "apply"
 	  ],
 	  "requires": FROST_CATALYST,
@@ -911,13 +911,13 @@ const DEFINITIONS := {
 	  "description": "A qualifying class action adds one nearby Brittle stack at %s%% shatter potency.",
 	  "detail": "Provisional CE02 tuning. Once per action, to another enemy within 2.4 m and clear line. A resulting rupture may use acquired root and wave effects, but cannot launch another spread.",
 	  "values": [
-	    10,
-	    15,
-	    20,
-	    25
+		10,
+		15,
+		20,
+		25
 	  ],
 	  "tuning": {
-	    "radius_m": 2.4
+		"radius_m": 2.4
 	  }
 	},
 	"shatter_rhythm": {
@@ -927,7 +927,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible catalyst Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "apply"
 	  ],
 	  "requires": FROST_CATALYST,
@@ -938,13 +938,13 @@ const DEFINITIONS := {
 	  "description": "A Catalyst rupture prepares +%s shatter potency for that class action's next use.",
 	  "detail": "Provisional CE02 tuning. Same Q or R slot, within five seconds. Claimed on its first eligible application; refused or empty casts do not spend it. It cannot empower its own cast.",
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ],
 	  "tuning": {
-	    "duration_ms": 5000
+		"duration_ms": 5000
 	  }
 	},
 	"crystalline_fracture": {
@@ -954,7 +954,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible affinity Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "apply"
 	  ],
 	  "requires": ANY_BRITTLE_SOURCE,
@@ -965,10 +965,10 @@ const DEFINITIONS := {
 	  "description": "Increase maximum shatter damage by %s across functioning Frost sources.",
 	  "detail": "Provisional CE02 tuning. Counts once across equipped sources; each stack freezes one third when applied.",
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"deep_freeze": {
@@ -978,7 +978,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible affinity Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "apply"
 	  ],
 	  "requires": ANY_BRITTLE_SOURCE,
@@ -989,10 +989,10 @@ const DEFINITIONS := {
 	  "description": "Each active Brittle stack adds %s percentage points more movement Slow.",
 	  "detail": "Provisional CE02 tuning. Preserves the one- and two-stack progression and the existing boss Slow scale. Grants no root.",
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"rime_lock": {
@@ -1002,7 +1002,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible affinity Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "rupture_effects"
 	  ],
 	  "requires": ANY_BRITTLE_SOURCE,
@@ -1013,10 +1013,10 @@ const DEFINITIONS := {
 	  "description": "Your eligible Brittle ruptures root surviving enemies for %s seconds.",
 	  "detail": "Provisional CE02 tuning. Uses the longest eligible captured owner duration without shortening an existing root. Baseline rupture remains root-free.",
 	  "values": [
-	    150,
-	    250,
-	    350,
-	    450
+		150,
+		250,
+		350,
+		450
 	  ]
 	},
 	"shatterwave": {
@@ -1026,7 +1026,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible affinity Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "rupture_effects"
 	  ],
 	  "requires": ANY_BRITTLE_SOURCE,
@@ -1037,13 +1037,13 @@ const DEFINITIONS := {
 	  "description": "Your eligible ruptures deal %s%% additional rupture damage in an area.",
 	  "detail": "Provisional CE02 tuning. One strongest eligible captured owner emits immediate secondary damage within 2.4 m, including the original target if alive. No Brittle spread or secondary proc.",
 	  "values": [
-	    20,
-	    30,
-	    40,
-	    50
+		20,
+		30,
+		40,
+		50
 	  ],
 	  "tuning": {
-	    "radius_m": 2.4
+		"radius_m": 2.4
 	  }
 	},
 	"avalanche": {
@@ -1053,7 +1053,7 @@ const DEFINITIONS := {
 	  "policy": "unique",
 	  "trigger": "Eligible affinity Frost application or rupture",
 	  "consumer": [
-	    "res://frost_combat.gd",
+		"res://frost_combat.gd",
 	    "rupture_effects"
 	  ],
 	  "requires": ANY_BRITTLE_SOURCE,
@@ -1064,7 +1064,7 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE02 tuning. Within 2.4 m and clear line. The stack retains its source potency. A propagation-triggered rupture can use acquired Rime Lock and Shatterwave, but cannot emit another Avalanche; later legitimate attacks can.",
 	  "fixed": 1,
 	  "tuning": {
-	    "radius_m": 2.4
+		"radius_m": 2.4
 	  },
 	  "grants": [
 	    "avalanche"
@@ -1078,7 +1078,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible core Fire application or Burning tick",
 	  "consumer": [
-	    "res://fire_combat.gd",
+		"res://fire_combat.gd",
 	    "ignite"
 	  ],
 	  "requires": FIRE_CORE,
@@ -1089,10 +1089,10 @@ const DEFINITIONS := {
 	  "description": "Ember Wake applies %s additional Burning stacks.",
 	  "detail": "Provisional CE02 tuning. Applies on first contact and the existing 750 ms maintenance cadence; no extra initial damage.",
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"lingering_coals": {
@@ -1102,7 +1102,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible core Fire application or Burning tick",
 	  "consumer": [
-	    "res://fire_combat.gd",
+		"res://fire_combat.gd",
 	    "field"
 	  ],
 	  "requires": FIRE_CORE,
@@ -1113,10 +1113,10 @@ const DEFINITIONS := {
 	  "description": "Ember Wake’s trail lasts an additional %s seconds.",
 	  "detail": "Provisional CE02 tuning. Extends the real field, visual lifetime and cast expiry. Stack maintenance still has its existing per-enemy interval.",
 	  "values": [
-	    250,
-	    400,
-	    550,
-	    700
+		250,
+		400,
+		550,
+		700
 	  ]
 	},
 	"stoking_strikes": {
@@ -1126,7 +1126,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible form Fire application or Burning tick",
 	  "consumer": [
-	    "res://fire_combat.gd",
+		"res://fire_combat.gd",
 	    "ignite"
 	  ],
 	  "requires": FIRE_FORM,
@@ -1137,13 +1137,13 @@ const DEFINITIONS := {
 	  "description": "Each consecutive basic attack adds %s more Burning stacks after the first.",
 	  "detail": "Provisional CE02 tuning. One sequence step per attack, including volleys. Three seconds without an eligible hit resets the sequence. Target changes do not reset Fire pressure.",
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ],
 	  "tuning": {
-	    "window_ms": 3000
+		"window_ms": 3000
 	  }
 	},
 	"feverish_tempo": {
@@ -1153,7 +1153,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible form Fire application or Burning tick",
 	  "consumer": [
-	    "res://fire_combat.gd",
+		"res://fire_combat.gd",
 	    "tempo_percent"
 	  ],
 	  "requires": FIRE_FORM,
@@ -1164,13 +1164,13 @@ const DEFINITIONS := {
 	  "description": "Successive basic hits on Burning enemies add %s%% attack speed per sequence step.",
 	  "detail": "Provisional CE02 tuning. After the first hit, the temporary speed lasts two seconds and refreshes on qualifying hits. The three-second hit sequence and current basic-attack timing limit still apply.",
 	  "values": [
-	    3,
-	    4,
-	    5,
-	    6
+		3,
+		4,
+		5,
+		6
 	  ],
 	  "tuning": {
-	    "duration_ms": 2000
+		"duration_ms": 2000
 	  }
 	},
 	"incendiary_followthrough": {
@@ -1180,7 +1180,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible catalyst Fire application or Burning tick",
 	  "consumer": [
-	    "res://fire_combat.gd",
+		"res://fire_combat.gd",
 	    "ignite"
 	  ],
 	  "requires": FIRE_CATALYST,
@@ -1191,10 +1191,10 @@ const DEFINITIONS := {
 	  "description": "Catalyst applications add %s extra stacks against enemies already Burning.",
 	  "detail": "Provisional CE02 tuning. Checks the shared Burning before this application; no extra class contact or Catalyst activation.",
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"ember_resonance": {
@@ -1204,7 +1204,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible catalyst Fire application or Burning tick",
 	  "consumer": [
-	    "res://fire_combat.gd",
+		"res://fire_combat.gd",
 	    "ignite"
 	  ],
 	  "requires": FIRE_CATALYST,
@@ -1215,13 +1215,13 @@ const DEFINITIONS := {
 	  "description": "A qualifying Catalyst application gives nearby enemies %s%% of its Burning stack application.",
 	  "detail": "Provisional CE02 tuning. Once per class action, within 2.4 m and clear line, excluding the original enemy. Secondary applications cannot trigger another resonance or Flashover.",
 	  "values": [
-	    10,
-	    15,
-	    20,
-	    25
+		10,
+		15,
+		20,
+		25
 	  ],
 	  "tuning": {
-	    "radius_m": 2.4
+		"radius_m": 2.4
 	  }
 	},
 	"banked_heat": {
@@ -1231,7 +1231,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible affinity Fire application or Burning tick",
 	  "consumer": [
-	    "res://fire_combat.gd",
+		"res://fire_combat.gd",
 	    "advance"
 	  ],
 	  "requires": ANY_BURNING_SOURCE,
@@ -1242,10 +1242,10 @@ const DEFINITIONS := {
 	  "description": "Your Burning contributions gain %s%% decay efficiency.",
 	  "detail": "Provisional CE02 tuning. Your assigned decay loss is divided by 1 + total efficiency/100, with fractional loss carried between decays. Other owners retain their normal rules; no fixed intensity ceiling.",
 	  "values": [
-	    10,
-	    15,
-	    20,
-	    25
+		10,
+		15,
+		20,
+		25
 	  ]
 	},
 	"feeding_the_flames": {
@@ -1255,7 +1255,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible affinity Fire application or Burning tick",
 	  "consumer": [
-	    "res://fire_combat.gd",
+		"res://fire_combat.gd",
 	    "ignite"
 	  ],
 	  "requires": ANY_BURNING_SOURCE,
@@ -1266,10 +1266,10 @@ const DEFINITIONS := {
 	  "description": "Add %s Burning stacks per eligible application across functioning Fire slots.",
 	  "detail": "Provisional CE02 tuning. Core, Form and Catalyst cooperate. This adds no duplicate application or secondary activation.",
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"flashover": {
@@ -1279,7 +1279,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Eligible affinity Fire application or Burning tick",
 	  "consumer": [
-	    "res://fire_combat.gd",
+		"res://fire_combat.gd",
 	    "flashover"
 	  ],
 	  "requires": ANY_BURNING_SOURCE,
@@ -1290,17 +1290,17 @@ const DEFINITIONS := {
 	  "description": "Flashover deals damage equal to %s%% of the Burning stacks actually consumed.",
 	  "detail": "Provisional CE02 tuning. Your native Fire application at 8+ stacks consumes 25% and leaves at least one stack. One shared two-second trigger interval per enemy; 2.4 m clear-line area. Secondary damage cannot trigger Flashover.",
 	  "values": [
-	    50,
-	    75,
-	    100,
-	    125
+		50,
+		75,
+		100,
+		125
 	  ],
 	  "tuning": {
-	    "threshold_stacks": 8,
-	    "consume_percent": 25,
-	    "minimum_remaining": 1,
-	    "interval_ms": 2000,
-	    "radius_m": 2.4
+		"threshold_stacks": 8,
+		"consume_percent": 25,
+		"minimum_remaining": 1,
+		"interval_ms": 2000,
+		"radius_m": 2.4
 	  }
 	},
 	"wildfire": {
@@ -1310,7 +1310,7 @@ const DEFINITIONS := {
 	  "policy": "unique",
 	  "trigger": "Eligible affinity Fire application or Burning tick",
 	  "consumer": [
-	    "res://fire_combat.gd",
+		"res://fire_combat.gd",
 	    "spread"
 	  ],
 	  "requires": ANY_BURNING_SOURCE,
@@ -1321,10 +1321,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE02 tuning. One eligible owner supplies each attributed 2.4 m spread. Does not consume the original. Propagated-only contributions cannot spread again; a real native application can enable later spread. Independent from Flashover.",
 	  "fixed": 1,
 	  "tuning": {
-	    "threshold_stacks": 8,
-	    "spread_percent": 50,
-	    "interval_ms": 1000,
-	    "radius_m": 2.4
+		"threshold_stacks": 8,
+		"spread_percent": 50,
+		"interval_ms": 1000,
+		"radius_m": 2.4
 	  },
 	  "grants": [
 	    "wildfire"
@@ -1338,7 +1338,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "One application per contacted enemy",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": WATER_CORE,
@@ -1350,10 +1350,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. One application per contacted enemy. Does not change impact damage.",
 	  "tuning": {},
 	  "values": [
-	    8,
-	    12,
-	    16,
-	    20
+		8,
+		12,
+		16,
+		20
 	  ]
 	},
 	"widening_curtain": {
@@ -1363,7 +1363,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Actual curtain and preview use the same width",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": WATER_CORE,
@@ -1375,10 +1375,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Actual curtain and preview use the same width.",
 	  "tuning": {},
 	  "values": [
-	    15,
-	    25,
-	    35,
-	    45
+		15,
+		25,
+		35,
+		45
 	  ]
 	},
 	"restorative_rain": {
@@ -1388,7 +1388,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Once per recipient per cast, including the caster at formation",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": WATER_CORE,
@@ -1400,10 +1400,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Once per recipient per cast, including the caster at formation. No extra Ward or Catalyst activation.",
 	  "tuning": {},
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"saturating_strikes": {
@@ -1413,7 +1413,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Only functioning Water Form contacts qualify",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": WATER_FORM,
@@ -1425,10 +1425,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Only functioning Water Form contacts qualify.",
 	  "tuning": {},
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"rolling_current": {
@@ -1438,7 +1438,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Starts after the first eligible attack",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": WATER_FORM,
@@ -1449,13 +1449,13 @@ const DEFINITIONS := {
 	  "description": "Each successive basic attack adds another +%s Saturation.",
 	  "detail": "Provisional CE03 tuning. Starts after the first eligible attack. Resets after a 3-second gap. A volley advances the sequence only once.",
 	  "tuning": {
-	    "gap_ms": 3000
+		"gap_ms": 3000
 	  },
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"pressure_point": {
@@ -1465,7 +1465,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Adds native damage to one primary direct contact per attack",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "ordinary_bonus"
 	  ],
 	  "requires": WATER_FORM,
@@ -1476,13 +1476,13 @@ const DEFINITIONS := {
 	  "description": "Your first basic-hit target at 50+ Saturation takes +%s damage.",
 	  "detail": "Provisional CE03 tuning. Adds native damage to one primary direct contact per attack. No separate hit or proc.",
 	  "tuning": {
-	    "threshold": 50
+		"threshold": 50
 	  },
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"refreshing_strikes": {
@@ -1492,7 +1492,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Lasts 4 seconds",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": WATER_FORM,
@@ -1503,13 +1503,13 @@ const DEFINITIONS := {
 	  "description": "A basic hit prepares +%s HP of personal Surge healing.",
 	  "detail": "Provisional CE03 tuning. Lasts 4 seconds. The next accepted Surge uses your weighted share of the bonus, then spends it. Repeated hits refresh rather than stack preparations.",
 	  "tuning": {
-	    "duration_ms": 4000
+		"duration_ms": 4000
 	  },
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"tidal_resonance": {
@@ -1519,7 +1519,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Only mapped Water Catalyst applications qualify",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": WATER_CATALYST,
@@ -1531,10 +1531,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Only mapped Water Catalyst applications qualify.",
 	  "tuning": {},
 	  "values": [
-	    6,
-	    9,
-	    12,
-	    15
+		6,
+		9,
+		12,
+		15
 	  ]
 	},
 	"cleansing_response": {
@@ -1544,7 +1544,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Expands ally ordinary-Slow cleansing only, not enemy Drench area or healing triggers",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": {"all": [
@@ -1563,10 +1563,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Expands ally ordinary-Slow cleansing only, not enemy Drench area or healing triggers.",
 	  "tuning": {},
 	  "values": [
-	    20,
-	    30,
-	    40,
-	    50
+		20,
+		30,
+		40,
+		50
 	  ]
 	},
 	"crushing_surf": {
@@ -1576,7 +1576,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Each wave carries only the share of threshold pressure you actually supplied",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_SATURATION_SOURCE,
@@ -1588,10 +1588,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Each wave carries only the share of threshold pressure you actually supplied.",
 	  "tuning": {},
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"restorative_surge": {
@@ -1601,7 +1601,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Independent from damage",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_SATURATION_SOURCE,
@@ -1613,10 +1613,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Independent from damage. Once per returning wave per living recipient.",
 	  "tuning": {},
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"wide_wake": {
@@ -1626,7 +1626,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Outgoing and gentler returning coverage both improve",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_SATURATION_SOURCE,
@@ -1638,10 +1638,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Outgoing and gentler returning coverage both improve. Solid cover still stops the wave.",
 	  "tuning": {},
 	  "values": [
-	    15,
-	    25,
-	    35,
-	    45
+		15,
+		25,
+		35,
+		45
 	  ]
 	},
 	"breakwater": {
@@ -1651,7 +1651,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "One native charge per contacted living recipient per wave",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_SATURATION_SOURCE,
@@ -1663,10 +1663,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. One native charge per contacted living recipient per wave. Uses ordinary Ward merging, not additional Catalyst claims.",
 	  "tuning": {},
 	  "values": [
-	    400,
-	    600,
-	    800,
-	    1000
+		400,
+		600,
+		800,
+		1000
 	  ]
 	},
 	"focused_current": {
@@ -1676,7 +1676,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Only the captured triggering spawn qualifies",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_SATURATION_SOURCE,
@@ -1688,10 +1688,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Only the captured triggering spawn qualifies. Other targets keep ordinary wave damage.",
 	  "tuning": {},
 	  "values": [
-	    20,
-	    30,
-	    40,
-	    50
+		20,
+		30,
+		40,
+		50
 	  ]
 	},
 	"undertow": {
@@ -1701,7 +1701,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Uses native terrain-limited enemy displacement and resistance",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_SATURATION_SOURCE,
@@ -1713,10 +1713,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Uses native terrain-limited enemy displacement and resistance. Resistant enemies still take damage.",
 	  "tuning": {},
 	  "values": [
-	    10,
-	    15,
-	    20,
-	    25
+		10,
+		15,
+		20,
+		25
 	  ]
 	},
 	"monsoon": {
@@ -1726,7 +1726,7 @@ const DEFINITIONS := {
 	  "policy": "unique",
 	  "trigger": "Each extra ring carries 35% of your own weighted damage and healing",
 	  "consumer": [
-	    "res://water_combat.gd",
+		"res://water_combat.gd",
 	    "drench"
 	  ],
 	  "requires": ANY_SATURATION_SOURCE,
@@ -1737,10 +1737,10 @@ const DEFINITIONS := {
 	  "description": "Surge also creates two expanding and returning Water rings.",
 	  "detail": "Provisional CE03 tuning. Each extra ring carries 35% of your own weighted damage and healing. Keeps normal Surge, does not add pressure or recursively activate Monsoon.",
 	  "tuning": {
-	    "waves": 2,
-	    "share_percent": 35,
-	    "radius_m": 3.0,
-	    "gap_ms": 180
+		"waves": 2,
+		"share_percent": 35,
+		"radius_m": 3.0,
+		"gap_ms": 180
 	  },
 	  "fixed": 1,
 	  "grants": [
@@ -1756,7 +1756,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Adds real protective capacity to each native grant",
 	  "consumer": [
-	    "res://wood_affinity.gd",
+		"res://wood_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": WOOD_CORE,
@@ -1768,10 +1768,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Adds real protective capacity to each native grant. No total pool ceiling.",
 	  "tuning": {},
 	  "values": [
-	    6,
-	    9,
-	    12,
-	    15
+		6,
+		9,
+		12,
+		15
 	  ]
 	},
 	"splinterguard": {
@@ -1781,7 +1781,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Requires an actual direct hostile attack absorbed by your Ironbark",
 	  "consumer": [
-	    "res://wood_affinity.gd",
+		"res://wood_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": WOOD_CORE,
@@ -1792,13 +1792,13 @@ const DEFINITIONS := {
 	  "description": "Ironbark absorption can release +%s retaliatory splinters.",
 	  "detail": "Provisional CE03 tuning. Requires an actual direct hostile attack absorbed by your Ironbark. Once per source/recipient each second. Coexists with Splinterback.",
 	  "tuning": {
-	    "interval_ms": 1000
+		"interval_ms": 1000
 	  },
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"bursting_canopy": {
@@ -1808,7 +1808,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Uses native fragment damage and terrain collision",
 	  "consumer": [
-	    "res://wood_affinity.gd",
+		"res://wood_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": WOOD_CORE,
@@ -1820,10 +1820,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Uses native fragment damage and terrain collision. Each enemy can be hit once per volley.",
 	  "tuning": {},
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"splinter_volley": {
@@ -1833,7 +1833,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Adds separate initial fragment targets to the native forward fan",
 	  "consumer": [
-	    "res://wood_affinity.gd",
+		"res://wood_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": WOOD_FORM,
@@ -1845,10 +1845,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Adds separate initial fragment targets to the native forward fan. The existing Form interval is unchanged.",
 	  "tuning": {},
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"hardwood_tips": {
@@ -1858,7 +1858,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Only enemies along the actual fragment lane qualify",
 	  "consumer": [
-	    "res://wood_affinity.gd",
+		"res://wood_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": WOOD_FORM,
@@ -1869,14 +1869,14 @@ const DEFINITIONS := {
 	  "description": "Each fragment can penetrate +%s additional enemies.",
 	  "detail": "Provisional CE03 tuning. Only enemies along the actual fragment lane qualify. Solid cover stops it. Each enemy is damaged at most once per volley, across all fragments.",
 	  "tuning": {
-	    "lane_radius_m": 0.18,
-	    "extra_reach_m": 2.0
+		"lane_radius_m": 0.18,
+		"extra_reach_m": 2.0
 	  },
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"concentrated_grain": {
@@ -1886,7 +1886,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Strengthens the native initiating impact even against a single enemy",
 	  "consumer": [
-	    "res://wood_affinity.gd",
+		"res://wood_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": WOOD_FORM,
@@ -1898,10 +1898,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Strengthens the native initiating impact even against a single enemy. Does not produce another contact.",
 	  "tuning": {},
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"shattering_canopy": {
@@ -1911,7 +1911,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Once per class action, at the native contact or designated attack center",
 	  "consumer": [
-	    "res://wood_affinity.gd",
+		"res://wood_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": {"all": [
@@ -1926,10 +1926,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Once per class action, at the native contact or designated attack center. Does not create additional Catalyst contacts.",
 	  "tuning": {},
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"reinforced_growth": {
@@ -1939,7 +1939,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Uses independent native grant lifetimes and ordinary partial absorption",
 	  "consumer": [
-	    "res://wood_affinity.gd",
+		"res://wood_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": WOOD_CATALYST,
@@ -1951,10 +1951,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Uses independent native grant lifetimes and ordinary partial absorption.",
 	  "tuning": {},
 	  "values": [
-	    4,
-	    6,
-	    8,
-	    10
+		4,
+		6,
+		8,
+		10
 	  ]
 	},
 	"heartwood_pressure": {
@@ -1964,7 +1964,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Uses actual unexpired remaining Bark when each volley begins",
 	  "consumer": [
-	    "res://wood_affinity.gd",
+		"res://wood_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": {"all": [
@@ -1985,10 +1985,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Uses actual unexpired remaining Bark when each volley begins. Requires a functioning Bark source and a real splinter producer. Does not spend protection.",
 	  "tuning": {},
 	  "values": [
-	    5,
-	    8,
-	    11,
-	    14
+		5,
+		8,
+		11,
+		14
 	  ]
 	},
 	"splinterback": {
@@ -1998,7 +1998,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Requires an actual direct hostile attack",
 	  "consumer": [
-	    "res://wood_affinity.gd",
+		"res://wood_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_BARK_SOURCE,
@@ -2009,13 +2009,13 @@ const DEFINITIONS := {
 	  "description": "Your Bark absorption can release %s retaliatory splinters.",
 	  "detail": "Provisional CE03 tuning. Requires an actual direct hostile attack. Once per source/recipient each second. Adds to separately learned Splinterguard.",
 	  "tuning": {
-	    "interval_ms": 1000
+		"interval_ms": 1000
 	  },
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"splinterburst": {
@@ -2025,7 +2025,7 @@ const DEFINITIONS := {
 	  "policy": "unique",
 	  "trigger": "Deals 1 damage per actual Bark consumed within 3 m",
 	  "consumer": [
-	    "res://card_active_actions.gd",
+		"res://card_active_actions.gd",
 	    "command"
 	  ],
 	  "requires": ANY_BARK_SOURCE,
@@ -2036,9 +2036,9 @@ const DEFINITIONS := {
 	  "description": "Activate to spend all held Bark for radial damage.",
 	  "detail": "Provisional CE03 tuning. Deals 1 damage per actual Bark consumed within 3 m. Six-second cooldown. Expenditure cannot activate Bark break or retaliation. Independent additional skill-bar action.",
 	  "tuning": {
-	    "cooldown_ms": 6000,
-	    "radius_m": 3.0,
-	    "damage_per_bark": 1.0
+		"cooldown_ms": 6000,
+		"radius_m": 3.0,
+		"damage_per_bark": 1.0
 	  },
 	  "fixed": 1,
 	  "grants": [
@@ -2056,7 +2056,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "New capacity investment benefits every functioning self-generated Vital source, so a stronger other slot cannot erase it",
 	  "consumer": [
-	    "res://vital_combat.gd",
+		"res://vital_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": VITAL_CORE,
@@ -2068,10 +2068,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. New capacity investment benefits every functioning self-generated Vital source, so a stronger other slot cannot erase it. Native grants still resolve strongest, never add together.",
 	  "tuning": {},
 	  "values": [
-	    4,
-	    6,
-	    8,
-	    10
+		4,
+		6,
+		8,
+		10
 	  ]
 	},
 	"deep_renewal": {
@@ -2082,7 +2082,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "New regeneration investment benefits functioning self-generated Vital sources",
 	  "consumer": [
-	    "res://vital_combat.gd",
+		"res://vital_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": VITAL_CORE,
@@ -2094,10 +2094,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. New regeneration investment benefits functioning self-generated Vital sources. Existing Greening Chime stays Catalyst-specific.",
 	  "tuning": {},
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"blooming_strength": {
@@ -2107,7 +2107,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Only the caster receives this native damage preparation, while that Bloom grant lasts",
 	  "consumer": [
-	    "res://vital_combat.gd",
+		"res://vital_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": VITAL_CORE,
@@ -2119,10 +2119,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Only the caster receives this native damage preparation, while that Bloom grant lasts. First eligible direct target per ordinary attack only.",
 	  "tuning": {},
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"growing_edge": {
@@ -2133,7 +2133,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "All functioning self-generated Vital sources include this investment; grants retain strongest-source resolution",
 	  "consumer": [
-	    "res://vital_combat.gd",
+		"res://vital_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": VITAL_FORM,
@@ -2145,10 +2145,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. All functioning self-generated Vital sources include this investment; grants retain strongest-source resolution.",
 	  "tuning": {},
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"sustaining_strikes": {
@@ -2159,7 +2159,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "All functioning self-generated Vital sources include this regeneration investment",
 	  "consumer": [
-	    "res://vital_combat.gd",
+		"res://vital_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": VITAL_FORM,
@@ -2171,10 +2171,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. All functioning self-generated Vital sources include this regeneration investment. Does not heal immediately.",
 	  "tuning": {},
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"flourishing_assault": {
@@ -2184,7 +2184,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Uses resolved current maximum capacity, including real Vital growth",
 	  "consumer": [
-	    "res://vital_combat.gd",
+		"res://vital_combat.gd",
 	    "ordinary_bonus"
 	  ],
 	  "requires": VITAL_FORM,
@@ -2196,10 +2196,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Uses resolved current maximum capacity, including real Vital growth. Never spends HP. Once per ordinary attack on its first eligible direct target.",
 	  "tuning": {},
 	  "values": [
-	    50,
-	    75,
-	    100,
-	    125
+		50,
+		75,
+		100,
+		125
 	  ]
 	},
 	"persistent_growth": {
@@ -2209,7 +2209,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Extends only actual Form-generated Vitality, with ordinary expiry clamping",
 	  "consumer": [
-	    "res://vital_combat.gd",
+		"res://vital_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": VITAL_FORM,
@@ -2221,10 +2221,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Extends only actual Form-generated Vitality, with ordinary expiry clamping.",
 	  "tuning": {},
 	  "values": [
-	    250,
-	    400,
-	    550,
-	    700
+		250,
+		400,
+		550,
+		700
 	  ]
 	},
 	"verdant_conduit": {
@@ -2235,7 +2235,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Benefits functioning self-generated Vital sources; no unconditional additive grant stacking",
 	  "consumer": [
-	    "res://vital_combat.gd",
+		"res://vital_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": VITAL_CATALYST,
@@ -2247,10 +2247,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Benefits functioning self-generated Vital sources; no unconditional additive grant stacking.",
 	  "tuning": {},
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"renewed_vigor": {
@@ -2260,7 +2260,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Lasts 2 seconds while Vitality remains active",
 	  "consumer": [
-	    "res://vital_combat.gd",
+		"res://vital_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": VITAL_CATALYST,
@@ -2271,13 +2271,13 @@ const DEFINITIONS := {
 	  "description": "Class responses that grant you Vitality prepare +%s basic-hit damage.",
 	  "detail": "Provisional CE03 tuning. Lasts 2 seconds while Vitality remains active. First primary target per ordinary attack. No extra damage or healing-type Catalyst event.",
 	  "tuning": {
-	    "duration_ms": 2000
+		"duration_ms": 2000
 	  },
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"living_reserves": {
@@ -2287,7 +2287,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Counted once alongside source investments",
 	  "consumer": [
-	    "res://vital_combat.gd",
+		"res://vital_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_VITALITY_SOURCE,
@@ -2299,10 +2299,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Counted once alongside source investments. Strongest active grant determines capacity; increasing capacity never heals.",
 	  "tuning": {},
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"unyielding_growth": {
@@ -2312,7 +2312,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Maintains native source identity and recipient life/floor expiry",
 	  "consumer": [
-	    "res://vital_combat.gd",
+		"res://vital_combat.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_VITALITY_SOURCE,
@@ -2324,10 +2324,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE03 tuning. Maintains native source identity and recipient life/floor expiry. No permanent health or extra instant healing.",
 	  "tuning": {},
 	  "values": [
-	    250,
-	    400,
-	    550,
-	    700
+		250,
+		400,
+		550,
+		700
 	  ]
 	},
 	"harvest": {
@@ -2337,7 +2337,7 @@ const DEFINITIONS := {
 	  "policy": "unique",
 	  "trigger": "Each launched ordinary attack spends up to 2 filled bonus HP for 2 damage per HP actually spent",
 	  "consumer": [
-	    "res://card_active_actions.gd",
+		"res://card_active_actions.gd",
 	    "command"
 	  ],
 	  "requires": ANY_VITALITY_SOURCE,
@@ -2348,9 +2348,9 @@ const DEFINITIONS := {
 	  "description": "Toggle basic attacks to spend filled Vital bonus HP for damage.",
 	  "detail": "Provisional CE03 tuning. Each launched ordinary attack spends up to 2 filled bonus HP for 2 damage per HP actually spent. Once per attack, first eligible primary contact only. Normal HP and maximum capacity are unchanged. Empty reserves suspend the bonus while leaving the toggle on.",
 	  "tuning": {
-	    "toggle_interval_ms": 250,
-	    "spend_hp": 2.0,
-	    "damage_per_hp": 2.0
+		"toggle_interval_ms": 250,
+		"spend_hp": 2.0,
+		"damage_per_hp": 2.0
 	  },
 	  "fixed": 1,
 	  "grants": [
@@ -2367,7 +2367,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Each normal chain target is hit once",
 	  "consumer": [
-	    "res://storm_affinity.gd",
+		"res://storm_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": STORM_CORE,
@@ -2379,10 +2379,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Each normal chain target is hit once. Unused targets can support separately acquired Grounded Current.",
 	  "tuning": {},
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"long_arc": {
@@ -2392,7 +2392,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Changes per-jump reach, not its initial weapon delivery",
 	  "consumer": [
-	    "res://storm_affinity.gd",
+		"res://storm_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": STORM_CORE,
@@ -2404,10 +2404,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Changes per-jump reach, not its initial weapon delivery.",
 	  "tuning": {},
 	  "values": [
-	    25,
-	    40,
-	    55,
-	    70
+		25,
+		40,
+		55,
+		70
 	  ]
 	},
 	"live_wire": {
@@ -2417,7 +2417,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Only the existing Arcing Strikes response; no extra ordinary hit or response",
 	  "consumer": [
-	    "res://storm_affinity.gd",
+		"res://storm_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": STORM_FORM,
@@ -2429,10 +2429,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Only the existing Arcing Strikes response; no extra ordinary hit or response.",
 	  "tuning": {},
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"ionized_rhythm": {
@@ -2442,7 +2442,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Lasts 2 seconds after actual electrical damage",
 	  "consumer": [
-	    "res://storm_affinity.gd",
+		"res://storm_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": STORM_FORM,
@@ -2453,14 +2453,14 @@ const DEFINITIONS := {
 	  "description": "Successful Arcing Strikes grant +%s%% basic attack speed.",
 	  "detail": "Provisional CE04 tuning. Lasts 2 seconds after actual electrical damage. Reapplication refreshes, does not multiply the bonus. Existing attack interval floor applies.",
 	  "tuning": {
-	    "duration_ms": 2000,
-	    "fixed_tempo": true
+		"duration_ms": 2000,
+		"fixed_tempo": true
 	  },
 	  "values": [
-	    4,
-	    6,
-	    8,
-	    10
+		4,
+		6,
+		8,
+		10
 	  ]
 	},
 	"charged_casting": {
@@ -2470,7 +2470,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Applies to existing offensive discharges, actual-block/landing bursts and granted recipient charges",
 	  "consumer": [
-	    "res://storm_affinity.gd",
+		"res://storm_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": STORM_CATALYST,
@@ -2482,10 +2482,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Applies to existing offensive discharges, actual-block/landing bursts and granted recipient charges.",
 	  "tuning": {},
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"relay_pulse": {
@@ -2495,7 +2495,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Adds unique chain contacts to existing discharge/charge responses",
 	  "consumer": [
-	    "res://storm_affinity.gd",
+		"res://storm_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": {"all": [
@@ -2513,10 +2513,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Adds unique chain contacts to existing discharge/charge responses. Does not invent a new Catalyst trigger.",
 	  "tuning": {},
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"spellcharge": {
@@ -2526,7 +2526,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "After a real mapped response, store one source-owned preparation for 4 seconds",
 	  "consumer": [
-	    "res://storm_affinity.gd",
+		"res://storm_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": STORM_CATALYST,
@@ -2537,13 +2537,13 @@ const DEFINITIONS := {
 	  "description": "A class response prepares +%s damage for the next discharge.",
 	  "detail": "Provisional CE04 tuning. After a real mapped response, store one source-owned preparation for 4 seconds. The next electrical response captures it once; its own bonus cannot prepare another response.",
 	  "tuning": {
-	    "duration_ms": 4000
+		"duration_ms": 4000
 	  },
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"grounded_current": {
@@ -2553,7 +2553,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Uses actual unused normal jump opportunities and their falloff",
 	  "consumer": [
-	    "res://storm_affinity.gd",
+		"res://storm_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_STORM_SOURCE,
@@ -2565,10 +2565,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Uses actual unused normal jump opportunities and their falloff. Adds to the original native hit, rather than creating another proc. Useful against one enemy.",
 	  "tuning": {},
 	  "values": [
-	    25,
-	    40,
-	    55,
-	    70
+		25,
+		40,
+		55,
+		70
 	  ]
 	},
 	"conductive_reach": {
@@ -2578,7 +2578,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Applies through functioning Core, Form and compatible Catalyst chain sources",
 	  "consumer": [
-	    "res://storm_affinity.gd",
+		"res://storm_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_STORM_SOURCE,
@@ -2590,10 +2590,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Applies through functioning Core, Form and compatible Catalyst chain sources.",
 	  "tuning": {},
 	  "values": [
-	    20,
-	    30,
-	    40,
-	    50
+		20,
+		30,
+		40,
+		50
 	  ]
 	},
 	"conductor": {
@@ -2603,7 +2603,7 @@ const DEFINITIONS := {
 	  "policy": "unique",
 	  "trigger": "One 45%-strength nonrecursive fork per normal node can hit another unvisited enemy",
 	  "consumer": [
-	    "res://storm_affinity.gd",
+		"res://storm_affinity.gd",
 	    "discharge"
 	  ],
 	  "requires": STORM_CORE,
@@ -2614,9 +2614,9 @@ const DEFINITIONS := {
 	  "description": "Chain Spark forks and returns a reduced strike to its first target.",
 	  "detail": "Provisional CE04 tuning. One 45%-strength nonrecursive fork per normal node can hit another unvisited enemy. One return deals 35% of the starting discharge damage (before Grounded Current) to its original surviving spawn within jump reach, including in solo combat.",
 	  "tuning": {
-	    "forks_per_node": 1,
-	    "fork_percent": 45,
-	    "return_percent": 35
+		"forks_per_node": 1,
+		"fork_percent": 45,
+		"return_percent": 35
 	  },
 	  "fixed": 1,
 	  "grants": [
@@ -2632,7 +2632,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Uses the same actor and terrain clearance as the native movement ability",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": SPIRIT_CORE,
@@ -2644,10 +2644,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Uses the same actor and terrain clearance as the native movement ability.",
 	  "tuning": {},
 	  "values": [
-	    25,
-	    40,
-	    55,
-	    70
+		25,
+		40,
+		55,
+		70
 	  ]
 	},
 	"persistent_traces": {
@@ -2657,7 +2657,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Extends the actual pursuer diversion, not unrelated status durations",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": SPIRIT_CORE,
@@ -2669,10 +2669,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Extends the actual pursuer diversion, not unrelated status durations.",
 	  "tuning": {},
 	  "values": [
-	    150,
-	    250,
-	    350,
-	    450
+		150,
+		250,
+		350,
+		450
 	  ]
 	},
 	"ghostcut": {
@@ -2682,7 +2682,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Retains the native voluntary-movement requirement, one claimed attack and original expiry",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": SPIRIT_FORM,
@@ -2694,10 +2694,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Retains the native voluntary-movement requirement, one claimed attack and original expiry.",
 	  "tuning": {},
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"flowing_edge": {
@@ -2707,7 +2707,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Once per ordinary attack",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": SPIRIT_FORM,
@@ -2719,10 +2719,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Once per ordinary attack. Extends actual live self stride grants; cannot create Spiritstride from an absent effect.",
 	  "tuning": {},
 	  "values": [
-	    150,
-	    250,
-	    350,
-	    450
+		150,
+		250,
+		350,
+		450
 	  ]
 	},
 	"spectral_tempo": {
@@ -2732,7 +2732,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Lasts 2 seconds after legal movement",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": SPIRIT_FORM,
@@ -2743,14 +2743,14 @@ const DEFINITIONS := {
 	  "description": "Successful dashes grant +%s%% basic attack speed.",
 	  "detail": "Provisional CE04 tuning. Lasts 2 seconds after legal movement. Refreshes rather than stacking preparations. Existing weapon timing floor applies.",
 	  "tuning": {
-	    "duration_ms": 2000,
-	    "fixed_tempo": true
+		"duration_ms": 2000,
+		"fixed_tempo": true
 	  },
 	  "values": [
-	    6,
-	    9,
-	    12,
-	    15
+		6,
+		9,
+		12,
+		15
 	  ]
 	},
 	"veiled_casting": {
@@ -2760,7 +2760,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Adds percentage points to the native stride grant; strongest active stride still applies",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": SPIRIT_CATALYST,
@@ -2772,10 +2772,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Adds percentage points to the native stride grant; strongest active stride still applies.",
 	  "tuning": {},
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"flowing_invocation": {
@@ -2785,7 +2785,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Within 4 seconds, the next successfully spent dash charge captures recovery divided by 1 + total efficiency/100",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": SPIRIT_CATALYST,
@@ -2796,13 +2796,13 @@ const DEFINITIONS := {
 	  "description": "Compatible class actions prepare %s%% dash recovery efficiency.",
 	  "detail": "Provisional CE04 tuning. Within 4 seconds, the next successfully spent dash charge captures recovery divided by 1 + total efficiency/100. A refused dash does not consume it.",
 	  "tuning": {
-	    "duration_ms": 4000
+		"duration_ms": 4000
 	  },
 	  "values": [
-	    20,
-	    30,
-	    40,
-	    50
+		20,
+		30,
+		40,
+		50
 	  ]
 	},
 	"wraiths_followthrough": {
@@ -2812,7 +2812,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Launch within 4 seconds",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": {"all": [
@@ -2826,13 +2826,13 @@ const DEFINITIONS := {
 	  "description": "Offensive class actions prepare +%s next basic-hit damage.",
 	  "detail": "Provisional CE04 tuning. Launch within 4 seconds. One first primary contact benefits; a miss spends it. Echoes and skills cannot claim it.",
 	  "tuning": {
-	    "duration_ms": 4000
+		"duration_ms": 4000
 	  },
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"untethered_motion": {
@@ -2842,7 +2842,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Extends your own functioning stride, trace and Flowing Strikes preparation",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_SPIRIT_SOURCE,
@@ -2854,10 +2854,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Extends your own functioning stride, trace and Flowing Strikes preparation. Does not change dash cooldown or movement speed.",
 	  "tuning": {},
 	  "values": [
-	    250,
-	    400,
-	    550,
-	    700
+		250,
+		400,
+		550,
+		700
 	  ]
 	},
 	"evasive_spirit": {
@@ -2867,7 +2867,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "For 1 second after an eligible dash or movement skill, direct damage is divided by 1 + efficiency/100 before Bark",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_SPIRIT_SOURCE,
@@ -2878,13 +2878,13 @@ const DEFINITIONS := {
 	  "description": "Voluntary movement grants %s%% direct-damage mitigation efficiency.",
 	  "detail": "Provisional CE04 tuning. For 1 second after an eligible dash or movement skill, direct damage is divided by 1 + efficiency/100 before Bark. No invulnerability, and no protection from unrelated hazards.",
 	  "tuning": {
-	    "duration_ms": 1000
+		"duration_ms": 1000
 	  },
 	  "values": [
-	    4,
-	    6,
-	    8,
-	    10
+		4,
+		6,
+		8,
+		10
 	  ]
 	},
 	"stored_momentum": {
@@ -2894,7 +2894,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Charges allow consecutive legal dashes",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_SPIRIT_SOURCE,
@@ -2906,10 +2906,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Charges allow consecutive legal dashes. Spent charges recover sequentially through the native cooldown owner; one recharge runs at a time.",
 	  "tuning": {},
 	  "values": [
-	    1,
-	    2,
-	    3,
-	    4
+		1,
+		2,
+		3,
+		4
 	  ]
 	},
 	"fleet_recovery": {
@@ -2919,7 +2919,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "After native and Quick Footing flat reductions, recovery is divided by 1 + total efficiency/100",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": ANY_SPIRIT_SOURCE,
@@ -2931,10 +2931,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. After native and Quick Footing flat reductions, recovery is divided by 1 + total efficiency/100. More copies continue improving recovery; dash speed is unchanged.",
 	  "tuning": {},
 	  "values": [
-	    40,
-	    60,
-	    80,
-	    100
+		40,
+		60,
+		80,
+		100
 	  ]
 	},
 	"lingering_echoes": {
@@ -2944,7 +2944,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Only available after acquiring Mirrorstep or Wraithcast",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": {"all": [
@@ -2959,10 +2959,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Only available after acquiring Mirrorstep or Wraithcast. Each preparation keeps its own expiry.",
 	  "tuning": {},
 	  "values": [
-	    500,
-	    750,
-	    1000,
-	    1250
+		500,
+		750,
+		1000,
+		1250
 	  ]
 	},
 	"mirrorstep": {
@@ -2972,7 +2972,7 @@ const DEFINITIONS := {
 	  "policy": "unique",
 	  "trigger": "Each legal dash or movement skill stores one 3-second echo",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "voluntary"
 	  ],
 	  "requires": ANY_SPIRIT_SOURCE,
@@ -2983,9 +2983,9 @@ const DEFINITIONS := {
 	  "description": "Voluntary dashes prepare phantom copies of your next basic attack.",
 	  "detail": "Provisional CE04 tuning. Each legal dash or movement skill stores one 3-second echo. The next primary attack releases all echoes simultaneously at 40% weapon and eligible Form potency. No HP spending, native class/graft procs or recursive copies.",
 	  "tuning": {
-	    "duration_ms": 3000,
-	    "weapon_percent": 40,
-	    "form_percent": 40
+		"duration_ms": 3000,
+		"weapon_percent": 40,
+		"form_percent": 40
 	  },
 	  "fixed": 1,
 	  "grants": [
@@ -2999,7 +2999,7 @@ const DEFINITIONS := {
 	  "policy": "unique",
 	  "trigger": "Each shadow lasts 4 seconds and casts once at 40% potency from its own departure position",
 	  "consumer": [
-	    "res://spirit_affinity.gd",
+		"res://spirit_affinity.gd",
 	    "voluntary"
 	  ],
 	  "requires": {"all": [ANY_SPIRIT_SOURCE, {"capability": {"producer": "replica", "id": "wraithcast_skill"}}]},
@@ -3010,8 +3010,8 @@ const DEFINITIONS := {
 	  "description": "Dashes leave departure-position shadows that copy your next compatible skill.",
 	  "detail": "Provisional CE04 tuning. Each shadow lasts 4 seconds and casts once at 40% potency from its own departure position. Supports class opening damage/healing and Ward protection, plus Chain Spark, Ironbark and Vital Bloom Core effects. Copies omit learned-node side effects. Requires a useful damage/healing class copy, Chain Spark or Ironbark; weaker Ward or Vital capacity alone cannot qualify a solo build. Movement, traps and unsupported persistent fields are not replayed.",
 	  "tuning": {
-	    "duration_ms": 4000,
-	    "effect_percent": 40
+		"duration_ms": 4000,
+		"effect_percent": 40
 	  },
 	  "fixed": 1,
 	  "grants": [
@@ -3027,7 +3027,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Changes gathering, collapse and the actual preview together",
 	  "consumer": [
-	    "res://void_affinity.gd",
+		"res://void_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": VOID_CORE,
@@ -3039,10 +3039,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Changes gathering, collapse and the actual preview together.",
 	  "tuning": {},
 	  "values": [
-	    25,
-	    40,
-	    55,
-	    70
+		25,
+		40,
+		55,
+		70
 	  ]
 	},
 	"deepening_gravity": {
@@ -3052,7 +3052,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Improves its step and per-window allowance",
 	  "consumer": [
-	    "res://void_affinity.gd",
+		"res://void_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": VOID_CORE,
@@ -3064,10 +3064,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Improves its step and per-window allowance. Existing enemy resistance, terrain and shared displacement arbitration still apply.",
 	  "tuning": {},
 	  "values": [
-	    20,
-	    30,
-	    40,
-	    50
+		20,
+		30,
+		40,
+		50
 	  ]
 	},
 	"condensed_edge": {
@@ -3077,7 +3077,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Requires actual field coverage or an unexpired successful native Void displacement",
 	  "consumer": [
-	    "res://void_affinity.gd",
+		"res://void_affinity.gd",
 	    "ordinary_bonus"
 	  ],
 	  "requires": VOID_FORM,
@@ -3089,10 +3089,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Requires actual field coverage or an unexpired successful native Void displacement. Adds to the primary contact, with no extra proc.",
 	  "tuning": {},
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"compression_rhythm": {
@@ -3102,7 +3102,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Reduces only the native compression response interval; ordinary weapon timing is unchanged",
 	  "consumer": [
-	    "res://void_affinity.gd",
+		"res://void_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": VOID_FORM,
@@ -3114,10 +3114,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Reduces only the native compression response interval; ordinary weapon timing is unchanged.",
 	  "tuning": {},
 	  "values": [
-	    100,
-	    150,
-	    200,
-	    250
+		100,
+		150,
+		200,
+		250
 	  ]
 	},
 	"grasping_invocation": {
@@ -3127,7 +3127,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Only actual inward compression responses qualify",
 	  "consumer": [
-	    "res://void_affinity.gd",
+		"res://void_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": {"all": [
@@ -3142,10 +3142,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Only actual inward compression responses qualify. Native displacement retains priority; healing and block repulsions are unchanged.",
 	  "tuning": {},
 	  "values": [
-	    10,
-	    15,
-	    20,
-	    25
+		10,
+		15,
+		20,
+		25
 	  ]
 	},
 	"dense_casting": {
@@ -3155,7 +3155,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Improves existing inward compression and block/healing/movement repulsion damage, not their triggers",
 	  "consumer": [
-	    "res://void_affinity.gd",
+		"res://void_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": VOID_CATALYST,
@@ -3167,10 +3167,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. Improves existing inward compression and block/healing/movement repulsion damage, not their triggers.",
 	  "tuning": {},
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"dark_echo": {
@@ -3180,7 +3180,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "After a real class response, store one 4-second preparation",
 	  "consumer": [
-	    "res://void_affinity.gd",
+		"res://void_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": VOID_CATALYST,
@@ -3191,13 +3191,13 @@ const DEFINITIONS := {
 	  "description": "A class compression response prepares +%s next compression damage.",
 	  "detail": "Provisional CE04 tuning. After a real class response, store one 4-second preparation. The next native compression captures it once for one eligible target; replicas do not consume it.",
 	  "tuning": {
-	    "duration_ms": 4000
+		"duration_ms": 4000
 	  },
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"event_horizon": {
@@ -3207,7 +3207,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "No hidden weapon reach or unrelated ability changes",
 	  "consumer": [
-	    "res://void_affinity.gd",
+		"res://void_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": VOID_CONTROL_SOURCE,
@@ -3219,10 +3219,10 @@ const DEFINITIONS := {
 	  "detail": "Provisional CE04 tuning. No hidden weapon reach or unrelated ability changes. A Form-only build without area control cannot receive this card.",
 	  "tuning": {},
 	  "values": [
-	    20,
-	    30,
-	    40,
-	    50
+		20,
+		30,
+		40,
+		50
 	  ]
 	},
 	"crushing_pressure": {
@@ -3232,7 +3232,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Enemy must remain inside a real Void field for 600 ms",
 	  "consumer": [
-	    "res://void_affinity.gd",
+		"res://void_affinity.gd",
 	    "on_event"
 	  ],
 	  "requires": {"all": [ANY_VOID_SOURCE, {"any": [VOID_CORE, {"owned": {"kind": "card", "id": "singularity"}}]}]},
@@ -3243,13 +3243,13 @@ const DEFINITIONS := {
 	  "description": "Compression gains +%s damage against sustained field targets.",
 	  "detail": "Provisional CE04 tuning. Enemy must remain inside a real Void field for 600 ms. Applies only to native Void compression/collapse, including Singularity; does not multiply with field pair count.",
 	  "tuning": {
-	    "duration_ms": 600
+		"duration_ms": 600
 	  },
 	  "values": [
-	    2,
-	    3,
-	    4,
-	    5
+		2,
+		3,
+		4,
+		5
 	  ]
 	},
 	"rift_shear": {
@@ -3259,7 +3259,7 @@ const DEFINITIONS := {
 	  "policy": "stackable",
 	  "trigger": "Also makes your Gravity Wells linger as real gathering fields for 9 seconds after arming, enabling solo overlap after the normal 7",
 	  "consumer": [
-	    "res://void_affinity.gd",
+		"res://void_affinity.gd",
 	    "admit_core"
 	  ],
 	  "requires": VOID_CORE,
@@ -3271,14 +3271,14 @@ const DEFINITIONS := {
 	  "description": "Overlapping gravity fields deal %s shear damage every 0.6 s.",
 	  "detail": "Provisional CE04 tuning. Also makes your Gravity Wells linger as real gathering fields for 9 seconds after arming, enabling solo overlap after the normal 7.8-second cooldown without Singularity. Each enemy receives one coherent strongest-owner shear tick across all intersections. Original collapse still occurs once at 1.08 seconds.",
 	  "tuning": {
-	    "field_ms": 9000,
-	    "interval_ms": 600
+		"field_ms": 9000,
+		"interval_ms": 600
 	  },
 	  "values": [
-	    3,
-	    5,
-	    7,
-	    9
+		3,
+		5,
+		7,
+		9
 	  ]
 	},
 	"singularity": {
@@ -3288,7 +3288,7 @@ const DEFINITIONS := {
 	  "policy": "unique",
 	  "trigger": "Place within 8 m, including your own position",
 	  "consumer": [
-	    "res://card_active_actions.gd",
+		"res://card_active_actions.gd",
 	    "command"
 	  ],
 	  "requires": ANY_VOID_SOURCE,
@@ -3299,13 +3299,13 @@ const DEFINITIONS := {
 	  "description": "Activate a targeted gravitational field and damaging implosion.",
 	  "detail": "Provisional CE04 tuning. Place within 8 m, including your own position. Gather for 1.5 seconds, then deal 30 native damage within 3 m. Ten-second cooldown. Resistance can prevent motion but not valid damage. Independent from Rift Shear.",
 	  "tuning": {
-	    "range_m": 8.0,
-	    "duration_ms": 1500,
-	    "radius_m": 3.0,
-	    "cooldown_ms": 10000,
-	    "damage_hp": 30,
-	    "gather_step_m": 0.22,
-	    "gather_total_m": 1.1
+		"range_m": 8.0,
+		"duration_ms": 1500,
+		"radius_m": 3.0,
+		"cooldown_ms": 10000,
+		"damage_hp": 30,
+		"gather_step_m": 0.22,
+		"gather_total_m": 1.1
 	  },
 	  "fixed": 1,
 	  "grants": [
