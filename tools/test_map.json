@@ -12,7 +12,7 @@
     "developer_live_tuning": {"label":"Developer Workbench property tuning and presets","files":["developer_arena/named_files.gd","developer_arena/named_files.gd.uid","developer_arena/tuning.gd","developer_arena/tuning.gd.uid","developer_arena/tuning_editor.gd","developer_arena/tuning_editor.gd.uid","developer_arena/contact_lab.gd","developer_arena/contact_lab.gd.uid","developer_arena/weapon_exhibit.gd","developer_arena/weapon_exhibit.gd.uid","developer_arena/garden_exhibit.gd","developer_arena/garden_exhibit.gd.uid","developer_arena/tuning_presets.gd","developer_arena/tuning_presets.gd.uid","tests/support/dev03_tuning_case.gd"]},
     "developer_testing_arena": {"label":"Isolated Developer Testing Arena","files":["developer_arena/session.gd","developer_arena/practice_world.gd","developer_arena/practice_encounter.gd","developer_arena/workbench.gd","developer_arena/build_editor.gd","developer_arena/build_plan.gd","developer_arena/session.gd.uid","developer_arena/practice_world.gd.uid","developer_arena/practice_encounter.gd.uid","developer_arena/workbench.gd.uid","developer_arena/build_editor.gd.uid","developer_arena/build_plan.gd.uid","tools/dev02_release_probe.py","tests/support/dev02_combat_case.gd","tests/support/dev02_build_case.gd","tests/support/dev02_release_boundary.gd"]},
     "living_archive": {"label":"Living Archive records and character copies","files":["living_archive.gd","living_archive.gd.uid","living_archive_view.gd","living_archive_view.gd.uid"]},
-    "wild_flora": {"label":"Natural Wilds specimens, deterministic selection and per-character harvest","files":["returning_root.gd","returning_root.gd.uid","wild_flora.gd","wild_flora.gd.uid","wild_flora_generation.gd","wild_flora_generation.gd.uid"]},
+    "wild_flora": {"label":"Natural Wilds specimens, deterministic selection, party-wide harvest and individual Returning Roots","files":["returning_root.gd","returning_root.gd.uid","wild_flora.gd","wild_flora.gd.uid","wild_flora_generation.gd","wild_flora_generation.gd.uid"]},
     "expedition_statistics": {"label":"Host expedition statistics, committed results and summary tabs","files":["expedition_statistics.gd","expedition_statistics.gd.uid","ui/gameplay/expedition_summary.gd","ui/gameplay/expedition_summary.gd.uid"]},
       "actor_collision": {
         "label": "Shared tangent sliding, mesh-fitted walking bodies and low-stone step-over",
@@ -205,6 +205,10 @@
     "items": {
       "label": "Item definitions, stacks, stash and safe pouch",
       "files": ["item_catalog.gd", "inventory_model.gd", "inventory_panel.gd", "inventory_slot.gd", "inventory_drop_surface.gd"]
+    },
+    "inventory_custody": {
+      "label": "Exclusive personal inventory custody, guarded checkout, return and recovery",
+      "files": ["inventory_custody.gd","inventory_custody.gd.uid","inventory_custody_world.gd","inventory_custody_world.gd.uid"]
     },
     "weapons": {
       "label": "Crafting, grafting, part tags and weapon effects",
@@ -893,6 +897,7 @@
       "garden"
     ],
     "guest_projection_status": [
+      "inventory_custody",
       "persistence_operations",
       "connection_flow",
       "characters",
@@ -907,11 +912,13 @@
       "garden"
     ],
     "prepare_guarded_exit": [
+      "inventory_custody",
       "persistence_operations",
       "menus",
       "expeditions"
     ],
     "save_guest_projection": [
+      "inventory_custody",
       "characters",
       "persistence_operations",
       "connection_flow"
@@ -1047,7 +1054,7 @@
       "foundation"
     ],
     "request_garden_action": [
-      "foundation"
+      "foundation","inventory_custody"
     ],
     "garden_action": ["ability_aim", "core_combat", "cultivation_growth", "foundation", "persistence_operations"],
     "_garden_action": ["foundation", "affinity_cards"],
@@ -1087,7 +1094,7 @@
       "foundation"
     ],
     "receive_character": [
-      "foundation"
+      "foundation","inventory_custody"
     ],
     "save_local_character": [
       "foundation"
@@ -1201,7 +1208,7 @@
       "expeditions"
     ],
     "seed_reserve": [
-      "seeds"
+      "seeds","inventory_custody"
     ],
     "recover_pouch": [
       "life"
@@ -1264,7 +1271,7 @@
       "menus"
     ],
     "return_to_main_menu": [
-      "foundation"
+      "foundation","inventory_custody"
     ],
     "_stop_guarded_session": ["menus", "persistence_operations"],
     "_finish_title_return": ["menus", "connection_flow", "persistence_operations", "persistence_authorization", "persistence_recovery_plan", "persistence_save_access", "characters", "developer_garden", "expeditions", "garden"],
@@ -1383,7 +1390,7 @@
       "weapons"
     ],
     "inventory_ui_data": [
-      "items"
+      "items","inventory_custody"
     ],
     "send_inventory_action": [
       "items"
@@ -1514,6 +1521,9 @@
     ]
   },
   "suites": {
+    "inventory_custody":{"profile":"terrain","kind":"unit","systems":["inventory_custody","items","characters","seeds","garden","persistence_operations","persistence_save_access","menus"],"package":false},
+    "inventory_custody_coop":{"profile":"terrain","kind":"pair","systems":["inventory_custody","items","characters","seeds","garden","persistence_operations","network_session","connection_flow","expedition_statistics","wild_flora","expeditions","departure_settlement","expedition_continuation","party_ui"],"package":false},
+    "inventory_custody_party":{"profile":"terrain","kind":"party","systems":["inventory_custody","items","characters","seeds","garden","persistence_operations","network_session","connection_flow","expedition_statistics","wild_flora","expeditions","departure_settlement","expedition_continuation","party_ui"],"package":false},
     "dev02_lifecycle": {"kind":"unit","systems":["developer_scenarios","developer_live_tuning","developer_testing_arena","wild_flora","garden_development","world_presentation","expedition_continuation","developer_garden","affinity_cards","expedition_statistics","incoming_player_hit","network_session"],"package":false},
     "expedition_suspend": {"kind":"unit","systems":["expedition_continuation","expedition_participation","network_session","departure_settlement","persistence_operations"],"package":false},
     "wild_flora_coop": {"kind":"pair","systems":["expedition_continuation","wild_flora", "seeds", "network_session", "expeditions", "items", "world_snapshot", "guest_replication", "expedition_participation", "departure_settlement", "knowledge", "garden_development"],"profile":"terrain","package":false},

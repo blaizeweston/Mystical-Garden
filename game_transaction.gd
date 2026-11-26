@@ -156,7 +156,7 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary, paths
  return execution.value
 
 const CLEANUP_NOTICE := Session.CLEANUP_NOTICE
-enum Scope { LEGACY, GARDEN, PROFILE, PAIR, GUEST_PROFILE }
+enum Scope { LEGACY, GARDEN, PROFILE, PAIR, GUEST_PROFILE, CUSTODY_CONNECTING }
 
 static var _owner: Node
 static var _participants: Array = []
@@ -393,6 +393,7 @@ static func _serializers(game: Node, scope: Scope) -> Array:
   Scope.PROFILE: return [game.local_character] if game.network_session.role() in ["Solo", "Host"] else []
   Scope.PAIR: return [game.progress, game.local_character] if game.network_session.role() in ["Solo", "Host"] else []
   Scope.GUEST_PROFILE: return [game.guest_character] if game.network_session.role() == "Guest" else []
+  Scope.CUSTODY_CONNECTING: return [game.guest_character] if game.portable_inventory and game.network_session.role()=="Connecting" and game.network_session.joined_from_title() else []
  return [game.progress] if game.network_session.role() == "Guest" else [game.progress, game.local_character]
 
 static func _refusal(error: Error, reason: String, state := "invalid") -> Dictionary:

@@ -33,6 +33,9 @@ static func character(path: String, include_profile := false) -> Dictionary:
   var file: ConfigFile = inspected.file
   var identity: Variant = file.get_value("character", "identity", "")
   var saved: Variant = file.get_value("character", "progress", {})
+  var custody: Variant=file.get_value("character","inventory_custody",{})
+  if not Profile.Custody.valid_profile(custody):
+   result.state="invalid";result.reason="invalid_inventory_custody";return result
   var data := Profile.blank()
   if saved is Dictionary:
    if not Profile.Experience.supported(saved):
@@ -45,7 +48,8 @@ static func character(path: String, include_profile := false) -> Dictionary:
   result.summary = {
    "name": data.name, "class_name": Profile.Classes.DEFINITIONS[class_id].name,
    "level": Profile.level(data.xp[class_id]),
-   "identity": identity if identified else "", "identity_pending": not identified
+   "identity": identity if identified else "", "identity_pending": not identified,
+   "inventory_held":Profile.Custody.locked(custody),"inventory_endpoint":custody.get("endpoint","")
   }
   if include_profile:
    result.summary.profile = data

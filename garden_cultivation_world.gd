@@ -229,6 +229,9 @@ func plant_seed(id: int, slot: int, requested_species: int=-1, source: String="s
 	var before: Dictionary=world.progress.plots[slot].duplicate(true)
 	var planted := Tx.run_gameplay(world, Tx.Scope.GARDEN, func():
 		stock[kind] -= 1
+		# Portable identified seeds retain their identity; the Garden records a
+		# new species only when it is actually cultivated here.
+		if world.portable_inventory:world.progress.discover(kind)
 		world.progress.plots[slot] = Rules.planted_bed(kind,State.new_cycle(kind))
 		world.progress.sync_plot_flags()
 		if world.persistence_session.is_guarded() or world.progress.save_garden()==OK: return true

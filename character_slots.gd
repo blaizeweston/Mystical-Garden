@@ -160,6 +160,7 @@ func _legacy_update(slot: int,name: String,class_id: int,appearance: Array) -> E
  if error!=OK: return error
  var profile=Profile.new();profile.path=location.character
  error=profile.load_profile()
+ if error==OK and Profile.Custody.locked(profile.inventory_custody):error=ERR_BUSY
  if error==OK:
   profile.data.name=Profile.clean_name(name);profile.data.active_class=class_id
   profile.data.appearance=preload("res://character_appearance.gd").normalize(appearance)
@@ -193,6 +194,7 @@ func _legacy_remove_character(location: Dictionary,expected_digest: String) -> E
  var error=Batch.recover(location.character)
  if error!=OK:return error
  if not FileAccess.file_exists(location.character):return ERR_DOES_NOT_EXIST
+ if Profile.Custody.file_held(location.character):return ERR_BUSY
  if not expected_digest.is_empty() and FileAccess.get_sha256(location.character)!=expected_digest:return ERR_BUSY
  var archive: String=location.directory.path_join("backups/deleted-character-"+Crypto.new().generate_random_bytes(8).hex_encode())
  error=DirAccess.make_dir_recursive_absolute(archive)
@@ -271,6 +273,7 @@ func _remove_character_guarded(context: RefCounted, source: String, archive: Str
   var error := profile.load_profile(false)
   if error != OK or not Profile.valid_identity(profile.identity):
    return Ops.management_result(error if error != OK else ERR_INVALID_DATA, "roster_identity_unverified")
+  if Profile.Custody.locked(profile.inventory_custody):return Ops.management_result(ERR_BUSY,"inventory_custody_held")
   var prepared := Ops.archive_copies(context, targets, fault)
   if prepared.error != OK:
    return prepared
@@ -327,6 +330,7 @@ func _edit_guarded(slot: int, name: String, class_id: int, appearance: Array, ed
     return Ops.management_result(loaded, "profile_unreadable")
    if not Profile.valid_identity(profile.identity):
     return Ops.management_result(ERR_INVALID_DATA, "roster_identity_unverified")
+   if Profile.Custody.locked(profile.inventory_custody):return Ops.management_result(ERR_BUSY,"inventory_custody_held")
    profile.data.name = cleaned
    profile.data.active_class = class_id
    profile.data.appearance = preload("res://character_appearance.gd").normalize(appearance)

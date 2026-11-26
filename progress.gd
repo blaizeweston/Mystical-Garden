@@ -11,6 +11,10 @@ var heart := Heart.new()
 var needs_heart_backup := false
 var needs_research_backup := false
 const InventoryModel=preload("res://inventory_model.gd")
+const Custody=preload("res://inventory_custody.gd")
+var personal_custody: Dictionary={}
+var legacy_personal_owner: String=""
+var needs_custody_backup:=false
 var component_crafts: Dictionary={}
 var shared_components: Dictionary={}
 const Archive = preload("res://living_archive.gd")
@@ -100,6 +104,12 @@ func _read_garden() -> Error:
 	var result := file.load(path)
 	if result != OK:
 		return result
+	var custody: Variant=file.get_value("inventory","personal_custody",{})
+	var assigned_owner: Variant=file.get_value("inventory","legacy_personal_owner","")
+	if not Custody.valid_records(custody) or not assigned_owner is String or (not assigned_owner.is_empty() and not Custody.hex_id(assigned_owner,32)):return ERR_INVALID_DATA
+	personal_custody=custody
+	legacy_personal_owner=assigned_owner
+	needs_custody_backup=not file.has_section_key("inventory","personal_custody")
 	var suspended: Variant = file.get_value("expedition", "suspended", {})
 	if not suspended is Dictionary: return ERR_FILE_CORRUPT
 	suspended_expedition = suspended
@@ -170,8 +180,11 @@ func _read_garden() -> Error:
 		for key in reserves:
 			if key is String and reserves[key] is Dictionary:
 				guest_seeds[key] = normalized_reserve(reserves[key])
-				for species in PLANT_NAMES.size():
-					discoveries[species] = discoveries[species] or guest_seeds[key].stock[species] > 0
+				# Historical reserves implied discovery. A modern checked-out
+				# inventory can contain seeds brought from elsewhere.
+				if not personal_custody.has(key) and (key!=InventoryModel.SHARED_OWNER or personal_custody.is_empty()):
+					for species in PLANT_NAMES.size():
+						discoveries[species] = discoveries[species] or guest_seeds[key].stock[species] > 0
 	var grafts=file.get_value("garden","monster_crafts",[])
 	monster_crafts=[]
 	if grafts is Array:
@@ -220,6 +233,9 @@ func _read_garden() -> Error:
 		for owner in stashes:
 			if owner is String: item_stashes[owner]=InventoryModel.Items.clean_counts(stashes[owner],historical_ancient)
 	ground_items=InventoryModel.clean_ground(file.get_value("inventory","ground",[]),historical_ancient)
+	for owner: String in personal_custody:
+		if personal_custody[owner].state!="active" and Custody.capture(self,owner)!=Custody.blank_payload():return ERR_INVALID_DATA
+	if not legacy_personal_owner.is_empty() and Custody.capture(self,"")!=Custody.blank_payload():return ERR_INVALID_DATA
 	garden_interactions=preload("res://garden_interaction_state.gd").normalize(file.get_value("garden_interactions","state",{}))
 	altar_recipes={}
 	var recorded=file.get_value("altar","recipes",{})
@@ -318,7 +334,7 @@ func save_garden_guarded() -> Dictionary:
 	return outcome
 
 func migration_backup_paths() -> PackedStringArray:
-	return PackedStringArray([path + ".pre-heart-economy-v6.bak", path + ".pre-cultivation-v5.bak", path + ".pre-irrigation-v2.bak", path + ".pre-construction-v1.bak", path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-immediate-heart-v3.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak"])
+	return PackedStringArray([path + ".pre-heart-economy-v6.bak", path + ".pre-cultivation-v5.bak", path + ".pre-irrigation-v2.bak", path + ".pre-construction-v1.bak", path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-immediate-heart-v3.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak",path + ".pre-portable-inventory-v1.bak"])
 
 func confirm_migration(saved_path: String) -> void:
 	if path != saved_path:
@@ -332,6 +348,7 @@ func confirm_migration(saved_path: String) -> void:
 	needs_content_backup = false
 	needs_altar_backup = false
 	needs_inventory_backup = false
+	if not personal_custody.is_empty():needs_custody_backup=false
 	needs_heart_backup = false
 	needs_plot_backup = false
 
@@ -343,6 +360,13 @@ func _migration_backup(target: String, guarded: bool) -> Error:
 	return OK if FileAccess.file_exists(target) else DirAccess.copy_absolute(path, target)
 
 func _serialize_save(stage := Callable()) -> Error:
+	if not Custody.valid_records(personal_custody) or (not legacy_personal_owner.is_empty() and not Custody.hex_id(legacy_personal_owner,32)):
+		return SaveBatch.record_serializer_error(ERR_INVALID_DATA,path)
+	for owner: String in personal_custody:
+		var held:=Custody.capture(self,owner)
+		if not Custody.valid_payload(held) or (personal_custody[owner].state!="active" and held!=Custody.blank_payload()):
+			return SaveBatch.record_serializer_error(ERR_INVALID_DATA,path)
+	if not legacy_personal_owner.is_empty() and Custody.capture(self,"")!=Custody.blank_payload():return SaveBatch.record_serializer_error(ERR_INVALID_DATA,path)
 	if not Structures.valid(structures,plots) or not garden_development_error.is_empty() or not GardenDevelopment.refusal(garden_development, plots.size()).is_empty():
 		return SaveBatch.record_serializer_error(ERR_FILE_CORRUPT, path)
 	if require_guarded_access or SaveBatch.guarded_active():
@@ -382,6 +406,9 @@ func _serialize_save(stage := Callable()) -> Error:
 		var copied := _migration_backup(path + ".pre-inventory-v1.bak", stage.is_valid())
 		if copied != OK:
 			return copied
+	if needs_custody_backup and not personal_custody.is_empty() and FileAccess.file_exists(path):
+		var copied := _migration_backup(path+".pre-portable-inventory-v1.bak",stage.is_valid())
+		if copied!=OK:return copied
 	if needs_heart_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-heart-v1.bak", stage.is_valid())
 		if copied != OK:
@@ -405,6 +432,8 @@ func _serialize_save(stage := Callable()) -> Error:
 	file.set_value("inventory","ancient_seed_format",1)
 	file.set_value("inventory","stashes",item_stashes)
 	file.set_value("inventory","guest_withdrawals",guest_withdrawals)
+	if not personal_custody.is_empty():file.set_value("inventory","personal_custody",personal_custody)
+	if not legacy_personal_owner.is_empty():file.set_value("inventory","legacy_personal_owner",legacy_personal_owner)
 	file.set_value("inventory","ground",ground_items)
 	var growth_state:=preload("res://garden_growth_state.gd").prepare(self)
 	file.set_value("garden_interactions","state",growth_state)

@@ -6,6 +6,8 @@ Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_
 
 ## Current handoff
 
+**INV01:** Portable personal inventory is implemented on the isolated custody branch, using the guarded title/profile and Garden settlement owners. Review [the custody architecture](ARCHITECTURE.md#portable-character-inventory-inv01) and its recovery limitations before integration; shared resources and UI01 ownership policies remain unchanged.
+
 | Field | Value |
 |---|---|
 | LA01 Living Archive | The starting Archive presents personal and Garden botanical, expedition, combat and development records. The next check is a manual station and controller readability pass. [Counting and persistence](ARCHITECTURE.md#living-archive-la01). |

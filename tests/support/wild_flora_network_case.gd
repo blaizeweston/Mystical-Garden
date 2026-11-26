@@ -238,11 +238,26 @@ func host(menu: Node) -> void:
 		check(game.seed_reserve(actor).stock[plant.species]==1 and game.seed_reserve(actor).unknown.is_empty() and actor.carried_items.get(seed_item,0)==carried_after[peer] and actor.carried_parts[game.Seeds.DEFINITIONS[plant.species].part]==0,"one seed and one plant part secured per character")
 	if party and not await until(func():return read("refused")=="yes","fifth client refused"): return
 	if not check(game.participation.advance(game.participation.epoch(),6),"advance authoritative floor"): return
+	# A starter is only guaranteed if the party lacks one. Everyone just
+	# secured seed stock; choose a floor with the actual natural appearance
+	# roll rather than assume another introductory specimen is guaranteed.
+	var selected := false
+	for seed_value in range(16,128):
+		probe.seed=seed_value
+		var key:=Vector3i(game.participation.route(),game.participation.depth(),probe.randi_range(1,2147483647))
+		if game.Battlefield.Flora.floor_random(key,game.participation.floor()).randf()>=game.Battlefield.Flora.SPAWN_CHANCE:continue
+		var field=game.Battlefield.new()
+		field.configure(key.x,key.y,key.z)
+		if field.generate_flora(game.participation.floor()).is_empty():continue
+		game.map_rng.seed=seed_value
+		selected=true
+		break
+	if not check(selected,"fixture selects a real next-floor natural specimen"):return
 	game.start_encounter()
 	game.tactics.stagger_until=Time.get_ticks_msec()+90000
 	game.encounter.clear_scouts()
 	var next: Dictionary=game.wild_flora_view(1)
-	if not check(not next.is_empty() and next.identity!=plant.identity,"new floor has independent introductory specimen"): return
+	if not check(not next.is_empty() and next.identity!=plant.identity,"new floor has independent natural specimen"): return
 	for peer in peers: game.players[peer].pos=next.position
 	mark("next",next.identity)
 	if not await until(func():return peers.all(func(peer):return read("stale-"+str(peer))=="yes"),"all guests tried previous-floor requests"): return

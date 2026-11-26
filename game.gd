@@ -193,6 +193,11 @@ var spectator_view: Node
 
 const Items=preload("res://item_catalog.gd")
 const InventoryModel=preload("res://inventory_model.gd")
+const InventoryCustody=preload("res://inventory_custody_world.gd")
+var portable_inventory := false
+var legacy_inventory_assignment := false
+var custody_exit_intent := Session.Exit.NONE
+var custody_return_origin := ""
 var wild_item_drops: Array=[]
 var actor_presentation := preload("res://actor_presentation_world.gd").new(self)
 const CharacterAppearance=preload("res://character_appearance.gd")
@@ -220,10 +225,12 @@ func _ready() -> void:
 			return
 	get_tree().auto_accept_quit = false
 	toast_until = Time.get_ticks_msec() + 4800
+	var legacy_read_failed:=false
 	if not persistence_session.is_guarded():
 		var character_error := local_character.load_profile()
 		if character_error != OK and character_error != ERR_FILE_NOT_FOUND:
 			status = "Character progress could not be loaded."
+			legacy_read_failed=character_slot_claimed
 	configure_keys()
 	var soundscape := preload("res://soundscape.gd").new()
 	soundscape.name="Soundscape"
@@ -260,6 +267,18 @@ func _ready() -> void:
 		var result := progress.load_garden()
 		if result != OK and result != ERR_FILE_NOT_FOUND:
 			status = "Could not read Garden save (error %d)." % result
+			legacy_read_failed=legacy_read_failed or slot_claimed
+	if legacy_read_failed:
+		expedition_open_failed=true
+		set_physics_process(false);set_process(false)
+		_stop_guarded_session.call_deferred(status)
+		return
+	# A legacy session may not spend migrated records, even on an editor build.
+	if not portable_inventory and (not local_character.inventory_custody.is_empty() or not progress.personal_custody.is_empty() or not progress.legacy_personal_owner.is_empty()):
+		expedition_open_failed=true
+		set_physics_process(false);set_process(false)
+		_stop_guarded_session.call_deferred("This save uses portable inventory and requires guarded Garden access.")
+		return
 	var garden_terrain = preload("res://assets/terrain_m02/experimental/experiment_garden.gd").new()
 	stage.add_child(garden_terrain)
 	garden_terrain.configure(self,stage)
@@ -270,6 +289,12 @@ func _ready() -> void:
 	multiplayer.connected_to_server.connect(session_world.joined)
 	multiplayer.connection_failed.connect(session_world.connection_failed)
 	multiplayer.server_disconnected.connect(session_world.server_disconnected)
+	if not network_session.joined_from_title():
+		if not InventoryCustody.local_enter(self,legacy_inventory_assignment):
+			expedition_open_failed=true
+			set_physics_process(false);set_process(false)
+			_stop_guarded_session.call_deferred(status)
+			return
 	add_player(HOST)
 	if not network_session.joined_from_title():
 		if not is_practice_world(): CombatClock.reset_live()
@@ -299,6 +324,7 @@ func _notification(what: int) -> void:
 			save_and_quit(true)
 			return
 		if expedition_transitions.request_guest_exit(Session.Exit.APPLICATION): return
+		if InventoryCustody.request_exit(self,Session.Exit.APPLICATION):return
 		if persistence_session.is_guarded():
 			if not prepare_guarded_exit(): return
 			persistence_session.begin_shutdown()
@@ -585,6 +611,10 @@ func send_garden_action(action: String) -> void:
 func request_garden_action(action: String) -> void:
 	var id := multiplayer.get_remote_sender_id()
 	if not multiplayer.is_server() or action.length()>512: return
+	if portable_inventory and action=="custody_return":
+		InventoryCustody.host_release(self,id);return
+	if portable_inventory and action.begins_with("custody_ack:"):
+		InventoryCustody.host_ack(self,id,action);return
 	if action in ["class_skill","class_skill_two"] or (action == "research" and Participation.is_wild(players.get(id,{}))): return
 	if action.begins_with("archive_read:"):
 		if not session_world.allow_remote(id,"archive_read",2,true) or not persistence_session.can_publish_state(): return
@@ -1212,6 +1242,9 @@ func guest_projection_status(id: int, origin: String, revision: int, digest: Str
 		player.projection_base = {"revision":revision,"digest":digest}
 		for message in delivery.feedback: tell(id,message)
 		delivery.feedback.clear()
+		if portable_inventory and player.get("custody_release_requested",false):
+			player.erase("custody_release_requested")
+			InventoryCustody.host_release.call_deferred(self,id,network_session.binding(id))
 	elif disposition in ["aborted","uncertain","refused"]:
 		delivery.feedback.clear()
 		Journal.event("save","guest_projection_unconfirmed",{"actor":id,"revision":revision,"state":disposition},"warning")
@@ -1233,6 +1266,12 @@ func publish_character(id: int) -> void:
 @rpc("authority", "call_remote", "reliable")
 func receive_character(profile: Dictionary) -> void:
 	if network_session.role() != "Guest": return
+	if portable_inventory and profile.has("custody_return"):
+		InventoryCustody.accept_guest_return(self,profile,false);return
+	if portable_inventory and profile.has("custody_acknowledged"):
+		if custody_return_origin==profile.custody_acknowledged and guest_character.inventory_custody.get("state")=="home" and guest_character.inventory_custody.sequence==profile.get("sequence"):
+			InventoryCustody.finish_return.call_deferred(self,custody_exit_intent)
+		return
 	var departure: String = str(profile.get("departure_receipt",""))
 	if persistence_session.is_guarded():
 		if not profile.get("origin") is String or not profile.get("projection") is Dictionary or not profile.get("profile") is Dictionary: return
@@ -1277,7 +1316,8 @@ func save_guest_projection(profile: Dictionary, origin: String, descriptor: Dict
 		_report_guest_projection(origin,descriptor,"refused")
 		return false
 	_report_guest_projection(origin,descriptor,"received")
-	var saved := Transactions.run_gameplay(self, Transactions.Scope.GUEST_PROFILE, func():
+	var scope:=Transactions.Scope.CUSTODY_CONNECTING if portable_inventory and network_session.role()=="Connecting" else Transactions.Scope.GUEST_PROFILE
+	var saved := Transactions.run_gameplay(self, scope, func():
 		guest_character.data = profile.duplicate(true)
 		var slice: Dictionary = profile.get("archive_slice",{})
 		if slice.get("origin") == origin: guest_character.archive_visits[origin] = slice.totals.duplicate()
@@ -1829,7 +1869,7 @@ func wild_entry(id: int) -> Vector3:
 
 
 func seed_reserve(player: Dictionary) -> Dictionary:
-	return progress.reserve(Session.inventory_owner(player))
+	return progress.reserve(InventoryCustody.local_owner(self,player))
 
 
 func recover_pouch(player: Dictionary) -> bool:
@@ -2311,11 +2351,14 @@ func prepare_guarded_exit(save_garden := true) -> bool:
 		if participation.active() or not parked_explorers.is_empty():
 			if not expedition_transitions.finish_voluntary(): return false
 			character_dirty=false
-			return true
+			if not portable_inventory:return true
 		if not departure_settlement.is_empty() or monster_rewards.has_pending():
 			if not flush_kill_rewards(): return false
 			character_dirty=false
-			return true
+			if not portable_inventory:return true
+		if portable_inventory:
+			if network_session.role()=="Host":InventoryCustody.host_release_all(self)
+			if save_garden:return InventoryCustody.local_release(self)
 		if save_garden:
 			var here: Dictionary = progress.archive.characters.get(local_character.identity,{})
 			var mirror_due: bool = here != local_character.archive_visits.get(progress.archive.origin,{})
@@ -2328,6 +2371,7 @@ func prepare_guarded_exit(save_garden := true) -> bool:
 
 func return_to_main_menu(message: String = "") -> void:
 	if persistence_session.can_write() and expedition_transitions.request_guest_exit(Session.Exit.TITLE): return
+	if InventoryCustody.request_exit(self,Session.Exit.TITLE):return
 	if returning_to_title:
 		return
 	returning_to_title = true
@@ -2392,7 +2436,8 @@ func _finish_title_return(message: String) -> void:
 		recovery_paths.append(guest_character.path)
 	menu.accept_persistence_return(persistence_session.title_return_view(
 		network_session.role(), message, str(get_meta(&"guest_projection_notice", "")), recovery_paths))
-	if network_session.joined_from_title() or network_session.role()=="Connecting" or network_session.join_phase()=="garden":
+	var returned_inventory: bool=portable_inventory and not custody_return_origin.is_empty() and guest_character.inventory_custody.get("state")=="home"
+	if not returned_inventory and (network_session.joined_from_title() or network_session.role()=="Connecting" or network_session.join_phase()=="garden"):
 		menu.set_meta("join_return",{"address":network_session.address(),"port":network_session.port(),"open":not network_session.join_cancelled()})
 	set_process(false)
 	set_physics_process(false)
@@ -2916,6 +2961,7 @@ func inventory_ui_data() -> Dictionary:
 	data.affinity_build=combat_build(player,not Participation.is_wild(data)).affinity_build()
 	data.can_manage_withdrawals=multiplayer.is_server() and local_player_id()==HOST and not Participation.is_wild(player)
 	data.notice = status
+	data.portable_inventory=portable_inventory
 	return data.duplicate(true)
 
 func progression_ui_data(selection: Dictionary) -> Dictionary:

@@ -12,6 +12,8 @@ const PartyTravel = preload("res://party_travel.gd")
 const ExpeditionWallet = preload("res://expedition_wallet.gd")
 const Campaign = preload("res://campaign.gd")
 const Life = preload("res://expedition_life.gd")
+const Custody = preload("res://inventory_custody.gd")
+const CustodyWorld = preload("res://inventory_custody_world.gd")
 
 var _world: WeakRef
 var _ticket := ""
@@ -53,13 +55,24 @@ func joined() -> void:
 	Journal.event("network","transport_connected")
 	game.status = Network.join_progress("character",game.network_session.address(),game.network_session.port())
 	game.ui.close_panels()
-	var guarded = game.persistence_session.is_guarded()
-	var catalog: Dictionary = game.progress.ContentIDs.manifest()
 	var endpoint := Network.format_endpoint(game.network_session.address(),game.network_session.port())
 	_ticket = game.guest_character.rejoin_ticket.get(endpoint,"")
+	if game.portable_inventory and Custody.locked(game.guest_character.inventory_custody):
+		_ticket=game.guest_character.rejoin_ticket.get(game.guest_character.inventory_custody.endpoint,_ticket)
 	if _ticket.is_empty(): _ticket = Crypto.new().generate_random_bytes(32).hex_encode()
+	_register_guest(false)
+
+func _register_guest(with_custody: bool) -> void:
+	var game = _world.get_ref()
+	var guarded: bool=game.persistence_session.is_guarded()
+	var catalog: Dictionary=game.progress.ContentIDs.manifest()
 	catalog["rejoin_ticket"] = _ticket
 	if guarded: catalog["guest_projection_receipts"] = game.guest_character.projection_receipts
+	if game.portable_inventory:
+		var custody: Dictionary=game.guest_character.inventory_custody
+		catalog["custody_probe"]=not with_custody
+		catalog["custody_pending"]=custody.get("origin","")
+		if with_custody:catalog["custody_lock"]=custody
 	game.register_character.rpc_id(game.HOST, game.guest_character.identity, game.guest_character.data,catalog,Network.PROTOCOL)
 
 
@@ -87,8 +100,25 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 	var ticket: Variant = catalog.get("rejoin_ticket","")
 	catalog = catalog.duplicate()
 	catalog.erase("rejoin_ticket")
+	var portable:=catalog.has("custody_probe")
+	var probe: Variant=catalog.get("custody_probe",false)
+	var pending: Variant=catalog.get("custody_pending","")
+	var lock: Variant=catalog.get("custody_lock",{})
+	for key in ["custody_probe","custody_pending","custody_lock"]:catalog.erase(key)
+	if protocol!=Network.PROTOCOL:
+		reject(id,"Different multiplayer versions. Use the same updated game build.",binding);return
+	if portable!=game.portable_inventory or (portable and not guarded):
+		reject(id,"The host and guest must use matching portable inventory sessions.",binding);return
+	var prior: Dictionary=game.progress.personal_custody.get(identity,{})
+	var recovery: bool=portable and probe==true and pending==CustodyWorld.origin(game) and prior.get("state")=="returned"
+	if portable:
+		if not probe is bool or not pending is String or (not pending.is_empty() and pending!=CustodyWorld.origin(game)):
+			reject(id,"Your personal inventory is held by another Garden.",binding);return
+		if not probe and (not Custody.valid_profile(lock) or not Custody.locked(lock) or lock.origin!=CustodyWorld.origin(game) or lock.endpoint=="" or game.players[id].get("custody_offer")!=identity):
+			reject(id,"The personal inventory custody offer is invalid.",binding);return
+		if not probe and prior.get("state")=="returned" and Custody.matches(prior,lock):recovery=true
 	var returning: bool = ticket is String and game.Continuation.authorized(game,identity,ticket)
-	var reason = admission_error(identity,catalog,protocol,returning)
+	var reason = admission_error(identity,catalog,protocol,returning or recovery)
 	if not ticket is String or ticket!="" and (ticket.length()!=64 or not ticket.is_valid_hex_number(false)): reason = "Invalid expedition rejoin ticket."
 	if var_to_bytes(profile).size()>32768: reason="This character profile is too large."
 	if reason.is_empty() and not Character.Experience.supported(profile):
@@ -119,6 +149,19 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 		if admission.is_empty():
 			reject(id,"The saved guest projection conflicts with this character. Review the saves before joining.",binding)
 			return
+		if portable and probe:
+			# The destination is disclosed only after compatibility and profile
+			# validation. The guest durably locks BEFORE sending any item payload.
+			game.players[id].custody_offer=identity
+			game.connection_accepted.rpc_id(id,{"custody_offer":CustodyWorld.origin(game),"session_character":identity})
+			return
+		if portable and recovery and Custody.matches(prior,lock):
+			game.players[id].custody_recovery_identity=identity
+			var envelope:=CustodyWorld.return_envelope(game,identity)
+			if recorded.get("projection",{}).get("revision",0)>receipts.get(origin,{}).get("revision",0):
+				envelope.recovery_projection={"origin":origin,"projection":recorded.projection,"profile":recorded.profile}
+			game.connection_accepted.rpc_id(id,envelope)
+			return
 		incoming = parked.actor.character.duplicate(true) if returning else admission.profile.duplicate(true)
 		game.Progress.Archive.set_slice(incoming,game.progress.archive,identity)
 		# Preserve the verified guest base even if its previous Garden sent a slice.
@@ -131,6 +174,7 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 			if not game.network_session.matches(id,binding): return false
 			if not preload("res://garden_growth_service.gd").register_receipt(game,identity):
 				return false
+			if portable and Custody.admit(game.progress,identity,lock)!="active":return CustodyWorld.fail_serializer(game.progress.path)
 			game.progress.projection_origin = origin
 			game.progress.character_records[identity] = {"profile":incoming.duplicate(true),"manifest":game.progress.ContentIDs.manifest(),"projection":admission.projection}
 			return true)
@@ -162,6 +206,10 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 	reply.session_binding = game.network_session.connection_key(id)
 	reply.session_character = identity
 	reply.resumed_expedition = returning
+	if portable:
+		reply.custody_sequence=lock.sequence
+		reply.custody_token=lock.token
+		reply.custody_origin=lock.origin
 	game.connection_accepted.rpc_id(id,reply)
 	game.expedition_statistics.bind_session(game.network_session.session_identity())
 	var report: Dictionary = game.expedition_statistics.result_for(identity)
@@ -170,6 +218,9 @@ func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary
 
 func join(address: String="",port: int=0) -> Error:
 	var game = _world.get_ref()
+	if game.portable_inventory and not game.network_session.joined_from_title():
+		game.status="Return to the title to visit another Garden with personal inventory."
+		return ERR_UNAUTHORIZED
 	if game.has_meta(&"experimental_terrain") and not game.network_session.joined_from_title():
 		game.status = "Return to the title to join an experimental Garden."
 		return ERR_UNAUTHORIZED
@@ -304,11 +355,12 @@ func remove(id: int) -> void:
 func server_disconnected() -> void:
 	var game = _world.get_ref()
 	if game.persistence_session.is_stopping(): return
+	if game.portable_inventory:game.set_meta(&"custody_disconnected",true)
 	Journal.event("network","on_server_disconnected",{},"warning")
 	if game.network_session.role()=="Connecting" or (game.network_session.role()=="Guest" and game.network_session.join_phase()=="garden"):
 		rejected(Network.join_failure(game.network_session.join_phase(),game.network_session.address(),game.network_session.port(),false))
 	elif game.network_session.role()=="Guest":
-		leave("Host disconnected. Rejoin the same host and character when the expedition is available.")
+		leave("Host disconnected. Personal inventory remains held by the original Garden. Reconnect with this character to recover it." if game.portable_inventory and Custody.locked(game.guest_character.inventory_custody) else "Host disconnected. Rejoin the same host and character when the expedition is available.")
 
 
 func connection_failed() -> void:
@@ -357,6 +409,28 @@ func reject(id: int, reason: String, expected_binding: int = 0) -> void:
 func accepted(profile: Dictionary) -> void:
 	var game = _world.get_ref()
 	if game.network_session.role()!="Connecting" or not game.persistence_session.can_write(): return
+	if game.portable_inventory and profile.has("custody_offer"):
+		var destination: Variant=profile.custody_offer
+		if profile.get("session_character")!=game.guest_character.identity or not Custody.hex_id(destination,32):
+			rejected("Invalid Garden inventory custody offer.");return
+		var endpoint:=Network.format_endpoint(game.network_session.address(),game.network_session.port())
+		if not CustodyWorld.guest_lock(game,destination,endpoint,_ticket):
+			rejected(game.status);return
+		_register_guest(true)
+		return
+	if game.portable_inventory and profile.has("custody_return"):
+		var projection: Dictionary=profile.get("recovery_projection",{})
+		if not projection.is_empty():
+			game.set_meta(&"guest_projection_origin",projection.origin)
+			if not game.save_guest_projection(projection.profile,projection.origin,projection.projection):
+				rejected("Could not reconcile the saved profile. Inventory custody remains locked.");return
+		if not CustodyWorld.accept_guest_return(game,profile,true):
+			rejected("Could not recover the returned inventory. Reconnect to the same Garden.");return
+		return
+	if game.portable_inventory and profile.has("custody_acknowledged"):
+		if game.custody_return_origin==profile.custody_acknowledged and game.guest_character.inventory_custody.get("state")=="home" and game.guest_character.inventory_custody.sequence==profile.get("sequence"):
+			CustodyWorld.finish_return.call_deferred(game,Session.Exit.TITLE)
+		return
 	var connection := str(profile.get("session_binding",""))
 	var identity := str(profile.get("session_character",""))
 	if connection.is_empty() or identity != game.guest_character.identity:
@@ -365,6 +439,11 @@ func accepted(profile: Dictionary) -> void:
 	var payload := profile.duplicate()
 	var resumed: bool = payload.get("resumed_expedition",false)==true
 	payload.erase("session_binding");payload.erase("session_character");payload.erase("resumed_expedition")
+	if game.portable_inventory:
+		var lock: Dictionary=game.guest_character.inventory_custody
+		if not Custody.locked(lock) or lock.origin!=payload.get("custody_origin") or lock.token!=payload.get("custody_token") or lock.sequence!=payload.get("custody_sequence"):
+			rejected("The host did not confirm the checked-out inventory.");return
+		for key in ["custody_origin","custody_token","custody_sequence"]:payload.erase(key)
 	if game.persistence_session.is_guarded():
 		if not payload.get("origin") is String or not payload.get("projection") is Dictionary or not payload.get("profile") is Dictionary:
 			rejected("The host did not provide guarded profile evidence.")

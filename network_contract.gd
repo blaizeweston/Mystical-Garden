@@ -23,6 +23,7 @@ const CAPABILITIES := {
 	"expedition_abandonment_forfeiture": 1,
 	"wild_flora_harvest": 4,
 	"shared_inventory_access": 1,
+	"portable_inventory_custody": 1,
 	"expedition_resume": 1,
 	"returning_root": 1,
 	"botanical_acquisition": 2,

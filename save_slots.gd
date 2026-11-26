@@ -102,6 +102,7 @@ func _legacy_new_game(slot: int, replace_confirmed: bool = false) -> Error:
 		return ERR_INVALID_PARAMETER
 	if is_active(slot): return ERR_BUSY
 	var location := paths(slot)
+	if Progress.Custody.file_held(location.garden) or Character.Custody.file_held(location.character):return ERR_BUSY
 	var occupied := FileAccess.file_exists(location.garden) or FileAccess.file_exists(location.character)
 	if occupied and not replace_confirmed:
 		return ERR_ALREADY_EXISTS
@@ -227,6 +228,7 @@ func archive_deleted_save(location: Dictionary) -> Error:
 	return Legacy.run(_legacy_scope(location, true), func(_plan): return _legacy_archive_deleted_save(location))
 
 func _legacy_archive_deleted_save(location: Dictionary) -> Error:
+	if Progress.Custody.file_held(location.garden) or Character.Custody.file_held(location.character):return ERR_BUSY
 	# Move only the two live save files. Existing recovery archives remain intact.
 	var stamp:=Time.get_datetime_string_from_system().replace(":","-")+"-"+Crypto.new().generate_random_bytes(6).hex_encode()
 	var archive: String=location.directory.path_join("backups").path_join("deleted-"+stamp)
@@ -274,6 +276,7 @@ func _legacy_new_world(slot: int,confirmed: bool=false) -> Error:
 	if slot<0 or slot>=capacity: return ERR_INVALID_PARAMETER
 	if is_active(slot): return ERR_BUSY
 	var location:=paths(slot)
+	if Progress.Custody.file_held(location.garden):return ERR_BUSY
 	if FileAccess.file_exists(location.garden) and not confirmed: return ERR_ALREADY_EXISTS
 	var error:=DirAccess.make_dir_recursive_absolute(location.directory)
 	if error!=OK: return error
@@ -295,6 +298,7 @@ func _legacy_delete_world(slot: int,confirmed: bool=false) -> Error:
 	if not confirmed: return ERR_UNAUTHORIZED
 	if is_active(slot): return ERR_BUSY
 	var location:=paths(slot)
+	if Progress.Custody.file_held(location.garden):return ERR_BUSY
 	if not FileAccess.file_exists(location.garden): return ERR_DOES_NOT_EXIST
 	var error:=claim(slot)
 	if error!=OK: return error
@@ -414,6 +418,8 @@ func _initialize_guarded(slot: int, pair: bool, confirmed: bool, character_only 
 					return Ops.management_result(ERR_UNAUTHORIZED, "stale_replacement_confirmation")
 		if current_occupied and not confirmed:
 			return Ops.management_result(ERR_ALREADY_EXISTS, "occupied")
+		if current_occupied and Array(sources).any(Progress.Custody.file_held):
+			return Ops.management_result(ERR_BUSY,"inventory_custody_held")
 		var archives := {}
 		if current_occupied:
 			var prepared := Ops.archive_copies(context, targets, fault)
@@ -474,6 +480,8 @@ func _delete_guarded(slot: int, pair: bool, confirmed: bool, digests: Dictionary
 				removals.append(source)
 		if removals.is_empty():
 			return Ops.management_result(ERR_DOES_NOT_EXIST, "save_missing")
+		if Array(removals).any(Progress.Custody.file_held):
+			return Ops.management_result(ERR_BUSY,"inventory_custody_held")
 		var prepared := _archive_deleted_save_guarded(context, targets, fault)
 		if prepared.error != OK:
 			return prepared

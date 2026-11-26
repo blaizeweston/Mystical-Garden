@@ -1,6 +1,8 @@
 extends Control
 const Slots = preload("res://save_slots.gd")
 const GuardedSession = preload("res://guarded_title_session.gd")
+const InventoryCustody=preload("res://inventory_custody.gd")
+var reviewed_inventory_assignment: Dictionary={}
 const Persistence = preload("res://persistence_writer_integration.gd")
 # Earlier fixtures can still exercise the guarded handlers directly.
 # Default-route selection is owned by Persistence.
@@ -616,6 +618,9 @@ func refresh_characters() -> void:
 		character_buttons[i].button_pressed=i==selected_character
 		character_buttons[i].tooltip_text=data.name
 		character_buttons[i].text="CHARACTER %d\n%s\n%s"%[i+1,data.name,GuardedSession.label(data.state) if guarded_persistence and data.state not in ["healthy", "empty"] else "In use in another window" if data.active else "Profile needs attention" if data.error!=OK else "%s · Level %d"%[data.class_name,data.level] if data.exists else "Create your traveller"]
+		if data.get("inventory_held",false):
+			character_buttons[i].text+="\nInventory held by Garden"
+			character_buttons[i].tooltip_text="Reconnect to "+str(data.get("inventory_endpoint","")) if not str(data.get("inventory_endpoint","")).is_empty() else "Open the original local Garden to recover personal inventory."
 	var chosen:=character_summary(selected_character)
 	var summary: String="Playing as %s · %s · Level %d"%[chosen.name,chosen.class_name,chosen.level] if character_ready() else "Choose an available character to play."
 	play_character.text=summary
@@ -624,8 +629,8 @@ func refresh_characters() -> void:
 		create_character_button.disabled=true
 		delete_character_button.disabled=true
 		return
-	delete_character_button.disabled=chosen.active or not chosen.exists or transitioning
-	create_character_button.disabled=chosen.active or chosen.error!=OK or transitioning
+	delete_character_button.disabled=chosen.active or not chosen.exists or transitioning or chosen.get("inventory_held",false)
+	create_character_button.disabled=chosen.active or chosen.error!=OK or transitioning or chosen.get("inventory_held",false)
 	create_character_button.text=GuardedSession.label(chosen.state) if guarded_persistence and chosen.state not in ["healthy", "empty"] else "Create Character" if not chosen.exists else "Customize: %s · %s"%[chosen.name,chosen.class_name]
 
 func select_character(slot: int) -> void:
@@ -676,6 +681,9 @@ func create_character(character_name: String,class_id: int,appearance: Array) ->
 
 func new_game() -> void:
 	if transitioning or new_button.disabled: return
+	if character_summary(selected_character).get("inventory_held",false):
+		notice.text="Return your personal inventory from the original Garden before creating another Garden."
+		return
 	if not character_ready():
 		request_create_character(true)
 		return
@@ -919,6 +927,32 @@ func _launch_guarded(join: bool) -> void:
 		refresh_characters()
 		select_slot(selected)
 		return
+	game.portable_inventory=true
+	var custody: Dictionary=game.local_character.inventory_custody
+	if InventoryCustody.locked(custody) and ((join and custody.endpoint=="") or (not join and (custody.endpoint!="" or custody.origin!=game.progress.archive.origin))):
+		session_owner.release();game.free()
+		notice.text="Your personal inventory is held by another Garden. Open the original local Garden or reconnect to the original host first."
+		return
+	if not join and not InventoryCustody.locked(custody) and InventoryCustody.needs_host_assignment(game.progress):
+		var reviewed: Dictionary={"character":game.local_character.identity,"origin":game.progress.archive.origin,"profile":profile.digest,"garden":garden.digest}
+		if reviewed_inventory_assignment!=reviewed:
+			var traveller: String=game.local_character.data.name
+			session_owner.release();game.free()
+			var prompt:=ConfirmationDialog.new()
+			prompt.title="Assign legacy personal resources"
+			prompt.dialog_text="This Garden's historical personal stash was not assigned to a character. Permanently assign those resources to %s? Shared resources remain in this Garden."%traveller
+			prompt.ok_button_text="Assign to "+traveller
+			prompt.confirmed.connect(func():
+				reviewed_inventory_assignment=reviewed
+				prompt.hide()
+				prompt.queue_free()
+				_launch_guarded(false))
+			prompt.canceled.connect(prompt.queue_free)
+			add_child(prompt)
+			prompt.popup_centered(Vector2i(570,200))
+			return
+		game.legacy_inventory_assignment=true
+	reviewed_inventory_assignment={}
 	if not join:
 		var preference := GuardedSession.outcome(storage.remember_slot_guarded(selected))
 		if not GuardedSession.completed(preference):

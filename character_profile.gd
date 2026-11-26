@@ -20,6 +20,9 @@ var identity := Crypto.new().generate_random_bytes(16).hex_encode()
 const Archive = preload("res://living_archive.gd")
 var archive_visits: Dictionary = {}
 var projection_receipts: Dictionary = {}
+const Custody=preload("res://inventory_custody.gd")
+var inventory_custody: Dictionary = {}
+var needs_custody_backup:=false
 ## Private rejoin credentials for hosts visited with this character.
 var rejoin_ticket := {}
 
@@ -167,6 +170,10 @@ func _read_profile() -> Error:
 	var file := ConfigFile.new()
 	var result := file.load(path)
 	if result == OK:
+		var custody: Variant=file.get_value("character","inventory_custody",{})
+		if not Custody.valid_profile(custody):return ERR_INVALID_DATA
+		inventory_custody=custody
+		needs_custody_backup=not file.has_section_key("character","inventory_custody")
 		var receipts: Variant = file.get_value("character", "projection_receipts", {})
 		if not load("res://guest_profile_projection.gd").valid_receipts(receipts):
 			return ERR_INVALID_DATA
@@ -210,11 +217,12 @@ func save_profile_guarded() -> Dictionary:
 	return load("res://persistence_operations.gd").run_serializers([self], path, save_profile)
 
 func migration_backup_paths() -> PackedStringArray:
-	return PackedStringArray([path + ".pre-content-v2.bak"])
+	return PackedStringArray([path + ".pre-content-v2.bak",path + ".pre-portable-inventory-v1.bak"])
 
 func confirm_migration(saved_path: String) -> void:
 	if path == saved_path:
 		needs_content_backup = false
+		if not inventory_custody.is_empty():needs_custody_backup=false
 
 func _migration_backup(target: String, guarded: bool) -> Error:
 	if guarded:
@@ -228,12 +236,15 @@ func _serialize_save(stage := Callable()) -> Error:
 		var operations = load("res://persistence_operations.gd")
 		if not operations.authorizes_serializer(self, stage):
 			return SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, path)
-	if not Experience.current(data):
+	if not Experience.current(data) or not Custody.valid_profile(inventory_custody):
 		return ERR_INVALID_DATA
 	if needs_content_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-content-v2.bak", stage.is_valid())
 		if copied != OK:
 			return copied
+	if needs_custody_backup and not inventory_custody.is_empty() and FileAccess.file_exists(path):
+		var copied := _migration_backup(path+".pre-portable-inventory-v1.bak",stage.is_valid())
+		if copied!=OK:return copied
 	var file := ConfigFile.new()
 	file.set_value("content","manifest",ContentIDs.manifest())
 	if not archive_visits.is_empty(): file.set_value("character","archive_visits",archive_visits)
@@ -242,5 +253,7 @@ func _serialize_save(stage := Callable()) -> Error:
 	if not rejoin_ticket.is_empty(): file.set_value("character","rejoin_ticket",rejoin_ticket)
 	if not projection_receipts.is_empty():
 		file.set_value("character", "projection_receipts", projection_receipts)
+	if not inventory_custody.is_empty():
+		file.set_value("character","inventory_custody",inventory_custody)
 	var bytes := file.encode_to_text().to_utf8_buffer()
 	return (stage.call(path, bytes) if stage.is_valid() else SaveBatch.write(path, bytes))

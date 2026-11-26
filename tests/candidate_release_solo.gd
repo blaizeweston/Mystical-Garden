@@ -110,7 +110,7 @@ func run() -> void:
  clear_floor(world,actor,6)
  actor.carried_seeds=[0]
  world.expedition_transitions.checkpoint(1,false)
- check(not ExpeditionCase.is_wild(actor) and world.progress.campaign.best_extraction==6 and world.progress.unknown.size()>0,"guarded extraction banks loot")
+ check(not ExpeditionCase.is_wild(actor) and world.progress.campaign.best_extraction==6 and world.seed_reserve(actor).unknown.size()>0,"guarded extraction banks personal loot")
  record("expedition_and_inventory_commit",{"floor":world.participation.floor(),"best_extraction":world.progress.campaign.best_extraction})
  world.return_to_main_menu()
  check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer and not has_lease(G) and not has_lease(P),"return goes offline and releases leases")

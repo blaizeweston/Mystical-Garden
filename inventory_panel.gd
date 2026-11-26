@@ -197,6 +197,7 @@ func present(fresh: Dictionary) -> void:
   var tip:=Label.new();tip.text="Drag a stack here\nto protect it.";tip.add_theme_font_size_override("font_size",12);pouch_holder.add_child(tip)
  notice.text="Drag outside to drop · Shift + drag for one item."
  if not state.wild: notice.text+=" · R = reserved for equipment or cargo."
+ if not state.wild and state.get("portable_inventory",false):notice.text+="\nPersonal travels with your character. Shared stays with this Garden."
  if not state.wild and not state.get("may_withdraw",true):notice.text+=" Guest withdrawals from shared storage are disabled."
  if not str(fresh.get("notice","")).is_empty():notice.text+="\n"+str(fresh.get("notice",""))
  var candidates: Array=visible_entries.duplicate()

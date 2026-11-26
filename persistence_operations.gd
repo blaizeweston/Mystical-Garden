@@ -13,7 +13,7 @@ const MAX_AUXILIARIES := 64
 const MAX_AUXILIARY_BYTES := 1024 * 1024
 const MIGRATION_BACKUPS = [
  ".pre-tier-growth-v2.bak", ".pre-timed-research-v2.bak", ".pre-immediate-heart-v3.bak", ".pre-construction-v1.bak", ".pre-irrigation-v2.bak", ".pre-cultivation-v5.bak", ".pre-heart-economy-v6.bak", ".pre-content-v2.bak",
- ".pre-altar-v1.bak", ".pre-inventory-v1.bak", ".pre-heart-v1.bak", ".pre-plots-v2.bak",
+ ".pre-altar-v1.bak", ".pre-inventory-v1.bak", ".pre-heart-v1.bak", ".pre-plots-v2.bak", ".pre-portable-inventory-v1.bak",
 ]
 
 static var _context: RefCounted
@@ -592,6 +592,7 @@ static func _observe_auxiliaries(paths: PackedStringArray, auxiliaries: PackedSt
     _allow_pair(allowed, path + suffix)
   else:
    _allow_pair(allowed, path + ".pre-content-v2.bak")
+   _allow_pair(allowed, path + ".pre-portable-inventory-v1.bak")
   if not parent.get_file().begins_with("slot_"):
    continue
   _allow_pair(allowed, parent.path_join("session.cfg"))

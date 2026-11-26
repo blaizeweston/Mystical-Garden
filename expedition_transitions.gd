@@ -538,6 +538,7 @@ func complete_guest_exit(intent: int) -> void:
 		Session.Exit.TITLE: game.return_to_main_menu()
 		Session.Exit.SESSION: game.session_world.leave("Back in your own Garden.")
 		Session.Exit.APPLICATION:
+			if game.InventoryCustody.request_exit(game,Session.Exit.APPLICATION):return
 			if game.persistence_session.is_guarded():
 				if not game.prepare_guarded_exit(): return
 				game.persistence_session.begin_shutdown()

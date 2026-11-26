@@ -14,7 +14,7 @@ static func extras(game: Node,player: Dictionary,bucket: String) -> Dictionary:
  if not game.progress.item_stashes.has(SHARED_OWNER):game.progress.item_stashes[SHARED_OWNER]={}
  return game.progress.item_stashes[SHARED_OWNER]
 static func extra_stash(game,player: Dictionary) -> Dictionary:
- var owner: String=Session.inventory_owner(player)
+ var owner: String=game.InventoryCustody.local_owner(game,player) if game.get("portable_inventory")==true else Session.inventory_owner(player)
  if not game.progress.item_stashes.has(owner): game.progress.item_stashes[owner]={}
  return game.progress.item_stashes[owner]
 static func normalize_pouch(player: Dictionary) -> void:
@@ -128,7 +128,10 @@ static func garden_or_party_has_seed(species: int, progress, players: Dictionary
  if _reserve_has_seed(progress.guest_seeds.get(SHARED_OWNER, {}), species):
   return true
  for player: Dictionary in players.values():
-  var stored: Dictionary = progress.guest_seeds.get(Session.inventory_owner(player), {})
+  var holder:=Session.inventory_owner(player)
+  if holder.is_empty() and progress.personal_custody.has(Session.identity_for(player)):
+   holder=Session.identity_for(player)
+  var stored: Dictionary = progress.guest_seeds.get(holder, {})
   if _reserve_has_seed(stored, species) or player.carried_seeds.has(species): return true
   if player.get("carried_items",{}).get(item,0)>0: return true
   for stack: Dictionary in player.safe_items:

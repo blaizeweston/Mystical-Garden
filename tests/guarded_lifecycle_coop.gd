@@ -134,7 +134,8 @@ func guest_run() -> void:
   return
  menu=current_scene
  check(not is_instance_valid(world) or world.network_session.transport()==null,"refused join went offline")
- check(Slots._save_digest(P)==before and not FileAccess.file_exists(P.get_base_dir().path_join("session.cfg")),"failed join unwinds selected profile lease")
+ var locked_profile=preload("res://character_profile.gd").new();locked_profile.path=P
+ check(locked_profile.load_profile()==OK and locked_profile.inventory_custody.get("state")=="away" and Slots._save_digest(P)!=before and not FileAccess.file_exists(P.get_base_dir().path_join("session.cfg")),"failed host checkout retains a durable guest lock while unwinding its session lease")
  mark("refused",menu.return_message)
  if not await until(func():return read("admission-ready")=="ready"):
   check(false,"host clears controlled admission fault")
@@ -147,6 +148,8 @@ func guest_run() -> void:
  mark("peer",str(world.local_player_id()))
  mark("joined","yes")
  world.session_world.leave("Reconnect from title")
+ if not await until(func():return SessionCase.returned_to_guarded_title(current_scene)):
+  check(false,"confirmed custody return before reconnect");return
  menu=current_scene
  check(menu!=world and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest offline before old world detaches")
  await process_frame
@@ -156,7 +159,7 @@ func guest_run() -> void:
   check(false,"reconnect through guarded title")
   return
  mark("reconnected","yes")
- if not await until(func():return current_scene!=world and is_instance_valid(current_scene) and SessionCase.returned_to_guarded_title(current_scene)):
+ if not await until(func():return SessionCase.returned_to_guarded_title(current_scene)):
   check(false,"host disconnect returns guest to title")
   return
  var marker:=P.get_base_dir().path_join("session.cfg")
