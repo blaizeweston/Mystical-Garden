@@ -461,7 +461,7 @@ def test_revive_trunk(schema: MobSchema) -> None:
     state = {"policy": policy.state_dict(), "critic": critic.state_dict(), "optimizer": optimizer.state_dict()}
     check(V.alive_share(state, schema, obs)[1] == 0.0, "the fixture's trunk is dead")
     revived = V.revive(state, schema, 1)
-    difference = V.largest_difference(state, revived, schema)
+    difference = V.largest_difference(state, revived, schema, obs, hidden)
     check(difference < 1e-5, f"reviving the trunk keeps every answer ({difference:.1e})")
     check(V.alive_share(revived, schema, obs)[1] > 0.5, "the revived trunk fires")
     names = [n for n, _ in policy.named_parameters()]

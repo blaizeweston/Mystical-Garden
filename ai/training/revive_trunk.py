@@ -11,9 +11,11 @@ policy answers exactly as before, while the fresh trunk now fires and its outgoi
 update. Adam's state for every touched weight is reset, step count included, so the first steps are ordinary
 bias-corrected ones rather than oversized. The critic is not touched.
 
-usage: python revive_trunk.py --checkpoint <ckpt_*.pt> --out-folder <folder> [--seed 20261126] [--shards <folder>]
+usage: python revive_trunk.py --checkpoint <ckpt_*.pt> --out-folder <folder> --shards <folder> [--seed 20261126]
 The checkpoint is never changed: the revived copy goes to --out-folder under the same version. --shards (copied
-.shard files) checks liveness on real decisions as well as on random ones.
+.shard files) supplies the real decisions the revival is proven on: their observations with their recorded memory.
+Random observations are not a fair proof: they are about seven times larger than real ones, and on 2026-11-25 one
+old trunk unit fired on them though it never fires on anything a mob sees, so they are reported but do not decide.
 """
 
 from __future__ import annotations
@@ -75,11 +77,8 @@ def _reset_moments(optimizer: dict, schema: MobSchema, touched: list[str]) -> di
     return {**optimizer, "state": state}
 
 
-def largest_difference(before: dict, after: dict, schema: MobSchema, rows: int = 512) -> float:
-    """Largest change in any logit or next memory value on random observations and memories."""
-    generator = torch.Generator().manual_seed(11)
-    obs = torch.randn(rows, schema.observation_size, generator=generator)
-    hidden = torch.randn(rows, schema.network["recurrent_hidden"], generator=generator) * 0.5
+def largest_difference(before: dict, after: dict, schema: MobSchema, obs: torch.Tensor, hidden: torch.Tensor) -> float:
+    """Largest change in any logit or next memory value on these observations and memories."""
     old, new = MobPolicy(schema), MobPolicy(schema)
     old.load_state_dict(before["policy"])
     new.load_state_dict(after["policy"])
@@ -103,7 +102,7 @@ def main() -> int:
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--out-folder", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=20261126)
-    parser.add_argument("--shards", type=Path, default=None)
+    parser.add_argument("--shards", type=Path, required=True)
     args = parser.parse_args()
     if args.out_folder.resolve() == args.checkpoint.parent.resolve():
         print("Pass --out-folder, a folder other than the checkpoint's own.")
@@ -113,17 +112,24 @@ def main() -> int:
     if state is None or state.get("schema_hash") != schema.hash_hex:
         print(f"{args.checkpoint.name} fails its checksum or was made for another schema.")
         return 1
-    revived = revive(state, schema, args.seed)
-    difference = largest_difference(state, revived, schema)
-    if difference > 1e-5:
-        print(f"Reviving changed the policy's answers by {difference:.2e}; nothing was saved.")
+    parts = [R.read_shard(p, schema) for p in sorted(args.shards.glob("*.shard"))[:6]]
+    if not parts:
+        print(f"No shards in {args.shards}: the revival needs real decisions to be proven on.")
         return 1
-    checks = {"random": torch.randn(4096, schema.observation_size, generator=torch.Generator().manual_seed(12))}
-    if args.shards:
-        parts = [R.read_shard(p, schema) for p in sorted(args.shards.glob("*.shard"))[:6]]
-        if parts:
-            obs = R.concatenate(parts).obs
-            checks["shards"] = torch.as_tensor(obs[np.linspace(0, len(obs) - 1, min(20000, len(obs))).astype(int)])
+    batch = R.concatenate(parts)
+    rows = np.linspace(0, batch.rows - 1, min(20000, batch.rows)).astype(int)
+    obs, hidden = torch.as_tensor(batch.obs[rows]), torch.as_tensor(batch.memory[rows])
+    generator = torch.Generator().manual_seed(11)
+    random_obs = torch.randn(4096, schema.observation_size, generator=generator)
+    random_hidden = torch.randn(4096, schema.network["recurrent_hidden"], generator=generator) * 0.5
+    revived = revive(state, schema, args.seed)
+    difference = largest_difference(state, revived, schema, obs, hidden)
+    off_world = largest_difference(state, revived, schema, random_obs, random_hidden)
+    print(f"Largest change on {len(rows)} real decisions: {difference:.1e}; on random observations (not deciding): {off_world:.1e}.")
+    if difference > 1e-5:
+        print(f"Reviving changed the policy's answers on real decisions by {difference:.2e}; nothing was saved.")
+        return 1
+    checks = {"random": random_obs, "real": obs}
     for label, obs in checks.items():
         before, after = alive_share(state, schema, obs), alive_share(revived, schema, obs)
         print(f"Live units on {label} observations: trunk_a {before[0]:.0%} -> {after[0]:.0%}, trunk_b {before[1]:.0%} -> {after[1]:.0%}.")
