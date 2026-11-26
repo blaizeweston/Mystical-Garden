@@ -30,17 +30,17 @@
 	},
 	"shards": {
 		"rows": 8192,
-		"backlog": 48
+		"backlog": 80
 	},
 	"trainer": {
 		"seed": 20261122,
 		"device": "cuda",
-		"batch_rows": 262144,
+		"batch_rows": 524288,
 		"sequence": 16,
 		"minibatch_sequences": 1024,
 		"epochs": 4,
 		"learning_rate": 0.0003,
-		"target_kl": 0.006,
+		"target_kl": 0.003,
 		"max_learning_rate": 0.0003,
 		"gamma": 0.999,
 		"lambda": 0.95,
