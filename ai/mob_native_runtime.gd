@@ -108,7 +108,7 @@ func _configure(batch: Batch) -> bool:
 		contract.message_symbols, schema.observation_size, History.BUCKETS, History.ONE_SECOND_BUCKETS, schema.blocks.self_ability.repeat,
 		schema.blocks.context_cover.repeat, Species.Shape.BUFF, Species.Shape.SUMMON, Contract.TargetKind.ALLY,
 		Pool.FLAG_LEADER | Pool.FLAG_ELITE, schema.blocks.context_hazard.repeat, Fields.Owner.PLAYERS, Fields.FLAG_GROUND,
-		contract.party_classes.size()])
+		contract.party_classes.size(), Pool.FLAG_ELITE])
 	var strides := PackedInt32Array([schema.blocks.self_ability.stride, schema.blocks.enemy.stride, schema.blocks.ally.stride,
 		schema.blocks.context_cover.stride, schema.blocks.context_hazard.stride])
 	var reals := PackedFloat32Array([schema.clip, Builder.WALL_RANGE, Builder.COVER_CLEARANCE, Builder.FACING_DOT,

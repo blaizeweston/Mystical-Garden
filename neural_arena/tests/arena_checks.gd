@@ -112,7 +112,8 @@ func test_combat() -> void:
 	var start: Vector3 = world.encounter.scout(0).pos
 	var over_cap := 0
 	var cap := int(world.bridge.sim.contract.rules.max_attackers_per_player)
-	for tick in REPEAT_TICKS * 2:
+	# The untrained net acts at random, so whether it lands a hit in one 60 s round is luck: give it four rounds.
+	for tick in REPEAT_TICKS * 8:
 		world.step_once()
 		if not world.round_running or world.bridge == null:
 			continue

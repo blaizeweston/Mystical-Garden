@@ -418,6 +418,28 @@ def test_dashboard_eras() -> None:
     check(focus[0]["version"] < at and len(focus) == after + after // 4, "the focus view keeps a quarter as much context before the change")
 
 
+def test_fold_constant_input(schema: MobSchema) -> None:
+    """Folding an input the policy only ever saw at 1 leaves every logit and value unchanged when it then reads 0."""
+    import fold_constant_input as F
+    from mob_net import MobCritic, MobPolicy
+    torch.manual_seed(3)
+    policy, critic = MobPolicy(schema), MobCritic(schema)
+    optimizer = torch.optim.Adam(list(policy.parameters()) + list(critic.parameters()), lr=1e-3)
+    obs = torch.rand(8, schema.observation_size)
+    loss = policy(obs, torch.zeros(8, schema.network["recurrent_hidden"]))[0].sum() + critic(obs, torch.rand(8, schema.global_size)).sum()
+    loss.backward()
+    optimizer.step()
+    state = {"policy": policy.state_dict(), "critic": critic.state_dict(), "optimizer": optimizer.state_dict()}
+    folded = F.fold(state, schema, "leader", "is_elite", 1.0)
+    difference = F.largest_difference(state, folded, schema, "leader", "is_elite", 1.0)
+    column = next(b for b in schema.blocks if b.name == "leader").fields["is_elite"][0]
+    check(difference < 1e-5, f"folding the leader's is_elite input keeps every answer ({difference:.1e})")
+    check(float(folded["policy"]["leader_encoder.weight"][:, column].abs().max()) == 0.0, "the folded input starts from zero weight")
+    names = [n for n, _ in policy.named_parameters()]
+    moment = folded["optimizer"]["state"][names.index("leader_encoder.weight")]["exp_avg"]
+    check(float(moment[:, column].abs().max()) == 0.0 and float(moment.abs().max()) > 0.0, "only the folded weights' Adam moments are cleared")
+
+
 def main() -> int:
     schema = MobSchema()
     with tempfile.TemporaryDirectory() as temporary:
@@ -432,6 +454,7 @@ def main() -> int:
         test_commit_conversion(folder)
         test_message_warm_start(folder)
         test_dashboard_eras()
+        test_fold_constant_input(schema)
     print("PASSED" if not failures else f"FAILED: {len(failures)} check(s)")
     return 1 if failures else 0
 

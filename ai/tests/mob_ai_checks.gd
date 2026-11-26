@@ -333,7 +333,11 @@ func test_observation_values(schema: Schema) -> void:
 	check(near.call(field_value(schema, obs, "ally", 0, "dy"), (sim.pool.xz[mate * 2 + 1] - sim.pool.xz[mob * 2 + 1]) / vision), "ally positions are relative")
 	check(field_value(schema, obs, "ally", 0, "role_ranged") == 1.0, "ally roles are reported")
 	check(field_value(schema, obs, "ally", 1, "present") == 0.0, "the leader does not take an ally slot")
-	check(field_value(schema, obs, "leader", 0, "present") == 1.0 and field_value(schema, obs, "leader", 0, "is_elite") == 1.0, "the leader has its own block")
+	check(field_value(schema, obs, "leader", 0, "present") == 1.0 and field_value(schema, obs, "leader", 0, "is_elite") == 0.0, "the leader has its own block, and a regular leader is not marked elite")
+	sim.pool.flags[chief] |= Pool.FLAG_ELITE
+	obs = observe(sim, runtime, mob)
+	check(field_value(schema, obs, "leader", 0, "is_elite") == 1.0, "an elite leader is marked elite")
+	sim.pool.flags[chief] &= ~Pool.FLAG_ELITE
 
 	sim.party.set_player(2, Vector2(25, 20), Vector2.ZERO, 40.0, 100.0)
 	for tick in 14:

@@ -465,7 +465,8 @@ func _write_mate(batch: Batch, at: int, fields: PackedInt32Array, slot: int, oth
 	_put(at + fields[Mate.HP], pool.hp[other] / pool.max_hp[other])
 	_put(at + fields[Mate.HP_LOST], history.window_sum(history.taken, other, History.ONE_SECOND_BUCKETS) / pool.max_hp[other])
 	_put(at + fields[Mate.DEALT], history.window_sum(history.dealt, other, History.ONE_SECOND_BUCKETS))
-	_put(at + fields[Mate.ELITE], float(pool.is_leader(other)))
+	# A true elite only: since every fight has a commander, the leader flag no longer means elite.
+	_put(at + fields[Mate.ELITE], float(pool.flags[other] & Pool.FLAG_ELITE != 0))
 	var support: bool = batch.species.support[kind] != 0
 	var ranged: bool = batch.species.max_range[kind] > RANGED_ROLE_REACH
 	_put(at + fields[Mate.MELEE], float(not support and not ranged))

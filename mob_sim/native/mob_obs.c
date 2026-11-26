@@ -390,7 +390,8 @@ static void write_mate(Ctx *c, int shift, MoField first, int slot, int other) {
     put(c, MATE(HP), (double)c->hp[other] / max_hp);
     put(c, MATE(HP_LOST), window_sum(c, c->taken, other, one) / max_hp);
     put(c, MATE(DEALT), window_sum(c, c->dealt, other, one));
-    put(c, MATE(ELITE), (c->flags[other] & o->dim[MD_LEADER_FLAGS]) != 0);
+    /* An ally or the commander that is a true elite; a regular commander is not one. */
+    put(c, MATE(ELITE), (c->flags[other] & o->dim[MD_ELITE_FLAG]) != 0);
     int support = o->support[kind] != 0;
     int ranged = (double)o->max_range[kind] > (double)o->real[MR_RANGED_ROLE];
     put(c, MATE(MELEE), !support && !ranged);
