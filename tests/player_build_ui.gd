@@ -39,7 +39,8 @@ func run() -> void:
 		"affinity_build":Build.resolve(0,0,[0,0,0],profile),"notice":"fixture notice"}
 	var original := JSON.stringify(facts)
 	inventory.present(facts)
-	check(inventory.grid.get_child_count()==40 and inventory.heading.text=="GARDEN STASH","standalone inventory renders the real storage controls")
+	check(inventory.grid.get_child_count()==40 and inventory.heading.text=="Garden inventory","standalone inventory renders the real storage controls")
+	inventory.select_all.pressed.emit()
 	inventory.transfer_button.pressed.emit()
 	check(requests.back()=={"command":"inventory_transfer","data":{"source":"stash","target":"shared","item":Items.seed_id(0),"quantity":2}},"transfer produces only a scoped request")
 	check(JSON.stringify(facts)==original and inventory.shown[0].quantity==2,"a request cannot debit the supplied inventory snapshot")
@@ -56,7 +57,8 @@ func run() -> void:
 		var data := loadout_facts(class_id,profile)
 		loadout.present(data)
 		check(loadout.focus_options.visible and loadout.depart_button.disabled
-			and loadout.focus_previews.all(func(label): return "cooldown" in label.text and label.text.length()>30),
+			and loadout.focus_previews.all(func(label): return "cooldown" in label.text)
+			and loadout.focus_buttons.all(func(button): return button.tooltip_text.length()>30),
 			"zero-XP %s describes every native starting focus"%Classes.DEFINITIONS[class_id].name)
 		loadout.focus_buttons[1].pressed.emit()
 		check(requests.back()=={"command":"garden_action","data":{"action":"learn_%d_%d"%[class_id,Classes.ConnectedTree.REQUEST_OFFSET+1]}},"focus selection requests the existing host command")

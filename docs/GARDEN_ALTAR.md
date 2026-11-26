@@ -6,7 +6,7 @@ Press **E** at the Garden altar to open the new drag-and-drop offering menu. The
 
 Choose **Seeds** or **Plant parts**. Drag one ingredient into each slot. Dragging a stack reserves **one item**, not the entire stack. Nothing is consumed until you press **Sacrifice 2 seeds** or **Sacrifice 2 plant parts**. Clear offerings to cancel, double-click an offering to remove it, drag it back to the right-hand grid, or move it to the other offering slot. Closing the menu does not consume ingredients.
 
-Seed offerings use identified seeds from personal storage. Plant-part offerings can draw from personal or shared Garden storage; the sources can be mixed across the two slots. Type modes, rarity filtering and sorting help find ingredients. Monster components and unidentified seeds cannot be sacrificed in these combinations. The **Identify seed** button turns one banked mysterious seed into an identified seed, preserving its existing discovery behavior.
+Seed and plant-part offerings can draw from personal or shared Garden storage; the sources can be mixed across the two slots. Type modes, rarity filtering and sorting help find ingredients. Monster components and unidentified seeds cannot be sacrificed in these combinations. The **Identify seed** button identifies one mysterious seed from the selected storage without changing its ownership. Keyboard and controller users can focus an ingredient and use **Add selected ingredient**.
 
 ## Results and discoveries
 
@@ -18,7 +18,7 @@ A material result is usable in the normal crafting system but does **not** award
 
 Failed combinations consume the two offerings and return one deterministic salvage material plus a clue. With Seed Conservation, a failed seed offering also returns the parent whose material was not salvaged. For matching parents that means one net seed consumed. The recorded failure preview lists both outputs. Repeating the failed pair previews the salvage, rather than implying a hidden successful result. Mixed seed/material offerings, missing ingredients and attempts away from the Garden altar are rejected without consuming anything.
 
-New seed discoveries grant their usual four Knowledge. The first successful seed recipe independently earns two Knowledge, giving six when it also discovers a species. A first successful material recipe earns four Knowledge. Repeating known recipes grants the item without repeatedly farming discovery Knowledge. Outputs go to the offering player's personal stash, including outputs made from shared materials.
+New seed discoveries grant their usual four Knowledge. The first successful seed recipe independently earns two Knowledge, giving six when it also discovers a species. A first successful material recipe earns four Knowledge. Repeating known recipes grants the item without repeatedly farming discovery Knowledge. Personal-only ingredients yield personal results; if either ingredient is shared, every output (including failed-offering salvage and conservation returns) goes to shared Garden storage. The mixed-source preview states this before payment.
 
 All ingredient counts are revalidated on confirmation. If saving fails, ingredients, output, recipe records, discovery flags and Knowledge are restored.
 

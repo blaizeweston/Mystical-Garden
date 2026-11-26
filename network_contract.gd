@@ -21,7 +21,8 @@ const CAPABILITIES := {
 	"guest_profile_projection": 1,
 	"expedition_travel_consent": 2,
 	"expedition_abandonment_forfeiture": 1,
-	"wild_flora_harvest": 3,
+	"wild_flora_harvest": 4,
+	"shared_inventory_access": 1,
 	"expedition_resume": 1,
 	"returning_root": 1,
 	"botanical_acquisition": 2,
@@ -58,7 +59,7 @@ const RPCS := {
 	"open_graft_menu": {"sender":"authority", "delivery":"reliable", "channel":0, "args":[TYPE_DICTIONARY], "optional":0},
 	"open_garden_altar": {"sender":"authority", "delivery":"reliable", "channel":0, "args":[TYPE_DICTIONARY], "optional":0},
 	"update_garden_altar": {"sender":"authority", "delivery":"reliable", "channel":0, "args":[TYPE_DICTIONARY], "optional":0},
-	"open_planting_picker": {"sender":"authority", "delivery":"reliable", "channel":0, "args":[TYPE_INT,TYPE_ARRAY], "optional":0},
+	"open_planting_picker": {"sender":"authority", "delivery":"reliable", "channel":0, "args":[TYPE_INT,TYPE_ARRAY,TYPE_ARRAY], "optional":1},
 	"close_planting_picker": {"sender":"authority", "delivery":"reliable", "channel":0, "args":[], "optional":0},
 }
 

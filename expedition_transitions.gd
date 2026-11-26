@@ -71,6 +71,10 @@ func _admit(id: int, binding: int, reserved_override: Array = [], effects = null
 		game.action_feedback(effects,id, "Wait for your party to finish the expedition.")
 		return false
 	var selected: Array = [p.prepared, p.prepared_secondary, p.get("prepared_catalyst",0)]
+	var cargo_error:=preload("res://loadout_materials.gd").cargo_refusal(game,p)
+	if not cargo_error.is_empty():
+		game.action_feedback(effects,id,cargo_error)
+		return false
 	var available_parts: Array = game.Parts.empty_counts()
 	for part in range(1, available_parts.size()): available_parts[part] = game.available_parts(p, part)
 	var plan: Dictionary = preload("res://loadout_materials.gd").departure_plan(

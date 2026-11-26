@@ -21,8 +21,8 @@ func run() -> void:
 	game.seed_reserve(actor).stock[0]+=1
 	check(game.cultivation.plant_seed(1,0),"plant before any research")
 	g.advance_growth(86400)
-	var before: int=game.seed_reserve(actor).stock[0]
-	check(game.cultivation.harvest_seeds(1,0).get("changed",false) and game.seed_reserve(actor).stock[0]==before+2,"starting propagation yields two seeds")
+	var before: int=g.reserve("__shared_garden_inventory__").stock[0]
+	check(game.cultivation.harvest_seeds(1,0).get("changed",false) and g.reserve("__shared_garden_inventory__").stock[0]==before+2,"starting propagation yields two shared seeds")
 	actor.pos=Vector3(0,0,1.5)
 	for tech in ["clearing_1","cultivation_grounds","irrigation"]: game.garden_action(1,"heart_start_"+tech)
 	var site: Vector2=garden.planar(game.stage.bed_position(0))
@@ -111,9 +111,9 @@ func run() -> void:
 	check(Placement.deploy_irrigation(garden,"pollination_bloom",site)>0,"place improved Pollination Bloom")
 	g.advance_growth(86400)
 	actor.pos=game.stage.bed_position(0)
-	var prior_seeds: int=game.seed_reserve(actor).stock[0]
-	check(game.cultivation.harvest_seeds(1,0).get("changed",false) and game.seed_reserve(actor).stock[0]==prior_seeds+4,"actual improved four-seed harvest")
-	game.cultivation.plant_seed(1,0);g.advance_growth(86400)
+	var prior_seeds: int=g.reserve("__shared_garden_inventory__").stock[0]
+	check(game.cultivation.harvest_seeds(1,0).get("changed",false) and g.reserve("__shared_garden_inventory__").stock[0]==prior_seeds+4,"actual improved four-seed harvest")
+	game.cultivation.plant_seed(1,0,0,"shared");g.advance_growth(86400)
 	check(g.save_garden()==OK,"save configured Garden")
 	var legacy:=ConfigFile.new()
 	check(legacy.load(g.path)==OK,"read historical fixture")

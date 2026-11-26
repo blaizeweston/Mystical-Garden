@@ -45,9 +45,9 @@ static func cultivation() -> Array:
 
 static func wilds_exploration() -> Array:
 	return [
-		{"id": "careful_gathering", "name": "Careful Gathering", "parents": ["heart"], "insight": 8, "description": "Natural specimens have a 25% chance to yield a second seed of the same species for each explorer."},
+		{"id": "careful_gathering", "name": "Careful Gathering", "parents": ["heart"], "insight": 8, "description": "The explorer who harvests a natural specimen has a 25% chance to receive a second seed of the same species. Each specimen can be harvested once by the party."},
 		{"id": "wild_harvest", "name": "Wild Harvest", "parents": ["careful_gathering"], "insight": 16, "description": "Every natural specimen harvest also yields one ordinary material from that plant."},
-		{"id": "refined_gathering", "name": "Refined Gathering", "parents": ["wild_harvest"], "insight": 30, "description": "Each explorer also has a 15% chance to gather one refined material from a natural specimen."},
+		{"id": "refined_gathering", "name": "Refined Gathering", "parents": ["wild_harvest"], "insight": 30, "description": "The successful specimen harvest also has a 15% chance to yield one refined material."},
 		{"id": "botanical_awareness", "name": "Botanical Awareness", "parents": ["heart"], "insight": 6, "description": "Visible, unharvested specimens catch the light within six metres."},
 		{"id": "root_resonance", "name": "Root Resonance", "parents": ["botanical_awareness"], "insight": 20, "description": "Sense when a floor holds a plant the Garden has yet to identify."},
 		{"id": "checkpoint_deposit", "name": "Returning Root", "parents": ["heart"], "insight": 8, "description": "Discover living roots in the Wilds. Each explorer can send one carried seed or plant material home at each root."},

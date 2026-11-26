@@ -18,6 +18,8 @@ var preview_text: Label
 var details: RichTextLabel
 var combine_button: Button
 var clear_button: Button
+var add_button: Button
+var selected_entry: Dictionary={}
 var message: Label
 var data: Dictionary={}
 var draft: Array=[{},{}]
@@ -34,11 +36,11 @@ func _ready() -> void:
   if busy: return
   draft=[{},{}];request("preview"))
  identify_button=Button.new();navigation.add_child(identify_button)
- identify_button.pressed.connect(func(): request("identify"))
- identify_all_button=Button.new();identify_all_button.text="Identify all";navigation.add_child(identify_all_button);identify_all_button.pressed.connect(func(): request("identify_all"))
+ identify_button.pressed.connect(func(): request("identify" if source()=="stash" else "identify_shared"))
+ identify_all_button=Button.new();identify_all_button.text="Identify all";navigation.add_child(identify_all_button);identify_all_button.pressed.connect(func(): request("identify_all" if source()=="stash" else "identify_all_shared"))
  var row:=HBoxContainer.new();row.add_theme_constant_override("separation",18);add_child(row)
  var left:=VBoxContainer.new();left.custom_minimum_size.x=375;row.add_child(left)
- var hint:=Label.new();hint.text="Drag one ingredient into each slot.";hint.add_theme_font_size_override("font_size",14);left.add_child(hint)
+ var hint:=Label.new();hint.text="Select or drag two ingredients.";hint.add_theme_font_size_override("font_size",14);left.add_child(hint)
  recipe_pick=OptionButton.new();recipe_pick.custom_minimum_size.x=370;left.add_child(recipe_pick)
  recipe_pick.item_selected.connect(func(index):
   if index<=0 or busy: return
@@ -55,6 +57,8 @@ func _ready() -> void:
  result_holder=HBoxContainer.new();result_row.add_child(result_holder)
  preview_text=Label.new();preview_text.custom_minimum_size.x=270;preview_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;preview_text.add_theme_font_size_override("font_size",14);result_row.add_child(preview_text)
  details=RichTextLabel.new();details.bbcode_enabled=true;details.custom_minimum_size=Vector2(375,85);details.scroll_active=true;left.add_child(details)
+ add_button=Button.new();add_button.text="Add selected ingredient";add_button.disabled=true;left.add_child(add_button)
+ add_button.pressed.connect(add_selected)
  var right:=VBoxContainer.new();right.custom_minimum_size.x=446;row.add_child(right)
  var toolbar:=HBoxContainer.new();right.add_child(toolbar)
  storage_pick=OptionButton.new();storage_pick.add_item("Personal stash");storage_pick.add_item("Shared Garden");toolbar.add_child(storage_pick)
@@ -64,7 +68,7 @@ func _ready() -> void:
  rarity_pick.item_selected.connect(func(_index): render())
  sort_button=Button.new();sort_button.text="Sort: Name";toolbar.add_child(sort_button)
  sort_button.pressed.connect(func(): sort_by_rarity=not sort_by_rarity;render())
- var scroll:=ScrollContainer.new();scroll.custom_minimum_size=Vector2(446,300);right.add_child(scroll)
+ var scroll:=ScrollContainer.new();scroll.custom_minimum_size=Vector2(446,300);scroll.follow_focus=true;right.add_child(scroll)
  grid=GridContainer.new();grid.columns=7;grid.add_theme_constant_override("h_separation",6);grid.add_theme_constant_override("v_separation",6);scroll.add_child(grid)
  var note:=Label.new();note.text="Uses one item per slot when confirmed. Failed combinations return materials and a clue.";note.custom_minimum_size.x=840;note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;note.add_theme_font_size_override("font_size",12);add_child(note)
  var actions:=HBoxContainer.new();add_child(actions)
@@ -73,7 +77,7 @@ func _ready() -> void:
  message=Label.new();message.custom_minimum_size=Vector2(840,34);message.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;message.add_theme_font_size_override("font_size",13);add_child(message)
  var close:=Button.new();close.text="Close · Esc";close.pressed.connect(func(): requested.emit("close",{}));add_child(close)
 func begin(value: Dictionary) -> void:
- revision=0;draft=[{},{}];busy=false;pending_data={};set_data(value)
+ revision=0;draft=[{},{}];busy=false;pending_data={};selected_entry={};set_data(value)
 func set_data(value: Dictionary) -> void:
  if int(value.get("revision",0))<revision: return
  if get_viewport().gui_is_dragging(): pending_data=value.duplicate(true);return
@@ -90,14 +94,17 @@ func clear_children(node: Node) -> void:
 func mode() -> String:
  return "seeds" if tabs.current_tab==0 else "parts"
 func source() -> String:
- return "stash" if tabs.current_tab==0 or storage_pick.selected==0 else "shared"
+ return "stash" if storage_pick.selected==0 else "shared"
 func available(item: String,bucket: String,ignore_index: int=-1) -> int:
- var count:=0
- for stack in data.get(bucket,[]):
-  if stack.item==item: count+=int(stack.quantity)
+ var count:=stock_quantity(item,bucket)
  for index in 2:
   if index==ignore_index: continue
   if draft[index].get("item","")==item and draft[index].get("source","")==bucket: count-=1
+ return count
+func stock_quantity(item: String,bucket: String) -> int:
+ var count:=0
+ for stack in data.get(bucket,[]):
+  if stack.item==item: count+=int(stack.get("free",stack.quantity))
  return count
 func render() -> void:
  if grid==null or get_viewport().gui_is_dragging(): return
@@ -105,10 +112,16 @@ func render() -> void:
  for recipe in data.get("recipes",[]):
   if recipe.mode!=mode(): continue
   recipe_pick.add_item(str(recipe.name));recipe_pick.set_item_metadata(recipe_pick.item_count-1,recipe)
+  var first: String=recipe.inputs[0]
+  var second: String=recipe.inputs[1]
+  var ready:=stock_quantity(first,source())>=(2 if first==second else 1) and stock_quantity(second,source())>=1
+  recipe_pick.set_item_disabled(recipe_pick.item_count-1,not ready)
+  if not ready:recipe_pick.get_popup().set_item_tooltip(recipe_pick.item_count-1,"The ingredients are unavailable in this storage view.")
  recipe_pick.disabled=busy or recipe_pick.item_count==1
- storage_pick.disabled=mode()=="seeds" or busy
- identify_all_button.disabled=busy or int(data.get("unknown",0))<=0
- identify_button.text="Identify · %d seeds"%int(data.get("unknown",0));identify_button.disabled=busy or int(data.get("unknown",0))<=0
+ storage_pick.disabled=busy
+ var unknown_count:=int(data.get("unknown" if source()=="stash" else "shared_unknown",0))
+ identify_all_button.disabled=busy or unknown_count<=0
+ identify_button.text="Identify · %d seeds"%unknown_count;identify_button.disabled=busy or unknown_count<=0
  clear_button.disabled=busy
  sort_button.text="Sort: Rarity" if sort_by_rarity else "Sort: Name"
  for index in 2:
@@ -137,6 +150,10 @@ func render() -> void:
   var slot:=Slot.new();grid.add_child(slot);slot.setup(self,entry,source(),56)
  for index in maxi(0,28-entries.size()):
   var slot:=Slot.new();grid.add_child(slot);slot.setup(self,{},source(),56)
+ if not selected_entry.is_empty():
+  var match_entry: Array=entries.filter(func(entry):return entry.item==selected_entry.get("item","") and entry.bucket==selected_entry.get("bucket",""))
+  selected_entry=match_entry[0] if not match_entry.is_empty() else {}
+ update_add()
  var preview: Dictionary=data.get("preview",{})
  clear_children(result_holder)
  if preview.get("known",false) and not str(preview.get("item","")).is_empty():
@@ -173,7 +190,17 @@ func select_entry(entry: Dictionary) -> void:
  var item:=Items.get_item(str(entry.get("item","")))
  if item.is_empty(): return
  details.text="[b]%s[/b] · %s\n%s"%[item.name,item.rarity,item.description]
+ selected_entry=entry if entry.get("bucket","") in ["stash","shared"] else {}
+ update_add()
  if entry.has("offering_index"): details.text+="\nDouble-click this offering to remove it."
+func update_add() -> void:
+ add_button.disabled=busy or selected_entry.is_empty() or not draft.any(func(entry):return entry.is_empty()) \
+  or available(str(selected_entry.get("item","")),str(selected_entry.get("bucket","")))<=0
+func add_selected() -> void:
+ if add_button.disabled:return
+ var index:=0 if draft[0].is_empty() else 1
+ draft[index]={"item":str(selected_entry.item),"source":str(selected_entry.bucket)}
+ request("preview")
 func _process(delta: float) -> void:
  if not is_visible_in_tree(): return
  if not pending_data.is_empty() and not get_viewport().gui_is_dragging():

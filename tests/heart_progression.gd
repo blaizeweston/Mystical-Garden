@@ -110,9 +110,10 @@ func run():
  g.discoveries[0]=true;p.reclaim_choice=0
  var reserve: Dictionary=game.seed_reserve(p)
  reserve.parts.fill(0);g.parts.fill(0);g.parts[0]=10
- var seeds_before: int=reserve.stock[0]
+ var communal: Dictionary=game.InventoryModel.reserve(game,p,"shared")
+ var seeds_before: int=communal.stock[0]
  game.reclaim_seed(1,p)
- check(reserve.stock[0]==seeds_before+1 and g.parts[0]==10-game.reclamation_cost(0),"reclamation is matching-parts seed recovery")
+ check(communal.stock[0]==seeds_before+1 and g.parts[0]==10-game.reclamation_cost(0),"shared reclamation returns a shared seed")
  p.pos=game.stage.station_position("monster_studies")
  var trophy: int=game.Parts.HOOK
  reserve.parts[trophy]=2;p.offering_choice=trophy

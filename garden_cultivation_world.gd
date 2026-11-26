@@ -196,13 +196,13 @@ func _harvest(id: int, slot: int, effects = null) -> bool:
 	if not seeds:
 		harvest_roll = State.crop_draw(bed) if State.compatible(bed) else world.rng.randf()
 	var result:=Rules.harvest_yield(bed.duplicate(true),familiarity,harvest_roll,local)
-	if seeds:world.seed_reserve(world.players[id]).stock[kind]+=int(result.seeds)
+	if seeds:world.InventoryModel.reserve(world,world.players[id],"shared").stock[kind]+=int(result.seeds)
 	else:
 		world.progress.parts[kind]+=int(result.parts)
 		if int(result.rare_part)>0:world.progress.add_parts(int(result.rare_part),1)
 	world.Progress.Archive.harvest(world.progress.archive,world._kill_reward_identity(id,world.players[id]),result)
 	world.save_action_profile(id, effects)
-	var message:=str(result.message)
+	var message:=str(result.message)+" Added to shared Garden storage."
 	var play_audio := func(): preload("res://event_audio.gd").emit(world, "crop_harvested", world.stage.bed_position(slot))
 	if effects == null:
 		world.save_progress(id, message)
@@ -213,16 +213,17 @@ func _harvest(id: int, slot: int, effects = null) -> bool:
 	return true
 
 
-func plant_seed(id: int, slot: int) -> bool:
+func plant_seed(id: int, slot: int, requested_species: int=-1, source: String="stash") -> bool:
 	var world:=_current_world()
 	if world==null or not world.multiplayer.is_server() or not world.players.has(id) or slot<0 or slot>=world.progress.plots.size():return false
 	if not world.stage.bed_position(slot).is_finite():return false
 	var player: Dictionary = world.players[id]
-	var kind: int = world.selected_seed(player)
-	var stock: Array = world.seed_reserve(player).stock
+	if source not in ["stash","shared"]:return false
+	var kind: int = world.selected_seed(player) if requested_species<0 else requested_species
+	var stock: Array = world.InventoryModel.reserve(world,player,source).stock
 	if world.progress.plots[slot].species >= 0:
 		return false
-	if stock[kind] <= 0:
+	if kind<0 or kind>=stock.size() or stock[kind] <= 0:
 		world.tell(id, "You have no seeds of this species. Gather one in the Wilds or identify a mystery seed at the altar.")
 		return false
 	var before: Dictionary=world.progress.plots[slot].duplicate(true)

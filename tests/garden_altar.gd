@@ -80,12 +80,29 @@ func run():
  check(not Service.preview(game,p,mixed).can_combine,"mixed seed/material offerings are rejected")
  var monster:=pair(Items.part_id(4),Items.part_id(2))
  check(Service.clean_draft(monster)[0].is_empty(),"monster components cannot enter Garden plant experiments")
- # Shared and personal parts can form an offering, with one result owned by the player.
+ # Shared and personal parts can form an offering; all results remain communal.
  g.parts[0]=2
  var mixed_ownership: Array=[{"item":Items.part_id(1),"source":"shared"},{"item":Items.part_id(2),"source":"stash"}]
  old_parts=reserve.parts[3]
+ var shared_before:int=g.part_count(3)
+ check(Service.preview(game,p,mixed_ownership).text.contains("Mixed sources"),"mixed-source preview warns about communal output")
  Service.combine(game,p,mixed_ownership)
- check(g.parts[0]==1 and reserve.parts[3]==old_parts+1,"shared and personal inputs are accounted separately")
+ check(g.parts[0]==1 and reserve.parts[3]==old_parts and g.part_count(3)==shared_before+1,"mixed offering returns only shared output and accounts both inputs")
+ var communal: Dictionary=game.InventoryModel.reserve(game,p,"shared")
+ communal.stock[0]=2;communal.stock[1]=1
+ var personal_before: int=reserve.stock[2]
+ var recipe_before: int=communal.stock[2]
+ check(Service.preview(game,p,pair(Items.seed_id(0),Items.seed_id(1),"shared")).can_combine,"communal seeds are eligible altar inputs")
+ Service.combine(game,p,pair(Items.seed_id(0),Items.seed_id(1),"shared"))
+ check(communal.stock[0]==1 and communal.stock[1]==0 and communal.stock[2]==recipe_before+1 and reserve.stock[2]==personal_before,"shared seed recipe cannot award a personal result")
+ reserve.stock[1]+=1
+ var mixed_seed: Array=[{"item":Items.seed_id(0),"source":"shared"},{"item":Items.seed_id(1),"source":"stash"}]
+ Service.combine(game,p,mixed_seed)
+ check(communal.stock[0]==0 and communal.stock[2]==recipe_before+2 and reserve.stock[2]==personal_before,"mixed seed recipe keeps the result communal")
+ communal.unknown.append(0)
+ var shared_known: int=communal.stock[0]
+ Service.identify(game,p,"shared")
+ check(communal.stock[0]==shared_known+1 and communal.unknown.is_empty(),"shared mystery seed identification preserves ownership")
  # A material discovery does not silently unlock its seed, even after moving it to shared storage.
  var parent_part:=int(Items.Seeds.DEFINITIONS[3].part)
  var result_part:=int(Items.Seeds.DEFINITIONS[4].part)

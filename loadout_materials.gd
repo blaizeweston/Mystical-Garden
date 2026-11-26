@@ -38,6 +38,20 @@ static func available(game: Node,player: Dictionary) -> Array:
  for part in range(1,result.size()):result[part]=int(personal[part])+shared_free(game,part,player)
  return result
 
+## Packed trophies survive as carried loot, unlike consumed weapon parts.
+static func cargo_available(game: Node,player: Dictionary,part: int) -> int:
+ if Session.peer_for(player)!=game.HOST and not game.progress.guest_withdrawals:
+  return int(game.seed_reserve(player).parts[part])
+ return int(available(game,player)[part])
+
+static func cargo_refusal(game: Node,player: Dictionary) -> String:
+ if Session.peer_for(player)==game.HOST or game.progress.guest_withdrawals:return ""
+ var personal: Array=game.seed_reserve(player).parts
+ for part in range(1,personal.size()):
+  if int(player.cargo_plan[part])>int(personal[part]):
+   return "Shared trophy withdrawals are disabled. Clear cargo or pack personal trophies."
+ return ""
+
 ## Pure departure planning. Part counts are whole items; reserved counts use
 ## plant species IDs. Nothing is consumed and returned arrays do not alias inputs.
 static func departure_plan(selected: Array, cargo: Array, available_parts: Array, personal: Array) -> Dictionary:

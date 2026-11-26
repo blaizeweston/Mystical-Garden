@@ -132,6 +132,8 @@ static func departure_cost(game: Node,ids: Array) -> Dictionary:
   var p: Dictionary=game.players[id];var needed: Array=game.Parts.empty_counts()
   var refusal := preload("res://affinity_build.gd").departure_refusal(p)
   if not refusal.is_empty(): return {"error":refusal}
+  refusal=preload("res://loadout_materials.gd").cargo_refusal(game,p)
+  if not refusal.is_empty():return {"error":refusal}
   for part in [p.prepared,p.prepared_secondary,p.prepared_catalyst]:
    if part==0: continue
    if not game.Parts.is_plant(part): return {"error":"Choose valid plant parts before readying."}

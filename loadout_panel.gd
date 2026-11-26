@@ -15,6 +15,8 @@ var focus_options: VBoxContainer
 var focus_buttons: Array[Button]=[]
 var focus_previews: Array[Label] = []
 var focus_class_id: int=0
+var preview_focus_lane:=0
+var focus_detail_text: Array[String]=["","",""]
 var weapon_pick: OptionButton
 var slots: Array[OptionButton]=[]
 var slot_summaries: Array[Label] = []
@@ -35,13 +37,14 @@ var pending_slots: Dictionary={}
 var pending_until: int=0
 func _ready():
 	var title:=Label.new()
-	title.text="WEAPON CRAFTING"
+	title.text="Expedition preparation"
 	title.add_theme_font_size_override("font_size",22)
 	add_child(title)
 	var row:=HBoxContainer.new()
 	add_child(row)
 	var scroll:=ScrollContainer.new()
 	scroll.custom_minimum_size=Vector2(460,405)
+	scroll.follow_focus=true
 	row.add_child(scroll)
 	var left:=VBoxContainer.new()
 	left.custom_minimum_size.x=445
@@ -63,6 +66,8 @@ func _ready():
 		var focus_button := Button.new()
 		choice.add_child(focus_button)
 		focus_buttons.append(focus_button)
+		focus_button.focus_entered.connect(func(): preview_focus_lane=lane;refresh())
+		focus_button.mouse_entered.connect(func(): preview_focus_lane=lane;refresh())
 		var preview := label(choice,"")
 		preview.add_theme_font_size_override("font_size",14)
 		preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -146,14 +151,17 @@ func _ready():
 	var navigation:=HBoxContainer.new();add_child(navigation);navigation.add_child(tree_button);tree_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	tree_button.pressed.connect(func(): requested.emit("build_class_tree",{}))
 	var route:=Button.new();route.text="Change destination";navigation.add_child(route);route.pressed.connect(func(): _garden_request("destination"))
+	var footer:=HBoxContainer.new()
+	add_child(footer)
 	depart_button=Button.new()
 	depart_button.text="Craft weapon & enter the Wilds"
-	add_child(depart_button)
+	depart_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	footer.add_child(depart_button)
 	depart_button.pressed.connect(func():
 		requested.emit("depart",{}))
 	var close:=Button.new()
-	close.text="Close"
-	add_child(close)
+	close.text="Close · Esc"
+	footer.add_child(close)
 	close.pressed.connect(func(): requested.emit("close",{}))
 	refresh()
 func label(parent: Control,value: String) -> Label:
@@ -198,6 +206,9 @@ func present(data: Dictionary) -> void:
 	var c := int(data.class_id)
 	var prepared := bool(data.prepared)
 	var counts: Array = data.counts
+	var personal: Array=data.get("personal_parts",[])
+	var shared: Array=data.get("shared_parts",[])
+	var may_withdraw: bool=data.get("may_withdraw",true)
 	var parts: Array = data.equipment
 	if Time.get_ticks_msec()>pending_until or not prepared: pending_slots.clear()
 	for slot in pending_slots.keys():
@@ -205,7 +216,7 @@ func present(data: Dictionary) -> void:
 		else: parts[slot]=int(pending_slots[slot])
 	var cargo: Array=data.cargo
 	var profile: Dictionary=data.profile
-	var key:=str([c,data.weapon_kind,counts,parts,cargo,profile,data.card_totals])
+	var key:=str([c,data.weapon_kind,counts,parts,cargo,profile,data.card_totals,personal,shared,may_withdraw])
 	if key!=state_key:
 		state_key=key
 		displayed_parts = parts
@@ -228,6 +239,9 @@ func present(data: Dictionary) -> void:
 				if available<=0: continue
 				var icon: String=Items.get_item(Items.part_id(part)).icon
 				var part_title := "%s · %d available" % [Parts.part_name(part), available]
+				if prepared and personal.size()==counts.size() and shared.size()==counts.size():
+					var own_available:=maxi(0,int(personal[part])-(int(counts[part])-available))
+					part_title="%s · P %d · G %d"%[Parts.part_name(part),own_available,maxi(0,available-own_available)]
 				option.add_icon_item(load(icon),part_title,part)
 				option.get_popup().set_item_icon_max_width(option.item_count-1,28)
 				var preview := affinity_api.slot_preview(resolved_build,slot_name,part)
@@ -240,12 +254,13 @@ func present(data: Dictionary) -> void:
 		var total:=0
 		for part in range(1,Parts.DEFINITIONS.size()):
 			if not Parts.is_monster(part): continue
-			var available:=maxi(0,int(counts[part])-int(cargo[part]))
+			var available:=maxi(0,int(counts[part] if may_withdraw or personal.is_empty() else personal[part])-int(cargo[part]))
 			if available>0: cargo_pick.add_item("%s · %d available"%[Parts.part_name(part),available],part)
 			if int(cargo[part])>0: cargo_text.append("%s x%d"%[Parts.part_name(part),cargo[part]])
 			total+=int(cargo[part])
 		if cargo_pick.get_item_index(selected_cargo)>=0: cargo_pick.select(cargo_pick.get_item_index(selected_cargo))
 		cargo_label.text="Packed %d / %d: %s"%[total,int(data.cargo_limit),", ".join(cargo_text)]
+		cargo_label.tooltip_text="Weapon materials and cargo use personal resources first, then available shared resources." if may_withdraw else "Shared withdrawals are disabled. Weapon materials can still use shared storage; pack only personal trophies."
 	var allowed: bool=bool(data.at_gate)
 	depart_button.visible=bool(data.at_gate)
 	depart_button.disabled=not allowed
@@ -273,9 +288,9 @@ func present(data: Dictionary) -> void:
 			candidate[starting_tree.profile_key] = starting_tree.state([node.id])
 			var ability: Dictionary = Skills.resolve(c,0,candidate)
 			var cooldown: int = Skills.Balance.cooldown(ability,stats)
-			focus_previews[lane].text = "%s · %s cooldown\n%s" % [
-				ability.name,Skills.Balance.seconds(cooldown),ability.description]
+			focus_previews[lane].text = "%s · %s cooldown" % [ability.name,Skills.Balance.seconds(cooldown)]
 			focus_buttons[lane].tooltip_text = Skills.describe(ability,stats)
+			focus_detail_text[lane]=focus_buttons[lane].tooltip_text
 			focus_buttons[lane].disabled=not class_allowed
 	var connected = Classes.connected_tree(c)
 	var current_progression: bool = connected.eligible(profile) and connected.valid(profile)
@@ -294,6 +309,8 @@ func present(data: Dictionary) -> void:
 		var info: String=Skills.describe(skill,stats)
 		info=info.substr(info.find("\n")+1)
 		body+="\n\n[b]%s[/b]\n%s"%[skill.name,info]
+	if starting_tree!=null:
+		body+="\n\n[b]Focus preview · %s[/b]\n%s"%[starting_tree.nodes[preview_focus_lane].name,focus_detail_text[preview_focus_lane]]
 	description.text=body
 	notice.text=("Uses one part per filled slot on departure. Selected parts are reserved for you.\nPacked monster parts need a Wilds altar. Unbanked cargo is lost on defeat." if allowed else "Craft and pack at the Wilds Gate.")
 	if allowed:

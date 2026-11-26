@@ -91,6 +91,17 @@ func host(menu: Node) -> void:
 	if not await until(func():return game.players.size()==expected and game.players.values().all(func(actor):return Session.ready(actor)),"party registration"): return
 	var peers: Array=game.players.keys()
 	peers.erase(1)
+	# Use the ordinary guarded Garden writer, including its existing stage fault.
+	var before_policy: PackedByteArray=FileAccess.get_file_as_bytes(game.progress.path)
+	game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
+	game.garden_action(1,"inventory_withdrawals:0")
+	game.remove_meta(&"guarded_gameplay_test_fault")
+	if not check(game.progress.guest_withdrawals and FileAccess.get_file_as_bytes(game.progress.path)==before_policy,"failed shared withdrawal-policy transaction restores memory and disk"):return
+	game.garden_action(1,"inventory_withdrawals:0")
+	var persisted:=ConfigFile.new()
+	if not check(not game.progress.guest_withdrawals and persisted.load(game.progress.path)==OK and not persisted.get_value("inventory","guest_withdrawals",true),"successful live permission is durable"):return
+	game.garden_action(1,"inventory_withdrawals:1")
+	if not check(game.progress.guest_withdrawals,"host restores live withdrawals"):return
 	# Check the same Garden research and contribution on every registered peer
 	# before using that Garden for the botanical expedition and rejoin checks.
 	game.players[1].pos = game.Stage.HEART
@@ -193,13 +204,15 @@ func host(menu: Node) -> void:
 	var seed_item: String=game.Items.seed_id(plant.species)
 	check(game.players.values().all(func(actor):return not actor.carried_items.has(seed_item) and actor.carried_seeds.is_empty()),"distant or invalid requests awarded no seeds")
 	game.players[1].pos=plant.position
-	game.send_action(false)
-	check(game.wild_flora_view(1).claimed and game.players[1].carried_items.get(seed_item,0)>=1,"host interaction harvested exact shared species")
 	for peer in peers:
-		check(not game.wild_flora_view(peer).claimed,"host harvesting left guest claim available")
 		game.players[peer].pos=plant.position
 	mark("claim")
-	if not await until(func():return peers.all(func(peer):return read("claimed-"+str(peer))=="yes"),"guests received private claimed projections"): return
+	if not await until(func():return peers.all(func(peer):return read("attempted-"+str(peer))=="yes"),"guests submitted competing claims"): return
+	game.harvest_wild_flora(1,plant.identity)
+	if not await until(func():return peers.all(func(peer):return read("claimed-"+str(peer))=="yes"),"guests received the shared claimed projection"): return
+	var ordinary: int=game.Seeds.DEFINITIONS[plant.species].part
+	var winners: Array=game.players.keys().filter(func(peer):return game.players[peer].carried_items.get(seed_item,0)>0)
+	if not check(winners.size()==1 and game.players.keys().all(func(peer):return game.wild_flora_view(peer).claimed),"one competing participant acquires the physical specimen"):return
 	var carried_after: Dictionary={}
 	for peer: int in game.players:
 		var actor: Dictionary=game.players[peer]
@@ -207,7 +220,14 @@ func host(menu: Node) -> void:
 		if not check(not returning.is_empty() and returning.remaining==2,"one generated root with two allowances per explorer"): return
 		var character: String=game._kill_reward_identity(peer,actor)
 		var quantity:=1+int(game.WildFlora.bonus_roll(plant.identity,character,"seed")<0.25)
-		check(actor.carried_seeds.is_empty() and actor.carried_items.get(seed_item,0)==quantity and actor.carried_parts[game.Seeds.DEFINITIONS[plant.species].part]==1,"authoritative personal bundle")
+		if peer==int(winners[0]):
+			check(actor.carried_seeds.is_empty() and actor.carried_items.get(seed_item,0)==quantity and actor.carried_parts[ordinary]==1,"winner receives the full personal bundle")
+		else:
+			check(actor.carried_items.get(seed_item,0)==0 and actor.carried_parts[ordinary]==0,"losing claim awards no resources")
+			# Supply unrelated test cargo to exercise every participant's independent Root allowances.
+			quantity=1
+			game.InventoryModel.put(game,actor,"carry",{"item":seed_item,"quantity":1})
+			game.InventoryModel.put(game,actor,"carry",{"item":game.Items.part_id(ordinary),"quantity":1})
 		actor.pos=returning.position
 		carried_after[peer]=quantity-1
 	mark("root-deposit")
@@ -340,12 +360,12 @@ func guest(menu: Node) -> void:
 	game.request_wild_flora.rpc_id(1,plant.identity,"invalid")
 	mark("distant-"+str(peer))
 	if not await until(func():return read("claim")=="yes" and game.players[peer].pos.distance_to(plant.position)<0.6,"guest in interaction range"): return
-	check(not game.wild_flora_view(peer).claimed,"host's claim is private")
-	game.send_action(false)
-	if not await until(func():return game.wild_flora_view(peer).get("claimed",false) and game.guest_replication.carried_count()>=1,"normal guest interaction acquires one seed"): return
-	game.send_wild_flora_harvest(plant.identity)
+	game.request_wild_flora.rpc_id(1,plant.identity,stamp)
+	game.request_wild_flora.rpc_id(1,plant.identity,stamp)
+	mark("attempted-"+str(peer))
+	if not await until(func():return game.wild_flora_view(peer).get("claimed",false),"party sees the specimen harvested"): return
 	mark("claimed-"+str(peer))
-	if not await until(func():return read("root-deposit")=="yes" and game.can_use_returning_root(game.players[peer]),"within reach of authoritative root"): return
+	if not await until(func():return read("root-deposit")=="yes" and game.can_use_returning_root(game.players[peer]) and game.guest_replication.carried_count()>=1,"within reach of authoritative root with carried test resources"): return
 	await deposit_pair(game,peer,plant)
 	if failed: return
 	mark("secured-"+str(peer))
@@ -389,6 +409,9 @@ func deposit_pair(game: Node, peer: int, plant: Dictionary) -> void:
 	var stamp:=Identity.current_stamp(game,actor)
 	var unit:=0
 	for item: String in [game.Items.seed_id(plant.species),part]:
+		# The replicated carried bag and the root allowance can arrive separately.
+		# Wait for the actual item from the winner's harvest or fixture cargo.
+		if not game.multiplayer.is_server() and not await until(func():return game.players[peer].get("bag",{}).get("carry",[]).any(func(stack):return stack.item==item and int(stack.quantity)>0),"reviewed deposit item replicated"):return
 		var returning: Dictionary=game.ReturningRoot.view(game,peer,game.players[peer])
 		var command: String=game.ReturningRoot.request(returning,stamp,item)
 		if item == part: game.send_garden_action(game.ReturningRoot.request(returning,stamp,game.Items.Ancient.ITEM))

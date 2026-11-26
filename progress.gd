@@ -20,6 +20,7 @@ var projection_origin := ""
 ## Present only after an explicit host Save & Quit. Consumed through the Garden transaction.
 var suspended_expedition := {}
 var item_stashes: Dictionary={}
+var guest_withdrawals := true
 var ground_items: Array=[]
 var needs_inventory_backup:=false
 var altar_recipes: Dictionary={}
@@ -212,6 +213,7 @@ func _read_garden() -> Error:
 		archive = records
 	else: archive = Archive.fresh(origin)
 	var historical_ancient := not file.has_section_key("inventory","ancient_seed_format")
+	guest_withdrawals=bool(file.get_value("inventory","guest_withdrawals",true))
 	item_stashes={}
 	var stashes=file.get_value("inventory","stashes",{})
 	if stashes is Dictionary:
@@ -402,6 +404,7 @@ func _serialize_save(stage := Callable()) -> Error:
 	file.set_value("altar","recipes",altar_recipes)
 	file.set_value("inventory","ancient_seed_format",1)
 	file.set_value("inventory","stashes",item_stashes)
+	file.set_value("inventory","guest_withdrawals",guest_withdrawals)
 	file.set_value("inventory","ground",ground_items)
 	var growth_state:=preload("res://garden_growth_state.gd").prepare(self)
 	file.set_value("garden_interactions","state",growth_state)

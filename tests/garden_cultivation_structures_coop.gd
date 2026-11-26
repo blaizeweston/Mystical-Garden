@@ -50,12 +50,21 @@ func host_run() -> void:
  var host: Dictionary=game.players[1];host.pos=game.stage.bed_position(0);host.seed_choice=0;game.seed_reserve(host).stock[0]+=1
  check(game.cultivation.plant_seed(1,0),"host plants");g.advance_growth(86400);g.save_garden()
  var guest: Dictionary=game.players[id];guest.pos=host.pos
- var before: int=game.seed_reserve(guest).stock[0];var familiarity: int=guest.character.plants[0]
+ var before: int=g.reserve("__shared_garden_inventory__").stock[0];var familiarity: int=guest.character.plants[0]
+ var guest_before: int=game.seed_reserve(guest).stock[0]
+ game.garden_action(1,"inventory_withdrawals:0")
  mark("ready")
  if not await until(func():return marked("harvested") and g.plots[0].species<0):check(false,"guest harvest reached host");return
- check(game.seed_reserve(guest).stock[0]==before+3 and guest.character.plants[0]==familiarity+2,"one payout to the harvesting guest")
+ check(g.reserve("__shared_garden_inventory__").stock[0]==before+3 and guest.character.plants[0]==familiarity+2,"one shared payout and harvesting guest familiarity")
  var record: Dictionary=g.archive.characters[game._kill_reward_identity(id,guest)]
  check(record.plants==1 and record.seeds==3 and record.seed_harvests==1 and g.archive.garden.plants==1,"accepted crop credits the harvesting guest exactly once")
+ mark("shared-seeds")
+ if not await until(func():return marked("planted") and g.plots[0].species==0):check(false,"guest planted a shared seed via the actual network command");return
+ check(not g.guest_withdrawals and g.reserve("__shared_garden_inventory__").stock[0]==before+2 and game.seed_reserve(guest).stock[0]==guest_before,"disabled withdrawals reject guest permission changes and transfers, but not shared planting")
+ game.garden_action(1,"inventory_withdrawals:1")
+ mark("withdraw-enabled")
+ if not await until(func():return marked("withdrawn") and game.seed_reserve(guest).stock[0]==guest_before+1):check(false,"guest makes a newly authorized withdrawal");return
+ check(g.reserve("__shared_garden_inventory__").stock[0]==before+1,"only the authorized withdrawal consumed a second shared seed")
  mark("rejoin")
  if not await until(func():return marked("rejoined")):check(false,"guest recovered configured structure");return
  mark("done")
@@ -76,6 +85,14 @@ func guest_run() -> void:
  var cmd: String="garden:"+JSON.stringify(preload("res://garden_crop_view.gd").request(bed,"flower_crop"))
  game.send_garden_action(cmd);game.send_garden_action(cmd)
  mark("harvested")
+ if not await until(func():return marked("shared-seeds") and not game.inventory_ui_data().get("may_withdraw",true) and game.inventory_ui_data().get("shared",[]).any(func(e):return e.item=="seed_thorn_bloom" and e.quantity>=3)):check(false,"guest receives authoritative shared seeds and live disabled permission");return
+ game.send_garden_action("inventory_withdrawals:1")
+ game.send_inventory_action("transfer","shared","stash","seed_thorn_bloom",1)
+ game.send_garden_action("plant_at_0_0_shared")
+ mark("planted")
+ if not await until(func():return marked("withdraw-enabled") and game.inventory_ui_data().get("may_withdraw",false)):check(false,"guest receives live enabled permission");return
+ game.send_inventory_action("transfer","shared","stash","seed_thorn_bloom",1)
+ mark("withdrawn")
  if not await until(func():return marked("rejoin")):check(false,"harvest confirmed");return
  game.session_world.leave("Cultivation rejoin fixture");game.ui.close_panels();check(game.session_world.join()==OK,"guest rejoins")
  if not await until(func():return game.network_session.role()=="Guest" and garden.remote_development.get("layout",{}).get("inventory",{}).get("instances",{}).get(id,{}).get("care_mode")=="enhanced"):check(false,"sanctuary setting synchronized after rejoin");return

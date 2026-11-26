@@ -1,6 +1,7 @@
 extends AcceptDialog
 
 const Offerings = preload("res://assets/terrain_m02/garden_offerings.gd")
+const Items = preload("res://item_catalog.gd")
 signal contributed(knowledge: int)
 
 var model: Offerings
@@ -22,7 +23,7 @@ func _ready() -> void:
 	skin.border_color = Color("#60563b")
 	skin.set_border_width_all(1)
 	skin.set_content_margin_all(14)
-	theme = Theme.new()
+	theme = preload("res://root_ui.gd").make_theme()
 	theme.set_stylebox("panel", "AcceptDialog", skin)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -42,7 +43,7 @@ func _ready() -> void:
 		_refresh())
 	controls.add_child(replenish)
 	var clear := Button.new()
-	clear.text = "Cancel selection"
+	clear.text = "Clear selection"
 	clear.pressed.connect(func():
 		selection.clear()
 		_refresh())
@@ -53,6 +54,7 @@ func _ready() -> void:
 	body.add_child(instructions)
 	list = ItemList.new()
 	list.custom_minimum_size.y = 205
+	list.fixed_icon_size=Vector2i(28,28)
 	list.item_selected.connect(func(index: int):
 		selected = list.get_item_metadata(index)
 		_update_quantity())
@@ -73,7 +75,8 @@ func _ready() -> void:
 			selection[selected] = int(value)
 		else:
 			selection.erase(selected)
-		_update_row(list.get_selected_items()[0], selected)
+		var rows:=list.get_selected_items()
+		if not rows.is_empty():_update_row(rows[0], selected)
 		_update_totals())
 	actions.add_child(quantity)
 	confirm_offer = Button.new()
@@ -93,36 +96,47 @@ func present(source: Offerings) -> void:
 func _refresh() -> void:
 	list.clear()
 	for id: String in model.items:
+		if int(model.inventory.get(id,0))<=0:continue
 		var index := list.item_count
-		list.add_item("")
+		var item: Dictionary=model.items[id]
+		var icon: Texture2D=load(item.icon) if not str(item.icon).is_empty() and ResourceLoader.exists(item.icon) else null
+		list.add_item("",icon)
 		list.set_item_metadata(index, id)
 		_update_row(index, id)
-		if id == selected:
+		list.set_item_disabled(index,model.available(id)==0)
+		if id == selected and not list.is_item_disabled(index):
 			list.select(index)
 	if list.get_selected_items().is_empty():
-		list.select(0)
-		selected = list.get_item_metadata(0)
+		selected=""
+		for index in list.item_count:
+			if list.is_item_disabled(index):continue
+			list.select(index)
+			selected=list.get_item_metadata(index)
+			break
 	_update_quantity()
 	_update_totals()
 
 func _update_row(index: int, id: String) -> void:
 	var item: Dictionary = model.items[id]
-	var kind := "Plant" if item.category == "plant_part" else "Monster"
 	var held := int(model.reserved.get(id, 0))
-	var reserve_note := " (%d reserved)" % held if held > 0 else ""
-	list.set_item_text(index, "%s · %s · %d free%s · %d selected · +%d Growth Energy each" % [
-		item.name, kind, model.available(id), reserve_note, selection.get(id, 0), model.unit_energy(id)])
-	list.set_item_tooltip(index, "%s · %s" % [item.rarity, id])
+	var reserve_note := " · %d reserved" % held if held > 0 else ""
+	var knowledge: int=Offerings.KNOWLEDGE_BY_RARITY[item.rarity]
+	list.set_item_text(index, "%s · %d available%s · %d selected · +%d K / +%d E" % [
+		item.name, model.available(id), reserve_note, selection.get(id, 0), knowledge, model.unit_energy(id)])
+	list.set_item_tooltip(index, "%s · %s\nEach item grants %d Knowledge and %d Growth Energy." % [item.name,item.rarity,knowledge,model.unit_energy(id)])
 
 func _update_quantity() -> void:
 	quantity.set_value_no_signal(0)
 	quantity.max_value = model.available(selected)
 	quantity.set_value_no_signal(selection.get(selected, 0))
+	quantity.editable=not selected.is_empty() and quantity.max_value>0
 
 func _update_totals() -> void:
 	review = model.quote(selection)
 	confirm_offer.disabled = review.is_empty()
 	status.text = "%d Growth Energy held · Selection grants +%d Growth Energy and +%d Knowledge" % [model.energy, review.get("energy", 0), review.get("knowledge", 0)]
+	if list.item_count==0:status.text+="\nShared storage has no eligible materials."
+	elif selected.is_empty():status.text+="\nStored materials are reserved."
 
 func _confirm() -> void:
 	var gain: int = review.get("energy", 0)

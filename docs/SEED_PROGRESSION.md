@@ -6,7 +6,7 @@ Prices and probabilities are provisional. These are shared, immediate Heart purc
 
 | Research | Knowledge | Requires | Effect |
 |---|---:|---|---|
-| Careful Gathering | 8 | Sheltered Heart | Each personal harvest has a 25% chance of a second seed of the same species. |
+| Careful Gathering | 8 | Sheltered Heart | Each accepted specimen harvest has a 25% chance of a second seed of the same species. |
 | Wild Harvest | 16 | Careful Gathering | Each harvest also yields one ordinary part from the specimen. |
 | Refined Gathering | 30 | Wild Harvest | Independent 15% chance of one additional refined part. |
 | Botanical Awareness | 6 | Sheltered Heart | An unclaimed specimen catches the light within 6 m and a clear line of sight. |
@@ -15,7 +15,7 @@ Prices and probabilities are provisional. These are shared, immediate Heart purc
 | Deep Root Network | 30 | Returning Root | Two individually selected units per explorer per root. |
 | Reaching Tendrils | 20 | Returning Root | Increase the per-floor chance to 40%. |
 
-A specimen always supplies a named, plantable seed of its own species. Both bonus draws depend on the floor specimen and the participant. Wild material recovery grants no familiarity or discovery Knowledge. Securing a named seed awards the usual shared first discovery. The altar identifies mystery seeds from caches and bosses. The two Returning Root upgrades can be purchased in either order.
+A physical specimen can be harvested once by the party. The successful harvester receives a named, plantable seed and the complete researched bundle into their carried inventory. Both bonus draws depend on the floor specimen and that harvester. Rejected admission leaves the specimen available. Wild material recovery grants no familiarity or discovery Knowledge. Securing a named seed awards the usual shared first discovery. The altar identifies mystery seeds from caches and bosses. Returning Root allowances remain individual.
 
 ## Local cultivation tuning (HG04)
 
@@ -30,17 +30,19 @@ Each initial research grants a stored structure. The first sprinkler purchase al
 | Vital Roots | 16 / 44 / 28 | 32 Energy | Growth ×1.30 to ×1.50 | 4 to 6 m |
 | Bud Sanctuary | 12 / 28 / 18 | 36 Energy + 1 Pristine Dewcap material | Automatic standard care, then optional enhanced care | 3 to 4.5 m |
 
-An ordinary harvest gives one material or two same-species seeds and one familiarity. Propagation is available from the start. Independent effects can cover the same bed. An effect applies once across overlapping sources. Only automatic watering requires an active intake. Growth combines watering, Vital Roots and the ×2 expedition rate. Moving infrastructure changes future work. Seed yield, familiarity gain and Grove bonus use the layout at harvest.
+An ordinary harvest gives one material or two same-species seeds to shared Garden storage and one familiarity to the harvesting character. Propagation is available from the start. Independent effects can cover the same bed. An effect applies once across overlapping sources. Only automatic watering requires an active intake. Growth combines watering, Vital Roots and the ×2 expedition rate. Moving infrastructure changes future work. Seed yield, familiarity gain and Grove bonus use the layout at harvest.
 
 The base refined chance uses the harvester’s familiarity before the reward. It starts at 5%, gains 4 percentage points for each of the first five familiarity points, then 0.5 points per additional familiarity, up to 45%. Familiarity caps at 9,999. Standard care adds 20% of the species’ original growth work and 15 percentage points of refined chance. Enhanced care adds 40% work and 25 points. The care component caps at 60% or 70% respectively. The Grove bonus applies afterward, giving a current combined maximum of 95%. Seed harvesting forfeits any refined-material opportunity.
 
 Sanctuaries begin with automatic care disabled. The host chooses standard or researched enhanced care under **Build → Placed**. The strongest enabled eligible sanctuary in range acts once in the young-bud stage. Moving it later preserves the accepted care. Manual tending offers the same tradeoffs. The crop owns a hidden draw and its inspection panel shows only probabilities. Historical preserved buds keep their saved draw. Older ordinary crops with a valid cycle and no draw derive one deterministically from that cycle. For saves predating crop cycles, conversion derives a stable identity and draw from the historical save contents and bed slot, including when a migration write must be retried.
 
-Seed Conservation costs 10 Knowledge and requires Sheltered Heart. A failed two-seed offering salvages the ordinary material of the lexically first stable seed ID and returns the other parent to the actor’s reserve. Identical parents cost one net seed. Known failures preview both outputs. Successful offerings and material synthesis follow the existing altar rules.
+Seed Conservation costs 10 Knowledge and requires Sheltered Heart. A failed two-seed offering salvages the ordinary material of the lexically first stable seed ID and returns the other parent to the output storage. Identical parents cost one net seed. Known failures preview both outputs. Personal-only offerings produce personal results. Shared-only or mixed offerings produce shared results, including salvage and returned seeds.
 
 ## Current botanical progression (WF02)
 
-All 24 species grow in ordinary Garden beds. Every mature bed can reproduce the species planted. Natural specimens use the WF01 floor roll, depth bands and biome weights. A find fixes one species for everyone. Each participant can recover at least one named seed per harvested specimen and plant it as soon as it reaches their Garden reserve.
+All 24 species grow in ordinary Garden beds. Every mature bed can reproduce the species planted. Natural specimens use the WF01 floor roll, depth bands and biome weights. A find fixes one species for everyone and awards one personal bundle to the first successful harvester.
+
+The host can enable or disable guest withdrawals from shared storage in the inventory. Shared seed planting, communal harvesting and equipment preparation remain available regardless of the toggle. Prepared weapon parts use the existing personal-first allocation. When withdrawals are disabled, guests may only pack personal trophies as expedition cargo: unused cargo can return as personal loot, unlike consumed equipment. Planting and reclamation identify the chosen source; altar ingredients may come from either storage and mixed-source results remain shared. Existing personal reserves are keyed to character identity within the saved Garden. Cross-Garden portable item custody requires a durable handoff between Garden settlement and canonical character storage; the current guest profile projection is not sufficient to protect spendable inventories against interrupted handoff.
 
 | Natural founder | Earliest global encounter | Species reachable after adding this founder |
 |---|---:|---:|

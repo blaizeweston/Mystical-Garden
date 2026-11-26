@@ -56,7 +56,55 @@ static func make_theme() -> Theme:
 	t.set_color("font_color", "Label", INK)
 	t.set_color("font_outline_color", "Label", Color("#0a0f07b4"))
 	t.set_constant("outline_size", "Label", 3)
+	# The same palette serves the game's rooted overlays and native dialogs.
+	var surface := flat_style(Color("#141e16"), Color("#43543c"), 1, 5, 4)
+	var selected := flat_style(Color("#35482b"), ACCENT, 1, 4, 4)
+	var field := flat_style(Color("#1c291c"), BTN_BORDER, 1, 4, 5)
+	for type in ["TabBar", "TabContainer"]:
+		t.set_stylebox("tab_selected", type, selected)
+		t.set_stylebox("tab_unselected", type, surface)
+		t.set_stylebox("tab_hovered", type, flat_style(BTN_BG_HOVER, BTN_BORDER_HOVER, 1, 4, 4))
+		t.set_stylebox("tab_disabled", type, surface)
+		t.set_color("font_selected_color", type, INK)
+		t.set_color("font_unselected_color", type, MUTED)
+		t.set_color("font_disabled_color", type, Color("#77806d"))
+		t.set_font_size("font_size", type, 15)
+	t.set_stylebox("panel", "TabContainer", surface)
+	t.set_stylebox("panel", "ItemList", surface)
+	t.set_stylebox("selected", "ItemList", selected)
+	t.set_stylebox("selected_focus", "ItemList", selected)
+	t.set_color("font_color", "ItemList", INK)
+	t.set_color("font_selected_color", "ItemList", INK)
+	t.set_constant("v_separation", "ItemList", 5)
+	t.set_stylebox("panel", "PopupMenu", surface)
+	t.set_stylebox("hover", "PopupMenu", selected)
+	t.set_color("font_color", "PopupMenu", INK)
+	t.set_color("font_hover_color", "PopupMenu", INK)
+	t.set_color("font_disabled_color", "PopupMenu", Color("#89917c"))
+	t.set_constant("v_separation", "PopupMenu", 7)
+	t.set_stylebox("normal", "LineEdit", field)
+	t.set_stylebox("focus", "LineEdit", selected)
+	t.set_stylebox("read_only", "LineEdit", surface)
+	t.set_color("font_color", "LineEdit", INK)
+	t.set_color("font_placeholder_color", "LineEdit", MUTED)
+	t.set_color("default_color", "RichTextLabel", INK)
+	t.set_stylebox("panel", "AcceptDialog", flat_style(Color("#151d15"), BTN_BORDER, 1, 5, 12))
+	t.set_stylebox("panel", "TooltipPanel", flat_style(Color("#152218"), BTN_BORDER_HOVER, 1, 5, 8))
+	t.set_color("font_color", "TooltipLabel", INK)
+	t.set_font_size("font_size", "TooltipLabel", 14)
 	return t
+
+static func item_tooltip(text: String, viewport_width: float) -> Control:
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", flat_style(Color("#152218"), BTN_BORDER_HOVER, 1, 5, 8))
+	var copy := Label.new()
+	copy.text = text
+	copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	copy.custom_minimum_size.x = minf(350.0, maxf(180.0, viewport_width - 70.0))
+	copy.add_theme_font_size_override("font_size", 14)
+	copy.add_theme_color_override("font_color", INK)
+	box.add_child(copy)
+	return box
 
 static func style_title(l: Label, color: Color = Color("#ece0ad")) -> void:
 	l.add_theme_color_override("font_color", color)

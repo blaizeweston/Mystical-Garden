@@ -69,10 +69,10 @@ func run() -> void:
  var phase_request:=View.request(shown(game,0),"preserve_bud")
  var before_age: float=g.plots[0].age
  check(act(game,View.request(shown(game,0),"flower_crop")).has("error") and g.plots[0].age==before_age,"immature seed harvesting does not reset growth")
- g.advance_growth(360);var seeds_before: int=game.seed_reserve(p).stock[0];before=g.parts[0];rare_before=g.part_count(rare);fam_before=p.character.plants[0]
+ g.advance_growth(360);var seeds_before: int=g.reserve("__shared_garden_inventory__").stock[0];before=g.parts[0];rare_before=g.part_count(rare);fam_before=p.character.plants[0]
  check(act(game,View.request(shown(game,0),"flower_crop")).get("changed",false),"mature flowering harvest uses the existing payout atomically")
  check(g.plots[0].species<0 and act(game,phase_request).has("error"),"seed harvesting consumes the crop and invalidates old intents")
- check(game.seed_reserve(p).stock[0]==seeds_before+2 and g.parts[0]==before and g.part_count(rare)==rare_before and p.character.plants[0]==fam_before+1,"seed choice yields only two seeds and normal harvest familiarity")
+ check(g.reserve("__shared_garden_inventory__").stock[0]==seeds_before+2 and g.parts[0]==before and g.part_count(rare)==rare_before and p.character.plants[0]==fam_before+1,"seed choice yields two shared seeds and normal harvest familiarity")
  plant(game,2);g.advance_growth(168.75);var leave:=View.request(shown(game,2),"leave_bud")
  check(act(game,leave).get("changed",false) and not act(game,leave).changed,"normal-growth choice is also bounded and idempotent")
  g.advance_growth(131.25);check(g.plots[2].stage==3,"choosing normal growth adds no delay")

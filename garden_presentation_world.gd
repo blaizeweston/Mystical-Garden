@@ -87,7 +87,15 @@ func _station_frame(world: Node, actor: Dictionary, station: String) -> Dictiona
 	if station=="monster_studies": result.studied=world.heart_state().get("offered",[]).duplicate()
 	var garden: Array=world.garden_snapshot() if world.multiplayer.is_server() else world.guest_replication.garden_progress()
 	if garden.size()<=13:return result
-	result.counts=(world.stored_counts(actor) if world.multiplayer.is_server() else actor.get("stored_parts",world.Parts.empty_counts())).duplicate()
+	var bag: Dictionary=world.InventoryModel.snapshot(world,actor) if world.multiplayer.is_server() else actor.get("bag",{})
+	var available: Dictionary={"stash":world.Parts.empty_counts(),"shared":world.Parts.empty_counts()}
+	for bucket in available:
+		for entry: Dictionary in bag.get(bucket,[]):
+			var part: int=world.Items.get_item(entry.item).get("legacy_part",0)
+			if part>0:available[bucket][part]+=int(entry.get("free",entry.quantity))
+	result.available=available
+	result.counts=world.Parts.empty_counts()
+	for part in result.counts.size():result.counts[part]=available.stash[part]+available.shared[part]
 	result.discoveries=garden[13].duplicate()
 	var costs: Array[int]=[]
 	for species in world.Seeds.NAMES.size():costs.append(world.reclamation_cost(species))

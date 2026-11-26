@@ -70,6 +70,10 @@ func set_data(value: Dictionary) -> void:
 		list.clear()
 	var choice_found := false
 	for option: Dictionary in data.options:
+		# The ordinary altar lists relevant purchases and owned upgrades.
+		# The full catalog remains available to developer and discovery views.
+		if option.unique and int(option.material.carried)==0 and int(option.count)==0:continue
+		if not option.unique and data.materials.is_empty() and int(option.count)==0:continue
 		var list := picks[int(option.unique)]
 		var caption: String = option.name
 		if int(option.count) > 0:
@@ -97,6 +101,8 @@ func show_selection() -> void:
 	materials.visible = not choice.is_empty()
 	if choice.is_empty():
 		details.text = "Choose an improvement to inspect it. Reinforcements take one ordinary trophy. Adaptations take their matching trophy."
+		if picks[0].item_count+picks[1].item_count==0:
+			details.text="No applicable trophies carried. Recover monster trophies in the Wilds to purchase improvements here."
 		update_confirm()
 		return
 	var description := "[b]%s[/b]\n%s\n\n%s\n\n%s" % [

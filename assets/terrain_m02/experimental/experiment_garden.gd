@@ -621,6 +621,7 @@ func _initialize_controls() -> void:
 	offering_dialog.experimental_commit = contribute
 	add_child(offering_dialog)
 	development_dialog = AcceptDialog.new()
+	development_dialog.theme = preload("res://root_ui.gd").make_theme()
 	development_dialog.title = "Garden Development"
 	development_dialog.ok_button_text = "Back to Garden"
 	development_dialog.exclusive = true

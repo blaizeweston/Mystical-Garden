@@ -170,7 +170,7 @@ func entry_for_each_class() -> void:
 			candidate[graph.profile_key] = graph.state([graph.nodes[lane].id])
 			var ability_name: String = game.Skills.resolve_in_world(game,class_id,0,candidate).name
 			check(preview.visible and preview.text.begins_with(ability_name + " · ") and "cooldown" in preview.text
-				and preview_effects[class_id][lane] in preview.text,"class %d lane %d shows its named starting ability and effect before learning" % [class_id,lane])
+				and preview_effects[class_id][lane] in UIFixture.control(game,"loadout_view").focus_buttons[lane].tooltip_text,"class %d lane %d shows its named starting ability and contextual effect before learning" % [class_id,lane])
 		check(caster.character==before_preview,"previewing focus choices leaves the actual profile untouched")
 		UIFixture.control(game,"loadout_view").focus_buttons[1].pressed.emit()
 		check(graph.path(caster.character).size()==1 and build.departure_refusal(caster).is_empty()

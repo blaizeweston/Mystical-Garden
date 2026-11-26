@@ -38,8 +38,9 @@ func run() -> void:
  check(g.part_count(part)>=1 and g.plots[0].species==-1 and p.character.plants[i]>0,"harvest produces craftable part and personal familiarity")
  g.add_parts(part,2);p.pos=game.stage.altar_position()
  var refine:=pair(game.Items.part_id(part),game.Items.part_id(part),"shared")
+ var rare_before:int=g.part_count(game.Parts.rare_part(i))
  game.Altar.combine(game,p,refine)
- check(reserve.parts[game.Parts.rare_part(i)]==1,"altar refines matching materials to rare-harvest counterpart")
+ check(g.part_count(game.Parts.rare_part(i))==rare_before+1 and reserve.parts[game.Parts.rare_part(i)]==0,"shared altar refinement returns its result to shared storage")
  game.show_garden_altar(1)
  check(UIFixture.control(game,"altar_view").recipe_pick.item_count>1,"altar offers remembered recipes")
  for index in range(1,UIFixture.control(game,"altar_view").recipe_pick.item_count):

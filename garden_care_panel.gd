@@ -17,6 +17,7 @@ var title: Label
 var info: Label
 var status: Label
 var items: OptionButton
+var source_pick: OptionButton
 var apply: Button
 var signature: String=""
 static func label(id: String) -> String:
@@ -29,6 +30,7 @@ func _ready() -> void:
  add_child(archive_view);archive_view.hide()
  items=OptionButton.new();add_child(items)
  items.item_selected.connect(func(_index):update_button())
+ source_pick=OptionButton.new();source_pick.fit_to_longest_item=false;add_child(source_pick)
  apply=Button.new();add_child(apply)
  apply.pressed.connect(submit)
  status=Label.new();status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;add_child(status)
@@ -42,6 +44,7 @@ func open(id: String) -> void:
  archive_refresh_at=0
  if archive:archive_view.open()
  items.visible=not archive
+ source_pick.visible=not archive
  apply.visible=not archive
  apply.text="Reclaim seed" if id=="seed_archive" else "Offer trophy"
  refresh()
@@ -59,7 +62,7 @@ func refresh() -> void:
  var known: Array=_facts.discoveries
  var counts: Array=_facts.counts
  var studied: Array=_facts.get("studied",[])
- var next:=str([station,counts,known,studied])
+ var next:=str([station,counts,known,studied,_facts.get("available",{})])
  if next==signature:return
  signature=next
  var selected:=items.get_selected_id() if items.selected>=0 else -1
@@ -70,6 +73,7 @@ func refresh() -> void:
    if not known[species]:continue
    var cost: int=int(_facts.reclamation_costs[species])
    var available: int=counts[int(Seeds.DEFINITIONS[species].part)]
+   if available<=0:continue
    items.add_item("%s · %d / %d parts"%[Seeds.NAMES[species],available,cost],species)
    items.set_item_disabled(items.item_count-1,available<cost)
  else:
@@ -80,14 +84,40 @@ func refresh() -> void:
     items.add_item("%s ×%d · Study %d K · Heart %d K + %d Energy"%[Parts.part_name(part),counts[part],
      1 if studied.has(part) else 4,Offerings.KNOWLEDGE_BY_RARITY[rarity],Offerings.GROWTH_BY_RARITY[rarity]],part)
  items.select(-1)
+ items.disabled=items.item_count==0
+ if items.item_count==0:
+  info.text+="\nNo applicable stored materials."
  for index in items.item_count:
   if items.is_item_disabled(index):continue
   if items.selected<0 or items.get_item_id(index)==selected:items.select(index)
  update_button()
 func update_button() -> void:
- apply.disabled=items.selected<0 or items.is_item_disabled(items.selected)
+ var previous: Variant=source_pick.get_selected_metadata() if source_pick.selected>=0 else null
+ source_pick.clear()
+ if items.selected>=0 and not items.is_item_disabled(items.selected):
+  var selection:=items.get_selected_id()
+  var part:=int(Seeds.DEFINITIONS[selection].part) if station=="seed_archive" else selection
+  var costs: Dictionary=_facts.get("available",{})
+  var personal: int=costs.get("stash",Parts.empty_counts())[part]
+  var shared: int=costs.get("shared",Parts.empty_counts())[part]
+  var cost: int=int(_facts.reclamation_costs[selection]) if station=="seed_archive" else 1
+  for personal_used in range(cost+1):
+   var shared_used:=cost-personal_used
+   if personal_used>personal or shared_used>shared:continue
+   var text: String="Shared: %d/%d available"%[shared_used,shared] if personal_used==0 else "Personal: %d/%d available"%[personal_used,personal] if shared_used==0 else "%d personal + %d shared"%[personal_used,shared_used]
+   if station=="seed_archive":
+    text+=" · seed to "+("personal stash" if shared_used==0 else "shared Garden")
+   source_pick.add_item(text)
+   source_pick.set_item_metadata(source_pick.item_count-1,personal_used)
+  for index in source_pick.item_count:
+   if source_pick.get_item_metadata(index)==previous:source_pick.select(index)
+  if source_pick.item_count>0 and source_pick.selected<0:source_pick.select(0)
+ source_pick.disabled=source_pick.item_count==0
+ apply.disabled=source_pick.item_count==0
 func submit() -> void:
  if apply.disabled:return
  var action: String="care_reclaim" if station=="seed_archive" else "care_offer"
- requested.emit("garden_action",{"action":"%s_%d"%[action,items.get_selected_id()]})
+ var personal_used:=int(source_pick.get_selected_metadata())
+ var source: String=str(personal_used) if station=="seed_archive" else "stash" if personal_used>0 else "shared"
+ requested.emit("garden_action",{"action":"%s_%d_%s"%[action,items.get_selected_id(),source]})
  refresh()

@@ -65,12 +65,12 @@ func host_run() -> void:
  if not await until(func():return marked("water_sent") and preload("res://cultivation_growth.gd").watered(g.plots[0])):check(false,"guest waters shared crop");return
  check(g.plots[0].care.revision==1 and is_equal_approx(preload("res://cultivation_growth.gd").rate(g,g.plots[0]),1.25),"repeated guest watering stacks neither revision nor speed")
  g.heart.complete(g,"flowering");g.advance_growth(86400);g.save_garden()
- var seed_total: int=game.seed_reserve(game.players[1]).stock[0]+game.seed_reserve(game.players[id]).stock[0]
+ var seed_total: int=g.reserve("__shared_garden_inventory__").stock[0]
  var common_before: int=g.parts[0];rare_before=g.part_count(rare);request=View.request(bed(),"flower_crop");mark("seed_ready")
  if not await until(func():return marked("seed_sent")):check(false,"guest chooses seed harvest");return
  game.garden_commands.command(1,JSON.stringify(request))
  if not await until(func():return g.plots[0].species<0):check(false,"seed harvest commits");return
- check(game.seed_reserve(game.players[1]).stock[0]+game.seed_reserve(game.players[id]).stock[0]==seed_total+2 and g.parts[0]==common_before and g.part_count(rare)==rare_before,"competing seed choices pay only two personal seeds and no parts")
+ check(g.reserve("__shared_garden_inventory__").stock[0]==seed_total+2 and g.parts[0]==common_before and g.part_count(rare)==rare_before,"competing seed choices pay only two shared seeds and no parts")
  mark("done");await create_timer(.3).timeout
 func guest_run() -> void:
  check(game.session_world.join()==OK,"guest joins")

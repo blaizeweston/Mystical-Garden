@@ -115,6 +115,75 @@ func run():
  for entry in UIFixture.control(game,"inventory_view").shown: check(Items.get_item(entry.item).category=="monster_part","type filter hides other items")
  UIFixture.control(game,"inventory_view").sort_pick.select(1);UIFixture.control(game,"inventory_view").sort_button.pressed.emit()
  check(reserve.stock[0]==original,"sorting never moves or loses stored counts")
+ var inventory: Control=UIFixture.control(game,"inventory_view")
+ reserve.parts[1]=5;p.prepared=1;p.prepared_secondary=0;p.prepared_catalyst=0
+ p.cargo_plan.fill(0);p.loadout_reserving=true
+ inventory.storage_pick.select(1);inventory.filter_pick.select(2)
+ inventory.search.text=Items.get_item(Items.part_id(1)).name
+ inventory.key="";inventory.refresh()
+ check(inventory.shown.size()==1 and inventory.shown[0].quantity==5 and inventory.shown[0].free==4,"search and availability expose the equipment reservation without hiding ownership")
+ var cell: Control=inventory.grid.get_child(0)
+ cell.grab_focus()
+ check(inventory.selected.item==Items.part_id(1) and inventory.transfer_quantity.max_value==4,"keyboard/controller focus selects the stack and caps transfer quantity")
+ var tool: Control=cell._make_custom_tooltip(cell.tooltip_text)
+ check(tool.get_child(0).custom_minimum_size.x<=350 and "reserved" in tool.get_child(0).text,"item tooltip wraps and describes the reservation")
+ tool.free()
+ var refresh_facts: Dictionary=game.inventory_ui_data()
+ refresh_facts.notice="A changed notice."
+ inventory.present(refresh_facts)
+ check(inventory.grid.get_child(0)==cell,"unrelated refresh retains the item control and its focus")
+ inventory.transfer_quantity.value=2
+ var shared_before:int=g.part_count(1)
+ inventory.transfer_button.pressed.emit()
+ check(reserve.parts[1]==3 and g.part_count(1)==shared_before+2,"partial transfer sends the chosen quantity through the existing operation")
+ inventory.search.text="no_matching_item";inventory.key="";inventory.refresh()
+ check(inventory.empty_hint.visible and inventory.transfer_button.disabled,"empty filtered views explain the empty state and refuse transfers")
+ game.add_player(2)
+ var guest: Dictionary=game.players[2]
+ var session=preload("res://tests/support/session_case.gd")
+ session.set_ready(game,guest,true);session.set_identity(game,guest,"0000000000000000000000000000e002")
+ var guest_reserve: Dictionary=game.seed_reserve(guest)
+ game.garden_action(2,"inventory_withdrawals:0")
+ check(g.guest_withdrawals,"guest cannot change the host policy")
+ game.garden_action(1,"inventory_withdrawals:0")
+ check(not g.guest_withdrawals and Model.transfer(game,guest,"shared","stash",Items.part_id(1),1).contains("disabled"),"host disables guest withdrawal immediately at the inventory boundary")
+ check(guest_reserve.parts[1]==0,"denied transfer grants nothing")
+ var trophy: int=game.Parts.HOOK
+ guest.pos=game.stage.gate_position()
+ g.add_parts(trophy,2)
+ game.handle_loadout_action(2,guest,"pack_%d"%trophy)
+ check(guest.cargo_plan[trophy]==0,"shared trophy packing cannot bypass disabled withdrawals")
+ guest.cargo_plan[trophy]=1
+ check(not game.LoadoutMaterials.cargo_refusal(game,guest).is_empty(),"previously planned shared cargo is rejected at departure")
+ guest_reserve.parts[trophy]=1
+ check(game.LoadoutMaterials.cargo_refusal(game,guest).is_empty(),"personal trophy cargo remains legitimate")
+ guest.cargo_plan.fill(0)
+ check(game.LoadoutMaterials.available(game,guest)[1]>guest_reserve.parts[1],"withdrawal policy does not block shared equipment availability")
+ var communal: Dictionary=Model.reserve(game,p,"shared")
+ communal.stock[0]=2;guest.pos=game.stage.bed_position(0)
+ g.plots[0]=game.Progress.empty_plot()
+ # This unit fixture uses a synthetic peer without a network connection.
+ check(game.cultivation.plant_seed(2,0,0,"shared"),"authoritative planting accepts the shared source")
+ check(communal.stock[0]==1 and guest_reserve.stock[0]==0 and g.plots[0].species==0,"guest can plant shared seeds while withdrawals are disabled")
+ g.advance_growth(float(game.Seeds.DEFINITIONS[0].grow_seconds))
+ game.cultivation.harvest_seeds(2,0)
+ check(communal.stock[0]==3 and guest_reserve.stock[0]==0,"propagation awards the shared Garden and not the harvester's stash")
+ g.discoveries[0]=true
+ guest.pos=game.stage.station_position("seed_archive")
+ var cost: int=game.reclamation_cost(0)
+ guest_reserve.parts[1]=1
+ g.add_parts(1,cost)
+ # Test the reclamation transaction owner directly; this fixture does not place the unlocked station.
+ game._reclaim_seed(2,guest,0,null,1)
+ check(communal.stock[0]==4 and guest_reserve.stock[0]==0 and guest_reserve.parts[1]==0,"mixed reclamation pays a shared seed")
+ p.pos=guest.pos
+ game.drop_inventory_stack(1,p,"shared",Items.seed_id(0),1)
+ var ground: Dictionary=g.ground_items.back()
+ check(ground.get("shared",false) and communal.stock[0]==3,"a dropped communal resource retains shared provenance")
+ game.pickup_inventory_drop(2,guest,ground.id)
+ check(communal.stock[0]==4 and guest_reserve.stock[0]==0 and g.ground_items.is_empty(),"picking up shared drops cannot bypass disabled withdrawals")
+ game.garden_action(1,"inventory_withdrawals:1")
+ check(g.guest_withdrawals and Model.transfer(game,guest,"shared","stash",Items.part_id(1),1).contains("Moved") and guest_reserve.parts[1]==1,"the host can enable live withdrawals again")
  var snapshot: Dictionary=game.player_snapshot(999)[1]
  check(not snapshot.has("bag"),"other characters cannot see private inventories")
  game.free()

@@ -290,7 +290,22 @@ func toggle_external(panel: PanelContainer) -> void:
 	_overlay_shade.visible = open
 	for child in _overlay.get_children():
 		if child is Control: child.visible = open and child == panel
-	if open: overlay_opened.emit()
+	if open:
+		overlay_opened.emit()
+		_focus_panel.call_deferred(panel)
+
+func _focus_panel(panel: PanelContainer) -> void:
+	if not is_instance_valid(panel) or not panel.is_visible_in_tree():return
+	var focused:=get_viewport().gui_get_focus_owner()
+	if focused!=null and panel.is_ancestor_of(focused):return
+	# Opening inventory must not initially focus its policy-mutation control.
+	if panel==_pack_menu and _features.has("inventory"):
+		_features.inventory.storage_pick.grab_focus()
+		return
+	for candidate in panel.find_children("*","Control",true,false):
+		if candidate.is_visible_in_tree() and candidate.focus_mode==Control.FOCUS_ALL and not (candidate is BaseButton and candidate.disabled):
+			candidate.grab_focus()
+			return
 
 func create_overlay_panel(color: Color, margin: Vector2) -> PanelContainer:
 	var panel := Style.panel(_overlay,color,margin)
@@ -313,6 +328,7 @@ func mount_feature(kind: String, view: Control) -> void:
 	view.name = kind.to_pascal_case()+"View"
 	if kind == "inventory":
 		_inventory_mount.add_child(view)
+		_inventory_mount.move_child(view,0)
 	elif kind == "summary":
 		_overlay.add_child(view)
 		_panels[kind] = view
@@ -353,8 +369,8 @@ func show_altar(data: Dictionary) -> void:
 func update_altar(data: Dictionary) -> void:
 	_features.altar.set_data(data)
 
-func show_planting(slot: int, stock: Array, selection_enabled := true) -> void:
-	_features.planting.begin(slot,stock)
+func show_planting(slot: int, stock: Array, selection_enabled := true,shared: Array=[]) -> void:
+	_features.planting.begin(slot,stock,shared)
 	_features.planting.set_selection_enabled(selection_enabled)
 	ensure_panel("planting")
 
@@ -406,6 +422,7 @@ func show_deposit(items: Array, remaining: int) -> void:
 	var allowance := "%d deposit%s remaining." % [remaining,"s" if remaining!=1 else ""]
 	%RootAllowance.text = allowance + (" Choose one carried unit to secure." if not items.is_empty() else " No eligible carried resources.")
 	_deposit_button.disabled = items.is_empty()
+	_deposit_pick.disabled = items.is_empty()
 	toggle_panel("deposit")
 	if items.is_empty(): %KeepExploring.grab_focus()
 	else: _deposit_pick.grab_focus()

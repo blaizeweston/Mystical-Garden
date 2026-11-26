@@ -68,8 +68,21 @@ static func stacks(values: Dictionary,bucket: String) -> Array:
  return result
 static func snapshot(game,player: Dictionary) -> Dictionary:
  var wild: bool=Participation.is_wild(player)
- var result: Dictionary={"wild":wild,"carry":[],"stash":[],"shared":[],"pouch":[],"equipment":[player.get("weapon",0),player.get("secondary",0),player.get("catalyst",0)] if wild else [player.get("prepared",0),player.get("prepared_secondary",0),player.get("prepared_catalyst",0)]}
- for bucket in (["carry","pouch"] if wild else ["stash","shared"]): result[bucket]=stacks(counts(game,player,bucket),bucket)
+ var result: Dictionary={"wild":wild,"carry":[],"stash":[],"shared":[],"pouch":[],"guest_withdrawals":game.progress.guest_withdrawals,"may_withdraw":Session.peer_for(player)==game.HOST or game.progress.guest_withdrawals,"equipment":[player.get("weapon",0),player.get("secondary",0),player.get("catalyst",0)] if wild else [player.get("prepared",0),player.get("prepared_secondary",0),player.get("prepared_catalyst",0)]}
+ var gateway=load("res://garden_inventory_gateway.gd")
+ for bucket in (["carry","pouch"] if wild else ["stash","shared"]):
+  var held:=counts(game,player,bucket)
+  var entries:=stacks(held,bucket)
+  if not wild:
+   # Quantities remain owned by the same stash. Partition the available amount
+   # across displayed stacks so reservations are visible without double counting.
+   var available: Dictionary={}
+   for entry: Dictionary in entries:
+    var item: String=entry.item
+    if not available.has(item):available[item]=gateway.available(game,player,bucket,item,int(held[item]))
+    entry.free=mini(int(entry.quantity),int(available[item]))
+    available[item]-=int(entry.free)
+  result[bucket]=entries
  return result
 static func take(game,player: Dictionary,bucket: String,id: String,amount: int,protect: bool=true) -> Dictionary:
  normalize_pouch(player)
@@ -210,6 +223,8 @@ static func transfer(game,player: Dictionary,source: String,target: String,id: S
   if source not in ["carry","pouch"] or target not in ["carry","pouch"]: return "Garden storage is unavailable in the Wilds."
  else:
   if source not in ["stash","shared"] or target not in ["stash","shared"]: return "The safe pouch is used during expeditions."
+  if source=="shared" and target=="stash" and Session.peer_for(player)!=game.HOST and not game.progress.guest_withdrawals:
+   return "The host has disabled withdrawals from shared storage."
  var definition:=Items.get_item(id)
  if definition.is_empty(): return "Unknown item."
  if target=="shared" and not definition.has("legacy_part") and definition.get("category","")!="seed": return "Shared Garden storage accepts seeds and crafting parts."

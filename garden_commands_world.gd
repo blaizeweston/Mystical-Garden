@@ -210,27 +210,34 @@ func handle(id: int, action: String) -> bool:
  var player: Dictionary=world.players[id]
  if action.begins_with("care_"):
   var pieces:=action.split("_")
-  if pieces.size()!=3 or not pieces[2].is_valid_int(): return true
+  if pieces.size() not in [3,4] or not pieces[2].is_valid_int(): return true
   var value:=int(pieces[2])
   if pieces[1]=="reclaim" and value>=0 and value<Seeds.NAMES.size() and world.progress.discoveries[value] and world.at_garden_station(player,"seed_archive"):
-   world.reclaim_seed(id,player,value)
+   if pieces.size()==4 and not pieces[3].is_valid_int():return true
+   var personal:int=int(pieces[3]) if pieces.size()==4 else -1
+   if pieces.size()==4 and personal<0:return true
+   world.reclaim_seed(id,player,value,personal)
   elif pieces[1]=="offer" and Parts.is_monster(value) and world.at_garden_station(player,"monster_studies"):
    if world.stored_counts(player)[value]<=0:
     world.tell(id,"That trophy is no longer available.")
     return true
-   world.offer_monster(id,player,value)
+   var source: String=pieces[3] if pieces.size()==4 else ""
+   if not source.is_empty() and source not in ["stash","shared"]:return true
+   world.offer_monster(id,player,value,source)
   else:
    world.tell(id,"Move to the appropriate Garden station with an available ingredient.")
   return true
  if action.begins_with("plant_at_"):
   var fields:=action.split("_")
-  if fields.size()!=4 or not fields[2].is_valid_int() or not fields[3].is_valid_int(): return true
+  if fields.size() not in [4,5] or not fields[2].is_valid_int() or not fields[3].is_valid_int(): return true
   var slot:=int(fields[2]);var species:=int(fields[3])
+  var source: String=fields[4] if fields.size()==5 else "stash"
+  if source not in ["stash","shared"]:return true
   if Participation.is_wild(player) or slot<0 or slot>=world.progress.plots.size() or species<0 or species>=Seeds.NAMES.size() or player.pos.distance_to(world.stage.bed_position(slot))>1.65: return true
-  if world.progress.plots[slot].species>=0 or world.seed_reserve(player).stock[species]<=0:
+  if world.progress.plots[slot].species>=0 or world.InventoryModel.reserve(world,player,source).stock[species]<=0:
    world.tell(id,"That bed or seed is no longer available.");world.show_planting_picker(id,slot);return true
   player.seed_choice=species
-  if world.cultivation.plant_seed(id,slot):
+  if world.cultivation.plant_seed(id,slot,species,source):
    if id==world.HOST: world.ui.close_panels()
    else: world.close_planting_picker.rpc_id(id)
   return true

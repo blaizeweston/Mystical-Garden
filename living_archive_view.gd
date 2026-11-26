@@ -87,7 +87,7 @@ func _draw_rows() -> void:
 				_line("Material synthesis recipes",current.recipes.synthesis)
 				_line("Refinement recipes",current.recipes.refinement)
 				if current.retired: _line("Retired seed recipes recorded",current.retired)
-			var labels := {"plants":"Mature plants harvested","seed_harvests":"Seed harvests","seeds":"Seeds propagated","parts":"Ordinary parts harvested","refined":"Refined parts harvested","wild":"Wild specimens harvested","crosses":"Successful seed combinations"}
+			var labels := {"plants":"Mature plants harvested","seed_harvests":"Seed harvests","seeds":"Seeds propagated","parts":"Ordinary parts harvested","refined":"Refined parts harvested","wild":"Party specimens harvested" if shared else "Wild specimens personally harvested","crosses":"Successful seed combinations"}
 			for key in labels: _line(labels[key],row.get(key,0))
 		1:
 			_line("Recorded expeditions" if shared else "Recorded participations",row.get("runs",0))

@@ -1,6 +1,7 @@
 extends RefCounted
 ## Host-owned botanical sites for the current expedition floor. The specimen and
-## Returning Root share a floor identity. Both keep personal use by stable character.
+## Returning Root share a floor identity. The specimen has one party-wide
+## harvest; root deposits retain personal allowances by stable character.
 const Seeds = preload("res://seed_catalog.gd")
 const HARVEST_REACH := 1.55
 
@@ -59,11 +60,11 @@ func view(character: String) -> Dictionary:
 	if character.is_empty() or _specimen.is_empty():
 		return {}
 	var result := _specimen.duplicate()
-	result.claimed = _collected.has(character)
+	result.claimed = not _collected.is_empty()
 	return result
 
 static func harvest_description(research: Array, species: int) -> String:
-	var benefits := PackedStringArray(["1 %s Seed" % Seeds.NAMES[species]])
+	var benefits := PackedStringArray(["One harvest per party", "1 %s Seed" % Seeds.NAMES[species]])
 	if "careful_gathering" in research: benefits.append("25% extra seed")
 	if "wild_harvest" in research: benefits.append("1 ordinary part")
 	if "refined_gathering" in research: benefits.append("15% refined part")

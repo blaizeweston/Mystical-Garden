@@ -75,11 +75,11 @@ func run() -> void:
  check(Growth.watered(loaded.plots[0]) and is_equal_approx(loaded.plots[0].age,bed.age),"long crop work and watering survive reload")
  var age: float=bed.age
  check(act(game,"flower_crop").has("error") and bed.age==age and not bed.flowering,"immature flowering cannot restart or advance growth")
- g.advance_growth(86400,true);var seeds_before: int=game.seed_reserve(p).stock[int(bed.species)];var parts: Array=g.parts.duplicate();var species: int=bed.species
+ g.advance_growth(86400,true);var seeds_before: int=g.reserve("__shared_garden_inventory__").stock[int(bed.species)];var parts: Array=g.parts.duplicate();var species: int=bed.species
  var profile_path: String=game.local_character.path;game.local_character.path=base+"-missing/profile"
  check(act(game,"flower_crop").has("error") and g.plots[0].stage==3 and not g.plots[0].flowering,"failed seed harvest restores the mature plant and its outcome choice")
  game.local_character.path=profile_path
- check(act(game,"flower_crop").get("changed",false) and g.plots[0].species<0 and game.seed_reserve(p).stock[species]==seeds_before+2 and g.parts==parts,"flowering consumes the mature plant for seeds without another growth cycle or material payout")
+ check(act(game,"flower_crop").get("changed",false) and g.plots[0].species<0 and g.reserve("__shared_garden_inventory__").stock[species]==seeds_before+2 and g.parts==parts,"flowering pays the shared stash without another growth cycle or material payout")
  plant(game,species);check(not Growth.watered(g.plots[0]) and g.plots[0].age==0,"replanting creates an unwatered fresh crop")
  # Old partial, mature and formerly flowering crops keep their percentages.
  for item in [{"species":0,"age":45.,"stage":2,"flowering":false},{"species":23,"age":205.,"stage":3,"flowering":false},{"species":0,"age":40.,"stage":1,"flowering":true}]:

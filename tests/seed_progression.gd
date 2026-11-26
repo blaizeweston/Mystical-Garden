@@ -105,7 +105,7 @@ func run():
 			g.unknown.append(i)
 			game.Altar.identify(game,player)
 			var count: int=g.stock[i]
-			game._reclaim_seed(1,player,i,[])
+			game._reclaim_seed(1,player,i,[],game.reclamation_cost(i))
 			check(g.stock[i]==count+1,"identified founder can be reclaimed")
 		player.pos=game.Stage.PLOTS[0]
 		ExpeditionCase.set_membership(game, player, false)
@@ -119,12 +119,14 @@ func run():
 		check(g.part_count(d.part)==before+1 and g.plots[0].species==-1,"all species harvest into correct crafting part "+d.name)
 		check(player.character.plants[i]>0,"per-character familiarity "+d.name)
 		if Seeds.wild_only(i):
+			var shared: Dictionary=game.InventoryModel.reserve(game,player,"shared")
+			var prior_shared:int=shared.stock[i]
 			g.stock[i]=1
 
 			game.cultivation.plant_seed(1,0)
 			g.advance_growth(float(d.grow_seconds))
 			game.cultivation.harvest_seeds(1,0)
-			check(g.stock[i]>1 and g.plots[0].species==-1,"exclusive propagates in ordinary bed "+d.name)
+			check(shared.stock[i]==prior_shared+2 and g.stock[i]==0 and g.plots[0].species==-1,"exclusive propagates into shared stock "+d.name)
 		var crop: Node3D=game.stage.build_crop(i,3,false)
 		check(crop.get_child_count()>0,"visible mature crop "+d.name)
 		crop.queue_free()
