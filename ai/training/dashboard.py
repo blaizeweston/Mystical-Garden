@@ -37,7 +37,8 @@ FIELDS = ("wipe_rate", "explore_found_rate", "explore_first_sight_s", "damage_to
           "entropy", "entropy_fight", "entropy_messages", "approx_kl", "clip_fraction", "value_loss", "learning_rate",
           "squad_mix", "replay_gap", "explained_variance", "free_share", "wipe", "cleared", "timeout", "speed", "rows", "episodes",
           "entropy_behaviour", "entropy_enemy_target", "entropy_ally_target", "entropy_manoeuvre", "entropy_commit",
-          "commit_set_share", "commit_long_share")
+          "commit_set_share", "commit_long_share", "trunk_alive", "trunk_a_alive", "obs_sensitivity", "policy_grad_norm",
+          "critic_grad_norm")
 # Commitment options held for 2 s or more (mob_contract.json commitments_ms: usual, 0.25, 0.5, 1, 1.25, 2, 2.5, 3 s).
 LONG_COMMIT_FROM = 5
 ## Compared hour over hour in the summary.

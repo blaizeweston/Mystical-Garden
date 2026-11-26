@@ -348,7 +348,7 @@ class Trainer:
         start_memory = memory[index[:, 0]]
         stats = {"replay_gap": self._replay_gap(batch, obs, masks, actions, old_log_prob, index, valid, start_memory)}
         totals = {"policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0, "entropy_messages": 0.0, "entropy_fight": 0.0,
-                  "approx_kl": 0.0, "clip_fraction": 0.0}
+                  "approx_kl": 0.0, "clip_fraction": 0.0, "policy_grad_norm": 0.0, "critic_grad_norm": 0.0}
         message_heads = [i for i, name in enumerate(HEAD_NAMES) if name.startswith("message")]
         # A decision is free when at least one fighting choice (behaviour, targets, manoeuvre) has more than one legal
         # option. A committed mob (winding up or inside a hold) has none, and its fighting choices cannot change, so
@@ -394,11 +394,16 @@ class Trainer:
                 loss = policy_loss + float(cfg["value_weight"]) * value_loss - fight_weight * fight_mean - message_weight * message_mean
                 self.optimizer.zero_grad(set_to_none=True)
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(list(self.policy.parameters()) + list(self.critic.parameters()), float(cfg["max_grad_norm"]))
+                # Each network is clipped on its own: clipped together, the critic's far larger gradient (98.7% of
+                # the joint norm on 2026-11-25) scaled the policy's step down with it.
+                policy_norm = torch.nn.utils.clip_grad_norm_(self.policy.parameters(), float(cfg["max_grad_norm"]))
+                critic_norm = torch.nn.utils.clip_grad_norm_(self.critic.parameters(), float(cfg["max_grad_norm"]))
                 self.optimizer.step()
                 with torch.no_grad():
                     totals["policy_loss"] += policy_loss.item()
                     totals["value_loss"] += value_loss.item()
+                    totals["policy_grad_norm"] += float(policy_norm)
+                    totals["critic_grad_norm"] += float(critic_norm)
                     totals["entropy"] += entropy_mean.item()
                     totals["entropy_messages"] += message_mean.item()
                     free = free_all[rows][keep]
@@ -426,7 +431,26 @@ class Trainer:
         stats["approx_kl"] = round(final_kl / max(1, final_steps), 5)
         stats["value_mean"] = round(values.mean().item(), 4)
         stats["explained_variance"] = round(explained, 4)
+        stats.update(self._vision(obs, memory, free_all))
         return stats
+
+    def _vision(self, obs: torch.Tensor, memory: torch.Tensor, free: torch.Tensor, rows: int = 4096) -> dict:
+        """Whether the policy can see. trunk_alive and trunk_a_alive: the share of each trunk layer's units that fire
+        on at least one of these decisions (a unit that never fires is dead and learns nothing; all of trunk_b was
+        dead from about policy 13800 to the revival). obs_sensitivity: how far the logits move, on average, when each
+        decision is given another decision's observation with its own memory; 0 means the observation is ignored."""
+        chosen = free.nonzero().squeeze(1)
+        if chosen.numel() < 2:
+            return {}
+        chosen = chosen[torch.linspace(0, chosen.numel() - 1, min(rows, chosen.numel()), device=chosen.device).long()]
+        with torch.no_grad():
+            seen = obs[chosen]
+            first, second = self.policy.trunk_layers(seen)
+            logits, _ = self.policy(seen, memory[chosen])
+            other, _ = self.policy(seen.roll(1, dims=0), memory[chosen])
+        return {"trunk_alive": round(float((second > 0).any(0).float().mean()), 4),
+                "trunk_a_alive": round(float((first > 0).any(0).float().mean()), 4),
+                "obs_sensitivity": round(float((logits - other).abs().mean()), 5)}
 
     def _replay_gap(self, batch, obs, masks, actions, old_log_prob, index, valid, start_memory) -> float:
         """How far this policy's log-probabilities are from those the workers recorded, on decisions made with this
@@ -511,7 +535,8 @@ class Trainer:
         S.append_line(self.folders["logs"] / "metrics.jsonl", json.dumps(line))
         self.log(f"Update {self.updates} (policy {self.version}): {batch.rows} decisions, wipes {line['wipe_rate']:.0%}, "
                  f"life return {line['life_return']:.3f}, entropy {stats['entropy']:.3f}, kl {stats['approx_kl']:.4f}, "
-                 f"replay gap {stats['replay_gap']}")
+                 f"replay gap {stats['replay_gap']}, live trunk {stats.get('trunk_alive', 0):.0%}, "
+                 f"reacts to observations {stats.get('obs_sensitivity', 0):.4f}")
 
 
 def parse_overrides(values: list[str]) -> dict:

@@ -35,9 +35,17 @@ class MobPolicy(nn.Module):
         self.trunk_b = nn.Linear(net["trunk_hidden"], net["trunk_hidden"])
         self.recurrent = nn.GRUCell(net["trunk_hidden"], net["recurrent_hidden"])
         self.heads = nn.Linear(net["trunk_hidden"] + net["recurrent_hidden"], schema.logit_count)
+        # The message logits' rows in the heads. Messages still mean nothing, and their choices made about three
+        # quarters of the policy gradient's noise, so they read the shared layers without training them (forward).
+        rows, cursor = [], 0
+        for name in HEAD_NAMES:
+            if name.startswith("message"):
+                rows += range(cursor, cursor + schema.head_sizes[name])
+            cursor += schema.head_sizes[name]
+        self._message_rows = torch.tensor(rows, dtype=torch.long)
 
-    def forward(self, obs: Tensor, hidden: Tensor) -> tuple[Tensor, Tensor]:
-        """Returns logits for every head, concatenated in head order, and the next hidden state."""
+    def trunk_layers(self, obs: Tensor) -> tuple[Tensor, Tensor]:
+        """The two trunk layers' outputs (after their ReLU) for a batch of observations."""
         relu = torch.relu
         self_input = torch.cat([obs[:, b.offset:b.offset + b.size] for b in self.self_blocks], dim=1)
         parts = [relu(self.self_encoder(self_input))]
@@ -49,9 +57,21 @@ class MobPolicy(nn.Module):
             parts.append(relu(self.ally_encoder(obs[:, start:start + self.ally_block.stride])))
         leader = self.leader_block
         parts.append(relu(self.leader_encoder(obs[:, leader.offset:leader.offset + leader.stride])))
-        trunk = relu(self.trunk_b(relu(self.trunk_a(torch.cat(parts, dim=1)))))
+        first = relu(self.trunk_a(torch.cat(parts, dim=1)))
+        return first, relu(self.trunk_b(first))
+
+    def forward(self, obs: Tensor, hidden: Tensor) -> tuple[Tensor, Tensor]:
+        """Returns logits for every head, concatenated in head order, and the next hidden state. The message logits
+        have the same values the game computes, but their gradient reaches only the heads' own weights."""
+        trunk = self.trunk_layers(obs)[1]
         next_hidden = self.recurrent(trunk, hidden)
-        return self.heads(torch.cat([trunk, next_hidden], dim=1)), next_hidden
+        features = torch.cat([trunk, next_hidden], dim=1)
+        logits = self.heads(features)
+        if torch.is_grad_enabled() and self._message_rows.numel():
+            rows = self._message_rows.to(features.device)
+            quiet = nn.functional.linear(features.detach(), self.heads.weight[rows], self.heads.bias[rows])
+            logits = logits.index_copy(1, rows, quiet)
+        return logits, next_hidden
 
     def initial_hidden(self, count: int, device: torch.device | str = "cpu") -> Tensor:
         return torch.zeros(count, self.schema.network["recurrent_hidden"], device=device)

@@ -132,6 +132,9 @@ def test_trainer(schema: MobSchema, folder: Path) -> None:
     line = __import__("json").loads(metrics[0])
     check(line["entropy_messages"] > 0.0 and line["entropy_fight"] > 0.0 and 0.0 < line["free_share"] <= 1.0,
           "each update logs fighting entropy on free decisions, message entropy, and the share of free decisions")
+    check(0.0 < line["trunk_alive"] <= 1.0 and 0.0 < line["trunk_a_alive"] <= 1.0 and line["obs_sensitivity"] > 0.0,
+          "each update logs the live trunk units and how much choices react to the observation")
+    check(line["policy_grad_norm"] > 0.0 and line["critic_grad_norm"] > 0.0, "each update logs the policy's and critic's gradient norms")
     configured = T.load_settings()["trainer"]
     check(T.entropy_weights(configured) == (float(configured["entropy_weight_fight"]), float(configured["entropy_weight_messages"])) and
           T.entropy_weights({"entropy_weight": 0.01}) == (0.01, 0.01), "fighting and message choices have their own entropy bonus")
@@ -441,6 +444,65 @@ def test_fold_constant_input(schema: MobSchema) -> None:
     check(float(moment[:, column].abs().max()) == 0.0 and float(moment.abs().max()) > 0.0, "only the folded weights' Adam moments are cleared")
 
 
+def test_revive_trunk(schema: MobSchema) -> None:
+    """Reviving a dead trunk keeps every answer, makes the trunk fire again, resets Adam for what it touched (step
+    included), and lets gradient reach the trunk's outgoing weights at once."""
+    import revive_trunk as V
+    from mob_net import MobCritic, MobPolicy
+    torch.manual_seed(5)
+    policy, critic = MobPolicy(schema), MobCritic(schema)
+    with torch.no_grad():
+        policy.trunk_b.bias.fill_(-1000.0)
+    optimizer = torch.optim.Adam(list(policy.parameters()) + list(critic.parameters()), lr=1e-3)
+    obs = torch.randn(64, schema.observation_size)
+    hidden = torch.zeros(64, schema.network["recurrent_hidden"])
+    (policy(obs, hidden)[0].sum() + critic(obs, torch.rand(64, schema.global_size)).sum()).backward()
+    optimizer.step()
+    state = {"policy": policy.state_dict(), "critic": critic.state_dict(), "optimizer": optimizer.state_dict()}
+    check(V.alive_share(state, schema, obs)[1] == 0.0, "the fixture's trunk is dead")
+    revived = V.revive(state, schema, 1)
+    difference = V.largest_difference(state, revived, schema)
+    check(difference < 1e-5, f"reviving the trunk keeps every answer ({difference:.1e})")
+    check(V.alive_share(revived, schema, obs)[1] > 0.5, "the revived trunk fires")
+    names = [n for n, _ in policy.named_parameters()]
+    entries = revived["optimizer"]["state"]
+    trunk = entries[names.index("trunk_b.weight")]
+    memory = entries[names.index("recurrent.weight_hh")]
+    check(float(trunk["step"]) == 0.0 and float(trunk["exp_avg_sq"].abs().max()) == 0.0 and float(memory["step"]) > 0.0,
+          "Adam restarts, step included, only for the revived weights")
+    check(all(torch.equal(revived["critic"][k], state["critic"][k]) for k in state["critic"]), "reviving leaves the critic alone")
+    fresh = MobPolicy(schema)
+    fresh.load_state_dict(revived["policy"])
+    fresh(obs, hidden)[0][:, :schema.head_sizes["behaviour"]].sum().backward()
+    trunk_columns = fresh.heads.weight.grad[:, :schema.network["trunk_hidden"]]
+    check(float(trunk_columns.abs().max()) > 0.0, "the revived trunk's outgoing weights get gradient on the first update")
+
+
+def test_message_heads_detached(schema: MobSchema) -> None:
+    """Message logits keep the values the game computes, but train only the heads, never the shared layers."""
+    from mob_net import MobPolicy
+    from mob_schema import HEAD_NAMES
+    torch.manual_seed(6)
+    policy = MobPolicy(schema)
+    obs = torch.randn(32, schema.observation_size)
+    hidden = torch.randn(32, schema.network["recurrent_hidden"]) * 0.3
+    with torch.no_grad():
+        plain, _ = policy(obs, hidden)
+    logits, _ = policy(obs, hidden)
+    check(torch.allclose(plain, logits, atol=1e-6), "message logits have the same values with and without gradient")
+    offset = sum(schema.head_sizes[n] for n in HEAD_NAMES[:HEAD_NAMES.index("message_a")])
+    width = schema.head_sizes["message_a"] + schema.head_sizes["message_b"]
+    logits[:, offset:offset + width].sum().backward()
+    check(policy.trunk_b.weight.grad is None or float(policy.trunk_b.weight.grad.abs().max()) == 0.0,
+          "message choices send no gradient into the trunk")
+    check(float(policy.heads.weight.grad[offset:offset + width].abs().max()) > 0.0, "message choices still train their own heads")
+    policy.zero_grad()
+    policy(obs, hidden)[0][:, :schema.head_sizes["behaviour"]].sum().backward()
+    check(float(policy.trunk_b.weight.grad.abs().max()) > 0.0, "fighting choices still train the trunk")
+    configured = T.load_settings()["trainer"]
+    check(float(configured["max_learning_rate"]) <= 0.0003 + 1e-12, "the learning rate is capped at 0.0003, where the trunk stayed alive")
+
+
 def test_benchmark_fight_mix() -> None:
     """The benchmark plays its own frozen fights: every setting training's episodes need, and no training curriculum."""
     import benchmark as B
@@ -465,6 +527,8 @@ def main() -> int:
         test_message_warm_start(folder)
         test_dashboard_eras()
         test_fold_constant_input(schema)
+        test_revive_trunk(schema)
+        test_message_heads_detached(schema)
         test_benchmark_fight_mix()
     print("PASSED" if not failures else f"FAILED: {len(failures)} check(s)")
     return 1 if failures else 0
