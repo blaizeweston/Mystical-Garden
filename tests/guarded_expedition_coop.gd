@@ -46,6 +46,20 @@ func until(predicate: Callable) -> bool:
  while not predicate.call() and Time.get_ticks_msec()<deadline: await process_frame
  return predicate.call()
 
+func until_publication(predicate: Callable) -> bool:
+ # Simulation is deliberately paused in this fixture. Drive the ordinary
+ # 20 Hz publication owner until the exact guest assertion acknowledges it;
+ # one unreliable snapshot is not a sufficient transport barrier.
+ var deadline:=Time.get_ticks_msec()+8500
+ var next_frame:=0
+ while not predicate.call() and Time.get_ticks_msec()<deadline:
+  var now:=Time.get_ticks_msec()
+  if now>=next_frame:
+   world.send_expedition_state(.05)
+   next_frame=now+50
+  await process_frame
+ return predicate.call()
+
 func record(key: String,before: String,facts: Dictionary) -> void:
  print("CASE ",JSON.stringify({"case":key,"run_id":OS.get_environment("MYSTICAL_VALIDATION_RUN"),
   "garden_before":before,"garden_after":Slots._save_digest(G),"guest_profile":Slots._save_digest(C),"facts":facts}))
@@ -134,7 +148,7 @@ func host_run() -> void:
   "party consumed one reserved part and both wallets start at zero")
  world.send_expedition_state(0,true)
  mark("departed")
- if not await until(func():return marked("saw-departure")):
+ if not await until_publication(func():return marked("saw-departure")):
   check(false,"guest sees committed floor")
   return
  world.encounter.set_hp(-1, 0)
@@ -153,7 +167,7 @@ func host_run() -> void:
  world.send_expedition_state(0,true)
  mark("reward-wallet",str(reward_balance))
  mark("rewards",str(world.enemy_kind))
- if not await until(func():return marked("saw-rewards")):
+ if not await until_publication(func():return marked("saw-rewards")):
   check(false,"guest stores one XP/monster projection")
   return
  check(guest.character.monsters[world.enemy_kind]==1,"duplicate kill is ignored")
@@ -189,7 +203,7 @@ func host_run() -> void:
  check(health_before.hp()==1.0 and recovered.hp()>1.0 and recovered.max_hp()==health_before.max_hp(),"floor recovery preserves native capacity")
  mark("advance-hp",str(recovered.hp()))
  world.send_expedition_state(0,true)
- if not await until(func():return marked("saw-advance")):
+ if not await until_publication(func():return marked("saw-advance")):
   check(false,"guest sees committed advancement")
   return
  ExpeditionCase.set_world(world, {"encounter_number": 6})
