@@ -10,7 +10,6 @@ const CardState = preload("res://affinity_card_ledger.gd")
 const Ledger = CardState.Ledger
 const Journal = preload("res://diagnostic_journal.gd")
 const Preview = preload("res://combat_balance_preview.gd")
-const Eligibility = preload("res://card_eligibility.gd")
 const Rules = preload("res://combat_ruleset.gd")
 const BLOOM_ECHO_PARAMETER := "bloom_echo_hp"
 const CARD_GRANTS := {BLOOM_ECHO_PARAMETER:{"method":"bloom_echo", "capability":{
@@ -128,8 +127,6 @@ static func copy_list(definition: Dictionary, copies: Array) -> String:
 
 static func detail_text(definition: Dictionary) -> String:
 	var lines: PackedStringArray = []
-	var needs := Eligibility.Requirements.describe(definition.requires)
-	if not needs.is_empty(): lines.append("Requires " + needs + ".")
 	lines.append(definition.detail)
 	if definition.policy == "unique":
 		lines.append("One acquisition per expedition.")
@@ -164,7 +161,7 @@ static func choice_view(definition: Dictionary, option: Dictionary, owned: Array
 			detail += " · Total owned: " + Catalog.contribution(definition, total)
 		detail += "\n" + copy_list(definition, owned)
 	if not reason.is_empty():
-		preview = reason
+		preview = "This upgrade is currently unavailable."
 	return {"description": description, "preview": preview, "detail": detail}
 
 
@@ -192,7 +189,7 @@ static func owned_rows(copies: Array) -> Array:
 			if definition.scope in ["core", "form", "catalyst", "class"] or applied != total:
 				summary += " · Active: " + Catalog.contribution(definition, applied)
 		if not reason.is_empty():
-			summary += "\nInactive: " + reason
+			summary += "\nInactive"
 		var detail := detail_text(definition)
 		if not unique:
 			detail += "\n\n" + copy_list(definition, group)

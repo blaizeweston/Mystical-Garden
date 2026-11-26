@@ -59,6 +59,32 @@ func run():
  check(int(p[Spirit.FOLLOW].damage)==15 and int(live.until)==Spirit.STRIDE_MS+150,"Ghostcut boosts native follow-up; Flowing Edge extends live stride once")
  Spirit.voluntary(g,1,Vector3.ZERO,Vector3.RIGHT,now)
  check(Spirit.tempo_percent(g,p,now)==6,"legal movement provides actual temporary basic speed")
+ reset();c.equip(1,"spirit");c.own(1,["stored_momentum","spectral_tempo","mirrorstep"])
+ Clock.begin_stepped(10000)
+ g.dodge_player(1,Vector2.RIGHT)
+ check(Spirit.tempo_percent(g,p,10000)==6 and p[Spirit.ECHOES].size()==1,"first accepted dodge prepares speed and an echo immediately")
+ for tick in 30:Clock.step()
+ g.dodge_player(1,Vector2.LEFT)
+ check(Spirit.tempo_percent(g,p,10500)==12 and p[Spirit.ECHOES].size()==2,"second accepted dodge adds its own stack without waiting for a proc cooldown")
+ g.dodge_player(1,Vector2.RIGHT)
+ check(Spirit.tempo_percent(g,p,10500)==12 and p[Spirit.ECHOES].size()==2,"refused dodge creates no new preparations")
+ core.command(g,1,p,core.request(g,p,Vector2.RIGHT))
+ check(Spirit.tempo_percent(g,p,10500)==18 and p[Spirit.ECHOES].size()==3,"same-tick Phantom Step adds another independent stack and echo without a dodge charge")
+ var base_interval:int=g.combat_build(p).basic_stats().interval
+ check(g.weapon_attack_world.capture_attack(1,10500).interval==maxi(c.Cards.STRIKE_MIN_MS,roundi(base_interval/1.18)),
+  "the real basic-attack snapshot consumes the combined movement speed bonus")
+ check(Spirit.tempo_percent(g,p,12000)==12 and Spirit.tempo_percent(g,p,12499)==12
+  and Spirit.tempo_percent(g,p,12500)==0,"each speed stack expires exactly two seconds after its own movement")
+ check(Spirit.hints(g,13000).size()==2 and Spirit.hints(g,13500).is_empty(),"Mirrorstep echoes expire independently after three seconds")
+ var tempo_source: Dictionary=p[Spirit.ECHOES][0]
+ p[Spirit.TEMPO]={"source":tempo_source,"until":11500,"percent":6}
+ check(Spirit.tempo_percent(g,p,10500)==6,"historical suspended single speed preparation remains active")
+ Spirit.voluntary(g,1,Vector3.ZERO,Vector3.RIGHT,10500)
+ check(Spirit.tempo_percent(g,p,10500)==12 and Spirit.tempo_percent(g,p,11500)==6,
+  "a restored single preparation can accumulate and expire independently alongside new movement")
+ Spirit.prune_preparations(g,p,12500)
+ check(Spirit.tempo_percent(g,p,12500)==0,"expired movement speed preparations are cleared")
+ Clock.end_stepped()
  reset();c.equip(1,"spirit");c.own(1,["veiled_casting","flowing_invocation","wraiths_followthrough","evasive_spirit"])
  event=c.action(1,"catalyst")
  event.publish(g,"class_action","offense","",now,{"response":"self_stride","enemies":[-1]})

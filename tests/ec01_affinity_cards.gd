@@ -596,14 +596,27 @@ func verify_presentation() -> void:
 		"the real Tab view groups copies and exposes individual contributions")
 	player.catalyst = material("water")
 	grant_fixture_copy("catalyst_drench_time")
-	fixture_offer({"id":"catalyst_drench_time","amount":250,"rarity":"Common"})
+	var water_offer := fixture_offer({"id":"catalyst_drench_time","amount":250,"rarity":"Common"})
 	choice = checkpoint_view().choices[0]
 	check(choice.preview == "Duration bonus: +0.25 s → +0.50 s" and "by 0.25 seconds" in choice.description,
 		"picker presents the exact status duration extension")
+	check(choice.detail.begins_with(Catalog.DEFINITIONS.catalyst_drench_time.detail),
+		"picker details start with the effect instead of acquisition requirements")
 	player.catalyst = 0
-	var inactive: Dictionary = Cards.owned_rows(Cards.project_owned(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS))[1]
+	var owned := Cards.project_owned(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS)
+	var inactive: Dictionary = Cards.owned_rows(owned)[1]
 	check("Duration bonus: +0.25 s · Active: +0 s" in inactive.summary
-		and "Equip a Water Catalyst" in inactive.summary,"unequipped card stays owned with its real inactive reason")
+		and inactive.summary.ends_with("\nInactive") and owned.back().reason == "Equip a Water Catalyst."
+		and inactive.tooltip.begins_with(Catalog.DEFINITIONS.catalyst_drench_time.detail),
+		"owned cards show inactive state and effect while keeping the actual requirement internal")
+	choice = checkpoint_view().choices[0]
+	check(not choice.enabled and choice.preview == "This upgrade is currently unavailable.",
+		"an outdated offer displays generic unavailability")
+	var before_refusal := Cards.ledger(player)
+	action(water_offer.revision,"0")
+	check(Cards.ledger(player) == before_refusal and not game.checkpoint_ready.has(1)
+		and game.status == "This upgrade is currently unavailable.",
+		"the authoritative requirement still rejects acquisition without revealing it")
 	for species in game.Seeds.DEFINITIONS.size():
 		var seed: Dictionary = game.Seeds.DEFINITIONS[species]
 		var plant := Build.planting_description(species)

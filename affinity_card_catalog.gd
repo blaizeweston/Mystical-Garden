@@ -467,7 +467,7 @@ const DEFINITIONS := {
 		"grants": ["echoing_growth"],
 		"parameter": "bloom_echo_hp", "fixed": 10, "unit": "hp", "limit": 1,
 		"description": "When Spore Nova damages an enemy in your Cultivate Bloom, the bloom deals %s secondary damage to eligible enemies inside.",
-		"detail": "Requires Bloomcaller and your own active Cultivate Bloom. The extra pulse happens at most once per Nova. It applies no extra roots or Marks, and triggers no Catalyst, Form, graft or other secondary effects.",
+		"detail": "Your Cultivate Bloom must be active. The extra pulse happens at most once per Nova. It applies no extra roots or Marks, and triggers no Catalyst, Form, graft or other secondary effects.",
 	},
 	# CE02 Thorn — provisional, per-copy contributions.
 	"bramble_density": {
@@ -486,7 +486,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Thorn Line applies an additional %s percentage points of your personal Bleed cap.",
-	  "detail": "Provisional CE02 tuning. Actual occupants only; the existing one-second application interval and shared cap remain unchanged.",
+	  "detail": "Actual occupants only; the existing one-second application interval and shared cap remain unchanged.",
 	  "values": [
 		5,
 		8,
@@ -510,7 +510,7 @@ const DEFINITIONS := {
 	  "unit": "cm",
 	  "limit": 4,
 	  "description": "Thorn Line extends %s m farther on each side.",
-	  "detail": "Provisional CE02 tuning. Extends the real lane and its preview. It obeys ground support and does not spread Bleed.",
+	  "detail": "The extended lane follows the terrain and does not spread Bleed.",
 	  "values": [
 		20,
 		30,
@@ -534,7 +534,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Eligible basic hits add %s%% of your personal Bleed cap.",
-	  "detail": "Provisional CE02 tuning. Additional direct buildup alongside the native stationary patch; no extra contact or proc.",
+	  "detail": "Additional direct buildup alongside the native stationary patch; no extra contact or proc.",
 	  "values": [
 		2,
 		3,
@@ -558,7 +558,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Each successive basic hit on the same enemy adds %s percentage points more Bleed buildup.",
-	  "detail": "Provisional CE02 tuning. The first hit starts the sequence. Target changes or three seconds without a hit reset it. Buildup stops at your build-derived cap.",
+	  "detail": "The first hit starts the sequence. Target changes or three seconds without a hit reset it. Buildup stops at your build-derived cap.",
 	  "values": [
 		2,
 		3,
@@ -585,7 +585,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Your first qualifying basic hit adds %s%% of your personal Bleed cap.",
-	  "detail": "Provisional CE02 tuning. Once per enemy while your Bleed contribution remains active; resets after your contribution expires.",
+	  "detail": "Once per enemy while your Bleed contribution remains active; resets after your contribution expires.",
 	  "values": [
 		5,
 		8,
@@ -609,7 +609,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Catalyst growth applies an additional %s percentage points of your personal Bleed cap.",
-	  "detail": "Provisional CE02 tuning. Requires an actual Thorn Catalyst response; empty placement gives no buildup.",
+	  "detail": "Requires an actual Thorn Catalyst response; empty placement gives no buildup.",
 	  "values": [
 		5,
 		8,
@@ -633,7 +633,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "A qualifying Catalyst Bleed application prepares +%s damage on your next basic attack.",
-	  "detail": "Provisional CE02 tuning. Launch within four seconds; a miss spends it. Only the first direct enemy contact benefits, with no extra proc.",
+	  "detail": "Launch within four seconds; a miss spends it. Only the first direct enemy contact benefits, with no extra proc.",
 	  "values": [
 		3,
 		5,
@@ -660,7 +660,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Increase your personal Bleed tick cap by %s damage across functioning Thorn sources.",
-	  "detail": "Provisional CE02 tuning. Counts once per player, not once per slot. Raising the cap supplies no free accumulated Bleed.",
+	  "detail": "Counts once per player, not once per slot. Raising the cap supplies no free accumulated Bleed.",
 	  "values": [
 		2,
 		3,
@@ -684,7 +684,7 @@ const DEFINITIONS := {
 	  "unit": "ms",
 	  "limit": 4,
 	  "description": "Eligible Bleed applications retain your contribution for an additional %s seconds.",
-	  "detail": "Provisional CE02 tuning. Extends your own maintained contribution, not another player’s or the stationary field lifetime.",
+	  "detail": "Extends your own maintained contribution, not another player’s or the stationary field lifetime.",
 	  "values": [
 		250,
 		400,
@@ -708,7 +708,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "A heavily Bleeding enemy’s death bursts for %s%% of its accumulated Bleed tick damage.",
-	  "detail": "Provisional CE02 tuning. Requires at least 50% of the shared cap. Hits other enemies within 3 m and clear line. One strongest eligible owner supplies the burst; it spreads no Bleed and cannot chain death bursts.",
+	  "detail": "Requires at least 50% of the shared cap. Hits other enemies within 3 m and clear line. One strongest eligible owner supplies the burst; it spreads no Bleed and cannot chain death bursts.",
 	  "values": [
 		50,
 		75,
@@ -735,7 +735,7 @@ const DEFINITIONS := {
 	  "unit": "unlock",
 	  "limit": 1,
 	  "description": "Unlock Bloodletting: deal twice an aimed enemy’s accumulated Bleed tick damage without consuming Bleed.",
-	  "detail": "Provisional CE02 tuning. Additional configurable card action, default Z. Requires an eligible Bleeding enemy within 8 m and combat sight; eight-second cooldown. Does not trigger Form, Catalyst, grafts or recursive death bursts.",
+	  "detail": "Additional configurable card action, default Z. Requires an eligible Bleeding enemy within 8 m and combat sight; eight-second cooldown. Does not trigger Form, Catalyst, grafts or recursive death bursts.",
 	  "fixed": 1,
 	  "tuning": {
 		"cooldown_ms": 8000,
@@ -765,7 +765,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Rime Bloom applications gain +%s maximum shatter damage.",
-	  "detail": "Provisional CE02 tuning. Each applied stack freezes one third of this source-specific increase.",
+	  "detail": "Each applied stack freezes one third of this source-specific increase.",
 	  "values": [
 		3,
 		5,
@@ -789,7 +789,7 @@ const DEFINITIONS := {
 	  "unit": "stacks",
 	  "limit": 4,
 	  "description": "Rime Bloom closing petals apply %s additional Brittle stacks.",
-	  "detail": "Provisional CE02 tuning. Separate from Avalanche and Shatterwave. Every completed three-stack group ruptures normally.",
+	  "detail": "Separate from Avalanche and Shatterwave. Every completed three-stack group ruptures normally.",
 	  "values": [
 		1,
 		2,
@@ -813,7 +813,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Basic-attack Brittle gains +%s maximum shatter damage.",
-	  "detail": "Provisional CE02 tuning. Only the source-weighted contribution of eligible basic-hit stacks changes.",
+	  "detail": "Only the source-weighted contribution of eligible basic-hit stacks changes.",
 	  "values": [
 		3,
 		5,
@@ -837,7 +837,7 @@ const DEFINITIONS := {
 	  "unit": "milli_stacks",
 	  "limit": 4,
 	  "description": "Each eligible basic hit earns %s additional Brittle stack credit.",
-	  "detail": "Provisional CE02 tuning. Whole credits apply extra stacks to that hit; fractional credit carries between hits. No random roll.",
+	  "detail": "Whole credits apply extra stacks to that hit; fractional credit carries between hits. No random roll.",
 	  "values": [
 		250,
 		400,
@@ -861,7 +861,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Basic hits deal +%s damage per Brittle stack already on their target.",
-	  "detail": "Provisional CE02 tuning. Counts the current zero, one or two shared stacks before this hit applies its Form. No secondary contact.",
+	  "detail": "Counts the current zero, one or two shared stacks before this hit applies its Form. No secondary contact.",
 	  "values": [
 		1,
 		2,
@@ -885,7 +885,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Class-action Brittle gains +%s maximum shatter damage.",
-	  "detail": "Provisional CE02 tuning. Only stacks actually supplied by the equipped Frost Catalyst gain this frozen contribution.",
+	  "detail": "Only stacks actually supplied by the equipped Frost Catalyst gain this frozen contribution.",
 	  "values": [
 		3,
 		5,
@@ -909,7 +909,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "A qualifying class action adds one nearby Brittle stack at %s%% shatter potency.",
-	  "detail": "Provisional CE02 tuning. Once per action, to another enemy within 2.4 m and clear line. A resulting rupture may use acquired root and wave effects, but cannot launch another spread.",
+	  "detail": "Once per action, to another enemy within 2.4 m and clear line. A resulting rupture may use acquired root and wave effects, but cannot launch another spread.",
 	  "values": [
 		10,
 		15,
@@ -936,7 +936,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "A Catalyst rupture prepares +%s shatter potency for that class action's next use.",
-	  "detail": "Provisional CE02 tuning. Same Q or R slot, within five seconds. Claimed on its first eligible application; refused or empty casts do not spend it. It cannot empower its own cast.",
+	  "detail": "Same Q or R slot, within five seconds. Claimed on its first eligible application; refused or empty casts do not spend it. It cannot empower its own cast.",
 	  "values": [
 		2,
 		3,
@@ -963,7 +963,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Increase maximum shatter damage by %s across functioning Frost sources.",
-	  "detail": "Provisional CE02 tuning. Counts once across equipped sources; each stack freezes one third when applied.",
+	  "detail": "Counts once across equipped sources; each stack freezes one third when applied.",
 	  "values": [
 		3,
 		5,
@@ -987,7 +987,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Each active Brittle stack adds %s percentage points more movement Slow.",
-	  "detail": "Provisional CE02 tuning. Preserves the one- and two-stack progression and the existing boss Slow scale. Grants no root.",
+	  "detail": "Preserves the one- and two-stack progression and the existing boss Slow scale. Grants no root.",
 	  "values": [
 		1,
 		2,
@@ -1011,7 +1011,7 @@ const DEFINITIONS := {
 	  "unit": "ms",
 	  "limit": 4,
 	  "description": "Your eligible Brittle ruptures root surviving enemies for %s seconds.",
-	  "detail": "Provisional CE02 tuning. Uses the longest eligible captured owner duration without shortening an existing root. Baseline rupture remains root-free.",
+	  "detail": "Uses the longest eligible captured owner duration without shortening an existing root. Baseline rupture remains root-free.",
 	  "values": [
 		150,
 		250,
@@ -1035,7 +1035,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Your eligible ruptures deal %s%% additional rupture damage in an area.",
-	  "detail": "Provisional CE02 tuning. One strongest eligible captured owner emits immediate secondary damage within 2.4 m, including the original target if alive. No Brittle spread or secondary proc.",
+	  "detail": "One strongest eligible captured owner emits immediate secondary damage within 2.4 m, including the original target if alive. No Brittle spread or secondary proc.",
 	  "values": [
 		20,
 		30,
@@ -1061,7 +1061,7 @@ const DEFINITIONS := {
 	  "unit": "unlock",
 	  "limit": 1,
 	  "description": "Your eligible ruptures spread one attributed Brittle stack to nearby enemies.",
-	  "detail": "Provisional CE02 tuning. Within 2.4 m and clear line. The stack retains its source potency. A propagation-triggered rupture can use acquired Rime Lock and Shatterwave, but cannot emit another Avalanche; later legitimate attacks can.",
+	  "detail": "Within 2.4 m and clear line. The stack retains its source potency. A propagation-triggered rupture can use acquired Rime Lock and Shatterwave, but cannot emit another Avalanche; later legitimate attacks can.",
 	  "fixed": 1,
 	  "tuning": {
 		"radius_m": 2.4
@@ -1087,7 +1087,7 @@ const DEFINITIONS := {
 	  "unit": "stacks",
 	  "limit": 4,
 	  "description": "Ember Wake applies %s additional Burning stacks.",
-	  "detail": "Provisional CE02 tuning. Applies on first contact and the existing 750 ms maintenance cadence; no extra initial damage.",
+	  "detail": "Applies on first contact and the existing 750 ms maintenance cadence; no extra initial damage.",
 	  "values": [
 		2,
 		3,
@@ -1111,7 +1111,7 @@ const DEFINITIONS := {
 	  "unit": "ms",
 	  "limit": 4,
 	  "description": "Ember Wake’s trail lasts an additional %s seconds.",
-	  "detail": "Provisional CE02 tuning. Extends the real field, visual lifetime and cast expiry. Stack maintenance still has its existing per-enemy interval.",
+	  "detail": "The burning trail lasts longer. The interval between Burning applications to each enemy stays the same.",
 	  "values": [
 		250,
 		400,
@@ -1135,7 +1135,7 @@ const DEFINITIONS := {
 	  "unit": "stacks",
 	  "limit": 4,
 	  "description": "Each consecutive basic attack adds %s more Burning stacks after the first.",
-	  "detail": "Provisional CE02 tuning. One sequence step per attack, including volleys. Three seconds without an eligible hit resets the sequence. Target changes do not reset Fire pressure.",
+	  "detail": "One sequence step per attack, including volleys. Three seconds without an eligible hit resets the sequence. Target changes do not reset Fire pressure.",
 	  "values": [
 		1,
 		2,
@@ -1162,7 +1162,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Successive basic hits on Burning enemies add %s%% attack speed per sequence step.",
-	  "detail": "Provisional CE02 tuning. After the first hit, the temporary speed lasts two seconds and refreshes on qualifying hits. The three-second hit sequence and current basic-attack timing limit still apply.",
+	  "detail": "After the first hit, the temporary speed lasts two seconds and refreshes on qualifying hits. The three-second hit sequence and current basic-attack timing limit still apply.",
 	  "values": [
 		3,
 		4,
@@ -1189,7 +1189,7 @@ const DEFINITIONS := {
 	  "unit": "stacks",
 	  "limit": 4,
 	  "description": "Catalyst applications add %s extra stacks against enemies already Burning.",
-	  "detail": "Provisional CE02 tuning. Checks the shared Burning before this application; no extra class contact or Catalyst activation.",
+	  "detail": "Checks the shared Burning before this application; no extra class contact or Catalyst activation.",
 	  "values": [
 		2,
 		3,
@@ -1213,7 +1213,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "A qualifying Catalyst application gives nearby enemies %s%% of its Burning stack application.",
-	  "detail": "Provisional CE02 tuning. Once per class action, within 2.4 m and clear line, excluding the original enemy. Secondary applications cannot trigger another resonance or Flashover.",
+	  "detail": "Once per class action, within 2.4 m and clear line, excluding the original enemy. Secondary applications cannot trigger another resonance or Flashover.",
 	  "values": [
 		10,
 		15,
@@ -1240,7 +1240,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Your Burning contributions gain %s%% decay efficiency.",
-	  "detail": "Provisional CE02 tuning. Your assigned decay loss is divided by 1 + total efficiency/100, with fractional loss carried between decays. Other owners retain their normal rules; no fixed intensity ceiling.",
+	  "detail": "Your assigned decay loss is divided by 1 + total efficiency/100, with fractional loss carried between decays. Other owners retain their normal rules; no fixed intensity ceiling.",
 	  "values": [
 		10,
 		15,
@@ -1264,7 +1264,7 @@ const DEFINITIONS := {
 	  "unit": "stacks",
 	  "limit": 4,
 	  "description": "Add %s Burning stacks per eligible application across functioning Fire slots.",
-	  "detail": "Provisional CE02 tuning. Core, Form and Catalyst cooperate. This adds no duplicate application or secondary activation.",
+	  "detail": "Core, Form and Catalyst cooperate. This adds no duplicate application or secondary activation.",
 	  "values": [
 		1,
 		2,
@@ -1288,7 +1288,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Flashover deals damage equal to %s%% of the Burning stacks actually consumed.",
-	  "detail": "Provisional CE02 tuning. Your native Fire application at 8+ stacks consumes 25% and leaves at least one stack. One shared two-second trigger interval per enemy; 2.4 m clear-line area. Secondary damage cannot trigger Flashover.",
+	  "detail": "Your native Fire application at 8+ stacks consumes 25% and leaves at least one stack. One shared two-second trigger interval per enemy; 2.4 m clear-line area. Secondary damage cannot trigger Flashover.",
 	  "values": [
 		50,
 		75,
@@ -1318,7 +1318,7 @@ const DEFINITIONS := {
 	  "unit": "unlock",
 	  "limit": 1,
 	  "description": "Burning at 8+ intensity spreads half its stacks to nearby enemies once per second.",
-	  "detail": "Provisional CE02 tuning. One eligible owner supplies each attributed 2.4 m spread. Does not consume the original. Propagated-only contributions cannot spread again; a real native application can enable later spread. Independent from Flashover.",
+	  "detail": "One eligible owner supplies each attributed 2.4 m spread. Does not consume the original. Propagated-only contributions cannot spread again; a real native application can enable later spread. Independent from Flashover.",
 	  "fixed": 1,
 	  "tuning": {
 		"threshold_stacks": 8,
@@ -1347,7 +1347,7 @@ const DEFINITIONS := {
 	  "unit": "pressure",
 	  "limit": 4,
 	  "description": "Dewfall adds +%s Saturation per enemy contact.",
-	  "detail": "Provisional CE03 tuning. One application per contacted enemy. Does not change impact damage.",
+	  "detail": "One application per contacted enemy. Does not change impact damage.",
 	  "tuning": {},
 	  "values": [
 		8,
@@ -1372,7 +1372,7 @@ const DEFINITIONS := {
 	  "unit": "cm",
 	  "limit": 4,
 	  "description": "Dewfall gains +%s m half-width.",
-	  "detail": "Provisional CE03 tuning. Actual curtain and preview use the same width.",
+	  "detail": "The wider curtain increases the area affected by Dewfall.",
 	  "tuning": {},
 	  "values": [
 		15,
@@ -1397,7 +1397,7 @@ const DEFINITIONS := {
 	  "unit": "healing_hp",
 	  "limit": 4,
 	  "description": "Dewfall restores +%s HP to each living ally it touches.",
-	  "detail": "Provisional CE03 tuning. Once per recipient per cast, including the caster at formation. No extra Ward or Catalyst activation.",
+	  "detail": "Once per recipient per cast, including the caster at formation. No extra Ward or Catalyst activation.",
 	  "tuning": {},
 	  "values": [
 		2,
@@ -1422,7 +1422,7 @@ const DEFINITIONS := {
 	  "unit": "pressure",
 	  "limit": 4,
 	  "description": "Qualifying basic hits add +%s Saturation.",
-	  "detail": "Provisional CE03 tuning. Only functioning Water Form contacts qualify.",
+	  "detail": "Only functioning Water Form contacts qualify.",
 	  "tuning": {},
 	  "values": [
 		3,
@@ -1447,7 +1447,7 @@ const DEFINITIONS := {
 	  "unit": "pressure",
 	  "limit": 4,
 	  "description": "Each successive basic attack adds another +%s Saturation.",
-	  "detail": "Provisional CE03 tuning. Starts after the first eligible attack. Resets after a 3-second gap. A volley advances the sequence only once.",
+	  "detail": "Starts after the first eligible attack. Resets after a 3-second gap. A volley advances the sequence only once.",
 	  "tuning": {
 		"gap_ms": 3000
 	  },
@@ -1474,7 +1474,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Your first basic-hit target at 50+ Saturation takes +%s damage.",
-	  "detail": "Provisional CE03 tuning. Adds native damage to one primary direct contact per attack. No separate hit or proc.",
+	  "detail": "Adds native damage to one primary direct contact per attack. No separate hit or proc.",
 	  "tuning": {
 		"threshold": 50
 	  },
@@ -1501,7 +1501,7 @@ const DEFINITIONS := {
 	  "unit": "healing_hp",
 	  "limit": 4,
 	  "description": "A basic hit prepares +%s HP of personal Surge healing.",
-	  "detail": "Provisional CE03 tuning. Lasts 4 seconds. The next accepted Surge uses your weighted share of the bonus, then spends it. Repeated hits refresh rather than stack preparations.",
+	  "detail": "Lasts 4 seconds. The next accepted Surge uses your weighted share of the bonus, then spends it. Repeated hits refresh rather than stack preparations.",
 	  "tuning": {
 		"duration_ms": 4000
 	  },
@@ -1528,7 +1528,7 @@ const DEFINITIONS := {
 	  "unit": "pressure",
 	  "limit": 4,
 	  "description": "Eligible class responses add +%s Saturation.",
-	  "detail": "Provisional CE03 tuning. Only mapped Water Catalyst applications qualify.",
+	  "detail": "Only mapped Water Catalyst applications qualify.",
 	  "tuning": {},
 	  "values": [
 		6,
@@ -1560,7 +1560,7 @@ const DEFINITIONS := {
 	  "unit": "cm",
 	  "limit": 4,
 	  "description": "Catalyst cleansing washes reach +%s m farther.",
-	  "detail": "Provisional CE03 tuning. Expands ally ordinary-Slow cleansing only, not enemy Drench area or healing triggers.",
+	  "detail": "Expands ally ordinary-Slow cleansing only, not enemy Drench area or healing triggers.",
 	  "tuning": {},
 	  "values": [
 		20,
@@ -1585,7 +1585,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Your full-share outgoing Surge potency gains +%s damage.",
-	  "detail": "Provisional CE03 tuning. Each wave carries only the share of threshold pressure you actually supplied.",
+	  "detail": "Each wave carries only the share of threshold pressure you actually supplied.",
 	  "tuning": {},
 	  "values": [
 		2,
@@ -1610,7 +1610,7 @@ const DEFINITIONS := {
 	  "unit": "healing_hp",
 	  "limit": 4,
 	  "description": "Your full-share returning Surge potency gains +%s healing.",
-	  "detail": "Provisional CE03 tuning. Independent from damage. Once per returning wave per living recipient.",
+	  "detail": "Independent from damage. Once per returning wave per living recipient.",
 	  "tuning": {},
 	  "values": [
 		2,
@@ -1635,7 +1635,7 @@ const DEFINITIONS := {
 	  "unit": "cm",
 	  "limit": 4,
 	  "description": "Your Surge waves gain +%s m half-width.",
-	  "detail": "Provisional CE03 tuning. Outgoing and gentler returning coverage both improve. Solid cover still stops the wave.",
+	  "detail": "Outgoing and gentler returning coverage both improve. Solid cover still stops the wave.",
 	  "tuning": {},
 	  "values": [
 		15,
@@ -1660,7 +1660,7 @@ const DEFINITIONS := {
 	  "unit": "ms",
 	  "limit": 4,
 	  "description": "Returning tides grant one Ward for %s s.",
-	  "detail": "Provisional CE03 tuning. One native charge per contacted living recipient per wave. Uses ordinary Ward merging, not additional Catalyst claims.",
+	  "detail": "One native charge per contacted living recipient per wave. Uses ordinary Ward merging, not additional Catalyst claims.",
 	  "tuning": {},
 	  "values": [
 		400,
@@ -1685,7 +1685,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Outgoing Surge deals +%s%% damage to its triggering enemy.",
-	  "detail": "Provisional CE03 tuning. Only the captured triggering spawn qualifies. Other targets keep ordinary wave damage.",
+	  "detail": "Only the captured triggering spawn qualifies. Other targets keep ordinary wave damage.",
 	  "tuning": {},
 	  "values": [
 		20,
@@ -1710,7 +1710,7 @@ const DEFINITIONS := {
 	  "unit": "cm",
 	  "limit": 4,
 	  "description": "Outgoing tides push +%s m farther.",
-	  "detail": "Provisional CE03 tuning. Uses native terrain-limited enemy displacement and resistance. Resistant enemies still take damage.",
+	  "detail": "Uses native terrain-limited enemy displacement and resistance. Resistant enemies still take damage.",
 	  "tuning": {},
 	  "values": [
 		10,
@@ -1735,7 +1735,7 @@ const DEFINITIONS := {
 	  "unit": "unlock",
 	  "limit": 1,
 	  "description": "Surge also creates two expanding and returning Water rings.",
-	  "detail": "Provisional CE03 tuning. Each extra ring carries 35% of your own weighted damage and healing. Keeps normal Surge, does not add pressure or recursively activate Monsoon.",
+	  "detail": "Each extra ring carries 35% of your own weighted damage and healing. Keeps normal Surge, does not add pressure or recursively activate Monsoon.",
 	  "tuning": {
 		"waves": 2,
 		"share_percent": 35,
@@ -1765,7 +1765,7 @@ const DEFINITIONS := {
 	  "unit": "bark",
 	  "limit": 4,
 	  "description": "Ironbark grants +%s Bark capacity.",
-	  "detail": "Provisional CE03 tuning. Adds real protective capacity to each native grant. No total pool ceiling.",
+	  "detail": "Adds real protective capacity to each native grant. No total pool ceiling.",
 	  "tuning": {},
 	  "values": [
 		6,
@@ -1790,7 +1790,7 @@ const DEFINITIONS := {
 	  "unit": "fragments",
 	  "limit": 4,
 	  "description": "Ironbark absorption can release +%s retaliatory splinters.",
-	  "detail": "Provisional CE03 tuning. Requires an actual direct hostile attack absorbed by your Ironbark. Once per source/recipient each second. Coexists with Splinterback.",
+	  "detail": "Requires an actual direct hostile attack absorbed by your Ironbark. Once per source/recipient each second. Coexists with Splinterback.",
 	  "tuning": {
 		"interval_ms": 1000
 	  },
@@ -1817,7 +1817,7 @@ const DEFINITIONS := {
 	  "unit": "fragments",
 	  "limit": 4,
 	  "description": "Ironbark activation fires %s radial splinters.",
-	  "detail": "Provisional CE03 tuning. Uses native fragment damage and terrain collision. Each enemy can be hit once per volley.",
+	  "detail": "Uses native fragment damage and terrain collision. Each enemy can be hit once per volley.",
 	  "tuning": {},
 	  "values": [
 		2,
@@ -1842,7 +1842,7 @@ const DEFINITIONS := {
 	  "unit": "fragments",
 	  "limit": 4,
 	  "description": "Eligible splintering strikes gain +%s fragments.",
-	  "detail": "Provisional CE03 tuning. Adds separate initial fragment targets to the native forward fan. The existing Form interval is unchanged.",
+	  "detail": "Adds separate initial fragment targets to the native forward fan. The existing Form interval is unchanged.",
 	  "tuning": {},
 	  "values": [
 		1,
@@ -1867,7 +1867,7 @@ const DEFINITIONS := {
 	  "unit": "penetrations",
 	  "limit": 4,
 	  "description": "Each fragment can penetrate +%s additional enemies.",
-	  "detail": "Provisional CE03 tuning. Only enemies along the actual fragment lane qualify. Solid cover stops it. Each enemy is damaged at most once per volley, across all fragments.",
+	  "detail": "Only enemies along the actual fragment lane qualify. Solid cover stops it. Each enemy is damaged at most once per volley, across all fragments.",
 	  "tuning": {
 		"lane_radius_m": 0.18,
 		"extra_reach_m": 2.0
@@ -1895,7 +1895,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Splintering Strikes deal +%s damage to their primary enemy.",
-	  "detail": "Provisional CE03 tuning. Strengthens the native initiating impact even against a single enemy. Does not produce another contact.",
+	  "detail": "Strengthens the native initiating impact even against a single enemy. Does not produce another contact.",
 	  "tuning": {},
 	  "values": [
 		2,
@@ -1923,7 +1923,7 @@ const DEFINITIONS := {
 	  "unit": "fragments",
 	  "limit": 4,
 	  "description": "Offensive class contacts release %s extra splinters.",
-	  "detail": "Provisional CE03 tuning. Once per class action, at the native contact or designated attack center. Does not create additional Catalyst contacts.",
+	  "detail": "Once per class action, at the native contact or designated attack center. Does not create additional Catalyst contacts.",
 	  "tuning": {},
 	  "values": [
 		1,
@@ -1948,7 +1948,7 @@ const DEFINITIONS := {
 	  "unit": "bark",
 	  "limit": 4,
 	  "description": "Compatible Catalyst responses grant +%s Bark capacity.",
-	  "detail": "Provisional CE03 tuning. Uses independent native grant lifetimes and ordinary partial absorption.",
+	  "detail": "Uses independent native grant lifetimes and ordinary partial absorption.",
 	  "tuning": {},
 	  "values": [
 		4,
@@ -1982,7 +1982,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Splinter damage gains %s%% of your held Bark.",
-	  "detail": "Provisional CE03 tuning. Uses actual unexpired remaining Bark when each volley begins. Requires a functioning Bark source and a real splinter producer. Does not spend protection.",
+	  "detail": "The bonus uses your remaining Bark when each volley begins. It does not consume protection.",
 	  "tuning": {},
 	  "values": [
 		5,
@@ -2007,7 +2007,7 @@ const DEFINITIONS := {
 	  "unit": "fragments",
 	  "limit": 4,
 	  "description": "Your Bark absorption can release %s retaliatory splinters.",
-	  "detail": "Provisional CE03 tuning. Requires an actual direct hostile attack. Once per source/recipient each second. Adds to separately learned Splinterguard.",
+	  "detail": "Requires an actual direct hostile attack. Once per source/recipient each second. Adds to separately learned Splinterguard.",
 	  "tuning": {
 		"interval_ms": 1000
 	  },
@@ -2034,7 +2034,7 @@ const DEFINITIONS := {
 	  "unit": "unlock",
 	  "limit": 1,
 	  "description": "Activate to spend all held Bark for radial damage.",
-	  "detail": "Provisional CE03 tuning. Deals 1 damage per actual Bark consumed within 3 m. Six-second cooldown. Expenditure cannot activate Bark break or retaliation. Independent additional skill-bar action.",
+	  "detail": "Deals 1 damage per actual Bark consumed within 3 m. Six-second cooldown. Expenditure cannot activate Bark break or retaliation. Independent additional skill-bar action.",
 	  "tuning": {
 		"cooldown_ms": 6000,
 		"radius_m": 3.0,
@@ -2065,7 +2065,7 @@ const DEFINITIONS := {
 	  "unit": "capacity_hp",
 	  "limit": 4,
 	  "description": "Vital Bloom investment adds +%s personal Vital capacity.",
-	  "detail": "Provisional CE03 tuning. New capacity investment benefits every functioning self-generated Vital source, so a stronger other slot cannot erase it. Native grants still resolve strongest, never add together.",
+	  "detail": "New capacity investment benefits every functioning self-generated Vital source, so a stronger other slot cannot erase it. Native grants still resolve strongest, never add together.",
 	  "tuning": {},
 	  "values": [
 		4,
@@ -2091,7 +2091,7 @@ const DEFINITIONS := {
 	  "unit": "regen_hp",
 	  "limit": 4,
 	  "description": "Vital Bloom investment adds +%s HP/s regeneration.",
-	  "detail": "Provisional CE03 tuning. New regeneration investment benefits functioning self-generated Vital sources. Existing Greening Chime stays Catalyst-specific.",
+	  "detail": "New regeneration investment benefits functioning self-generated Vital sources. Existing Greening Chime stays Catalyst-specific.",
 	  "tuning": {},
 	  "values": [
 		1,
@@ -2116,7 +2116,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Your Vital Bloom grants +%s primary basic-attack damage.",
-	  "detail": "Provisional CE03 tuning. Only the caster receives this native damage preparation, while that Bloom grant lasts. First eligible direct target per ordinary attack only.",
+	  "detail": "Only the caster receives this native damage preparation, while that Bloom grant lasts. First eligible direct target per ordinary attack only.",
 	  "tuning": {},
 	  "values": [
 		2,
@@ -2142,7 +2142,7 @@ const DEFINITIONS := {
 	  "unit": "capacity_hp",
 	  "limit": 4,
 	  "description": "Vital Form investment adds +%s personal Vital capacity.",
-	  "detail": "Provisional CE03 tuning. All functioning self-generated Vital sources include this investment; grants retain strongest-source resolution.",
+	  "detail": "All functioning self-generated Vital sources include this investment; grants retain strongest-source resolution.",
 	  "tuning": {},
 	  "values": [
 		3,
@@ -2168,7 +2168,7 @@ const DEFINITIONS := {
 	  "unit": "regen_hp",
 	  "limit": 4,
 	  "description": "Vital Form investment adds +%s HP/s regeneration.",
-	  "detail": "Provisional CE03 tuning. All functioning self-generated Vital sources include this regeneration investment. Does not heal immediately.",
+	  "detail": "All functioning self-generated Vital sources include this regeneration investment. Does not heal immediately.",
 	  "tuning": {},
 	  "values": [
 		1,
@@ -2193,7 +2193,7 @@ const DEFINITIONS := {
 	  "unit": "basis_points",
 	  "limit": 4,
 	  "description": "Primary basic hits gain damage equal to %s%% of effective Max HP.",
-	  "detail": "Provisional CE03 tuning. Uses resolved current maximum capacity, including real Vital growth. Never spends HP. Once per ordinary attack on its first eligible direct target.",
+	  "detail": "Uses resolved current maximum capacity, including real Vital growth. Never spends HP. Once per ordinary attack on its first eligible direct target.",
 	  "tuning": {},
 	  "values": [
 		50,
@@ -2218,7 +2218,7 @@ const DEFINITIONS := {
 	  "unit": "ms",
 	  "limit": 4,
 	  "description": "Vital Form grants last +%s s.",
-	  "detail": "Provisional CE03 tuning. Extends only actual Form-generated Vitality, with ordinary expiry clamping.",
+	  "detail": "Extends only actual Form-generated Vitality, with ordinary expiry clamping.",
 	  "tuning": {},
 	  "values": [
 		250,
@@ -2244,7 +2244,7 @@ const DEFINITIONS := {
 	  "unit": "capacity_hp",
 	  "limit": 4,
 	  "description": "Vital Catalyst investment adds +%s personal Vital capacity.",
-	  "detail": "Provisional CE03 tuning. Benefits functioning self-generated Vital sources; no unconditional additive grant stacking.",
+	  "detail": "Benefits functioning self-generated Vital sources; no unconditional additive grant stacking.",
 	  "tuning": {},
 	  "values": [
 		3,
@@ -2269,7 +2269,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Class responses that grant you Vitality prepare +%s basic-hit damage.",
-	  "detail": "Provisional CE03 tuning. Lasts 2 seconds while Vitality remains active. First primary target per ordinary attack. No extra damage or healing-type Catalyst event.",
+	  "detail": "Lasts 2 seconds while Vitality remains active. First primary target per ordinary attack. No extra damage or healing-type Catalyst event.",
 	  "tuning": {
 		"duration_ms": 2000
 	  },
@@ -2296,7 +2296,7 @@ const DEFINITIONS := {
 	  "unit": "capacity_hp",
 	  "limit": 4,
 	  "description": "Your Vital grants gain +%s maximum-health capacity.",
-	  "detail": "Provisional CE03 tuning. Counted once alongside source investments. Strongest active grant determines capacity; increasing capacity never heals.",
+	  "detail": "Counted once alongside source investments. Strongest active grant determines capacity; increasing capacity never heals.",
 	  "tuning": {},
 	  "values": [
 		3,
@@ -2321,7 +2321,7 @@ const DEFINITIONS := {
 	  "unit": "ms",
 	  "limit": 4,
 	  "description": "Your Vital grants last +%s s.",
-	  "detail": "Provisional CE03 tuning. Maintains native source identity and recipient life/floor expiry. No permanent health or extra instant healing.",
+	  "detail": "Maintains native source identity and recipient life/floor expiry. No permanent health or extra instant healing.",
 	  "tuning": {},
 	  "values": [
 		250,
@@ -2346,7 +2346,7 @@ const DEFINITIONS := {
 	  "unit": "unlock",
 	  "limit": 1,
 	  "description": "Toggle basic attacks to spend filled Vital bonus HP for damage.",
-	  "detail": "Provisional CE03 tuning. Each launched ordinary attack spends up to 2 filled bonus HP for 2 damage per HP actually spent. Once per attack, first eligible primary contact only. Normal HP and maximum capacity are unchanged. Empty reserves suspend the bonus while leaving the toggle on.",
+	  "detail": "Each launched ordinary attack spends up to 2 filled bonus HP for 2 damage per HP actually spent. Once per attack, first eligible primary contact only. Normal HP and maximum capacity are unchanged. Empty reserves suspend the bonus while leaving the toggle on.",
 	  "tuning": {
 		"toggle_interval_ms": 250,
 		"spend_hp": 2.0,
@@ -2376,7 +2376,7 @@ const DEFINITIONS := {
 	  "unit": "targets",
 	  "limit": 4,
 	  "description": "Chain Spark gains +%s chain targets.",
-	  "detail": "Provisional CE04 tuning. Each normal chain target is hit once. Unused targets can support separately acquired Grounded Current.",
+	  "detail": "Each normal chain target is hit once. Unused targets can support separately acquired Grounded Current.",
 	  "tuning": {},
 	  "values": [
 		1,
@@ -2401,7 +2401,7 @@ const DEFINITIONS := {
 	  "unit": "cm",
 	  "limit": 4,
 	  "description": "Chain Spark jumps +%s m farther.",
-	  "detail": "Provisional CE04 tuning. Changes per-jump reach, not its initial weapon delivery.",
+	  "detail": "Changes per-jump reach, not its initial weapon delivery.",
 	  "tuning": {},
 	  "values": [
 		25,
@@ -2426,7 +2426,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Basic-attack electrical arcs gain +%s damage.",
-	  "detail": "Provisional CE04 tuning. Only the existing Arcing Strikes response; no extra ordinary hit or response.",
+	  "detail": "Only the existing Arcing Strikes response; no extra ordinary hit or response.",
 	  "tuning": {},
 	  "values": [
 		2,
@@ -2451,7 +2451,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Successful Arcing Strikes grant +%s%% basic attack speed.",
-	  "detail": "Provisional CE04 tuning. Lasts 2 seconds after actual electrical damage. Reapplication refreshes, does not multiply the bonus. Existing attack interval floor applies.",
+	  "detail": "Lasts 2 seconds after actual electrical damage. Reapplication refreshes, does not multiply the bonus. Existing attack interval floor applies.",
 	  "tuning": {
 		"duration_ms": 2000,
 		"fixed_tempo": true
@@ -2479,7 +2479,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Mapped class lightning gains +%s damage.",
-	  "detail": "Provisional CE04 tuning. Applies to existing offensive discharges, actual-block/landing bursts and granted recipient charges.",
+	  "detail": "Applies to existing offensive discharges, actual-block/landing bursts and granted recipient charges.",
 	  "tuning": {},
 	  "values": [
 		3,
@@ -2510,7 +2510,7 @@ const DEFINITIONS := {
 	  "unit": "targets",
 	  "limit": 4,
 	  "description": "Class discharges and recipient charges reach +%s targets.",
-	  "detail": "Provisional CE04 tuning. Adds unique chain contacts to existing discharge/charge responses. Does not invent a new Catalyst trigger.",
+	  "detail": "Adds unique chain contacts to existing discharge/charge responses. Does not invent a new Catalyst trigger.",
 	  "tuning": {},
 	  "values": [
 		1,
@@ -2535,7 +2535,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "A class response prepares +%s damage for the next discharge.",
-	  "detail": "Provisional CE04 tuning. After a real mapped response, store one source-owned preparation for 4 seconds. The next electrical response captures it once; its own bonus cannot prepare another response.",
+	  "detail": "After a real mapped response, store one source-owned preparation for 4 seconds. The next electrical response captures it once; its own bonus cannot prepare another response.",
 	  "tuning": {
 		"duration_ms": 4000
 	  },
@@ -2562,7 +2562,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Convert %s%% of unused chain damage into primary-target damage.",
-	  "detail": "Provisional CE04 tuning. Uses actual unused normal jump opportunities and their falloff. Adds to the original native hit, rather than creating another proc. Useful against one enemy.",
+	  "detail": "Uses actual unused normal jump opportunities and their falloff. Adds to the original native hit, rather than creating another proc. Useful against one enemy.",
 	  "tuning": {},
 	  "values": [
 		25,
@@ -2587,7 +2587,7 @@ const DEFINITIONS := {
 	  "unit": "cm",
 	  "limit": 4,
 	  "description": "Storm chain jumps reach +%s m farther.",
-	  "detail": "Provisional CE04 tuning. Applies through functioning Core, Form and compatible Catalyst chain sources.",
+	  "detail": "Applies through functioning Core, Form and compatible Catalyst chain sources.",
 	  "tuning": {},
 	  "values": [
 		20,
@@ -2612,7 +2612,7 @@ const DEFINITIONS := {
 	  "unit": "unlock",
 	  "limit": 1,
 	  "description": "Chain Spark forks and returns a reduced strike to its first target.",
-	  "detail": "Provisional CE04 tuning. One 45%-strength nonrecursive fork per normal node can hit another unvisited enemy. One return deals 35% of the starting discharge damage (before Grounded Current) to its original surviving spawn within jump reach, including in solo combat.",
+	  "detail": "One 45%-strength nonrecursive fork per normal node can hit another unvisited enemy. One return deals 35% of the starting discharge damage (before Grounded Current) to its original surviving spawn within jump reach, including in solo combat.",
 	  "tuning": {
 		"forks_per_node": 1,
 		"fork_percent": 45,
@@ -2641,7 +2641,7 @@ const DEFINITIONS := {
 	  "unit": "cm",
 	  "limit": 4,
 	  "description": "Phantom Step travels +%s m.",
-	  "detail": "Provisional CE04 tuning. Uses the same actor and terrain clearance as the native movement ability.",
+	  "detail": "Uses the same actor and terrain clearance as the native movement ability.",
 	  "tuning": {},
 	  "values": [
 		25,
@@ -2666,7 +2666,7 @@ const DEFINITIONS := {
 	  "unit": "ms",
 	  "limit": 4,
 	  "description": "Phantom Step traces last +%s s.",
-	  "detail": "Provisional CE04 tuning. Extends the actual pursuer diversion, not unrelated status durations.",
+	  "detail": "Extends the actual pursuer diversion, not unrelated status durations.",
 	  "tuning": {},
 	  "values": [
 		150,
@@ -2691,7 +2691,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Flowing Strikes movement follow-ups gain +%s damage.",
-	  "detail": "Provisional CE04 tuning. Retains the native voluntary-movement requirement, one claimed attack and original expiry.",
+	  "detail": "Retains the native voluntary-movement requirement, one claimed attack and original expiry.",
 	  "tuning": {},
 	  "values": [
 		2,
@@ -2716,7 +2716,7 @@ const DEFINITIONS := {
 	  "unit": "ms",
 	  "limit": 4,
 	  "description": "Eligible basic attacks extend your active Spiritstride by %s s.",
-	  "detail": "Provisional CE04 tuning. Once per ordinary attack. Extends actual live self stride grants; cannot create Spiritstride from an absent effect.",
+	  "detail": "Once per ordinary attack. Extends actual live self stride grants; cannot create Spiritstride from an absent effect.",
 	  "tuning": {},
 	  "values": [
 		150,
@@ -2730,18 +2730,18 @@ const DEFINITIONS := {
 	  "family": "spirit",
 	  "scope": "form",
 	  "policy": "stackable",
-	  "trigger": "Lasts 2 seconds after legal movement",
+	  "trigger": "Each successful voluntary movement ability adds an independent 2-second bonus",
 	  "consumer": [
 		"res://spirit_affinity.gd",
-	    "on_event"
+	    "voluntary"
 	  ],
 	  "requires": SPIRIT_FORM,
 	  "parameter": "tempo_percent",
 	  "label": "Spectral Tempo contribution",
 	  "unit": "percent",
 	  "limit": 4,
-	  "description": "Successful dashes grant +%s%% basic attack speed.",
-	  "detail": "Provisional CE04 tuning. Lasts 2 seconds after legal movement. Refreshes rather than stacking preparations. Existing weapon timing floor applies.",
+	  "description": "Each successful dash or movement skill grants +%s%% basic attack speed.",
+	  "detail": "Each bonus lasts 2 seconds and expires independently. Active bonuses add together up to the weapon timing limit.",
 	  "tuning": {
 		"duration_ms": 2000,
 		"fixed_tempo": true
@@ -2769,7 +2769,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Compatible class Spiritstride gains +%s%% movement speed.",
-	  "detail": "Provisional CE04 tuning. Adds percentage points to the native stride grant; strongest active stride still applies.",
+	  "detail": "Adds percentage points to the native stride grant; strongest active stride still applies.",
 	  "tuning": {},
 	  "values": [
 		3,
@@ -2794,7 +2794,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Compatible class actions prepare %s%% dash recovery efficiency.",
-	  "detail": "Provisional CE04 tuning. Within 4 seconds, the next successfully spent dash charge captures recovery divided by 1 + total efficiency/100. A refused dash does not consume it.",
+	  "detail": "Within 4 seconds, the next successfully spent dash charge captures recovery divided by 1 + total efficiency/100. A refused dash does not consume it.",
 	  "tuning": {
 		"duration_ms": 4000
 	  },
@@ -2824,7 +2824,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Offensive class actions prepare +%s next basic-hit damage.",
-	  "detail": "Provisional CE04 tuning. Launch within 4 seconds. One first primary contact benefits; a miss spends it. Echoes and skills cannot claim it.",
+	  "detail": "Launch within 4 seconds. One first primary contact benefits; a miss spends it. Echoes and skills cannot claim it.",
 	  "tuning": {
 		"duration_ms": 4000
 	  },
@@ -2851,7 +2851,7 @@ const DEFINITIONS := {
 	  "unit": "ms",
 	  "limit": 4,
 	  "description": "Your native Spirit movement effects last +%s s.",
-	  "detail": "Provisional CE04 tuning. Extends your own functioning stride, trace and Flowing Strikes preparation. Does not change dash cooldown or movement speed.",
+	  "detail": "Extends your own functioning stride, trace and Flowing Strikes preparation. Does not change dash cooldown or movement speed.",
 	  "tuning": {},
 	  "values": [
 		250,
@@ -2876,7 +2876,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Voluntary movement grants %s%% direct-damage mitigation efficiency.",
-	  "detail": "Provisional CE04 tuning. For 1 second after an eligible dash or movement skill, direct damage is divided by 1 + efficiency/100 before Bark. No invulnerability, and no protection from unrelated hazards.",
+	  "detail": "For 1 second after an eligible dash or movement skill, direct damage is divided by 1 + efficiency/100 before Bark. No invulnerability, and no protection from unrelated hazards.",
 	  "tuning": {
 		"duration_ms": 1000
 	  },
@@ -2903,7 +2903,7 @@ const DEFINITIONS := {
 	  "unit": "charges",
 	  "limit": 4,
 	  "description": "Store +%s dash charges.",
-	  "detail": "Provisional CE04 tuning. Charges allow consecutive legal dashes. Spent charges recover sequentially through the native cooldown owner; one recharge runs at a time.",
+	  "detail": "Charges allow consecutive legal dashes. Spent charges recover sequentially through the native cooldown owner; one recharge runs at a time.",
 	  "tuning": {},
 	  "values": [
 		1,
@@ -2928,7 +2928,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Gain %s%% dash recovery efficiency.",
-	  "detail": "Provisional CE04 tuning. After native and Quick Footing flat reductions, recovery is divided by 1 + total efficiency/100. More copies continue improving recovery; dash speed is unchanged.",
+	  "detail": "After native and Quick Footing flat reductions, recovery is divided by 1 + total efficiency/100. More copies continue improving recovery; dash speed is unchanged.",
 	  "tuning": {},
 	  "values": [
 		40,
@@ -2956,7 +2956,7 @@ const DEFINITIONS := {
 	  "unit": "ms",
 	  "limit": 4,
 	  "description": "Prepared phantom echoes and shadows last +%s s.",
-	  "detail": "Provisional CE04 tuning. Only available after acquiring Mirrorstep or Wraithcast. Each preparation keeps its own expiry.",
+	  "detail": "Each echo and shadow keeps its own expiry.",
 	  "tuning": {},
 	  "values": [
 		500,
@@ -2980,8 +2980,8 @@ const DEFINITIONS := {
 	  "label": "Mirrorstep contribution",
 	  "unit": "unlock",
 	  "limit": 1,
-	  "description": "Voluntary dashes prepare phantom copies of your next basic attack.",
-	  "detail": "Provisional CE04 tuning. Each legal dash or movement skill stores one 3-second echo. The next primary attack releases all echoes simultaneously at 40% weapon and eligible Form potency. No HP spending, native class/graft procs or recursive copies.",
+	  "description": "Each successful dash or movement skill prepares a phantom copy of your next basic attack.",
+	  "detail": "Each echo lasts 3 seconds and expires independently. The next primary attack releases all active echoes simultaneously at 40% weapon and eligible Form potency. No HP spending, native class/graft procs or recursive copies.",
 	  "tuning": {
 		"duration_ms": 3000,
 		"weapon_percent": 40,
@@ -3008,7 +3008,7 @@ const DEFINITIONS := {
 	  "unit": "unlock",
 	  "limit": 1,
 	  "description": "Dashes leave departure-position shadows that copy your next compatible skill.",
-	  "detail": "Provisional CE04 tuning. Each shadow lasts 4 seconds and casts once at 40% potency from its own departure position. Supports class opening damage/healing and Ward protection, plus Chain Spark, Ironbark and Vital Bloom Core effects. Copies omit learned-node side effects. Requires a useful damage/healing class copy, Chain Spark or Ironbark; weaker Ward or Vital capacity alone cannot qualify a solo build. Movement, traps and unsupported persistent fields are not replayed.",
+	  "detail": "Each shadow lasts 4 seconds and casts once at 40% potency from its own departure position. Supports class opening damage/healing and Ward protection, plus Chain Spark, Ironbark and Vital Bloom Core effects. Copies omit learned-node side effects. Movement, traps and unsupported persistent fields are not replayed.",
 	  "tuning": {
 		"duration_ms": 4000,
 		"effect_percent": 40
@@ -3036,7 +3036,7 @@ const DEFINITIONS := {
 	  "unit": "cm",
 	  "limit": 4,
 	  "description": "Gravity Well gains +%s m radius.",
-	  "detail": "Provisional CE04 tuning. Changes gathering, collapse and the actual preview together.",
+	  "detail": "Both gathering and collapse use the increased radius.",
 	  "tuning": {},
 	  "values": [
 		25,
@@ -3061,7 +3061,7 @@ const DEFINITIONS := {
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "Gravity Well gathering gains +%s%% strength.",
-	  "detail": "Provisional CE04 tuning. Improves its step and per-window allowance. Existing enemy resistance, terrain and shared displacement arbitration still apply.",
+	  "detail": "Improves its step and per-window allowance. Existing enemy resistance, terrain and shared displacement arbitration still apply.",
 	  "tuning": {},
 	  "values": [
 		20,
@@ -3086,7 +3086,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Your first basic-hit target under Void control takes +%s damage.",
-	  "detail": "Provisional CE04 tuning. Requires actual field coverage or an unexpired successful native Void displacement. Adds to the primary contact, with no extra proc.",
+	  "detail": "Requires actual field coverage or an unexpired successful native Void displacement. Adds to the primary contact, with no extra proc.",
 	  "tuning": {},
 	  "values": [
 		2,
@@ -3111,7 +3111,7 @@ const DEFINITIONS := {
 	  "unit": "ms",
 	  "limit": 4,
 	  "description": "Drawing Strikes responds %s s sooner.",
-	  "detail": "Provisional CE04 tuning. Reduces only the native compression response interval; ordinary weapon timing is unchanged.",
+	  "detail": "Reduces only the native compression response interval; ordinary weapon timing is unchanged.",
 	  "tuning": {},
 	  "values": [
 		100,
@@ -3139,7 +3139,7 @@ const DEFINITIONS := {
 	  "unit": "cm",
 	  "limit": 4,
 	  "description": "Offensive Void class responses pull +%s m.",
-	  "detail": "Provisional CE04 tuning. Only actual inward compression responses qualify. Native displacement retains priority; healing and block repulsions are unchanged.",
+	  "detail": "Only actual inward compression responses qualify. Native displacement retains priority; healing and block repulsions are unchanged.",
 	  "tuning": {},
 	  "values": [
 		10,
@@ -3164,7 +3164,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Mapped Void class responses gain +%s damage.",
-	  "detail": "Provisional CE04 tuning. Improves existing inward compression and block/healing/movement repulsion damage, not their triggers.",
+	  "detail": "Improves existing inward compression and block/healing/movement repulsion damage, not their triggers.",
 	  "tuning": {},
 	  "values": [
 		3,
@@ -3189,7 +3189,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "A class compression response prepares +%s next compression damage.",
-	  "detail": "Provisional CE04 tuning. After a real class response, store one 4-second preparation. The next native compression captures it once for one eligible target; replicas do not consume it.",
+	  "detail": "After a real class response, store one 4-second preparation. The next native compression captures it once for one eligible target; replicas do not consume it.",
 	  "tuning": {
 		"duration_ms": 4000
 	  },
@@ -3216,7 +3216,7 @@ const DEFINITIONS := {
 	  "unit": "cm",
 	  "limit": 4,
 	  "description": "Void fields and Catalyst pulses gain +%s m radius.",
-	  "detail": "Provisional CE04 tuning. No hidden weapon reach or unrelated ability changes. A Form-only build without area control cannot receive this card.",
+	  "detail": "Weapon reach and unrelated abilities are unchanged.",
 	  "tuning": {},
 	  "values": [
 		20,
@@ -3241,7 +3241,7 @@ const DEFINITIONS := {
 	  "unit": "hp",
 	  "limit": 4,
 	  "description": "Compression gains +%s damage against sustained field targets.",
-	  "detail": "Provisional CE04 tuning. Enemy must remain inside a real Void field for 600 ms. Applies only to native Void compression/collapse, including Singularity; does not multiply with field pair count.",
+	  "detail": "Enemy must remain inside a real Void field for 600 ms. Applies only to native Void compression/collapse, including Singularity; does not multiply with field pair count.",
 	  "tuning": {
 		"duration_ms": 600
 	  },
@@ -3269,7 +3269,7 @@ const DEFINITIONS := {
 	  "limit": 4,
 	  "grants": ["rift_shear"],
 	  "description": "Overlapping gravity fields deal %s shear damage every 0.6 s.",
-	  "detail": "Provisional CE04 tuning. Also makes your Gravity Wells linger as real gathering fields for 9 seconds after arming, enabling solo overlap after the normal 7.8-second cooldown without Singularity. Each enemy receives one coherent strongest-owner shear tick across all intersections. Original collapse still occurs once at 1.08 seconds.",
+	  "detail": "Also makes your Gravity Wells linger as real gathering fields for 9 seconds after arming, enabling solo overlap after the normal 7.8-second cooldown without Singularity. Each enemy receives one coherent strongest-owner shear tick across all intersections. Original collapse still occurs once at 1.08 seconds.",
 	  "tuning": {
 		"field_ms": 9000,
 		"interval_ms": 600
@@ -3297,7 +3297,7 @@ const DEFINITIONS := {
 	  "unit": "unlock",
 	  "limit": 1,
 	  "description": "Activate a targeted gravitational field and damaging implosion.",
-	  "detail": "Provisional CE04 tuning. Place within 8 m, including your own position. Gather for 1.5 seconds, then deal 30 native damage within 3 m. Ten-second cooldown. Resistance can prevent motion but not valid damage. Independent from Rift Shear.",
+	  "detail": "Place within 8 m, including your own position. Gather for 1.5 seconds, then deal 30 native damage within 3 m. Ten-second cooldown. Resistance can prevent motion but not valid damage. Independent from Rift Shear.",
 	  "tuning": {
 		"range_m": 8.0,
 		"duration_ms": 1500,

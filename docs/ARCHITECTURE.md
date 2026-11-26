@@ -1620,7 +1620,7 @@ Spirit adds fifteen cards, **126 total definitions** at its checkpoint. `player_
 | Persistent Traces | 150 / 250 / 350 / 450 ms | Core pursuer trace |
 | Ghostcut | 2 / 3 / 4 / 5 damage | Native movement-qualified Form follow-up |
 | Flowing Edge | 150 / 250 / 350 / 450 ms | Live self Spiritstride extension once per ordinary attack |
-| Spectral Tempo | 6 / 9 / 12 / 15% for 2 s | Legal voluntary dash prepares basic speed |
+| Spectral Tempo | 6 / 9 / 12 / 15% for 2 s | Each accepted voluntary dash or movement skill grants an independent additive attack-speed bonus. Each expires separately; the weapon timing floor still applies. |
 | Veiled Casting | 3 / 5 / 7 / 9 percentage points | Catalyst stride movement speed |
 | Flowing Invocation | 20 / 30 / 40 / 50% efficiency | Actual mapped class response prepares next spent charge for 4 s |
 | Wraith’s Followthrough | 2 / 3 / 4 / 5 damage | Offensive class response prepares first primary basic contact; launch within 4 s |

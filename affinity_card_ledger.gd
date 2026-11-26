@@ -86,7 +86,7 @@ class Ledger extends RefCounted:
 		var option: Dictionary = _offer.cards[int(choice)]
 		var reason := option_refusal(option, stats, dodge_base)
 		if not reason.is_empty():
-			return {"refresh": true, "message": reason}
+			return {"refresh": true, "message": "This upgrade is currently unavailable."}
 		var copy := option.duplicate()
 		copy.acquisition_id = _offer.revision
 		copy.floor = floor_number

@@ -259,7 +259,9 @@ static func voluntary(game: Node, id: int, before: Vector3, after: Vector3, now:
 	var source:=Sources.capture(event)
 	if build.affinity_family("form")=="spirit":
 		var q: Dictionary=build.affinity_potency("form")
-		if int(q.get("tempo_percent",0))>0:player[TEMPO]={"source":source,"until":now+int(Catalog.DEFINITIONS.spectral_tempo.tuning.duration_ms),"percent":int(q.tempo_percent)}
+		if int(q.get("tempo_percent",0))>0:
+			if not player.has(TEMPO):player[TEMPO]=[]
+			player[TEMPO].append({"source":source,"until":now+int(Catalog.DEFINITIONS.spectral_tempo.tuning.duration_ms),"percent":int(q.tempo_percent)})
 	if int(passives.get("mitigation_efficiency",0))>0:player[EVASION]={"source":source,"until":now+int(Catalog.DEFINITIONS.evasive_spirit.tuning.duration_ms),"efficiency":int(passives.mitigation_efficiency)}
 	for data in [["mirrorstep_unlock",ECHOES,"mirrorstep"],["wraithcast_unlock",SHADOWS,"wraithcast"]]:
 		if int(passives.get(data[0],0))<=0:continue
@@ -290,10 +292,21 @@ static func hints(game:Node,now:int) -> Array:
 					"core_phase":age,"yaw":row.get("yaw",0.)})
 	return result
 
+## Older suspended runs stored one tempo preparation as a dictionary.
+static func _tempo_entries(player: Dictionary) -> Array:
+	var stored: Variant=player.get(TEMPO,[])
+	if stored is Dictionary: return [stored] if not stored.is_empty() else []
+	return stored if stored is Array else []
+
+
 static func prune_preparations(game: Node,player: Dictionary,now: int) -> void:
 	for field in [ECHOES,SHADOWS]:
 		if player.has(field):player[field]=player[field].filter(func(row):return game.Life.alive(player) and int(row.until)>now and Sources.current(game,row))
-	for field in [TEMPO,RECOVERY,BASIC,EVASION]:
+	if player.has(TEMPO):
+		var entries:=_tempo_entries(player).filter(func(row):return game.Life.alive(player) and int(row.until)>now and Sources.current(game,row.source))
+		if entries.is_empty():player.erase(TEMPO)
+		else:player[TEMPO]=entries
+	for field in [RECOVERY,BASIC,EVASION]:
 		var row: Dictionary=player.get(field,{})
 		if not row.is_empty() and (not game.Life.alive(player) or int(row.until)<=now or not Sources.current(game,row.source)):player.erase(field)
 
@@ -304,8 +317,11 @@ static func take_prepared(game: Node,player: Dictionary,field: String,now: int) 
 	return result
 
 static func tempo_percent(game: Node,player: Dictionary,now: int) -> int:
-	var row: Dictionary=player.get(TEMPO,{})
-	return int(row.percent) if int(row.get("until",0))>now and Sources.current(game,row.source) and game.Life.alive(player) else 0
+	if not game.Life.alive(player):return 0
+	var total:=0
+	for row: Dictionary in _tempo_entries(player):
+		if int(row.until)>now and Sources.current(game,row.source):total+=int(row.percent)
+	return total
 
 static func direct_damage(game: Node,player: Dictionary,hp: int,now: int) -> int:
 	var row: Dictionary=player.get(EVASION,{})
