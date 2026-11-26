@@ -3,6 +3,7 @@ extends VBoxContainer
 const Contacts = preload("res://contact_particles.gd")
 const Tune = preload("res://developer_arena/tuning.gd")
 const Exhibit = preload("res://developer_arena/garden_exhibit.gd")
+const ClassArt=preload("res://class_release_visuals.gd")
 const Astral=preload("res://astral_visuals.gd")
 const Shelter=preload("res://shelter_visuals.gd")
 const VoidAffinity=preload("res://void_affinity.gd")
@@ -12,7 +13,7 @@ const Fire=preload("res://fire_combat.gd")
 const Thorn=preload("res://thorn_affinity.gd")
 const Frost=preload("res://frost_balance.gd")
 const AFFINITY_START:=11
-const AFFINITY_KINDS:=["fire","open","thorn","burning","brittle","bleeding","patch"]+Shelter.PREVIEWS+Astral.PREVIEWS
+const AFFINITY_KINDS:=["fire","open","thorn","burning","brittle","bleeding","patch"]+Shelter.PREVIEWS+Astral.PREVIEWS+ClassArt.PREVIEWS
 var affinity_samples:Array[MeshInstance3D]=[]
 const WEAPON_SEQUENCE := 9
 const DODGE := 10
@@ -49,7 +50,7 @@ var started := false
 func setup(panel: Control, legacy_controls: Control) -> void:
 	world=panel.world
 	equipped=legacy_controls
-	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom","Reviewed weapon sequence","Dodge foot scuff","Ember Wake","Rime Bloom · both phases","Thorn Line","Burning · target","Brittle · two stacks","Bleed · target","Thorn Form patch"]+Shelter.TITLES+Astral.TITLES:
+	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom","Reviewed weapon sequence","Dodge foot scuff","Ember Wake","Rime Bloom · both phases","Thorn Line","Burning · target","Brittle · two stacks","Bleed · target","Thorn Form patch"]+Shelter.TITLES+Astral.TITLES+ClassArt.TITLES:
 		selection.add_item(item)
 	add_child(selection)
 	selection.item_selected.connect(func(_index): select_effect())
@@ -146,11 +147,13 @@ func select_effect() -> void:
 func frame_affinity() -> void:
 	camera.look_at(Vector3(0,.6,0))
 	camera.size=float([3.3,4.6,5.8][formation.selected])
-	if AFFINITY_KINDS[selection.selected-AFFINITY_START] in ["gravity_well","singularity","void_collapse"]:
+	if AFFINITY_KINDS[selection.selected-AFFINITY_START] in ClassArt.PREVIEWS or AFFINITY_KINDS[selection.selected-AFFINITY_START] in ["gravity_well","singularity","void_collapse"]:
 		camera.size+=3.4
 
 func duration() -> float:
 	if selection.selected>=AFFINITY_START:
+		if AFFINITY_KINDS[selection.selected-AFFINITY_START] in ClassArt.PREVIEWS:
+			return .67 if AFFINITY_KINDS[selection.selected-AFFINITY_START] in ClassArt.FOCUS else .8
 		match AFFINITY_KINDS[selection.selected-AFFINITY_START]:
 			"storm_arc","rift_shear":return .25
 			"void_collapse":return .55
@@ -183,7 +186,8 @@ func refresh_ambient() -> void:
 		if latest!=captured_values:
 			captured_values=latest
 			for glyph in affinity_samples:
-				if glyph.has_meta("astral_kind"):Astral.configure(glyph,latest)
+				if glyph.has_meta("class_release"):ClassArt.configure(glyph,latest)
+				elif glyph.has_meta("astral_kind"):Astral.configure(glyph,latest)
 				elif glyph.has_meta("shelter_kind"):Shelter.configure(glyph,latest)
 				else:Affinities.configure(glyph,latest)
 			seek(clock)
@@ -242,6 +246,15 @@ func play(advance: bool) -> void:
 		for point in origins():
 			var offset:=Vector3.UP*.24 if kind in Affinities.STATUS else Vector3.ZERO
 			var seed_value:=17+affinity_samples.size()
+			if kind in ClassArt.PREVIEWS:
+				var index:=ClassArt.PREVIEWS.find(kind)
+				var frame:Dictionary=Astral.Classes.DEFINITIONS[index]
+				var skill:Dictionary=frame.skills.base[1]
+				if kind in ["salvo","grave"]:
+					skill=Astral.Classes.Subclasses.FOCUSES[index-1][0 if kind=="salvo" else 2]
+				var path:=Vector3.RIGHT*float(skill.range) if kind=="salvo" else Vector3.RIGHT if kind=="grave" else Vector3.ZERO
+				affinity_samples.append(ClassArt.create(scene,kind,point-path*.5,point+path*.5,skill.get("radius",0.),skill,captured_values))
+				continue
 			if kind in Astral.PREVIEWS:
 				var path:=Vector3(1.7,0,0) if kind in ["storm_arc","spirit_step"] else Vector3.ZERO
 				if kind=="spirit_step":path=Vector3.RIGHT*SpiritAffinity.STEP_DISTANCE
@@ -333,6 +346,10 @@ func seek(seconds: float) -> void:
 	for glyph in affinity_samples:
 		var phase_time:=clock
 		var end:=duration()
+		if glyph.has_meta("class_release"):
+			glyph.visible=clock<end
+			ClassArt.seek(glyph,clock,end)
+			continue
 		if glyph.has_meta("astral_kind"):
 			glyph.visible=clock<end
 			Astral.seek(glyph,clock,end)

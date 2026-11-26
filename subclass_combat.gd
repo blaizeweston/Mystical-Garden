@@ -281,7 +281,7 @@ static func pull(game: Node, target: int, center: Vector3, amount: float, now: i
 	else:
 		game.encounter.scout(target).pos = moved
 	if point.distance_squared_to(moved) > .01:
-		game.emit_combat_event("enemy_release","pulled",point,moved,.4,Color("#e7dbad"),0.0,target)
+		game.emit_combat_event("enemy_release","pulled",point,moved,.4,Color("#e7dbad"),0.0,target,{"width":0.0})
 
 
 static func echo(game: Node, player: Dictionary, center: Vector3, exclude: Array[int], color: Color, now: int, isolated := false) -> void:

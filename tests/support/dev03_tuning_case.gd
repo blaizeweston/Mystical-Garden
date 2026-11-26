@@ -326,7 +326,7 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 			lab.seek(lab.Affinities.OPEN_SECONDS+.01)
 			if lab.affinity_samples[0].visible or not lab.affinity_samples[1].visible:return "opening/closing handoff"
 		var stamp:float=lab.clock
-		var id:String=["fire.height","frost.petals","thorn.bark","fire.embers","affinity.status","affinity.status","thorn.spines","water.crest","water.opacity","water.crest","water.opacity","wood.grain","wood.thickness","wood.grain","wood.thickness","vital.petals","vital.pollen","vital.pollen","storm.width","spirit.wisp","spirit.veil","spirit.veil","void.flow","void.shade","void.flow","spirit.veil","void.flow"][i]
+		var id:String=["fire.height","frost.petals","thorn.bark","fire.embers","affinity.status","affinity.status","thorn.spines","water.crest","water.opacity","water.crest","water.opacity","wood.grain","wood.thickness","wood.grain","wood.thickness","vital.petals","vital.pollen","vital.pollen","storm.width","spirit.wisp","spirit.veil","spirit.veil","void.flow","void.shade","void.flow","spirit.veil","void.flow"][i] if i<lab.AFFINITY_KINDS.find("quake") else "class.ink"
 		var proposed:float=Tune.PROPERTIES[id].maximum
 		if not tune.request(world,id,proposed):return "affinity slider "+id
 		lab.mode.select(1)

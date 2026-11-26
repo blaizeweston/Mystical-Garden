@@ -6,6 +6,7 @@ var stage: Node3D
 const Contacts = preload("res://contact_particles.gd")
 const Delivery = preload("res://weapon_delivery_visuals.gd")
 const Affinities = preload("res://affinity_glyphs.gd")
+const ClassArt = preload("res://class_release_visuals.gd")
 const Astral = preload("res://astral_visuals.gd")
 const Shelter = preload("res://shelter_visuals.gd")
 var affinity_overrides := {}
@@ -34,6 +35,7 @@ func set_affinity_tuning(values:Dictionary) -> void:
   if hint.has("astral"):Astral.configure(hint.astral,values)
   for plant in hint.get("plants",[]): Affinities.configure(plant,values)
  for effect in active.values():
+  if effect.has("class_release"):ClassArt.configure(effect.class_release,values)
   if effect.has("astral"):Astral.configure(effect.astral,values)
   if effect.has("shelter"):Shelter.configure(effect.shelter,values)
   for key in ["petals","mist","payoff"]:
@@ -100,6 +102,11 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    if age>=float(contact_overrides.get(family+".lifetime",Contacts.DEFAULTS[family+".lifetime"])):continue
    var strike:=point(event.strike_point) if event.has("strike_point") else at
    effect=Contacts.create(self,family,stage.WILD_OFFSET+strike,strike-point(event.from),event.get("form",""),int(event.id),contact_overrides,impact_emission,event.has("strike_point"))
+  elif ClassArt.accepts(event):
+   var root:=Node3D.new()
+   add_child(root)
+   root.position=stage.WILD_OFFSET
+   effect={"root":root,"class_release":ClassArt.create(root,event.shape,point(event.from),at,event.reach,event,affinity_overrides)}
   elif event.kind in ["link","ability"] and event.shape in Astral.RECEIPTS:
    var root:=Node3D.new()
    add_child(root)
@@ -226,6 +233,13 @@ func circle(mesh: ImmediateMesh,center: Vector3,radius: float,width: float=.06) 
   ribbon(mesh,center+Vector3(cos(first),0,sin(first))*radius,center+Vector3(cos(second),0,sin(second))*radius,width)
 func pose(effect: Dictionary) -> void:
  var event: Dictionary=effect.event
+ if effect.has("class_release"):
+  var start:=point(event.from)
+  var end:=point(event.to)
+  var nearest:=start if start.is_equal_approx(end) else Geometry3D.get_closest_point_to_segment(observer,start,end)
+  effect.root.visible=nearest.distance_to(observer)<=sight+float(event.reach)
+  ClassArt.seek(effect.class_release,effect.age,event.duration)
+  return
  if effect.has("astral"):
   var start:=point(event.from)
   var end:=point(event.to)

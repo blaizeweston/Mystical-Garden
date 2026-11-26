@@ -225,7 +225,8 @@ func publish(skill: Dictionary, origin: Vector3, center: Vector3, radius: float,
 	_actor.skill_fx_until = now + 650
 	_actor.skill_fx = {"seq":_actor.skill_fx_seq, "pos":center, "radius":maxf(.8, radius), "color":skill.color, "event_driven":true}
 	_actor.cast_until = now + 550
-	_world.emit_combat_event("ability", str(skill.mode), origin, center, .8, Color(skill.color), maxf(.8, radius), _peer)
+	_world.emit_combat_event("ability", str(skill.mode), origin, center, .8, Color(skill.color), maxf(.8, radius), _peer,
+		{"yaw_offset":atan2(_actor.facing.z,_actor.facing.x)} if skill.mode=="front_guard" else {})
 	preload("res://event_audio.gd").emit(_world, "combat_cast", origin)
 	tell("%s used." % skill.name if feedback.is_empty() else feedback)
 

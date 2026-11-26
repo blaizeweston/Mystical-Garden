@@ -6,7 +6,8 @@ const Field = preload("res://battlefield.gd")
 const Campaign = preload("res://campaign.gd")
 const FORMAT := 1
 const CONTROL_DEFAULTS := {"invincible":false,"no_cooldowns":false,"movement":true,"attacks":true}
-const STARTERS := ["Stationary target","Sustained damage","Pilgrim cluster","Area attack ring","Spirit echoes"]
+const FOCUS_CASES := ["Vanguard practice", "Rootkeeper practice", "Bastion practice", "Thornbinder practice", "Bloomcaller practice", "Silkwarden practice", "Wildstalker practice", "Snarekeeper practice", "Wayfarer practice", "Blood Harvester practice", "Veilwalker practice", "Gravekeeper practice", "Omenreader practice", "Leykeeper practice", "Lifekeeper practice"]
+const STARTERS := ["Stationary target","Sustained damage","Pilgrim cluster","Area attack ring","Spirit echoes"]+FOCUS_CASES
 var catalog_digest := ""
 
 func _prefix() -> String: return "scenario-"
@@ -82,10 +83,17 @@ func builtin(title: String) -> Dictionary:
 	if ix==4:
 		row={"slot":"P1","class_id":"ranger","weapon_id":"2_0","parts":["plant:ghost_fern","rare:mirror_mint","plant:ghost_fern"],"path":["wildstalker"],
 			"upgrades":[{"id":"mirrorstep","rarity":""},{"id":"wraithcast","rarity":""},{"id":"lingering_echoes","rarity":"Rare"}]}
-	var target:=ix in [0,1,4]
-	return {"format":FORMAT,"name":title,"description":defs[ix],"environment":"testing_arena","terrain":{"seed":0,"depth":1},
+	if title in FOCUS_CASES:
+		var focus_index:=FOCUS_CASES.find(title)
+		@warning_ignore("integer_division")
+		var frame:Dictionary=Plan.Classes.DEFINITIONS[focus_index/3]
+		row.class_id=frame.id
+		row.weapon_id=frame.weapons[0].id
+		row.path=[title.trim_suffix(" practice").to_snake_case().replace(" ","_")]
+	var target:=ix in [0,1,4] or title in FOCUS_CASES
+	return {"format":FORMAT,"name":title,"description":"Native Q and R against three lasting targets." if title in FOCUS_CASES else defs[ix],"environment":"testing_arena","terrain":{"seed":0,"depth":1},
 		"participants":[row],"encounter":{"type":"Target" if target else "Enemy","enemy":"training_target" if target else "rootbound",
-		"count":1 if target else 3 if ix==2 else 6,"formation":"Single" if target else "Cluster" if ix==2 else "Ring","endless":ix in [1,4]},
+		"count":3 if title in FOCUS_CASES else 1 if target else 3 if ix==2 else 6,"formation":"Cluster" if title in FOCUS_CASES else "Single" if target else "Cluster" if ix==2 else "Ring","endless":ix in [1,4] or title in FOCUS_CASES},
 		"controls":CONTROL_DEFAULTS.duplicate(),"preferred_preset":"","fingerprint":fingerprint(),"commit":""}
 
 func get_record(title: String) -> Dictionary:
