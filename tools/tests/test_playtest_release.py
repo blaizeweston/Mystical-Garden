@@ -203,16 +203,32 @@ exit 0
                      "save_root": "Mystical Garden Playtest 0.1.0-playtest.1",
                      "terrain_mode": "integrated-terrain-coop-fixture", "combat_ruleset": "plant-affinity-fixture",
                      "developer_tools": True}
+            (root / "export-build.json").write_text(json.dumps(build), encoding="utf-8")
+            (root / "export-project.godot").write_text("[application]\n", encoding="utf-8")
             release.bundle(root, exe, root, build, {"source_run_id": "s", "package_run_id": "p"}, {})
             manifest = json.loads((root / "manifest.json").read_text())
             self.assertEqual(manifest["exe_sha256"], release.sha(exe))
             self.assertEqual(len(manifest["files"]), 5)
+            self.assertFalse((root / "game/export-build.json").exists())
+            self.assertFalse((root / "game/export-project.godot").exists())
             self.assertEqual(manifest["combat_ruleset"], build["combat_ruleset"])
             self.assertTrue(manifest["developer_tools"])
             self.assertIn("opens in the affinity combat ruleset", (root / "game/README_PLAYTEST.txt").read_text())
             self.assertIn("Developer-enabled playtest", (root / "game/README_PLAYTEST.txt").read_text())
             self.assertIsNone(manifest["git_tag"])
             self.assertIn(release.sha(next(root.glob("*.zip"))), (root / "SHA256SUMS.txt").read_text())
+
+    def test_bundle_refuses_an_unknown_runtime_sidecar(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            exe = root / release.GAME
+            exe.write_bytes(b"executable")
+            (root / release.evidence.LOCK_LIBRARY).write_bytes(b"native")
+            (root / "export-build.json").write_text("{}", encoding="utf-8")
+            (root / "unexpected.dll").write_bytes(b"unknown")
+            with self.assertRaisesRegex(ValueError, "additional sidecars"):
+                release.bundle(root, exe, root, {}, {}, {})
+            self.assertFalse(list(root.glob("*.zip")))
 
     def test_historical_release_resolution_and_duplicate_refusal(self):
         version = "0.1.0-playtest.1"

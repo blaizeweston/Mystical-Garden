@@ -524,7 +524,10 @@ def bundle(stage, pack, project, metadata, checks, retail):
     if pck.is_file():
         names.append(pck.name)
     actual = {path.name for path in pack.parent.iterdir() if path.is_file()}
-    if actual - {"export-project.godot"} != set(names):
+    # VerifyOnly emits these two build-evidence files alongside the executable.
+    # Their contents are retained in build evidence, not distributed as runtime
+    # sidecars. Continue to refuse every other unexpected file.
+    if actual - {"export-project.godot", "export-build.json"} != set(names):
         raise ValueError("The export has additional sidecars. Review their runtime role before bundling.")
     for name in names:
         shutil.copyfile(pack.parent / name, payload / name)
