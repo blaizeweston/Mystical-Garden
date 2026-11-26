@@ -27,10 +27,13 @@ def stage_packaged_fixture_helpers(project, runtime, source):
     if not helper_root.is_relative_to(project):
         raise ValueError("Fixture helper directory escapes the source project")
     literals = re.compile(r"""\b(?:preload|load)\s*\(\s*(["'])(res://tests/[^"'\r\n]+\.gd)\1\s*\)""")
+    bases = re.compile(r"""(?m)^[ \t]*extends[ \t]+(["'])(res://tests/[^"'\r\n]+\.gd)\1[ \t]*(?:#[^\r\n]*)?\r?$""")
     pending, staged = [source], set()
     while pending:
         text = pending.pop()
-        for match in literals.finditer(text):
+        # An external fixture can inherit another excluded test script, whose
+        # own base and literal helpers must be staged under the same boundary.
+        for match in [*literals.finditer(text), *bases.finditer(text)]:
             relative = Path(match[2].removeprefix("res://"))
             if "\\" in match[2] or ".." in relative.parts:
                 raise ValueError("Unsafe fixture helper path: " + match[2])
@@ -43,7 +46,9 @@ def stage_packaged_fixture_helpers(project, runtime, source):
                 raise ValueError("Fixture helper escapes its owned directories: " + match[2])
             data = helper.read_bytes()
             destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(data)
+            # Use the same disposable writable fixture root as the external
+            # driver. A packaged res:// path is not writable by a fixture.
+            destination.write_bytes(data.replace(b"res://.godot/", b"user://release-fixtures/"))
             staged.add(relative)
             pending.append(data.decode("utf-8-sig"))
 

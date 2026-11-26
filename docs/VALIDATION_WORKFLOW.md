@@ -67,6 +67,8 @@ The readable map contains ownership and options only; the larger matching file r
 
 Release summaries require every **currently registered** source suite, including reused results not executed by the latest plan. Retired rows remain historical evidence and are excluded from current coverage. Export archives retain the original index as `source-cache-history.json` and publish an active-only reusable index without changing verdicts, keys or hashes. Missing current results still block release. This does not authorize a release from a partial focused run.
 
+Packaged fixture dependencies include literal `extends` paths to other excluded test scripts, as well as `preload`/`load` helpers. The external runner stages these transitively only in the disposable fixture runtime, applying the same `res://.godot/` to `user://release-fixtures/` redirection as its main driver. The retail package continues to exclude tests and is never rewritten to accommodate the runner.
+
 ## What selects tests
 
 Each suite declares the mechanics and interactions it covers. The planner combines those declarations with literal `res://` resource dependencies found in the test and its referenced files. Inputs include runtime code, assets and import settings, test code, Godot and validation tooling. A change invalidates only results whose relevant input fingerprint changed; absent or modified evidence logs invalidate reuse too.

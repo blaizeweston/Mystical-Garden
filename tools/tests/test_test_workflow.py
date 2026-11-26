@@ -573,6 +573,32 @@ class WorkflowTests(unittest.TestCase):
   w.execution.stage_packaged_fixture_helpers(self.p,runtime,source)
   self.assertEqual(list(runtime.iterdir()),[])
 
+ def test_packaged_fixture_stages_recursive_inherited_base_scripts(self):
+  first='extends "res://tests/helpers/base.gd"\r\nconst Helper=preload("res://tests/helpers/leaf.gd")\r\n'
+  base='extends SceneTree\n'
+  leaf='extends RefCounted\n'
+  (self.p/'tests/parent.gd').write_bytes(first.encode('utf-8'));self.put('tests/helpers/base.gd',base);self.put('tests/helpers/leaf.gd',leaf)
+  runtime=self.p/'inherited-package-fixture';runtime.mkdir()
+  w.execution.stage_packaged_fixture_helpers(self.p,runtime,'extends "res://tests/parent.gd"\n')
+  self.assertEqual({p.relative_to(runtime).as_posix() for p in runtime.rglob('*') if p.is_file()},
+                   {'tests/parent.gd','tests/helpers/base.gd','tests/helpers/leaf.gd'})
+  for path in ('tests/parent.gd','tests/helpers/base.gd','tests/helpers/leaf.gd'):
+   self.assertEqual((runtime/path).read_bytes(),(self.p/path).read_bytes())
+
+ def test_packaged_inherited_fixture_rejects_parent_traversal(self):
+  runtime=self.p/'unsafe-inherited-package-fixture';runtime.mkdir()
+  with self.assertRaisesRegex(ValueError,'Unsafe fixture helper path'):
+   w.execution.stage_packaged_fixture_helpers(self.p,runtime,'extends "res://tests/../settings.gd"\n')
+  self.assertEqual(list(runtime.iterdir()),[])
+
+ def test_packaged_inherited_fixture_redirects_disposable_save_paths(self):
+  original='extends SceneTree\nvar path="res://.godot/layout-fixture.cfg"\n'
+  self.put('tests/parent.gd',original)
+  runtime=self.p/'inherited-save-fixture';runtime.mkdir()
+  w.execution.stage_packaged_fixture_helpers(self.p,runtime,'extends "res://tests/parent.gd"\n')
+  self.assertEqual((runtime/'tests/parent.gd').read_text(),original.replace('res://.godot/','user://release-fixtures/'))
+  self.assertEqual((self.p/'tests/parent.gd').read_text(),original)
+
  def test_packaged_helpers_reject_parent_traversal(self):
   runtime = self.p/'unsafe-package-fixture';runtime.mkdir()
   source = 'const Helper=preload("res://tests/../settings.gd")\n'
