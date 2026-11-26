@@ -25,6 +25,7 @@ func _initialize() -> void:
 	test_first_sight()
 	test_dodges_and_abilities()
 	test_squad_mix()
+	test_retreat()
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)
 
@@ -215,14 +216,15 @@ func test_squad_mix() -> void:
 	var mate := add_mob(sim, "rootbound", Vector2(1.5, 0))
 	sim.perception.refresh_allies(PackedInt32Array([hitter, mate]), sim.clock.tick)
 	var rewards := Rewards.new(sim)
-	check(is_equal_approx(rewards.squad_mix, 0.2), "the squad mix starts at its configured share")
+	var mix := float(rewards.weights.squad_mix_start)
+	check(mix > 0.0 and is_equal_approx(rewards.squad_mix, mix), "the squad mix starts at its configured share (%.2f)" % mix)
 	step(sim, rewards)
 	rewards.take(hitter)
 	rewards.take(mate)
 	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 100.0)
 	step(sim, rewards)
 	var earned := float(rewards.weights.damage_to_player_per_health_bar)
-	check(is_equal_approx(rewards.take(hitter), earned * 0.8) and is_equal_approx(rewards.take(mate), earned * 0.2), "an ally receives the squad's share")
+	check(is_equal_approx(rewards.take(hitter), earned * (1.0 - mix)) and is_equal_approx(rewards.take(mate), earned * mix), "an ally receives the squad's share")
 	# A second player stays up, so this down does not also wipe the party.
 	sim.party.set_player(1, Vector2(0, -6), Vector2.ZERO, 100.0, 100.0)
 	step(sim, rewards)
@@ -230,5 +232,44 @@ func test_squad_mix() -> void:
 	rewards.take(mate)
 	sim.party.set_player(0, Vector2(0, 6), Vector2.ZERO, 0.0, 100.0)
 	step(sim, rewards)
-	check(is_equal_approx(rewards.take(hitter), 2.4 + 1.0) and is_equal_approx(rewards.take(mate), 0.6),
+	var down := float(rewards.weights.player_downed)
+	check(is_equal_approx(rewards.take(hitter), down * (1.0 - mix) + 1.0) and is_equal_approx(rewards.take(mate), down * mix),
 		"the killing blow is kept whole while the down is shared with the squad")
+	rewards.weights["first_sight"] = 0.0
+	rewards.weights["line_of_sight_per_second"] = 0.0
+	rewards.weights["support_alive_casting_per_second"] = 0.0
+	sim.pool.behaviour[hitter] = sim.contract.id("take_cover")
+	step(sim, rewards, 60)
+	check(is_equal_approx(rewards.take(hitter), float(rewards.weights.retreat_per_second)) and is_zero_approx(rewards.take(mate)),
+		"the retreat cost is kept whole: allies share none of it")
+
+
+func test_retreat() -> void:
+	var sim := make_sim()
+	var slot := add_mob(sim, "rootbound", Vector2.ZERO)
+	var rewards := solo(sim)
+	rewards.weights["first_sight"] = 0.0
+	rewards.weights["line_of_sight_per_second"] = 0.0
+	var rate := float(rewards.weights.retreat_per_second)
+	var free_below := float(rewards.weights.retreat_free_below_hp_fraction)
+	check(rate < 0.0 and free_below > 0.0, "retreating costs %.4f a second above %.0f%% health" % [rate, free_below * 100.0])
+	step(sim, rewards)
+	rewards.take(slot)
+	step(sim, rewards, 60)
+	check(is_zero_approx(rewards.take(slot)), "a mob that is not retreating pays nothing")
+	for label in ["take_cover", "hide", "flee"]:
+		sim.pool.behaviour[slot] = sim.contract.id(label)
+		step(sim, rewards, 60)
+		check(is_equal_approx(rewards.take(slot), rate), "a healthy mob pays %.4f for a second of %s" % [rate, label])
+	for label in ["ranged_attack", "melee_attack", "approach", "defend_ally"]:
+		sim.pool.behaviour[slot] = sim.contract.id(label)
+		step(sim, rewards, 60)
+		check(is_zero_approx(rewards.take(slot)), "%s costs nothing" % label)
+	sim.pool.behaviour[slot] = sim.contract.id("take_cover")
+	sim.pool.hp[slot] = (free_below - 0.05) * sim.pool.max_hp[slot]
+	step(sim, rewards, 60)
+	check(is_zero_approx(rewards.take(slot)), "a mob below %.0f%% health retreats for free" % (free_below * 100.0))
+	sim.pool.hp[slot] = (free_below + 0.05) * sim.pool.max_hp[slot]
+	step(sim, rewards, 60)
+	check(is_equal_approx(rewards.take(slot), rate), "a mob just above the line pays again")
+	check(is_equal_approx(float(rewards.totals.retreat), rate * 4.0), "the report sums the retreat cost (%.4f)" % float(rewards.totals.retreat))

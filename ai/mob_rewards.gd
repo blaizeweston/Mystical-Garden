@@ -22,6 +22,9 @@ extends RefCounted
 ## - Its own death: -own_death times its value.
 ## - A party wipe: +party_wipe to every mob alive that hit a player within the wipe assist window. Mobs that kept out
 ##   of the fight earn nothing for it, so hiding until the others finish the party no longer pays.
+## - Retreating (take_cover, hide or flee): a small cost per second, kept whole, unless the mob's health is below
+##   retreat_free_below_hp_fraction. A badly hurt mob may still fall back for free; a healthy one sitting out the
+##   fight pays a little, since the squad share otherwise lets it earn from its allies' work while it hides.
 ## - Changing intent: an optional cost (intent_change, now 0: behaviour holds already stop thrashing).
 ## A share of every reward (squad mix) goes to the mob's nearest allies, so mobs also value their squad's success.
 ## - The fight's commander (MobCommand) also earns commander_team_share times the average of what its followers
@@ -57,6 +60,8 @@ var _last_hit := PackedInt32Array()
 var _generation := PackedInt32Array()
 var _assist_ticks := 0
 var _wipe_assist_ticks := 0
+## Behaviour ids that count as retreating.
+var _retreat_ids := PackedInt32Array()
 
 
 func _init(simulation: RefCounted, path: String = PATH) -> void:
@@ -82,13 +87,17 @@ func _init(simulation: RefCounted, path: String = PATH) -> void:
 	_was_alive.fill(0)
 	_assist_ticks = Clock.from_ms(float(weights.get("assist_window_seconds", 5.0)) * 1000.0)
 	_wipe_assist_ticks = Clock.from_ms(float(weights.get("wipe_assist_window_seconds", 10.0)) * 1000.0)
+	for label in ["take_cover", "hide", "flee"]:
+		var id: int = sim.contract.id(label)
+		if id >= 0:
+			_retreat_ids.append(id)
 	_cursor = sim.events.head
 	reset_totals()
 
 
 func reset_totals() -> void:
 	totals = {"damage": 0.0, "healing": 0.0, "downs": 0, "killing_blows": 0, "wipes": 0, "found": 0, "evaded": 0, "dodged": 0, "landed": 0, "sight": 0.0, "support": 0.0, "hp_lost": 0.0,
-		"support_lost": 0.0, "deaths": 0, "intent": 0.0}
+		"support_lost": 0.0, "deaths": 0, "intent": 0.0, "retreat": 0.0}
 
 
 ## The reward a mob earned since it last decided. Resets its sight allowance.
@@ -197,8 +206,12 @@ func _trickles() -> void:
 	var sight := float(weights.get("line_of_sight_per_second", 0.01)) * seconds
 	var support := float(weights.get("support_alive_casting_per_second", 0.02)) * seconds
 	var found := float(weights.get("first_sight", 0.0))
+	var retreat := float(weights.get("retreat_per_second", 0.0)) * seconds
+	var free_below := float(weights.get("retreat_free_below_hp_fraction", 0.0))
 	var players: int = sim.contract.players
 	for slot in pool.active:
+		if retreat != 0.0 and _retreat_ids.has(int(pool.behaviour[slot])) and pool.hp[slot] >= free_below * pool.max_hp[slot]:
+			_keep(slot, retreat, "retreat")
 		if found > 0.0 and _found[slot] == 0:
 			for player in players:
 				if sim.party.present[player] != 0 and sim.party.alive[player] != 0 and sim.perception.sees(slot, player):
@@ -216,11 +229,11 @@ func _trickles() -> void:
 				_give(other, support, "support")
 
 
-## Adds a reward the mob keeps whole, with no squad share.
+## Adds a reward the mob keeps whole, with no squad share. Totals count events, except retreat, which sums its cost.
 func _keep(slot: int, value: float, kind: String) -> void:
 	if value == 0.0 or slot < 0 or slot >= pending.size():
 		return
-	totals[kind] = totals.get(kind, 0) + 1
+	totals[kind] = totals.get(kind, 0) + (value if kind == "retreat" else 1)
 	pending[slot] += value
 	_relay(slot, value, kind)
 
