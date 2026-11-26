@@ -110,6 +110,12 @@ var _requested := {}
 var _applied := {}
 var last_used := {}
 var replay_slot := 0
+var showing_wilds_baseline := false
+
+func compare_wilds(world: Node, baseline_view: bool) -> void:
+	if not authorized(world): return
+	showing_wilds_baseline = baseline_view
+	sync_scene(world)
 
 func attach(garden: Node) -> bool:
 	if _owner != null or not Developer.is_test_garden(garden) or not Developer.is_solo(garden): return false
@@ -223,7 +229,7 @@ func _set_scene(world: Node, sun: float, water: float, emission: float) -> void:
 	var scenery := {}
 	for id: String in WildsArt.CONTROLS:
 		if _applied.has(id): scenery[id] = _applied[id]
-	world.stage.set_wilds_art(scenery)
+	world.stage.set_wilds_art({} if showing_wilds_baseline else scenery)
 	world.stage.preview_sun_energy = sun
 	world.stage.apply_scene_sun(world.stage.production_sun_energy)
 	var effects: Node = world.stage.get_node("CombatEffects")

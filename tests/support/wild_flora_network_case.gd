@@ -58,6 +58,8 @@ func run(scene_tree: SceneTree, four_players: bool) -> bool:
 	return not failed
 
 func overflow(menu: Node) -> void:
+	# Construction and altar checks run before the host admits the overflow probe.
+	if not await until(func():return read("altar")=="yes","four-player Garden reached altar checks"): return
 	if not await until(func():return read("full")=="yes","four players connected"): return
 	menu.request_create_character()
 	menu.create_character("Flora overflow",0,Appearance.DEFAULT)

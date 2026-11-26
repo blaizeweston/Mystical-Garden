@@ -895,6 +895,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `garden_interaction_view.gd` | saved_garden_layout_2 | garden_development |
 | `garden_interaction_view.gd` | saved_garden_layout_3 | garden_development |
 | `garden_interaction_view.gd` | saved_garden_layout_4 | garden_development |
+| `assets/terrain_m02/terrain_natural.gdshader` | wilds_habitat_336 | hex_terrain |
 | `assets/terrain_m02/terrain_natural.gdshader` | wilds_surface_334 | hex_terrain |
 | `assets/terrain_m02/terrain_natural.gdshader` | wilds_surface_322 | hex_terrain |
 | `assets/terrain_m02/terrain_natural.gdshader` | saved_garden_layout_1 | garden_development |

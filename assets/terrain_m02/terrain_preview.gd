@@ -300,11 +300,11 @@ func _rebuild_wilds(started: int) -> void:
 		_resize_exterior()
 	else:
 		ground.mesh = compiled.mesh
-	var batches: Dictionary = feature_view.rebuild(wilds.layout, {}, 0, true)
+	var batches: Dictionary = feature_view.rebuild(wilds.layout, {}, 0, true, false, climate.weights)
 	_light(true)
-	sun.light_color = climate.sun
+	sun.light_color = preload("res://assets/terrain_m02/wilds_surface_art.gd").sunlight(climate.weights)
 	sun.light_energy = climate.sun_energy
-	environment.ambient_light_color = climate.ambient
+	environment.ambient_light_color = preload("res://assets/terrain_m02/wilds_surface_art.gd").skylight(climate.weights)
 	environment.ambient_light_energy = climate.ambient_energy
 	environment.background_color = climate.air.darkened(0.65)
 	environment.fog_enabled = true
@@ -361,6 +361,7 @@ func _play_floor(active: bool) -> void:
 		_set_overlay(overlay.button_pressed)
 
 func _start_floor() -> void:
+	walk_preview.atmosphere = feature_view.atmosphere
 	walk_preview.deck_gate = feature_view.massing.get_node_or_null("ExitGate")
 	%PlayHelp.text = ("WASD / arrows  |  Space strike  |  Shift dodge  |  E Gate  |  Esc exit" if generated_mode == M10
 		else "WASD / arrows  |  Space strike  |  E Gate  |  Esc exit")

@@ -14,6 +14,8 @@ const CAMERA_OFFSET := Vector3(3.3, 14.0, 14.0)
 const PIXEL := 0.28
 const MOVE_SPEED := 4.6
 
+const Atmosphere = preload("res://assets/terrain_m02/wilds_atmosphere.gd")
+var atmosphere: Atmosphere
 var run: Simulation
 var allow_camera_control := false
 var pan := Vector2.ZERO
@@ -80,6 +82,7 @@ func start(cells: Dictionary, layout: Dictionary, spacing: float, combat: bool =
 	return true
 
 func stop() -> void:
+	if is_instance_valid(atmosphere): atmosphere.observe(Vector2.ZERO, -1.0)
 	run = null
 	pan = Vector2.ZERO
 	set_physics_process(false)
@@ -163,6 +166,7 @@ func set_fog(enabled: bool) -> void:
 		_update_view()
 
 func _update_view() -> void:
+	if is_instance_valid(atmosphere): atmosphere.observe(run.position, Simulation.SIGHT if fog_enabled else -1.0)
 	var target := _world(run.position)
 	marker.position = target + Vector3.UP * 0.86
 	_follow_camera()

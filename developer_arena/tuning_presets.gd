@@ -15,7 +15,7 @@ func fingerprint(id: String) -> String:
 		var hash := FileAccess.get_sha256(path)
 		if not hash.is_empty():
 			if Tune.WildsArt.CONTROLS.has(id):
-				for source in ["res://assets/terrain_m02/terrain_natural.gdshader","res://assets/terrain_m02/wilds_relief.png"]:
+				for source in ["res://assets/terrain_m02/terrain_natural.gdshader","res://assets/terrain_m02/wilds_relief.png","res://assets/terrain_m02/wilds_foliage.gdshader","res://assets/terrain_m02/wilds_air.gdshader","res://assets/terrain_m02/wilds_atmosphere.gd"]:
 					hash = (hash + FileAccess.get_sha256(source)).sha256_text()
 			if Tune.Payoffs.CONTROLS.has(id):
 				hash=(hash+FileAccess.get_sha256("res://assets/shaders/build_payoff.gdshader")).sha256_text()

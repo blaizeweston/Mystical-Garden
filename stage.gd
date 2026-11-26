@@ -129,9 +129,12 @@ static func make_environment() -> Environment:
 
 
 var wilds_art_values: Dictionary = {}
+const WildsAtmosphere = preload("res://assets/terrain_m02/wilds_atmosphere.gd")
+var wilds_air: WildsAtmosphere
 
 func set_wilds_art(values: Dictionary) -> void:
 	wilds_art_values = values
+	if is_instance_valid(wilds_air): wilds_air.tune(values)
 	var floor_surface := terrain.get_node_or_null("Wilds/Ground") as MeshInstance3D if terrain != null else null
 	if floor_surface != null:
 		preload("res://assets/terrain_m02/wilds_surface_art.gd").apply(floor_surface.material_override, values)
@@ -311,12 +314,14 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 	cache_label.text = "SEARCHED POD" if claimed else "ABANDONED SEED POD"
 	seed_cache.position = WILD_OFFSET + visual_field.cache
 
-	if not visual_field.generated.is_empty():
+	if bool(players.get(camera_id, {}).get("wild",false)) and not visual_field.generated.is_empty():
 		var climate: Dictionary=visual_field.generated.climate
-		$Sun.light_color=climate.sun
+		$Sun.light_color=preload("res://assets/terrain_m02/wilds_surface_art.gd").sunlight(climate.weights)
 		apply_scene_sun(climate.sun_energy)
-		$WorldEnvironment.environment.ambient_light_color=climate.ambient
+		$WorldEnvironment.environment.ambient_light_color=preload("res://assets/terrain_m02/wilds_surface_art.gd").skylight(climate.weights)
 		$WorldEnvironment.environment.ambient_light_energy=climate.ambient_energy
+	else:
+		$WorldEnvironment.environment.ambient_light_color=Color("#9fb4c4")
 	ensure_enemy(foe, foe_model, campaign[18] if campaign.size() > 18 else 0)
 	preload("res://elite_enemy.gd").decorate(self,foe_model,boss<0)
 	foe_surface = foe_model.tint
@@ -702,6 +707,7 @@ func redraw_terrain(site: int, depth: int, map_seed: int, boss: int = -1, phase:
 	for detail: Node3D in deeper_gate.get_children():
 		if detail!=wild_portal and not detail is Label3D:detail.hide()
 	experimental_exit=preload("res://assets/terrain_m02/experimental/experiment_terrain_view.gd").draw_wilds(terrain,WILD_OFFSET,visual_field.generated,map_seed)
+	wilds_air = terrain.get_node("Wilds/Features").atmosphere
 	if not wilds_art_values.is_empty(): set_wilds_art(wilds_art_values)
 	if boss>=0:preload("res://boss_lair_visuals.gd").build(self,terrain,visual_field)
 	preload("res://game_metrics.gd").record("floor_generation",{"seed":map_seed,"biome":site,"depth":depth,
@@ -849,6 +855,7 @@ func apply_exploration_sight(world_position: Vector3, wild: bool, radius: float,
 	if not wild:
 		return
 	var observer := WILD_OFFSET + world_position
+	if is_instance_valid(wilds_air): wilds_air.observe(Vector2(observer.x, observer.z),radius)
 	if is_instance_valid(experimental_exit):
 		experimental_exit.visible = gate_seen
 		deeper_gate.visible = gate_seen

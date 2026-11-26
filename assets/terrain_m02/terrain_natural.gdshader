@@ -26,6 +26,8 @@ uniform float grain_scale;
 uniform float variation;
 uniform float trail_blend;
 uniform float relief;
+uniform float mist;
+uniform float light_patches;
 uniform float water_motion;
 uniform float water_tint;
 uniform float wilds_moisture = 0.0;
@@ -297,7 +299,10 @@ void fragment() {
 		vec3 detail = texture(wilds_relief_tile, detail_uv).rgb;
 		vec3 second = texture(wilds_relief_tile, vec2(-detail_uv.y, detail_uv.x) * 0.53 + 0.37).rgb;
 		detail = mix(detail, second, 0.2 + macro * 0.18);
-		float moss = smoothstep(0.22, 0.67, detail.r + (macro - 0.5) * 0.65);
+		float moss = smoothstep(0.16, 0.75, detail.r + (macro - 0.5) * 0.48);
+		// Broken plates emerge only in mineral pockets. Exposed shale has a softer bedding face.
+		float rock_detail = mix(0.44 + 0.18*detail.g, detail.b, 0.28 + 0.52*patches);
+		detail.b = rock_detail;
 		float rock = clamp(land.w + biome_mix.z * (0.35 + 0.26 * patches), 0.0, 1.0) * (1.0 - path_weight * 0.66);
 		float litter = clamp(land.z * 0.9 + (1.0 - moss) * 0.55 + bank * 0.45, 0.0, 1.0);
 		vec3 humus = mix(vec3(0.235, 0.174, 0.103), vec3(0.32, 0.333, 0.17), moss);
@@ -327,6 +332,21 @@ void fragment() {
 		water_surface = mix(earth * vec3(0.78,0.9,0.85), pool * (0.88+0.22*eddy), water_tint * (0.54 + 0.46*depth));
 		water_surface += vec3(0.11,0.15,0.14) * (0.36*shimmer + lace*0.38);
 		NORMAL = normalize(NORMAL + (mat3(VIEW_MATRIX) * vec3(wave_b * 0.019,0.0,wave_a * 0.028)) * cover);
+	}
+	if (wilds_mode) {
+		// Filtered light and low vapour are shaded into the floor, under feet and warnings.
+		float canopy = smoothstep(0.33, 0.78, macro*0.63 + patches*0.37);
+		dry *= 1.0 - biome_mix.x*0.13*(1.0-canopy)*light_patches;
+		dry += vec3(0.057,0.039,0.014)*canopy*light_patches*biome_mix.x;
+		if (biome_mix.y > 0.0) {
+			vec2 drift = vec2(grain.x*0.085+TIME*0.035, grain.y*0.31 + 0.18*patches);
+			float wisp = smoothstep(0.42,0.68,texture(wilds_relief_tile,drift).r);
+			float veil = wisp*(0.04+0.12*max(damp, bank))*biome_mix.y*mist;
+			dry = mix(dry, vec3(0.42,0.48,0.433), veil);
+			water_surface = mix(water_surface,vec3(0.37,0.48,0.455),veil*0.63);
+		}
+		float pocket = smoothstep(0.45,0.78,0.73*macro+0.27*patches);
+		dry += vec3(.032,.033,.052)*biome_mix.z*pocket*light_patches;
 	}
 	water_surface += vec3(0.025, 0.075, 0.065) * garden_water_resonance;
 	ALBEDO = mix(dry, water_surface, cover);

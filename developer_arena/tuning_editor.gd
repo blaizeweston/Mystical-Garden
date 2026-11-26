@@ -32,6 +32,12 @@ func setup(workbench: Control, parent: Control) -> void:
 		if group=="Presets":
 			preset_page(page)
 			continue
+		if group=="World":
+			var original := CheckButton.new()
+			original.text = "Compare Wilds scenery at production settings"
+			original.button_pressed = tuning.showing_wilds_baseline
+			original.toggled.connect(func(enabled: bool): tuning.compare_wilds(panel.world,enabled))
+			page.add_child(original)
 		if group=="Visuals": playback(page)
 		var ids: Array=[]
 		for id in Catalog.PROPERTIES:

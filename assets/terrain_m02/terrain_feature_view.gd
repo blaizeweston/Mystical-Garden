@@ -16,6 +16,8 @@ const FERN_MASK := preload("res://assets/garden/field/fern_opacity.png")
 
 var variants := {}
 var botanical_variants := {}
+const Atmosphere = preload("res://assets/terrain_m02/wilds_atmosphere.gd")
+var atmosphere: Atmosphere
 var botanical_material: StandardMaterial3D
 var bridge_material: StandardMaterial3D
 var vegetation: Node3D
@@ -39,7 +41,10 @@ func _group(label: String) -> Node3D:
 	return group
 
 func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds: bool = false,
-		integrated_wilds: bool = false) -> Dictionary:
+		integrated_wilds: bool = false, weights := Vector3.RIGHT) -> Dictionary:
+	if is_instance_valid(atmosphere):
+		atmosphere.free()
+		atmosphere = null
 	_ensure_botanical_material()
 	var assets := variants
 	if not wilds:
@@ -93,6 +98,10 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds
 		_gate(gate_position, gate_yaw)
 	if layout.has("boundary"):
 		_build_boundary(layout.boundary, layout.seed, integrated_wilds)
+	if wilds:
+		atmosphere = Atmosphere.new()
+		add_child(atmosphere)
+		atmosphere.build(self, layout.plants, weights, integrated_wilds)
 	return {"plant_instances": layout.plants.size(), "rock_instances": layout.rocks.size(),
 		"instance_batches": batches.size()}
 

@@ -44,6 +44,7 @@ static func draw_wilds(parent: Node3D, offset: Vector3, data: Dictionary, seed_v
 		+ Vector3(0.74, 0.22, 0.04) * weights.y + Vector3(0.20, 0.14, 0.66) * weights.z)
 	plane(wild, shade, Boundary.exterior_extent(14, 1.75, parent.get_viewport().get_visible_rect().size))
 	var features := Features.new()
+	features.name = "Features"
 	wild.add_child(features)
-	features.rebuild(data.layout, {}, 0, true, true)
+	features.rebuild(data.layout, {}, 0, true, true, weights)
 	return features.massing.get_node("ExitGate")

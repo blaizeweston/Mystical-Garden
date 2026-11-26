@@ -5756,6 +5756,7 @@
       "assets/terrain_m02/terrain_natural.gdshader": {
         "newline": "lf",
         "regions": {
+          "wilds_habitat_336": {"systems":["hex_terrain"]},
           "wilds_surface_334": {"systems":["hex_terrain"]},
           "wilds_surface_322": {"systems":["hex_terrain"]},
           "saved_garden_layout_1": {

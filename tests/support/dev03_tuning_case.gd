@@ -15,7 +15,7 @@ static func garden(world: Node) -> String:
 	for entry in [[Tune.SPEAR,NAN],[Tune.WATER,-1],[Tune.FLORA,101],[Tune.SUN,"2"],["unknown",1]]:
 		if tune.request(world,entry[0],entry[1]): return "bad property accepted"
 	var fake:=Node.new()
-	var refused: bool=not tune.request(fake,Tune.SUN,3.0) and not tune.request(fake,"fire.height",1.3) and not tune.replace(fake,{}) and tune.directory(fake).is_empty()
+	var refused: bool=not tune.request(fake,Tune.SUN,3.0) and not tune.request(fake,"wilds.sway",0.1) and not tune.request(fake,"fire.height",1.3) and not tune.replace(fake,{}) and tune.directory(fake).is_empty()
 	fake.free()
 	if not refused: return "forged session"
 	tune.request(world,Tune.SUN,2.4)
@@ -144,6 +144,17 @@ static func arena(world: Node) -> String:
 	var surface: MeshInstance3D = world.stage.terrain.get_node("Wilds/Ground")
 	var material: ShaderMaterial = surface.material_override
 	var cache_key: Vector3i = world.battlefield.configured_key
+	var habitat: Node = world.stage.wilds_air
+	if not is_instance_valid(habitat) or not habitat.materials.has("air"): return "floor-local air batch"
+	var spawn: Vector3 = world.players[1].pos
+	world.stage.apply_exploration_sight(spawn,true,8.0)
+	if habitat.materials.air.get_shader_parameter("observer") != Vector2(spawn.x + world.stage.WILD_OFFSET.x, spawn.z): return "air follows world observer"
+	if not tune.request(world,"wilds.motes",0.0) or not is_zero_approx(habitat.materials.air.get_shader_parameter("motes")): return "live mote density"
+	tune.compare_wilds(world,true)
+	if not is_equal_approx(habitat.materials.air.get_shader_parameter("motes"),tune.baseline("wilds.motes")): return "fixed-floor production comparison"
+	tune.compare_wilds(world,false)
+	if not is_zero_approx(habitat.materials.air.get_shader_parameter("motes")): return "fixed-floor experimental comparison"
+	tune.reset(world,["wilds.motes"])
 	var art_store := Presets.new(world)
 	if not tune.request(world,"wilds.trail_blend",0.9) or tune.request(world,"wilds.trail_blend",-1): return "Wilds control bounds"
 	if not is_equal_approx(material.get_shader_parameter("trail_blend"),0.9) or world.battlefield.configured_key != cache_key: return "live ground blend"

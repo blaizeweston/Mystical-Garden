@@ -41,8 +41,12 @@ func host_run() -> void:
   ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"depth": 2});ExpeditionCase.set_world(game, {"encounter_number": 2});ExpeditionCase.set_world(game, {"map_seed": seed_value});game.tactics.boss_kind=-1;game.reset_encounter()
   for p in game.players.values():ExpeditionCase.set_membership(game, p, true);p.pos=game.battlefield.entry;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
   if seed_value==91247:
+   # Synthetic admission needs the same return identities as a real departure.
+   game.garden_commands.begin_returns()
    for id: int in game.players:
+    game.garden_commands.join_returns(id)
     var member: Dictionary=game.players[id]
+    check(not str(member.get("garden_run_id","")).is_empty(),"fixture participant has a return record")
     check(game.monster_rewards.begin_expedition(game._kill_reward_identity(id,member),game.participation.run_id(),member.character.xp,member.character.monsters),"synthetic terrain admission captures the real reward-forfeiture baseline")
   game.encounter.set_hp(-1, 100);game.tactics.ready_at=Time.get_ticks_msec()+60000
   for scout in game.encounter.scout_tactics():scout.ready=Time.get_ticks_msec()+60000;scout.rooted_until=Time.get_ticks_msec()+60000
