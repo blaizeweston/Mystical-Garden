@@ -94,6 +94,17 @@ func run() -> void:
 	check(final.party.unattributed_damage==3 and final.players[1].damage==4 and final.players[0].name=="Traveller 1","frozen rows, detached reads and unattributed damage")
 	world.ui.expedition_result("fixture",run_id,final)
 	check(world.ui.visible_expedition_result()==final,"local UI shows detached final results")
+	# Deliver a waiting guest's reliable vitals while its last membership
+	# snapshot still places it in the Wilds. Exercise the actual spectator/UI.
+	var original: Dictionary = world.players[1]
+	world.players[1] = {Fixture.Participation.STATE:original[Fixture.Participation.STATE],"fallen":false,"hp":100,"max_hp":100}
+	world.spectator_view.focus_id(1)
+	world.receive_vitals({1:{"revision":1,"hp":100,"max_hp":100,"fallen":true,"lost_health":0,"damage_seq":0}})
+	check(world.actor_presentation.spectator_frame(1).fallen,"waiting vitals arrived before Garden membership")
+	world.spectator_view.focus_id(1)
+	check(world.ui.visible_expedition_result()==final,"a late spectator transition leaves the finalized report available")
+	world.players[1] = original
+	world.spectator_view.focus_id(1)
 	var panel: Control = world.ui._panels.expedition_results
 	var tabs: TabContainer = panel.find_children("*","TabContainer",true,false)[0]
 	check(tabs.get_tab_count()==3 and tabs.get_tab_title(1).contains("Traveller 1") and tabs.get_tab_title(2).contains("Traveller 2"),"overview and named tabs match the participants")

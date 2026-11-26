@@ -200,6 +200,7 @@ func verify_offers() -> void:
 	game.present_checkpoint_cards(1)
 	var original_ledger := Cards.ledger(player)
 	var original := original_ledger.offer()
+	var first_message: Array = game.checkpoint_card_data(player)
 	check(original.cards.size()==3 and game.ui.checkpoint_revision()==original.revision and game.run_wallet(player)==0,
 		"three owner options are offered at zero Essence")
 	var detached_offer := original_ledger.offer()
@@ -253,6 +254,9 @@ func verify_offers() -> void:
 		"mutating receipt and contribution projections cannot alter owned cards")
 	at_checkpoint(6)
 	game.ui.close_panels()
+	game.open_checkpoint_cards(first_message,0,3,false)
+	check(not UIFixture.control(game,"checkpoint_menu").visible and Cards.ledger(player)==claimed,
+		"delayed offer publication for a passed floor does not reopen it")
 	action(rev,"reroll")
 	check(Cards.ledger(player)==claimed and not UIFixture.control(game,"checkpoint_menu").visible,
 		"a delayed command from the previous floor cannot open the next checkpoint offer")
@@ -278,6 +282,11 @@ func verify_offers() -> void:
 	var braked_ledger := Cards.ledger(player)
 	var braked_offer := braked_ledger.offer()
 	check(braked.choices.size()==3,"remaining legal pool fits exactly one offer")
+	var new_wallet = game.wallet_for(player)
+	action(original.revision,"0")
+	check(Cards.ledger(player)==braked_ledger and braked_ledger.offer()==braked_offer
+		and game.wallet_for(player)==new_wallet and not game.checkpoint_ready.has(1),
+		"a selection from a previous expedition cannot claim an offer on the same numbered floor")
 	var funded_wallet = game.wallet_for(player)
 	action(braked.revision,"reroll")
 	check(Cards.ledger(player)==braked_ledger and braked_ledger.offer()==braked_offer and game.wallet_for(player)==funded_wallet,
@@ -748,6 +757,35 @@ func verify_attack_speed() -> void:
 		"dodge uses cooldown terminology and Form's arc trigger keeps its own label")
 
 
+func verify_unresolved_rejoin() -> void:
+	reset()
+	at_checkpoint(3)
+	var identity := "6a7c3d11180b4c4281f6bb8aef799a51"
+	var ticket := "ab".repeat(32)
+	SessionCase.set_identity(game, ally, identity)
+	ally.rejoin_digest = ticket.sha256_text()
+	var original: Dictionary = game.checkpoint_card_data(ally)[0]
+	var ledger := Cards.ledger(ally)
+	var wallet = game.wallet_for(ally)
+	check(game.Continuation.park(game,2),"departed seat holds its unresolved offer")
+	ExpeditionCase.remove_actor(game,2)
+	game.add_player(3)
+	SessionCase.set_identity(game,game.players[3],identity)
+	game.players[3].character = ally.character.duplicate(true)
+	check(game.Continuation.authorized(game,identity,ticket),"returning character can reclaim its seat")
+	game.Continuation.rejoin(game,3,identity)
+	var returned: Dictionary = game.players[3]
+	var current: Dictionary = game.checkpoint_card_data(returned)[0]
+	check(current==original and Cards.ledger(returned)==ledger and game.wallet_for(returned)==wallet
+		and not game.checkpoint_ready.has(3),"new peer binding recovers the exact unresolved choices, revision and wallet")
+	var command: String = game.affinity_checkpoint_action(current.revision,"0")
+	game.garden_action(3,command)
+	game.garden_action(3,command)
+	check(Cards.ledger(returned).copies().size()==1 and Cards.ledger(returned).offer().closed
+		and game.checkpoint_ready.get(3)==3 and game.wallet_for(returned)==wallet,
+		"the rejoined character resolves that offer once and becomes gate-ready")
+
+
 func run() -> void:
 	game = preload("res://world.tscn").instantiate()
 
@@ -766,6 +804,7 @@ func run() -> void:
 	verify_authoring()
 	verify_presentation()
 	verify_attack_speed()
+	verify_unresolved_rejoin()
 	if failures==0:
 		print("PASS: EC01 all 28 real card consumers and offer/lifecycle contracts (%d checks)" % checks)
 	quit(int(failures>0))

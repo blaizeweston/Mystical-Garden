@@ -44,7 +44,10 @@ func focus_id(local_id: int) -> int:
 	var fallen:=bool(_facts.get("fallen",false))
 	panel.position=Vector2((get_viewport().get_visible_rect().size.x-430)/2.0,114)
 	panel.visible=fallen and not _ui.is_overlay_open()
-	if fallen and not _was_fallen:_ui.close_panels()
+	# The committed report can arrive before the snapshot that moves its
+	# recipient out of the Wilds. Keep it open through the waiting-state edge.
+	if fallen and not _was_fallen and not _ui.panel_is_open("expedition_results"):
+		_ui.close_panels()
 	_was_fallen=fallen
 	if not fallen:_target_id=0;return local_id
 	var living: Array=_facts.get("living",[])
