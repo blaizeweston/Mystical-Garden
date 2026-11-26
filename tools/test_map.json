@@ -298,6 +298,7 @@
       "label": "Bindings, audio, display and aim settings",
       "files": [
         "visual_preferences.gd",
+        "visual_preferences.gd.uid",
         "preference_file.gd",
         "preference_file.gd.uid",
         "app_settings.gd",
@@ -4095,8 +4096,8 @@
   "relationships": [
     ["wild_flora", "seeds", "One shared specimen uses the botanical catalog for species, minimum encounter, rarity and biome preference"],
     ["wild_flora", "terrain", "Biomes use the existing walkable terrain, navigation and placement exclusions"],
-    ["wild_flora", "items", "A successful character claim admits the fixed species to carried unidentified seeds"],
-    ["wild_flora", "guest_replication", "Reliable owner details expose the current specimen and its recipient-specific harvest state"],
+    ["wild_flora", "items", "The first successful party-wide claim admits the identified fixed-species seed and researched rewards to the harvester's carried inventory"],
+    ["wild_flora", "guest_replication", "Reliable owner details expose the current specimen and its shared party-wide harvest state"],
     ["progression_ui", "gameplay_ui", "One feature presents detached research/class/seed/story facts and emits explicit refresh and existing action requests"],
     ["progression_ui", "knowledge", "Research offering previews and authoritative spending share HeartProgress material planning"],
     ["progression_ui", "garden_returns", "Story presentation receives a bounded discovery projection without a world reference"],
@@ -5637,6 +5638,11 @@
       }
     }},
   "script_functions": {
+    "assets/terrain_m02/experimental/experiment_garden.gd": {"configure": ["garden_development", "garden_canopy", "garden_cinematics"], "_restore_development": ["garden_development", "garden_canopy", "garden_cinematics"], "_building_name": ["garden_development"]},
+    "progress.gd": {"_read_garden": ["garden_development", "garden_returns", "cultivation_growth", "garden_care", "garden_cinematics", "garden_observations", "inventory_custody", "persistence_operations", "living_archive"], "_serialize_save": ["foundation", "persistence_operations", "cultivation_growth", "garden_cinematics", "garden_observations", "inventory_custody", "living_archive"]},
+    "altar_service.gd": {"capture": ["living_archive", "garden_returns", "inventory_custody"], "restore": ["living_archive", "garden_returns", "inventory_custody"], "preview": ["seeds", "garden_cultivation_structures", "garden", "items", "ui_copy"], "combine": ["seeds", "garden_cultivation_structures", "garden", "items"], "identify": ["ui_copy", "seeds"], "identify_all": ["ui_copy", "seeds"]},
+    "garden_altar_panel.gd": {"render": ["ui_copy", "garden_feature_ui"]},
+    "inventory_slot.gd": {"setup": ["weapon_balance", "items"]},
     "living_archive.gd": {"fresh": ["living_archive"], "valid_id": ["living_archive"], "valid_totals": ["living_archive"], "valid_visits": ["living_archive"], "valid": ["living_archive"], "add": ["living_archive"], "join_totals": ["living_archive"], "activity": ["living_archive"], "harvest": ["living_archive"], "set_slice": ["living_archive"], "personal": ["living_archive"], "settle": ["living_archive"], "station": ["living_archive"]},
     "heart_catalog.gd": {
       "garden_development": ["knowledge","garden_development"],
@@ -5881,11 +5887,6 @@
             "garden_development"
           ]
         },
-        "saved_garden_layout_3": {
-          "systems": [
-            "garden_development"
-          ]
-        },
         "saved_garden_layout_4": {
           "systems": [
             "garden_development"
@@ -5930,11 +5931,6 @@
         "saved_garden_layout_14": {
           "systems": [
             "garden_development"
-          ]
-        },
-        "saved_garden_layout_15": {
-          "systems": [
-            "garden_cinematics", "garden_canopy", "garden_development"
           ]
         },
         "retire_hidden_heart": {"systems": ["garden_heart_view"]},
@@ -6308,11 +6304,6 @@
             "garden_development"
           ]
         },
-        "saved_garden_layout_2": {
-          "systems": [
-            "garden_development"
-          ]
-        },
         "saved_garden_layout_3": {
           "systems": ["garden_development", "knowledge", "persistence_operations"]
         },
@@ -6335,27 +6326,11 @@
           ]
         },
         "profile_origin_field": {"systems": ["persistence_operations", "connection_flow", "characters", "expeditions", "garden"]}, "profile_origin_read": {"systems": ["persistence_operations", "connection_flow", "characters", "expeditions", "garden"]}, "ordinary_save_lease": {"systems": ["persistence_operations", "connection_flow", "characters", "expeditions", "garden"]}, "profile_origin_write": {"systems": ["persistence_operations", "connection_flow", "characters", "expeditions", "garden"]},
-        "serializer_commit_integrity": {
-          "systems": [
-            "foundation",
-            "persistence_operations"
-          ]
-        },
         "guarded_expedition_1": {
           "systems": [
             "persistence_operations",
             "expeditions",
             "garden"
-          ]
-        },
-        "load_garden_returns": {
-          "systems": [
-            "garden_returns"
-          ]
-        },
-        "growth_backup_save": {
-          "systems": [
-            "cultivation_growth"
           ]
         },
         "growth_backup_flag": {
@@ -6368,29 +6343,9 @@
             "cultivation_growth"
           ]
         },
-        "load_garden_growth_balance": {
-          "systems": [
-            "cultivation_growth"
-          ]
-        },
         "advance_growth_crop_care": {
           "systems": [
             "garden_care"
-          ]
-        },
-        "load_garden_crop_care": {
-          "systems": [
-            "garden_care"
-          ]
-        },
-        "save_garden_growth": {
-          "systems": [
-            "garden_cinematics"
-          ]
-        },
-        "load_garden_growth": {
-          "systems": [
-            "garden_cinematics"
           ]
         },
         "interaction_state": {
@@ -6402,23 +6357,15 @@
           "systems": [
             "garden_observations"
           ]
-        },
-        "interaction_save": {
-          "systems": [
-            "garden_observations"
-          ]
         }
       }
     },
     "altar_service.gd": {
       "newline": "crlf",
       "regions": {
-      "archive_capture": {"systems": ["living_archive"]},
       "archive_combine": {"systems": ["living_archive"]},
       "archive_retired_success": {"systems": ["living_archive"]},
       "archive_combine_receipt": {"systems": ["living_archive"]},
-        "hg04_definitions_3": {"systems": ["seeds", "garden_cultivation_structures", "garden", "items"]},
-        "hg04_definitions_2": {"systems": ["seeds", "garden_cultivation_structures", "garden", "items"]},
         "hg04_definitions_1": {"systems": ["seeds", "garden_cultivation_structures", "garden", "items"]},
         "guarded_garden_actions_1": {
           "systems": [
@@ -6444,29 +6391,6 @@
         "guarded_gameplay_writer_1": {
           "systems": [
             "persistence_operations"
-          ]
-        },
-        "ui_copy_1": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_0": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-
-
-
-        "restore_returns": {
-          "systems": [
-            "garden_returns"
-          ]
-        },
-        "capture_returns": {
-          "systems": [
-            "garden_returns"
           ]
         },
         "garden_offering_plan": {
@@ -7602,11 +7526,6 @@
     "garden_altar_panel.gd": {
       "newline": "crlf",
       "regions": {
-        "ui_copy_3": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
         "ui_copy_1": {
           "systems": [
             "ui_copy"
@@ -9831,13 +9750,7 @@
     },
     "inventory_slot.gd": {
       "newline": "crlf",
-      "regions": {
-        "cb03_slot_component_tooltip": {
-          "systems": [
-            "weapon_balance"
-          ]
-        }
-      }
+      "regions": {}
     },
     "subclass_catalog.gd": {
       "newline": "lf",
