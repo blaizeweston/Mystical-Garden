@@ -7,6 +7,7 @@ const Thorn = preload("res://thorn_affinity.gd")
 const Frost = preload("res://frost_combat.gd")
 const Fire = preload("res://fire_combat.gd")
 const Water = preload("res://water_combat.gd")
+const Tides = preload("res://water_tidal_return.gd")
 const Vital = preload("res://vital_combat.gd")
 const Wood = preload("res://wood_affinity.gd")
 const Protection = preload("res://player_protection.gd")
@@ -350,5 +351,14 @@ func verify_materials() -> void:
 func drain_water() -> void:
 	var records: Array=game.effect_timeline.native_records()
 	if records.is_empty():return
-	var start: int=records[0].waves[0].start
-	for offset in [0,225,451,675,901]:game.effect_timeline.advance_native(game.native_effects_world,start+offset)
+	# Separate threshold admissions may occur on different real clock ticks.
+	# Drive every captured wave's own phase boundaries and record deadline.
+	var milestones: Array[int]=[]
+	for record in records:
+		for wave in record.waves:
+			for phase in [0.0,.5,1.0,1.5,2.0]:
+				var at:=int(wave.start)+roundi(phase*Tides.PHASE_MS)
+				if not milestones.has(at):milestones.append(at)
+		if not milestones.has(int(record.until)):milestones.append(int(record.until))
+	milestones.sort()
+	for at in milestones:game.effect_timeline.advance_native(game.native_effects_world,at)
