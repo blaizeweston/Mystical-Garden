@@ -17,6 +17,7 @@ uniform float storm_kink = 1.0;
 uniform float spirit_wisp = 0.72;
 uniform float spirit_veil = 0.49;
 uniform float void_flow = 1.0;
+uniform float core_weight=1.;
 uniform float void_shade = 0.48;
 varying vec4 ink;
 
@@ -82,7 +83,7 @@ vec3 point_on_strip(int role,float lane,float t,out float width,out vec4 pigment
 			float r=(lane<.5?.12:.22)*extent*sink;
 			p=polar(t*6.283185+seconds*.52,r,.09+.012*lane);
 			width=lane<.5?r*1.9:.025*sink;
-			pigment=lane<.5?vec4(.075,.05,.15,void_shade*fade):vec4(.64,.51,.78,.58*fade);
+			pigment=lane<.5?vec4(.075,.05,.15,void_shade*fade*core_weight):vec4(.64,.51,.78,.58*fade);
 		}
 	}
 	return p;

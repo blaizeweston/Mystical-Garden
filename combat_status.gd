@@ -157,9 +157,11 @@ static func snapshot(game: Node,now: int) -> Array:
   var event: Dictionary=item.event.duplicate(true)
   event.age=maxf(0,(now-int(event.born))/1000.0);event.erase("born");result.append(event)
  return result
-static func proc(game: Node,kind: String,from: Vector3,to: Vector3,target: int=-2,reach: float=0.0) -> void:
+static func proc(game: Node,kind: String,from: Vector3,to: Vector3,target: int=-2,reach: float=0.0,source: String="") -> void:
  var height:=1.8+preload("res://enemy_hurtbox.gd").radius(game,target) if kind=="mark_break" and target>=-1 else .85
- game.emit_combat_event("proc",kind,from,to,.55,tint(kind),reach,target,{"height":height})
+ var art:={"height":height}
+ if not source.is_empty():art.form=source
+ game.emit_combat_event("proc",kind,from,to,.55,tint(kind),reach,target,art)
 
 
 static func root(game: Node, target: int, until: int) -> void:

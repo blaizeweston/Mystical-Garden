@@ -44,6 +44,8 @@ static func verify(session: Node) -> String:
 	await session.get_tree().process_frame
 	var images:Array=arena.stage.get_node("CombatEffects").hints.values().filter(func(h):return h.event.role=="spirit_image" and h.has("astral"))
 	if images.size()!=2:return "dash images missing from practice stage"
+	var captions:=images.filter(func(h):return h.astral.has_node("PreparationCount") and h.astral.get_node("PreparationCount").visible)
+	if captions.size()!=1 or captions[0].astral.get_node("PreparationCount").text!="1 echo · 1 shadow":return "co-located preparations lost their type or count"
 	var echo_mesh:MeshInstance3D=images[0].astral
 	var shadow_mesh:MeshInstance3D=images[1].astral
 	var now: int=arena.CombatClock.now()

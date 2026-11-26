@@ -91,7 +91,7 @@ static func apply(game: Node, event: RefCounted, target: int, count: int, now: i
 
 ## One group of three frozen numerators, regardless of which owner completes it.
 static func resolve_stacks(game: Node, source: Dictionary, maximum_units: int, slow: float,
-		effects: Dictionary, target: int, count: int, now: int, secondary := false) -> int:
+		effects: Dictionary, target: int, count: int, now: int, secondary := false, propagation_from:=Vector3.INF) -> int:
 	if not Sources.current(game,source) or not game.encounter.alive(target): return 0
 	var actor:=Effects.edit(game,target)
 	var current:=clean(game,target,now)
@@ -109,6 +109,8 @@ static func resolve_stacks(game: Node, source: Dictionary, maximum_units: int, s
 		var combined:=0.0
 		for stack in stacks: combined+=float(stack.slow)
 		actor[BRITTLE]={"epoch":source.epoch,"token":game.encounter.spawn_identity(target),"expires":now+BRITTLE_MS,"stacks":stacks,"slow":combined}
+	if propagation_from.is_finite():
+		game.emit_combat_event("link","avalanche_stack",propagation_from,game.enemy_position(target),.36,COLOR,0.,int(source.actor))
 	for spent in bursts:
 		var numerator:=0
 		for stack in spent: numerator+=int(stack.numerator)
@@ -155,7 +157,7 @@ static func rupture_effects(game: Node, target: int, point: Vector3, spent: Arra
 		var radius:=float(Catalog.DEFINITIONS.avalanche.tuning.radius_m)
 		for victim in game.skill_area_targets(point,radius,point):
 			if victim!=target and Sources.current(game,avalanche) and not game.persistence_session.is_blocked():
-				resolve_stacks(game,avalanche,int(avalanche.numerator),float(avalanche.slow),avalanche.effects,victim,1,now,true)
+				resolve_stacks(game,avalanche,int(avalanche.numerator),float(avalanche.slow),avalanche.effects,victim,1,now,true,point)
 		preload("res://diagnostic_journal.gd").event("combat","avalanche",{"actor":avalanche.actor,"target":target,"numerator":avalanche.numerator})
 
 

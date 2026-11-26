@@ -34,10 +34,10 @@ func text_at(text: String,at: Vector3,color: Color,_id: int,ability: bool=false,
  offset.y+=(height if height>=0.0 else (2.55 if not ability else 2.17))+.30*float(lane%2)+.26*floori(lane/3.)
  label.position=stage.WILD_OFFSET+at+offset
  labels.append({"at":at,"lane":lane,"node":label,"start":label.position,"color":color,"age":0.0,"life":.85 if not ability else 1.0})
-func proc_caption(caption: String,at: Vector3,color: Color,id: int,detailed: bool) -> void:
+func proc_caption(caption: String,at: Vector3,color: Color,id: int,detailed: bool, grouping_distance_sq:=2.25) -> void:
  if not detailed:
   for item in labels:
-   if item.get("caption","")==caption and item.age<.38 and at.distance_squared_to(item.at)<2.25:
+   if item.get("caption","")==caption and item.age<.38 and at.distance_squared_to(item.at)<grouping_distance_sq:
     item.count+=1
     item.node.text="%s ×%d"%[caption,item.count]
     return
@@ -56,7 +56,9 @@ func confirmed(event: Dictionary,at: Vector3,strength:=1.0) -> void:
   text_at("BLOCK",at,Color("#f1d989"),int(event.id),true);return
  if amount<=0:return
  if event.shape=="heal":
-  text_at("+%d"%amount,at,Color(event.color),int(event.id),false,3.15)
+  text_at("+%d"%amount,at,Color(event.color).lerp(Color("#e7fff0"),.72),int(event.id),false,3.15)
+  labels.back().node.render_priority=4
+  labels.back().node.outline_render_priority=3
   return
  var hurt: bool=event.shape=="hurt"
  var tint:=Color("#ff957d") if hurt else Color("#fff2ca")
@@ -97,6 +99,7 @@ func step(delta: float) -> void:
   item.node.visible=ground.distance_to(observer)<=sight
   item.node.scale=Vector3.ONE*(1.0+.18*sin(minf(1,t*5)*PI))
   var color: Color=item.color;color.a=1-smoothstep(.55,1,t);item.node.modulate=color
+  item.node.outline_modulate.a=color.a
  for key in flashes.keys():
   var entry: Dictionary=flashes[key];entry.age+=delta
   if entry.age>=.16:restore(key)

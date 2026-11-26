@@ -141,7 +141,7 @@ static func resolve_queued(game: Node, player: Dictionary, row: Dictionary, now:
 			continue
 		var point: Vector3 = game.enemy_position(target)
 		if game.battlefield.combat_sight(row.origin,point):
-			load("res://combat_status.gd").proc(game,row.visual,row.origin,point,target)
+			load("res://combat_status.gd").proc(game,row.visual,row.origin,point,target,0.0,"adaptation")
 			OutgoingHits.hit_world(game, HitSession.peer_for(player), target, row.origin, row.stats, now)
 	if game.encounter_cleared():
 		game.finish_combat(int(row.owner),row.origin)

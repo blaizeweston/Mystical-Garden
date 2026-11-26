@@ -215,6 +215,8 @@ static func launch(game: Node, player: Dictionary, stats: Dictionary, now: int) 
 		player[PlayerVitals.STATE]=after
 		hp+=roundi(spent*float(tuning.damage_per_hp))
 		stats.vital_spent_hp=spent
+		if spent>0:
+			game.emit_combat_event("ability","harvest_spend",player.pos,player.pos,.38,COLOR,0.,event.actor,{"label":""})
 		preload("res://diagnostic_journal.gd").event("combat","harvest_spend",{"actor":event.actor,"activation":event.identity,"spent_hp":spent,"damage_hp":roundi(spent*float(tuning.damage_per_hp))})
 	stats.vital_primary_bonus_hp=hp
 

@@ -287,6 +287,12 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 	if not fx.active.is_empty() or current.get_meta("astral_kind")!="singularity" or current.position!=Vector3(2,0,1) or not is_equal_approx(current.material_override.get_shader_parameter("extent"),2.8):return "duplicate or displaced field art"
 	fx.sync([],[well],"void-floor",Vector3.ZERO)
 	if fx.hints[well.id].astral!=current:return "field visual allocated again for unchanged snapshot"
+	var neighbor:=well.duplicate(true)
+	neighbor.id="neighbor"
+	fx.sync([],[well,neighbor],"void-floor",Vector3.ZERO)
+	if not is_equal_approx(current.material_override.get_shader_parameter("core_weight"),.5):return "overlapping core opacity"
+	fx.sync([],[well],"void-floor",Vector3.ZERO)
+	if not is_equal_approx(current.material_override.get_shader_parameter("core_weight"),1.):return "stale overlap after removal"
 	fx.sync([],[],"void-floor",Vector3.ZERO)
 	if not fx.hints.is_empty() or not current.get_parent().is_queued_for_deletion():return "withdrawn field survived"
 	for payoff in ["flashover","wildfire","hemorrhagic_rupture"]:
@@ -312,6 +318,8 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 		fx.sync([{"id":912,"kind":"status_end","shape":"911"}],[],shape,Vector3.ZERO)
 		if not fx.statuses.active.is_empty() or not mark.get_parent().is_queued_for_deletion():return "expired body art "+shape
 	fx.clear()
+	var combat_before:Dictionary=world.round_stats().party.duplicate(true)
+	var events_before:Array=world.combat_events.duplicate(true)
 	lab.formation.select(2)
 	lab.arrange_targets()
 	for i in lab.AFFINITY_KINDS.size():
@@ -326,7 +334,7 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 			lab.seek(lab.Affinities.OPEN_SECONDS+.01)
 			if lab.affinity_samples[0].visible or not lab.affinity_samples[1].visible:return "opening/closing handoff"
 		var stamp:float=lab.clock
-		var id:String=["fire.height","frost.petals","thorn.bark","fire.embers","affinity.status","affinity.status","thorn.spines","water.crest","water.opacity","water.crest","water.opacity","wood.grain","wood.thickness","wood.grain","wood.thickness","vital.petals","vital.pollen","vital.pollen","storm.width","spirit.wisp","spirit.veil","spirit.veil","void.flow","void.shade","void.flow","spirit.veil","void.flow"][i] if i<lab.AFFINITY_KINDS.find("quake") else "class.ink"
+		var id:String=["fire.height","frost.petals","thorn.bark","fire.embers","affinity.status","affinity.status","thorn.spines","water.crest","water.opacity","water.crest","water.opacity","wood.grain","wood.thickness","wood.grain","wood.thickness","vital.petals","vital.pollen","vital.pollen","storm.width","spirit.wisp","spirit.veil","spirit.veil","void.flow","void.shade","void.flow","spirit.veil","void.flow"][i] if i<lab.AFFINITY_KINDS.find("quake") else "payoff.ink" if lab.AFFINITY_KINDS[i] in lab.Payoffs.PREVIEWS else "class.ink"
 		var proposed:float=Tune.PROPERTIES[id].maximum
 		if not tune.request(world,id,proposed):return "affinity slider "+id
 		lab.mode.select(1)
@@ -335,6 +343,7 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 		tune.reset(world,[id])
 		lab.stop()
 		if not lab.affinity_samples.is_empty():return "affinity reset"
+	if world.round_stats().party!=combat_before or world.combat_events!=events_before:return "class, affinity or payoff replay changed gameplay"
 	if not tune.request(world,"storm.width",1.4) or not tune.request(world,"spirit.veil",.32) or not tune.request(world,"void.shade",.65):return "astral controls"
 	if not presets.save_new("Spectral currents").is_empty():return "astral preset save"
 	tune.reset(world,["storm.width","spirit.veil","void.shade"])
@@ -342,6 +351,13 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 	var review:String=presets.export_review("Spectral currents")
 	if not presets._read(review.path_join("changes.json")).differences.any(func(row):return row.id=="void.shade"):return "astral export"
 	tune.reset(world,["storm.width","spirit.veil","void.shade"])
+	var stroke_ids:=["class.relief","payoff.edge"]
+	if not tune.request(world,"class.relief",1.25) or not tune.request(world,"payoff.edge",.75) or not presets.save_new("Class and graft strokes").is_empty():return "class and graft preset creation"
+	tune.reset(world,stroke_ids)
+	if not presets.load_named("Class and graft strokes").is_empty() or not is_equal_approx(tune.applied("class.relief"),1.25) or not is_equal_approx(tune.applied("payoff.edge"),.75):return "class and graft preset recovery"
+	var stroke_export:String=presets.export_review("Class and graft strokes")
+	if presets._read(stroke_export.path_join("changes.json")).differences.filter(func(row):return row.id in stroke_ids).size()!=2:return "class and graft export"
+	tune.reset(world,stroke_ids)
 	if not tune.request(world,"water.crest",1.35) or not tune.request(world,"fire.smoke",.43) or not presets.save_new("Smoldering roots").is_empty():return "affinity preset write"
 	tune.reset(world,["fire.smoke","water.crest"])
 	if not presets.load_named("Smoldering roots").is_empty() or not is_equal_approx(tune.applied("water.crest"),1.35) or not is_equal_approx(tune.applied("fire.smoke"),.43):return "affinity preset read"

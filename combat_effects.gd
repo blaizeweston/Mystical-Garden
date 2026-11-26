@@ -6,6 +6,8 @@ var stage: Node3D
 const Contacts = preload("res://contact_particles.gd")
 const Delivery = preload("res://weapon_delivery_visuals.gd")
 const Affinities = preload("res://affinity_glyphs.gd")
+const Payoffs=preload("res://build_payoff_visuals.gd")
+var overlap_layout:Dictionary={}
 const ClassArt = preload("res://class_release_visuals.gd")
 const Astral = preload("res://astral_visuals.gd")
 const Shelter = preload("res://shelter_visuals.gd")
@@ -35,6 +37,7 @@ func set_affinity_tuning(values:Dictionary) -> void:
   if hint.has("astral"):Astral.configure(hint.astral,values)
   for plant in hint.get("plants",[]): Affinities.configure(plant,values)
  for effect in active.values():
+  if effect.has("build_payoff"):Payoffs.configure(effect.build_payoff,values)
   if effect.has("class_release"):ClassArt.configure(effect.class_release,values)
   if effect.has("astral"):Astral.configure(effect.astral,values)
   if effect.has("shelter"):Shelter.configure(effect.shelter,values)
@@ -102,6 +105,11 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    if age>=float(contact_overrides.get(family+".lifetime",Contacts.DEFAULTS[family+".lifetime"])):continue
    var strike:=point(event.strike_point) if event.has("strike_point") else at
    effect=Contacts.create(self,family,stage.WILD_OFFSET+strike,strike-point(event.from),event.get("form",""),int(event.id),contact_overrides,impact_emission,event.has("strike_point"))
+  elif Payoffs.accepts(event):
+   var root:=Node3D.new()
+   add_child(root)
+   root.position=stage.WILD_OFFSET
+   effect={"root":root,"build_payoff":Payoffs.create(root,event.shape,point(event.from),at,event.reach,affinity_overrides)}
   elif ClassArt.accepts(event):
    var root:=Node3D.new()
    add_child(root)
@@ -152,9 +160,11 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    if event.shape=="pulled":feedback.text_at("Pulled",point(event.to),Color(event.color),int(event.id),true,3.45)
    elif event.shape=="restored" and int(event.reach)>0:feedback.text_at("+%d"%int(event.reach),point(event.to),Color(event.color),int(event.id))
    elif event.shape=="trophy":feedback.text_at("Trophy stolen",point(event.to),Color(event.color),int(event.id),true)
-  var phase_caption: bool=event.shape in ["rift_shear","wraithcast","frost_close","ironbark","vital_bloom","wood_splinters","riptide_return","tidal_ring_return"] and motion_overrides.get("text.detail",Delivery.CONTROLS["text.detail"][0])==0
+  var phase_caption: bool=event.shape in ["harvest_spend","rift_shear","wraithcast","frost_close","ironbark","vital_bloom","wood_splinters","riptide_return","tidal_ring_return"] and motion_overrides.get("text.detail",Delivery.CONTROLS["text.detail"][0])==0
   if event.kind=="ability" and visible_hit and not phase_caption and not str(event.get("label",event.shape)).is_empty():
-   if event.shape in ["tidal_ring","riptide"]:
+   if event.shape=="shatterwave":
+    feedback.proc_caption("Shatterwave",at,Color("#d1e7ef"),int(event.id),motion_overrides.get("text.detail",0)>0,16.)
+   elif event.shape in ["tidal_ring","riptide"]:
     feedback.proc_caption(str(event.get("label",event.shape)),at,Color("#bcebdd"),int(event.id),motion_overrides.get("text.detail",Delivery.CONTROLS["text.detail"][0])>0)
    elif family!="rupture" or contact_overrides.get("rupture.repeat_labels",0)>0 or not feedback.recent_rupture_near(at):
     feedback.text_at(str(event.get("label",event.shape)),at,Color("#bcebdd"),int(event.id),true)
@@ -173,14 +183,19 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
   active[event.id]=effect
   pose(effect)
  while seen.size()>2048:seen.erase(seen.keys()[0])
+ var layout:Dictionary={}
  var keep: Array=[]
  for warning in telegraphs:
   if warning.role in ["memory_growth","glasscap_feint"]:continue
   keep.append(warning.id)
   if not hints.has(warning.id): hints[warning.id]=visual(Color("#ffa766"))
   var hint: Dictionary=hints[warning.id];hint.event=warning;draw_hint(hint)
+  if hint.has("astral"):layout[warning.id]=hint.astral.position
  for id in hints.keys():
   if not keep.has(id): hints[id].root.queue_free();hints.erase(id)
+ if layout!=overlap_layout:
+  Payoffs.assign_overlaps(hints,layout)
+  overlap_layout=layout
 ## Presentation only. These IDs live outside the replicated event sequence.
 func preview_skill_impact(skill: Dictionary, from: Vector3, to: Vector3, wild: bool, emission: float, form: String, values: Dictionary) -> void:
  for previous in preview_effects: previous.root.queue_free()
@@ -204,6 +219,7 @@ func clear() -> void:
  for collection in [active,hints]:
   for effect in collection.values(): effect.root.queue_free()
   collection.clear()
+ overlap_layout.clear()
  seen.clear()
  feedback.clear()
  statuses.clear()
@@ -233,12 +249,13 @@ func circle(mesh: ImmediateMesh,center: Vector3,radius: float,width: float=.06) 
   ribbon(mesh,center+Vector3(cos(first),0,sin(first))*radius,center+Vector3(cos(second),0,sin(second))*radius,width)
 func pose(effect: Dictionary) -> void:
  var event: Dictionary=effect.event
- if effect.has("class_release"):
+ if effect.has("class_release") or effect.has("build_payoff"):
   var start:=point(event.from)
   var end:=point(event.to)
   var nearest:=start if start.is_equal_approx(end) else Geometry3D.get_closest_point_to_segment(observer,start,end)
   effect.root.visible=nearest.distance_to(observer)<=sight+float(event.reach)
-  ClassArt.seek(effect.class_release,effect.age,event.duration)
+  if effect.has("build_payoff"):Payoffs.seek(effect.build_payoff,effect.age,event.duration)
+  else:ClassArt.seek(effect.class_release,effect.age,event.duration)
   return
  if effect.has("astral"):
   var start:=point(event.from)

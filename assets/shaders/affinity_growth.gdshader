@@ -115,6 +115,7 @@ void vertex(){
 void fragment(){
 	float alpha=opacity;
 	vec3 tint=pigment;
+	if(role==7 && effect==7){tint=mix(tint,vec3(.88,.52,.57),.35*smoothstep(.45,.80,UV.y));}
 	if(role==0){
 		float striation=sin(bark_position.x*35.+sin(bark_position.z*22.)*2.+bark_position.y*14.);
 		tint*=.88+.12*striation;

@@ -67,6 +67,8 @@ func run():
  Frost.apply(g,e,side,2,now)
  var starting:int=g.enemy_health()
  Frost.apply(g,e,-1,3,now)
+ var transfers:Array=g.combat_events.filter(func(row):return row.shape=="avalanche_stack")
+ check(transfers.size()==2 and transfers.all(func(row):return row.kind=="link" and row.from!=row.to and row.combo==1),"only the two propagated stacks produce transfer links")
  check(g.enemy_health()==starting-16,"native rupture and independent Shatterwave coexist")
  check(Frost.rooted(g.tactics.memory,now) and not Frost.rooted(g.tactics.memory,now+151),"Rime Lock adds only its acquired brief root")
  check(g.encounter.hp(side)==10000-2-12-2,"Avalanche may complete a nearby rupture with its independently acquired Shatterwave")

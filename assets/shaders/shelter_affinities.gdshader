@@ -107,6 +107,7 @@ void fragment(){
 		float grain=sin(32.*UV.x+2.8*sin(UV.y*5.+variation*9.));
 		float ridge=1.-smoothstep(.015,.27,abs(UV.x-.5));
 		col=mix(vec3(.19,.086,.040),vec3(.70,.47,.22),clamp(.20+ridge*.42+wood_grain*.20*grain+variation*.18,0.,1.));
+		if(part==2.){col=mix(col,vec3(.77,.68,.49),.29*ridge);}
 	}else if(part==4.){
 		float vein=1.-smoothstep(.012,.11,abs(UV.x-.5+.035*sin(UV.y*8.)));
 		col=mix(vec3(.25,.53,.23),vec3(.91,.84,.48),UV.y*.78+vein*.19);

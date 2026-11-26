@@ -7,7 +7,23 @@ const Campaign = preload("res://campaign.gd")
 const FORMAT := 1
 const CONTROL_DEFAULTS := {"invincible":false,"no_cooldowns":false,"movement":true,"attacks":true}
 const FOCUS_CASES := ["Vanguard practice", "Rootkeeper practice", "Bastion practice", "Thornbinder practice", "Bloomcaller practice", "Silkwarden practice", "Wildstalker practice", "Snarekeeper practice", "Wayfarer practice", "Blood Harvester practice", "Veilwalker practice", "Gravekeeper practice", "Omenreader practice", "Leykeeper practice", "Lifekeeper practice"]
-const STARTERS := ["Stationary target","Sustained damage","Pilgrim cluster","Area attack ring","Spirit echoes"]+FOCUS_CASES
+# Species is equipped in all three affinity sockets. Every acquisition is replayed by Plan.
+const BUILD_CASES := {
+	"Bloodletting practice":["thorn_bloom",["bloodletting"]],
+	"Avalanche practice":["frostbell",["avalanche","shatterwave"]],
+	"Wildfire practice":["ember_fern",["wildfire"]],
+	"Monsoon practice":["dewcap",["monsoon"]],
+	"Splinterburst practice":["ironroot",["splinterburst"]],
+	"Harvest practice":["lantern_moss",["harvest"]],
+	"Conductor practice":["storm_reed",["conductor"]],
+	"Mirrorstep practice":["ghost_fern",["mirrorstep"]],
+	"Wraithcast practice":["ghost_fern",["wraithcast"]],
+	"Singularity practice":["void_willow",["singularity","rift_shear"]],
+	"Dew Shelter practice":["dewcap",["dew_shelter"]],
+	"Echoing Growth practice":["empty",["echoing_growth"]],
+	"Graft responses":["empty",["strike","silken_link","prismatic_echo","chorus_pulse"]]
+}
+static var STARTERS:Array= ["Stationary target","Sustained damage","Pilgrim cluster","Area attack ring","Spirit echoes"]+FOCUS_CASES+BUILD_CASES.keys()
 var catalog_digest := ""
 
 func _prefix() -> String: return "scenario-"
@@ -90,10 +106,30 @@ func builtin(title: String) -> Dictionary:
 		row.class_id=frame.id
 		row.weapon_id=frame.weapons[0].id
 		row.path=[title.trim_suffix(" practice").to_snake_case().replace(" ","_")]
-	var target:=ix in [0,1,4] or title in FOCUS_CASES
-	return {"format":FORMAT,"name":title,"description":"Native Q and R against three lasting targets." if title in FOCUS_CASES else defs[ix],"environment":"testing_arena","terrain":{"seed":0,"depth":1},
+	var group_case:=title in FOCUS_CASES or title in BUILD_CASES
+	if title in BUILD_CASES:
+		var setup:Array=BUILD_CASES[title]
+		row.path=["vanguard"]
+		row.parts.fill("empty" if setup[0]=="empty" else "plant:"+setup[0])
+		if title=="Echoing Growth practice":
+			row.class_id="weaver"
+			row.weapon_id=Plan.Classes.DEFINITIONS[1].weapons[0].id
+			row.path=["bloomcaller"]
+		for id:String in setup[1]:
+			row.upgrades.append({"id":id,"rarity":"Rare" if id in ["shatterwave","rift_shear"] else ""})
+	var target:=ix in [0,1,4] or group_case
+	var description:String
+	if title in FOCUS_CASES:
+		description="Use Q and R against three lasting targets."
+	elif title=="Echoing Growth practice":
+		description="Place Cultivate Bloom beneath the finite targets, then hit them with Spore Nova."
+	elif title in BUILD_CASES:
+		description="Test "+", ".join(BUILD_CASES[title][1])+" against three lasting targets."
+	else:
+		description=defs[ix]
+	return {"format":FORMAT,"name":title,"description":description,"environment":"testing_arena","terrain":{"seed":0,"depth":1},
 		"participants":[row],"encounter":{"type":"Target" if target else "Enemy","enemy":"training_target" if target else "rootbound",
-		"count":3 if title in FOCUS_CASES else 1 if target else 3 if ix==2 else 6,"formation":"Cluster" if title in FOCUS_CASES else "Single" if target else "Cluster" if ix==2 else "Ring","endless":ix in [1,4] or title in FOCUS_CASES},
+		"count":3 if group_case else 1 if target else 3 if ix==2 else 6,"formation":"Cluster" if group_case else "Single" if target else "Cluster" if ix==2 else "Ring","endless":ix in [1,4] or (group_case and title!="Echoing Growth practice")},
 		"controls":CONTROL_DEFAULTS.duplicate(),"preferred_preset":"","fingerprint":fingerprint(),"commit":""}
 
 func get_record(title: String) -> Dictionary:

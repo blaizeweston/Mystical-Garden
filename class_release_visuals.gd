@@ -18,14 +18,17 @@ static var mesh: ArrayMesh
 static func accepts(event:Dictionary) -> bool:
 	return (event.kind=="ability" and event.shape in NATIVE) or (event.kind=="subclass_release" and event.shape in FOCUS)
 
-static func create(parent:Node3D,kind:String,start:Vector3,end:Vector3,radius:float,options:Dictionary,values:Dictionary) -> MeshInstance3D:
+static func stroke_mesh()->ArrayMesh:
 	if mesh==null:
 		var tool:=SurfaceTool.new()
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		Strips.strips(tool,0,9,20)
 		mesh=tool.commit()
+	return mesh
+
+static func create(parent:Node3D,kind:String,start:Vector3,end:Vector3,radius:float,options:Dictionary,values:Dictionary) -> MeshInstance3D:
 	var glyph:=MeshInstance3D.new()
-	glyph.mesh=mesh
+	glyph.mesh=stroke_mesh()
 	glyph.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var mat:=ShaderMaterial.new()
 	mat.shader=SHADER

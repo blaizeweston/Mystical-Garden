@@ -219,6 +219,8 @@ func simultaneous_effects() -> void:
 	var before: int = game.encounter.hp_for(nearby)
 	var point: Vector3 = nearby.pos
 	game.effect_timeline.advance_native(game.native_effects_world,now+280)
+	for shape in ["link","echo","chorus"]:
+		check(game.combat_events.any(func(row):return row.kind=="proc" and row.shape==shape and row.get("form")=="adaptation"),"resolved adaptation keeps its presentation source: "+shape)
 	check(game.encounter.hp_for(nearby)<before and nearby.pos==point and Frost.state(nearby,now+280).is_empty(),
 		"delayed damage reaches the secondary target without movement or a second Form trigger")
 	check(events_for("link").is_empty() and events_for("echo").is_empty() and events_for("chorus").is_empty()

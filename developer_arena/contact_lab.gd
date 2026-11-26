@@ -3,6 +3,7 @@ extends VBoxContainer
 const Contacts = preload("res://contact_particles.gd")
 const Tune = preload("res://developer_arena/tuning.gd")
 const Exhibit = preload("res://developer_arena/garden_exhibit.gd")
+const Payoffs=preload("res://build_payoff_visuals.gd")
 const ClassArt=preload("res://class_release_visuals.gd")
 const Astral=preload("res://astral_visuals.gd")
 const Shelter=preload("res://shelter_visuals.gd")
@@ -13,7 +14,7 @@ const Fire=preload("res://fire_combat.gd")
 const Thorn=preload("res://thorn_affinity.gd")
 const Frost=preload("res://frost_balance.gd")
 const AFFINITY_START:=11
-const AFFINITY_KINDS:=["fire","open","thorn","burning","brittle","bleeding","patch"]+Shelter.PREVIEWS+Astral.PREVIEWS+ClassArt.PREVIEWS
+const AFFINITY_KINDS:=["fire","open","thorn","burning","brittle","bleeding","patch"]+Shelter.PREVIEWS+Astral.PREVIEWS+ClassArt.PREVIEWS+Payoffs.PREVIEWS
 var affinity_samples:Array[MeshInstance3D]=[]
 const WEAPON_SEQUENCE := 9
 const DODGE := 10
@@ -50,7 +51,7 @@ var started := false
 func setup(panel: Control, legacy_controls: Control) -> void:
 	world=panel.world
 	equipped=legacy_controls
-	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom","Reviewed weapon sequence","Dodge foot scuff","Ember Wake","Rime Bloom · both phases","Thorn Line","Burning · target","Brittle · two stacks","Bleed · target","Thorn Form patch"]+Shelter.TITLES+Astral.TITLES+ClassArt.TITLES:
+	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom","Reviewed weapon sequence","Dodge foot scuff","Ember Wake","Rime Bloom · both phases","Thorn Line","Burning · target","Brittle · two stacks","Bleed · target","Thorn Form patch"]+Shelter.TITLES+Astral.TITLES+ClassArt.TITLES+Payoffs.TITLES:
 		selection.add_item(item)
 	add_child(selection)
 	selection.item_selected.connect(func(_index): select_effect())
@@ -147,11 +148,14 @@ func select_effect() -> void:
 func frame_affinity() -> void:
 	camera.look_at(Vector3(0,.6,0))
 	camera.size=float([3.3,4.6,5.8][formation.selected])
-	if AFFINITY_KINDS[selection.selected-AFFINITY_START] in ClassArt.PREVIEWS or AFFINITY_KINDS[selection.selected-AFFINITY_START] in ["gravity_well","singularity","void_collapse"]:
+	if AFFINITY_KINDS[selection.selected-AFFINITY_START] in Payoffs.PREVIEWS or AFFINITY_KINDS[selection.selected-AFFINITY_START] in ClassArt.PREVIEWS or AFFINITY_KINDS[selection.selected-AFFINITY_START] in ["gravity_well","singularity","void_collapse"]:
 		camera.size+=3.4
 
 func duration() -> float:
 	if selection.selected>=AFFINITY_START:
+		if AFFINITY_KINDS[selection.selected-AFFINITY_START] in Payoffs.PREVIEWS:
+			var kind:String=AFFINITY_KINDS[selection.selected-AFFINITY_START]
+			return .36 if kind=="avalanche_stack" else .38 if kind=="harvest_spend" else .55 if kind in ["link","echo","chorus"] else .5
 		if AFFINITY_KINDS[selection.selected-AFFINITY_START] in ClassArt.PREVIEWS:
 			return .67 if AFFINITY_KINDS[selection.selected-AFFINITY_START] in ClassArt.FOCUS else .8
 		match AFFINITY_KINDS[selection.selected-AFFINITY_START]:
@@ -186,7 +190,8 @@ func refresh_ambient() -> void:
 		if latest!=captured_values:
 			captured_values=latest
 			for glyph in affinity_samples:
-				if glyph.has_meta("class_release"):ClassArt.configure(glyph,latest)
+				if glyph.has_meta("payoff_kind"):Payoffs.configure(glyph,latest)
+				elif glyph.has_meta("class_release"):ClassArt.configure(glyph,latest)
 				elif glyph.has_meta("astral_kind"):Astral.configure(glyph,latest)
 				elif glyph.has_meta("shelter_kind"):Shelter.configure(glyph,latest)
 				else:Affinities.configure(glyph,latest)
@@ -246,6 +251,11 @@ func play(advance: bool) -> void:
 		for point in origins():
 			var offset:=Vector3.UP*.24 if kind in Affinities.STATUS else Vector3.ZERO
 			var seed_value:=17+affinity_samples.size()
+			if kind in Payoffs.PREVIEWS:
+				var path:=Vector3.RIGHT*1.6 if kind in Payoffs.LINKS else Vector3.ZERO
+				var radius:float=preload("res://affinity_card_catalog.gd").DEFINITIONS.shatterwave.tuning.radius_m if kind=="shatterwave" else 2.35 if kind=="bloom_echo" else 0.
+				affinity_samples.append(Payoffs.create(scene,kind,point-path*.5,point+path*.5,radius,captured_values))
+				continue
 			if kind in ClassArt.PREVIEWS:
 				var index:=ClassArt.PREVIEWS.find(kind)
 				var frame:Dictionary=Astral.Classes.DEFINITIONS[index]
@@ -346,6 +356,10 @@ func seek(seconds: float) -> void:
 	for glyph in affinity_samples:
 		var phase_time:=clock
 		var end:=duration()
+		if glyph.has_meta("payoff_kind"):
+			glyph.visible=clock<end
+			Payoffs.seek(glyph,clock,end)
+			continue
 		if glyph.has_meta("class_release"):
 			glyph.visible=clock<end
 			ClassArt.seek(glyph,clock,end)

@@ -74,6 +74,8 @@ func run():
  check(Active.owner_state(g,p)[0].active and "On" in Active.owner_state(g,p)[0].name,"one accepted toggle is on; duplicate sequence cannot turn it off")
  attack=shot()
  check(p[Vitals.STATE].hp()==109 and p[Vitals.STATE].max_hp()==112 and attack.stats.vital_primary_bonus_hp==4,"launch spends two filled bonus HP once for four captured damage, preserving capacity")
+ var expenditures:Array=g.combat_events.filter(func(row):return row.shape=="harvest_spend")
+ check(expenditures.size()==1 and expenditures[0].kind=="ability" and expenditures[0].from==expenditures[0].to,"paid Harvest has one actor-local spending cue")
  check(p[Protection.STATE].charge_count()==1,"Harvest resource spending does not consume Ward or trigger incoming-hit defenses")
  var hp: float=p[Vitals.STATE].hp()
  check(not WeaponCase.start(g,1,p.pos) and p[Vitals.STATE].hp()==hp,"a refused repeated attack cannot spend more health")
