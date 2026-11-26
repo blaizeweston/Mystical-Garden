@@ -938,7 +938,10 @@ func _launch_guarded(join: bool) -> void:
 		notice.text="Your personal inventory is held by another Garden. Open the original local Garden or reconnect to the original host first."
 		return
 	if not join and not InventoryCustody.locked(custody) and InventoryCustody.needs_host_assignment(game.progress):
-		var reviewed: Dictionary={"character":game.local_character.identity,"origin":game.progress.archive.origin,"profile":profile.digest,"garden":garden.digest}
+		# A pre-Archive Garden can have a provisional random origin on each read.
+		# Authorize the exact reviewed save paths and durable bytes, not that
+		# transient value. Persist the new origin only in the guarded checkout.
+		var reviewed: Dictionary={"character":game.local_character.identity,"character_path":game.local_character.path,"garden_path":game.progress.path,"profile":profile.digest,"garden":garden.digest}
 		if reviewed_inventory_assignment!=reviewed:
 			var traveller: String=game.local_character.data.name
 			session_owner.release();game.free()

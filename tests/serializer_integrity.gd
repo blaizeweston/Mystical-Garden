@@ -71,17 +71,31 @@ func fixture_legacy() -> void:
 
 func launch() -> Node:
  set_meta(Gate.VALIDATION_ROUTE, true)
- var menu = load(ProjectSettings.get_setting("application/run/main_scene")).instantiate()
- menu.import_legacy = false
- menu.restore_last_character = false
- menu.restore_last_selection = false
- root.add_child(menu)
- current_scene = menu
+ var menu: Node = current_scene
+ if not is_instance_valid(menu) or not menu.has_method("continue_game"):
+  menu = load(ProjectSettings.get_setting("application/run/main_scene")).instantiate()
+  menu.import_legacy = false
+  menu.restore_last_character = false
+  menu.restore_last_selection = false
+  root.add_child(menu)
+  current_scene = menu
  check(menu.production_route and menu.guarded_persistence, "candidate title owns migration admission")
  menu.select_character(0)
  menu.select_slot(0)
  menu.continue_button.pressed.emit()
- check(current_scene != menu and SessionCase.has_guarded_session(current_scene), "guarded legacy save opened through title")
+ if current_scene==menu:
+  var prompt: ConfirmationDialog
+  for child in menu.get_children():
+   if child is ConfirmationDialog and child.title=="Assign legacy personal resources" and child.visible:prompt=child
+  if is_instance_valid(prompt):
+   var reviewed_before:=state()
+   prompt.confirmed.emit()
+   var repeated:=false
+   for child in menu.get_children():
+    if child is ConfirmationDialog and child!=prompt and child.title=="Assign legacy personal resources" and child.visible:repeated=true
+   print("LEGACY ASSIGNMENT ",JSON.stringify({"repeated_prompt":repeated,"opened":current_scene!=menu,"source_bytes_unchanged":state()[G]==reviewed_before[G] and state()[P]==reviewed_before[P]}))
+   check(not repeated,"one approval binds the same raw legacy save, even before Archive origin is persisted")
+ check(current_scene != menu and SessionCase.has_guarded_session(current_scene), "guarded legacy save opened through title: "+menu.notice.text if current_scene==menu else "guarded legacy save opened through title")
  return current_scene if current_scene != menu else null
 
 func result_code(result: Dictionary) -> Batch.Finalization:
@@ -225,8 +239,9 @@ func first_open_migration() -> void:
   and after[GB]==before[G] and after[G+".transaction"]=="absent" and after[P+".txn_stage"]=="absent",
   "startup backup fault preserves originals, exact Garden backup and conflicting profile evidence")
  check(world.progress.needs_content_backup and world.local_character.needs_content_backup
-  and world.status.begins_with("Save cancelled") and not world.progress.garden_interactions.growth.seen.has(Identity),
-  "failed first-open registration restores memory and does not report success")
+  and world.expedition_open_failed and world.players.is_empty() and not world.Progress.Custody.locked(world.local_character.inventory_custody)
+  and world.status=="Could not check inventory into this Garden." and not world.progress.garden_interactions.growth.seen.has(Identity),
+  "failed first-open checkout restores memory and refuses gameplay admission before any spendable actor exists")
  record("initial_continue_migration_abort",before,{"flags":flags(world),"feedback":world.status})
  check(DirAccess.remove_absolute(PB+".tmp")==OK,"remove only the fixture's conflicting scratch")
  world.return_to_main_menu()
@@ -236,7 +251,8 @@ func first_open_migration() -> void:
  world = launch()
  if world == null: return
  check(not flags(world).values().has(true) and world.local_character.identity==Identity
-  and state()[GB]==before[G] and state()[PB]==before[P] and state()[G]!=before[G] and state()[P]!=before[P],
+  and state()[GB]==before[G] and state()[PB]==before[P] and state()[G]!=before[G] and state()[P]!=before[P]
+  and world.progress.legacy_personal_owner==Identity and world.seed_reserve(world.players[1]).stock[0]==3,
   "next title admission reads migrated bytes and preserves both originals")
  record("initial_continue_migration_retry",before,{"flags":flags(world)})
  world.return_to_main_menu()
@@ -254,6 +270,7 @@ func run() -> void:
   return
  if mode.is_empty():
   await first_open_migration()
+  if failed:finish();return
  fixture_legacy()
  # Startup registers the host's growth receipt and can commit the migration.
  # Start on current saves, then install and load controlled older bytes under
@@ -270,11 +287,10 @@ func run() -> void:
   return
  await process_frame
  fixture_legacy()
- for suffix in Ops.MIGRATION_BACKUPS:
-  if FileAccess.file_exists(G + suffix):
-   check(DirAccess.remove_absolute(G + suffix) == OK, "reset disposable Garden backup")
- if FileAccess.file_exists(PB):
-  check(DirAccess.remove_absolute(PB) == OK, "reset disposable profile backup")
+ for path in [G,P]:
+  for suffix in Ops.MIGRATION_BACKUPS:
+   if FileAccess.file_exists(path + suffix):
+    check(DirAccess.remove_absolute(path + suffix) == OK, "reset disposable migration backup")
  check(world.progress.load_garden(false) == OK and world.local_character.load_profile(false) == OK, "load fixture migration state without recovery")
  world.players[1].character = world.local_character.data
  if mode in ["before", "partial"]:
@@ -304,6 +320,14 @@ func run() -> void:
  if world == null:
   quit(1)
   return
+ # INV01 performs a guarded checkout during title admission, so it already
+ # migrates the recovered files. Reinstall the same historical fixture under
+ # the existing leases to isolate the serializer's cleanup-pending boundary.
+ check(not world.expedition_open_failed and world.players.has(1),"recovery reopens through actual guarded checkout")
+ if failed:finish();return
+ fixture_legacy()
+ check(world.progress.load_garden(false)==OK and world.local_character.load_profile(false)==OK,"reload the same historical bytes for the independent serializer cleanup test")
+ world.players[1].character=world.local_character.data
  before = state()
  world.set_meta(&"guarded_gameplay_test_fault", func(phase, _path): return ERR_CANT_CREATE if phase == "publish_receipt" else OK)
  var committed := Tx.run_gameplay(world, Tx.Scope.PAIR, func():
