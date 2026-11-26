@@ -72,7 +72,12 @@ func run() -> void:
 		check(requests.back().command=="depart","departure is requested without changing a participant record")
 	var data := loadout_facts(0,profile)
 	data.counts[1]=2
+	data.personal_parts=Parts.empty_counts();data.personal_parts[1]=1
+	data.shared_parts=Parts.empty_counts();data.shared_parts[1]=1
 	loadout.present(data)
+	loadout.slots[0].select(loadout.slots[0].get_item_index(1))
+	loadout.show_part_preview(0)
+	check("Personal 1 · Shared 1 available" in loadout.slot_summaries[0].text,"equipment source counts remain legible below the compact selector")
 	loadout.select_part(0,1)
 	loadout.present(data)
 	check(loadout.displayed_parts[0]==1 and data.equipment==[0,0,0] and data.counts[1]==2,"optimistic equipment feedback does not equip or consume anything")

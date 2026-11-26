@@ -98,6 +98,7 @@ func _ready():
 		option.allow_reselect=true
 		option.fit_to_longest_item=false
 		option.clip_text=true
+		option.add_theme_constant_override("icon_max_width",28)
 		option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		options.add_child(option)
 		slots.append(option)
@@ -185,10 +186,12 @@ func show_part_preview(slot: int) -> void:
 	var preview: Dictionary = part_previews[slot].get(part, {})
 	var equipped := part == int(displayed_parts[slot])
 	var brief: String = preview.get("summary","")
+	if not str(preview.get("availability","")).is_empty():
+		brief=preview.availability+"\n"+brief
 	slot_summaries[slot].text = brief if equipped else "Preview · " + brief
 	slot_equip_buttons[slot].disabled = equipped or slots[slot].disabled or part < 0
 	slot_equip_buttons[slot].text = "Unequip" if part == 0 and not equipped else "Equip"
-	var detail: String = preview.get("detail","")
+	var detail: String = str(preview.get("detail","")).get_slice("\nSupporting affinities",0)
 	slot_detail_buttons[slot].disabled = detail.is_empty()
 	if detail.is_empty():
 		slot_detail_buttons[slot].set_pressed_no_signal(false)
@@ -239,14 +242,18 @@ func present(data: Dictionary) -> void:
 				if available<=0: continue
 				var icon: String=Items.get_item(Items.part_id(part)).icon
 				var part_title := "%s · %d available" % [Parts.part_name(part), available]
+				var availability: String=""
 				if prepared and personal.size()==counts.size() and shared.size()==counts.size():
 					var own_available:=maxi(0,int(personal[part])-(int(counts[part])-available))
-					part_title="%s · P %d · G %d"%[Parts.part_name(part),own_available,maxi(0,available-own_available)]
+					var communal_available:=maxi(0,available-own_available)
+					part_title="%s · P%d/G%d"%[Parts.part_name(part),own_available,communal_available]
+					availability="Personal %d · Shared %d available"%[own_available,communal_available]
 				option.add_icon_item(load(icon),part_title,part)
 				option.get_popup().set_item_icon_max_width(option.item_count-1,28)
 				var preview := affinity_api.slot_preview(resolved_build,slot_name,part)
+				preview.availability=availability
 				part_previews[slot][part] = preview
-				option.get_popup().set_item_tooltip(option.item_count-1,preview.summary)
+				option.get_popup().set_item_tooltip(option.item_count-1,availability+"\n"+str(preview.summary) if not availability.is_empty() else preview.summary)
 			option.select(maxi(0,option.get_item_index(int(parts[slot]))))
 		var selected_cargo: int=cargo_pick.get_selected_id()
 		cargo_pick.clear()
