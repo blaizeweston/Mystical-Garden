@@ -21,6 +21,7 @@ var failed=false
 var base: String
 var role: String
 var restored_observation := {}
+var first_report := {}
 func check(ok: bool,message: String):
  if not ok: failed=true;printerr("FAIL four players ",role,": ",message)
 func mark(key: String,value: String="ready"):
@@ -180,7 +181,41 @@ func host_run():
    found=true;check(p.character.xp[0]==121,"reconnected character retains progression")
  check(found,"reconnected identity restored")
  check(await until(func():return marked("rejoined_snapshot")),"rejoining guest receives all four peers")
+ if not await verify_next_expedition():return
  mark("done");check(await until(func():return game.players.size()==1),"all guests leave cleanly");game.session_world.leave("Four player test complete")
+func verify_next_expedition() -> bool:
+ var previous_run: int=game.expedition_statistics.result_for(game.local_character.identity).get("run",0)
+ var knowledge: int=game.progress.knowledge
+ # The first trip consumed its prepared materials. Choose empty Cores for the second.
+ for id in game.players:
+  var actor: Dictionary=game.players[id]
+  actor.pos=game.stage.gate_position()
+  game.handle_loadout_action(id,actor,"loadpart_0_0")
+  var focus=Builds.starting_tree(int(actor.frame),actor.character)
+  if focus!=null:game.handle_loadout_action(id,actor,"learn_%d_%d"%[actor.frame,focus.REQUEST_OFFSET])
+ var cost: Dictionary=game.PartyTravel.departure_cost(game,game.players.keys())
+ if not str(cost.error).is_empty():
+  check(false,"second expedition loadouts: "+str(cost.error));return false
+ game.expedition_transitions.enter(1)
+ mark("second-depart")
+ if not await until(func():return game.participation.participants().size()==4):
+  check(false,"the rejoined party departs on a second expedition: "+str([game.party_travel_state(),game.status]));return false
+ var run: int=game.participation.run_id()
+ check(previous_run>0 and run>previous_run,"a new expedition supersedes the first report")
+ mark("second-run",str(run))
+ if not await until(func():return all_guests_marked("second-entry")):
+  check(false,"all three guests acknowledge the new expedition entry");return false
+ for id in game.players:
+  IncomingPlayerHit.apply_health_loss(game,id,PlayerLifecycle.generation(game.players[id]),999)
+ if not await until(func():return all_guests_marked("second-result")):
+  check(false,"every guest receives the second expedition's party-wipe report");return false
+ var report: Dictionary=game.ui.visible_expedition_result()
+ check(report.get("run")==run and report.get("outcome")=="Party wipe","host receives the second report")
+ var archive: Dictionary=game.progress.archive
+ check(archive.garden.runs==2 and archive.garden.wipes==1 and archive.garden.extracts==1
+  and game.progress.knowledge==knowledge,"report delivery and dismissal preserve one settlement per expedition")
+ return true
+
 func all_guests_marked(stage: String) -> bool:
  for index in range(1,4):
   if not marked("%s-%d"%[stage,index]):return false
@@ -279,6 +314,7 @@ func verify_vitals_marker(stage: String,index: int) -> void:
   var report: Dictionary=game.ui.visible_expedition_result()
   if report.is_empty():return
   check(report.players.size()==4 and report.players[report.personal_index].name=="Player "+str(index) and report.party.kills==1,"four bound records and one party kill")
+  first_report = report.duplicate(true)
   var finished: int=report.players.filter(func(row):return row.outcome=="Extraction").size()
   check(finished==([1,2,4][index-1]),"each recipient sees the expedition as of their own committed extraction")
   game.ui.close_panels()
@@ -345,11 +381,26 @@ func guest_run(index: int):
    if index==1 and not revive_requested and marked("revive"):
     game.send_action(false)
     revive_requested=true
+   if marked("second-run"):
+    var next_run:=int(FileAccess.get_file_as_string(base+"-second-run"))
+    if not marked("second-entry-"+str(index)) and ExpeditionCase.is_wild(game.players.get(id,{})) and game.ui.visible_expedition_result().is_empty():
+     mark("second-entry-"+str(index))
+    var report: Dictionary=game.ui.visible_expedition_result()
+    if report.get("run")==next_run and not marked("second-result-"+str(index)):
+     check(report.outcome=="Party wipe" and report.players.size()==4 and report.players[report.personal_index].name=="Player "+str(index),"second report belongs to the current run and character")
+     var binding: String=game.network_session.accepted_connection_key()
+     var identity: String=game.guest_character.identity
+     game.receive_expedition_result(binding,identity,first_report.run,first_report)
+     check(game.ui.visible_expedition_result()==report,"late first-run report preserves the visible second report")
+     game.ui.close_panels()
+     game.receive_expedition_result(binding,identity,next_run,report)
+     check(game.ui.visible_expedition_result().is_empty(),"duplicate second-run report respects dismissal")
+     mark("second-result-"+str(index))
    var state=game.party_travel_state()
    if state.get("kind","")=="extract" and game.participation.floor()==12:
     if (index==1 or (index==2 and marked("second-extract"))) and not epochs.has(state.epoch) and not state.get("individual","").is_empty():
      game.send_garden_action(state.individual);game.send_garden_action(state.individual);epochs[state.epoch]=true
-   elif not state.is_empty() and not epochs.has(state.epoch) and not marked("disconnect") and (state.kind=="depart" or ExpeditionCase.is_wild(game.players.get(id,{}))):
+   elif not state.is_empty() and not epochs.has(state.epoch) and (not marked("disconnect") or marked("second-depart")) and (state.kind=="depart" or ExpeditionCase.is_wild(game.players.get(id,{}))):
     if state.kind!="depart" or index!=3 or marked("last_ready"):
      if not UIFixture.control(game,"checkpoint_menu").visible:
       game.send_travel_ready(false);epochs[state.epoch]=true
