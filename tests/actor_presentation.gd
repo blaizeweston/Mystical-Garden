@@ -12,6 +12,7 @@ class Shell extends Node:
 	var overlay:=true
 	var closes:=0
 	func is_overlay_open()->bool:return overlay
+	func panel_is_open(_kind:String)->bool:return false
 	func close_panels()->void:overlay=false;closes+=1
 
 class DisplayStage extends Node3D:
