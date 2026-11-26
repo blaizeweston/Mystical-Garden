@@ -12,7 +12,7 @@ const Gate = preload("res://persistence_writer_integration.gd")
 const Ops = preload("res://persistence_operations.gd")
 const Plan = preload("res://persistence_recovery_plan.gd")
 var garden_path := "user://saves/slot_1/garden.cfg"
-const C := "user://saves/characters/slot_1/character.cfg"
+var C := "user://saves/characters/slot_1/character.cfg"
 var failed := false
 var world: Node
 
@@ -88,7 +88,12 @@ func run() -> void:
   return
  await gameplay()
  if not failed:
+  # The first profile may still have inventory in its original Garden after
+  # the terminal fault cases. A separate disposable character owns slot two;
+  # never bypass custody or overwrite the first Garden's valid handoff.
+  current_scene.select_character(1)
   current_scene.select_slot(1)
+  C = "user://saves/characters/slot_2/character.cfg"
   garden_path = "user://saves/slot_2/garden.cfg"
   await caller_effects()
  if not failed: print("PASS: guarded Garden actions, harvest, modern cards, loadouts, abort, uncertainty and cleanup")
@@ -135,11 +140,11 @@ func gameplay() -> void:
  var items = world.Items
  var before := disk()
  p.pos = world.stage.altar_position()
- world.progress.stock[0] = 4
- world.progress.stock[1] = 4
+ world.seed_reserve(p).stock[0] = 4
+ world.seed_reserve(p).stock[1] = 4
  world.garden_action(1,"experiment")
  world.garden_action(1,"breed_0_1")
- check(world.progress.stock[0]==4 and world.progress.stock[1]==4 and disk()==before,"retired experiment commands cannot transact")
+ check(world.seed_reserve(p).stock[0]==4 and world.seed_reserve(p).stock[1]==4 and disk()==before,"retired experiment commands cannot transact")
  var altar_before := disk()
  var ingredients := [{"source":"stash","item":items.seed_id(0)},{"source":"stash","item":items.seed_id(1)}]
  var recipes_before: Dictionary = world.progress.altar_recipes.duplicate(true)
@@ -148,11 +153,11 @@ func gameplay() -> void:
  world.send_altar_action("combine",ingredients,1)
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(disk()==altar_before and world.progress.altar_recipes==recipes_before and world.rng.state==altar_rng
-  and world.status.begins_with("Save cancelled"),"Altar combine abort restores ingredients, recipes and RNG")
+  and world.seed_reserve(p).stock[0]==4 and world.seed_reserve(p).stock[1]==4 and world.status.begins_with("Save cancelled"),"Altar combine abort restores ingredients, recipes and RNG")
  record("altar_combine_abort",altar_before,{"feedback":world.status})
  world.send_altar_action("combine",ingredients,2)
  check(disk()[garden_path]!=altar_before[garden_path] and disk()[C]==altar_before[C]
-  and world.progress.altar_recipes.size()==recipes_before.size()+1,"Altar combine commits Garden-only recipe")
+  and world.seed_reserve(p).stock[0]==3 and world.seed_reserve(p).stock[1]==3 and world.progress.altar_recipes.size()==recipes_before.size()+1,"Altar combine commits one recipe and consumes the personal ingredients")
  record("altar_combine_commit",altar_before,{"feedback":world.status})
  world.seed_reserve(p).unknown.assign([0,1])
  var identify_before := disk()
@@ -167,16 +172,17 @@ func gameplay() -> void:
   and disk()[C]==identify_before[C],"identify-all commits only Garden")
  record("identify_all_commit",identify_before,{"feedback":world.status})
  # Restore the ingredient count needed by the independent donation scenarios.
- world.progress.stock[0]=2
- world.progress.stock[1]=2
+ world.seed_reserve(p).stock[0]=2
+ world.seed_reserve(p).stock[1]=2
  p.pos = world.Stage.HEART
  world.seed_reserve(p).parts[1] = 2
  var shared: int = world.progress.part_count(1)
  world.garden_action(1,"donate")
  check(world.seed_reserve(p).parts[1]==1 and world.progress.part_count(1)==shared+1 and world.status.begins_with("Donated"), "part donation commits shared storage")
+ var shared_seeds: int=world.InventoryModel.reserve(world,p,"shared").stock[0]
  world.handle_inventory_action(1,p,JSON.stringify({"operation":"transfer","source":"stash","target":"shared","item":items.seed_id(0),"quantity":1}))
- check(world.progress.stock[0]==1 and world.status.contains("Moved"), "seed donation uses guarded stash transfer")
- record("experiment_breeding_donations",before,{"stock":world.progress.stock.slice(0,3),"status":world.status})
+ check(world.seed_reserve(p).stock[0]==1 and world.InventoryModel.reserve(world,p,"shared").stock[0]==shared_seeds+1 and world.status.contains("Moved"), "seed donation uses guarded stash transfer")
+ record("experiment_breeding_donations",before,{"stock":world.seed_reserve(p).stock.slice(0,3),"status":world.status})
  world.progress.knowledge = 40
  world.progress.add_parts(1, 4)
  var research_before := disk()
@@ -254,9 +260,9 @@ func gameplay() -> void:
  p.pos = world.stage.station_position("seed_archive")
  world.progress.discoveries[0] = true
  world.seed_reserve(p).parts[int(world.Seeds.DEFINITIONS[0].part)] = 20
- var seed_count: int = world.progress.stock[0]
- world.garden_action(1,"care_reclaim_0")
- check(world.progress.stock[0]==seed_count+1 and world.status.begins_with("Reclaimed"), "reclaim commits replacement seed")
+ var seed_count: int = world.seed_reserve(p).stock[0]
+ world.garden_action(1,"care_reclaim_0_%d"%world.reclamation_cost(0))
+ check(world.seed_reserve(p).stock[0]==seed_count+1 and world.status.begins_with("Reclaimed"), "personal-only reclaim commits a personal replacement seed")
  p.pos = world.stage.station_position("monster_studies")
  world.seed_reserve(p).parts[parts.HOOK] = 1
  var knowledge: int = world.progress.knowledge
@@ -323,15 +329,16 @@ func gameplay() -> void:
  mature(0,0)
  before=disk()
  rng_before=world.rng.state
- seed_count=world.progress.stock[0]
+ seed_count=world.InventoryModel.reserve(world,p,"shared").stock[0]
+ var personal_seed_count: int=world.seed_reserve(p).stock[0]
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):return ERR_CANT_CREATE if phase=="publish_receipt" else OK)
  world.garden_action(1,"flower")
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.refresh_feedback()
- check(world.progress.stock[0]==seed_count+2 and p.character.plants[0]==2 and world.rng.state==rng_before and audio_count()==start_audio+2
+ check(world.InventoryModel.reserve(world,p,"shared").stock[0]==seed_count+2 and world.seed_reserve(p).stock[0]==personal_seed_count and p.character.plants[0]==2 and world.rng.state==rng_before and audio_count()==start_audio+2
   and disk()[garden_path]!=before[garden_path] and disk()[C]!=before[C] and Plan.discover(PackedStringArray([garden_path])).state=="pending_recovery"
   and UIFixture.control(world,"feedback").text.contains("Harvested 2") and UIFixture.control(world,"feedback").text.contains("Recovery cleanup is pending"),
-  "flowering confirmed with one success/audio and retained cleanup warning")
+  "shared propagation confirmed with one success/audio and retained cleanup warning")
  var committed:=disk()
  world.garden_action(1,"flower")
  check(disk()==committed and audio_count()==start_audio+2,"pending blocks replay")

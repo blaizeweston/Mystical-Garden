@@ -1,4 +1,5 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
 const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
@@ -334,8 +335,12 @@ func siphon_effects() -> void:
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, Time.get_ticks_msec()+3000)
 	now=Time.get_ticks_msec()
 	cast(1)
-	check(is_equal_approx(player.pos.x,-1.36) and game.enemy_health()==280 and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=now+20
-		and field.projectile_clear(player.pos,game.tactics.position,.03),"water stops Veil Dance but the legal Siphon Cut still recovers dodge")
+	# The certified motion sweep may use the small legal gap before the bank,
+	# but the character's entire radius must remain outside the water.
+	check(player.pos.x>-1.36 and player.pos.x<=-1.0-Surface.CLEARANCE and is_zero_approx(player.pos.z)
+		and field.ground.walkable(field.planar(player.pos)) and game.enemy_health()==280
+		and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=now+20
+		and field.projectile_clear(player.pos,game.tactics.position,.03),"water bounds Veil Dance at legal bank clearance while Siphon Cut still hits and recovers dodge")
 	prepare(DANCE)
 	cast(0)
 	player.pos=Vector3.ZERO

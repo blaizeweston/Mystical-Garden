@@ -24,6 +24,8 @@ func run():
  var view=game.get_node("GardenInteractions")
  var seeds: Array=game.seed_reserve(p).stock
  var before: int=seeds[0]
+ var shared: Array=game.InventoryModel.reserve(game,p,"shared").stock
+ var shared_before: int=shared[0]
  game.progress.discoveries[0]=true;game.progress.parts[0]=10
  game.garden_action(1,"care_reclaim_0")
  check(seeds[0]==before and game.progress.parts[0]==10,"Heart cannot reclaim a seed")
@@ -52,7 +54,7 @@ func run():
    check(archive.grid.get_children().any(func(cell):return cell.text=="Damage prevented on this character"),"personal protection is labeled by recipient")
   if station=="seed_archive":
    view.station_controls.apply.pressed.emit()
-   check(game.seed_reserve(p).stock[0]==before+1 and game.progress.parts[0]==10-game.reclamation_cost(0),"station button completes reclamation")
+   check(shared[0]==shared_before+1 and seeds[0]==before and game.progress.parts[0]==10-game.reclamation_cost(0),"station button completes shared-only reclamation into the shared Garden")
   p.pos=game.Stage.HEART
   view._process(0.0)
   check(not view.station_panel.visible,"walking away closes "+station)

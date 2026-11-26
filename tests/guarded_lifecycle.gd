@@ -153,8 +153,10 @@ func run() -> void:
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  before=disk()
  world.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
- check(not world.participation.active() and disk()[G]!=before[G] and disk()[G.get_base_dir().path_join("session.cfg")]=="absent"
-  and disk()[C.get_base_dir().path_join("session.cfg")]=="absent" and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"window close settles pouch, detaches and releases both leases")
+ var saved_garden:=ConfigFile.new()
+ check(world.expedition_saved_for_exit and not world.progress.suspended_expedition.is_empty() and saved_garden.load(G)==OK
+  and saved_garden.get_value("expedition","suspended",{})==world.progress.suspended_expedition and disk()[G]!=before[G] and disk()[G.get_base_dir().path_join("session.cfg")]=="absent"
+  and disk()[C.get_base_dir().path_join("session.cfg")]=="absent" and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"window close suspends the expedition, detaches and releases both leases")
  record("window_close",before,{"offline":true,"wild":world.participation.active()})
  if not failed:print("PASS: guarded lifecycle, preference isolation and title recovery")
  quit(1 if failed else 0)

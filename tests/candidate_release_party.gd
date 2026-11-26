@@ -183,6 +183,12 @@ func host() -> void:
  var leaving: int = player_id(game,"1")
  var identity: String = SessionCase.Session.inventory_owner(game.players[leaving])
  var kills: int = game.players[leaving].character.monsters[kind]
+ # Normal Wilds transport loss reserves the rejoin seat (covered by
+ # wild_flora_party and inventory_custody_party). This specific boundary test
+ # exercises the still-supported guarded settlement fallback when the seat
+ # cannot be parked, so inject the missing rejoin authorization explicitly.
+ check(not game.players[leaving].get("rejoin_digest","").is_empty(),"ordinary guest was admitted with a rejoin ticket")
+ game.players[leaving].erase("rejoin_digest")
  game._queue_monster_reward("pending-on-disconnect",kind,0,game.tactics.position,false)
  var disconnect_key: String = game.monster_rewards.pending_receipts()[0].key
  game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):
@@ -405,10 +411,19 @@ func guest(role: String) -> void:
   game.remove_meta(&"guarded_gameplay_test_fault")
   mark("class-abort-done")
   check(await until(func():return read("reconnect-ready")=="yes"),"host observes aborted class projection")
-  game.session_world.leave("Reconnect acceptance")
-  check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer and not FileAccess.file_exists(P.get_base_dir().path_join("session.cfg")),"guest releases lease before reconnect")
+  # This case is recovery of an unconfirmed host projection after a transport
+  # interruption. A graceful inventory check-in now waits for that projection
+  # to commit, which would repair the case before the intended reconnect.
+  game.session_world.offline()
+  game.return_to_main_menu("Reconnect interrupted guest")
+  if not await until(func():return SessionCase.returned_to_guarded_title(current_scene) and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer and not FileAccess.file_exists(P.get_base_dir().path_join("session.cfg"))):
+   check(false,"guest releases lease before reconnect");return
   await process_frame
   menu=current_scene
+  var held:=ConfigFile.new()
+  check(held.load(P)==OK and FileAccess.get_sha256(P)==class_before
+   and held.get_value("character","inventory_custody",{}).get("state")=="away",
+   "interruption preserves the unconfirmed profile and its durable custody lock")
   game=connect_to_host(menu)
   if game==null: return
   game_id=game.get_instance_id()
@@ -549,7 +564,7 @@ func create_character(menu: Node, name: String) -> void:
 
 
 func connect_to_host(menu: Node) -> Node:
- menu.join_button.pressed.emit()
+ if not menu.network_dialog.visible:menu.join_button.pressed.emit()
  check(menu.network_dialog.visible,"Join by IP opens real title dialog")
  menu.network_dialog.address_field.text = "127.0.0.1:" + read("port")
  menu.network_dialog.submit.pressed.emit()

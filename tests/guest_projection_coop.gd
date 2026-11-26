@@ -253,7 +253,13 @@ func guest() -> void:
      world.persistence_session._heartbeat_at=0.0
     check(await until(func():return current_scene!=world),"cleanup-pending heartbeat returns guest to title")
     check(current_scene.persistence_return_view().get("notice", "")==Tx.CLEANUP_NOTICE,"cleanup notice survives title handoff")
-   elif is_instance_valid(world) and current_scene == world: world.return_to_main_menu()
+   elif is_instance_valid(world) and current_scene == world:
+    # Interrupt the transport, rather than request a graceful custody release
+    # which would itself repair the missing projection before reconnect.
+    world.session_world.offline()
+    world.return_to_main_menu()
+   if not await until(func():return not is_instance_valid(world) or current_scene!=world):
+    check(false,"guest releases profile lease and returns to title after "+key);return
    check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest offline before world detach")
    await process_frame
    if key in ["cleanup","uncertain"]:

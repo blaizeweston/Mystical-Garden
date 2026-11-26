@@ -69,10 +69,10 @@ func run() -> void:
  clear_floor(actor,3)
  world.progress.heart.unlocked.append("checkpoint_deposit")
  actor.carried_seeds=[0,1]
- var stored_before: int=world.progress.unknown.size()
+ var stored_before: int=world.seed_reserve(actor).unknown.size()
  ExpeditionCase.returning_root(world,actor,"forfeiture")
  world.garden_action(1,ExpeditionCase.deposit_request(world,actor,"unidentified_seed"))
- check(world.progress.unknown.size()==stored_before+1 and not world.can_use_returning_root(actor),"courier delivery commits before abandonment")
+ check(world.seed_reserve(actor).unknown.size()==stored_before+1 and not world.can_use_returning_root(actor),"courier delivery commits to the character reserve before abandonment")
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[1]}]
  actor.carried_parts[1]=2
  actor.carried_items={"fixture":1}
@@ -88,7 +88,7 @@ func run() -> void:
  check(not ExpeditionCase.is_wild(actor) and actor.character.xp==baseline_xp and actor.character.monsters==baseline_known,"abandonment revokes banked and pending rewards across floors")
  var tree_key: String=world.Classes.connected_tree(int(actor.frame)).profile_key
  check(actor.character.plants==before_profile.plants and actor.character[tree_key]==before_profile[tree_key],"pre-entry plants and learned investments are not rewound")
- check(world.progress.unknown.size()==stored_before+1 and actor.safe_items.is_empty() and actor.carried_seeds.is_empty()
+ check(world.seed_reserve(actor).unknown.size()==stored_before+1 and actor.safe_items.is_empty() and actor.carried_seeds.is_empty()
   and actor.carried_items.is_empty() and actor.carried_parts.all(func(n):return n==0) and world.run_wallet(actor)==0,"courier is retained; carried loot, safe pouch and wallet are discarded")
  verify_disk(baseline_xp)
  before=disk()
@@ -156,11 +156,17 @@ func run() -> void:
  var before_close: Array=actor.character.xp.duplicate()
  enter_run(actor)
  bank_floor(actor)
- # quit() is requested at the end of this frame, so the fixture can verify
- # canonical bytes and write its verdict after delivering the actual callback.
+ # An actual window close now uses Save & Quit, rather than the explicit
+ # abandonment path. The banked progression and suspended combat state must
+ # be saved exactly once; the profile remains in the Garden's custody.
+ var banked_close: Array=actor.character.xp.duplicate()
+ check(banked_close!=before_close,"window-close fixture has actual banked progression")
  world.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
- check(actor.character.xp==before_close and not world.participation.active()
-  and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"actual window-close notification forfeits and detaches safely")
- verify_disk(before_close)
- if not failed: print("PASS: whole-run forfeiture, courier exception, rollback, wipe, title, close, cleanup and uncertainty")
+ var saved_garden:=ConfigFile.new()
+ check(world.expedition_saved_for_exit and not world.progress.suspended_expedition.is_empty()
+  and actor.character.xp==banked_close and saved_garden.load(G)==OK
+  and saved_garden.get_value("expedition","suspended",{})==world.progress.suspended_expedition
+  and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"actual window-close notification suspends the fight and detaches safely")
+ verify_disk(banked_close)
+ if not failed: print("PASS: whole-run forfeiture, courier exception, rollback, wipe, title, Save & Quit close, cleanup and uncertainty")
  quit(1 if failed else 0)

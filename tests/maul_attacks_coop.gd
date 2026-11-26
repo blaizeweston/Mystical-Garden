@@ -47,7 +47,16 @@ func host_run() -> void:
 	if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return Session.ready_for(p))):check(false,"registration");return
 	var peer: int=game.players.keys().filter(func(id):return id!=1)[0]
 	var player: Dictionary=game.players[peer]
-	Expedition.set_membership(game,player,true)
+	# Use real expedition admission so the disconnect has a real run identity,
+	# return provenance, and statistics receipt for the continuation owner.
+	var tree=game.Classes.connected_tree(int(player.frame))
+	if tree.focus(player.character).is_empty():
+		player.pos=game.Stage.HEART
+		game.handle_loadout_action(peer,player,"learn_%d_%d"%[player.frame,tree.REQUEST_OFFSET])
+	player.pos=game.stage.gate_position()
+	if not game.Transactions.run(game,func():return game.expedition_transitions.admit(peer)):
+		check(false,"real expedition admission for animation/disconnect case");return
+	check(Expedition.is_wild(player) and player.has("garden_run_id"),"admission provides real return provenance")
 	player.frame=0;player.weapon_kind=2;player.weapon=0;player.secondary=0;player.catalyst=0
 	player.pos=Vector3.ZERO;player[Actions.STATE]=Actions.State.new()
 	game.encounter.set_hp(-1,1000);game.encounter.clear_scouts()

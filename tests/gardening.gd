@@ -42,9 +42,11 @@ func run():
 	check(game.progress.plots[1].species == 1, "duplicate crops can grow in separate beds")
 
 	game.progress.advance_growth(float(game.Seeds.DEFINITIONS[1].grow_seconds))
-	var seeds_before: int = reserve.stock[1]
+	var shared: Dictionary = game.InventoryModel.reserve(game,p,"shared")
+	var seeds_before: int = shared.stock[1]
+	var personal_before: int = reserve.stock[1]
 	game.send_garden_action("flower")
-	check(game.progress.plots[1].species == -1 and reserve.stock[1] == seeds_before + 2, "seed harvest also clears the bed")
+	check(game.progress.plots[1].species == -1 and shared.stock[1] == seeds_before + 2 and reserve.stock[1] == personal_before, "seed harvest clears the bed and awards seeds to the shared Garden")
 	game.progress.parts.assign([30,0,0])
 	game.progress.knowledge = 60
 	p.pos = Stage.HEART
@@ -72,7 +74,7 @@ func run():
 	game.progress.knowledge = 400
 	check(game.progress.heart.has("cultivation_grounds") and game.progress.plots.size() >= 4, "placed beds have persistent crop slots")
 	await process_frame
-	if not failed: print("PASS: universal plots, growth stages, harvest/replant, flowering, expansion, migration and camera bounds")
+	if not failed: print("PASS: universal plots, growth stages, harvest/replant, starting propagation, expansion, migration and camera bounds")
 	quit(1 if failed else 0)
 
 

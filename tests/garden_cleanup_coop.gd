@@ -15,9 +15,9 @@ func until(predicate: Callable) -> bool:
  var deadline=Time.get_ticks_msec()+18000
  while not predicate.call() and Time.get_ticks_msec()<deadline:await process_frame
  return predicate.call()
-func bottom() -> bool:
- var panel=UIFixture.control(game,"progression_view");var bar=panel.tree_scroll.get_v_scroll_bar()
- return panel.is_visible_in_tree() and bar.max_value>bar.page and absi(panel.tree_scroll.scroll_vertical-roundi(bar.max_value-bar.page))<=1
+func knowledge_visible() -> bool:
+ var panel=UIFixture.control(game,"progression_view")
+ return panel.is_visible_in_tree() and panel.tabs.current_tab==1 and panel.research_list.is_visible_in_tree() and panel.research_tabs.tab_count==3
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
  role=OS.get_cmdline_user_args()[0];base="res://.godot/garden-clean-net-"+OS.get_cmdline_user_args()[1]
@@ -25,7 +25,7 @@ func run() -> void:
  if role=="host":await host_run()
  else:await guest_run()
  game.queue_free();await process_frame
- if not failed:print("PASS: Garden cleanup co-op ",role," remote bottom anchoring, hidden legacy state, retired command rejection and shared Knowledge-only beds")
+ if not failed:print("PASS: Garden cleanup co-op ",role," remote Knowledge branch navigation, hidden legacy state, retired command rejection and shared Knowledge-only beds")
  quit(1 if failed else 0)
 func host_run() -> void:
  check(game.session_world.host()==OK,"host opens")
@@ -59,17 +59,21 @@ func guest_run() -> void:
  var id=game.multiplayer.get_unique_id();var panel=UIFixture.control(game,"progression_view")
  check(await until(func():return game.guest_replication.garden_progress().size()>13 and game.guest_replication.garden_progress()[6]==100 and game.players[id].pos.distance_to(game.Stage.HEART)<1),"Garden state arrives")
  game.send_action(false)
- check(await until(func():return panel.tabs.current_tab==1 and bottom()),"remote E opens the tree at its base")
+ check(await until(func():return knowledge_visible() and panel.research_tabs.current_tab==0 and panel.nodes.size()==2),"remote E opens Garden Development in the three-branch Knowledge catalog")
+ panel.research_tabs.current_tab=1
+ check(await until(func():return panel.research_list.item_count==20),"remote guest sees twenty Cultivation purchases")
+ var index: int=panel.research_list.item_count-1
+ panel.research_list.select(index);panel.research_list.item_selected.emit(index)
+ check(panel.chosen=="heart_seed_archive","guest can inspect the last Cultivation purchase")
  check(not panel.nodes.any(func(n):return n.id=="heart_perfect_recollection"),"guest sees no deferred ending route")
  check(game.guest_replication.campaign()[5]==0 and game.guest_replication.campaign()[17]==0 and game.Progress.decode_plots(game.guest_replication.garden_progress()[12]).all(func(b):return not b.has("offshoot")),"guest receives no blocking legacy offshoot or ending state")
  for action in ["expand_plot","nurture","harvest_offshoot","awaken"]:game.send_garden_action(action)
  await create_timer(.4).timeout;mark("retired")
- panel.tree_scroll.scroll_vertical=0
  check(await until(func():return marked("research") and game.Progress.decode_plots(game.guest_replication.garden_progress()[12]).size()==4),"host's Knowledge-tree expansion synchronizes")
  await create_timer(.3).timeout
- check(panel.tree_scroll.scroll_vertical==0,"research synchronization preserves manual scroll")
+ check(panel.research_tabs.current_tab==1 and panel.research_list.is_selected(index) and panel.chosen=="heart_seed_archive","research synchronization preserves the inspected purchase and branch")
  panel.tabs.current_tab=3;panel.refresh();check(panel.care.stories!=null,"guest Heart shows read-only Garden stories")
- panel.tabs.current_tab=1;check(await until(bottom),"returning to Knowledge resets to bottom")
+ panel.tabs.current_tab=1;check(await until(func():return knowledge_visible() and panel.research_tabs.current_tab==1),"returning to Knowledge restores the selected branch")
  mark("verified")
  if not await until(func():return marked("trophy_ready") and game.heart_state().unlocked.has("monster_studies")):check(false,"offering unlock arrives");return
  game.send_garden_action("care_offer_%d"%game.Parts.HOOK)

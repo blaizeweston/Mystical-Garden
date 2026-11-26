@@ -17,8 +17,11 @@ func run() -> void:
   var entry: Dictionary=upgrades.DEFINITIONS[id]
   for phrase in ["weighted", "committed contact", "bounded echo", "a living technique shaped", "draw a stronger expression", "refine the living form"]:
    check(not str(entry.description).to_lower().contains(phrase), "upgrade copy avoids implementation wording " + id)
+  check(not str(entry.description).to_lower().contains("provisional") and not str(entry.detail).to_lower().contains("provisional"),
+   "upgrade descriptions and details exclude provisional tuning milestones "+id)
  check(classes.effect_text({"windup_damage": 1}).contains("during enemy wind-up"), "wind-up damage identifies the enemy's attack phase")
- check(heart.get_node("pollination_bloom").description.contains("mature"), "Pollination Bloom describes its mature harvest benefit")
+ var pollination: String=heart.get_node("pollination_bloom").description
+ check(pollination.contains("Seed harvests within 3 m") and pollination.contains("3 seeds instead of 2"), "Pollination Bloom states its localized seed harvest benefit")
  var game = load("res://world.tscn").instantiate()
  var base := "res://.godot/ui-copy-" + Crypto.new().generate_random_bytes(8).hex_encode()
  game.progress.path = base + ".cfg"
@@ -56,5 +59,5 @@ func run() -> void:
  game.queue_free()
  await process_frame
  if not failed:
-  print("PASS: concise interaction prompts, upgrade copy, wind-up labels and current Flowering description")
+  print("PASS: concise interaction prompts, upgrade copy, wind-up labels and current Pollination Bloom description")
  quit(1 if failed else 0)

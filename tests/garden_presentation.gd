@@ -7,6 +7,7 @@ const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
 const Character = preload("res://character_profile.gd")
+const Appearance = preload("res://character_appearance.gd")
 const Orb = preload("res://health_orb.gd")
 var failed := false
 func check(ok: bool, message: String):
@@ -49,6 +50,10 @@ func run():
 	game._process(.016)
 	check(game.stage.experimental_garden != null, "modern Garden owns the visible sanctuary")
 	var actor: Dictionary = game.stage.avatar_models[1]
+	check(p.character.appearance[Appearance.HOOD]==1 and not actor.field_rig.scene.find_child("FieldHair1",true,false).visible, "hood conceals the retained hairstyle")
+	game.garden_action(1,"look_5")
+	game._process(.016)
+	actor=game.stage.avatar_models[1]
 	check(actor.field_rig.scene.find_child("FieldHair1",true,false).visible and not actor.field_rig.scene.find_child("FieldHair0",true,false).visible, "selected field hair is visible without overlapping other styles")
 	check(game.player_snapshot(999)[1].appearance is PackedByteArray, "appearance synchronization stays compact")
 	game.queue_free();await process_frame

@@ -7,8 +7,10 @@ const SessionCase = preload("res://tests/support/session_case.gd")
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Slots=preload("res://save_slots.gd")
 const Character=preload("res://character_profile.gd")
+const Appearance=preload("res://character_appearance.gd")
 const Grafts=preload("res://expedition_grafts.gd")
 const Cards=preload("res://affinity_cards.gd")
+const LEGACY_LOOK=[1,2,1,2,1,1,70,80,40,65,35,60,75]
 var failed:=false
 var game: Node
 func check(ok: bool,message: String):
@@ -37,7 +39,7 @@ func run():
 		profile.load_profile()
 		profile.data.name="Willow"
 		profile.data.xp[0]=3
-		profile.data.appearance=[1,2,1,2,1,1,70,80,40,65,35,60,75]
+		profile.data.appearance=LEGACY_LOOK.duplicate()
 		profile.save_profile()
 	var menu=load("res://main_menu.tscn").instantiate()
 	menu.storage.root_path=storage.root_path
@@ -62,7 +64,7 @@ func run():
 		var guest_id: int=game.players.keys()[1]
 		if not await until(func(): return SessionCase.Session.ready_for(game.players[guest_id])):
 			check(false,"guest profile registered");finish(mode);return
-		check(game.players[guest_id].character.name=="Willow" and game.players[guest_id].character.xp[0]==3 and game.players[guest_id].character.appearance==[1,2,1,2,1,1,70,80,40,65,35,60,75],"Join carries the selected slot character")
+		check(game.players[guest_id].character.name=="Willow" and game.players[guest_id].character.xp[0]==3 and game.players[guest_id].character.appearance==Appearance.normalize(LEGACY_LOOK),"Join carries the selected slot character and migrated cosmetic options")
 		ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
 		ExpeditionCase.set_world(game, {"depth": 4})
 		ExpeditionCase.set_world(game, {"map_seed": 91247})
@@ -131,7 +133,7 @@ func run():
 		if not await until(func(): return game.network_session.role()=="Guest" and game.participation.floor()==game.GRAFT_ROOM and game.players.has(game.multiplayer.get_unique_id()) and game.stage.graft_altar.visible):
 			check(false,"Join from menu receives a visible live shrine");finish(mode);return
 		var id: int=game.multiplayer.get_unique_id()
-		check(Array(game.players[id].appearance)==[1,2,1,2,1,1,70,80,40,65,35,60,75],"full slider appearance replicated to guest")
+		check(Array(game.players[id].appearance)==Appearance.normalize(LEGACY_LOOK),"full legacy slider appearance and default accessories replicate to guest")
 		if not await until(func(): return game.players[id].get("carried_parts",[]).size()>1 and game.players[id].carried_parts[4]==1):
 			check(false,"guest receives grafting resource");finish(mode);return
 		var enemy_start: Vector3=game.tactics.position

@@ -370,12 +370,12 @@ func exercise() -> void:
  world.expedition_transitions.checkpoint(1,false)
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.refresh_feedback()
- check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==3 and world.progress.campaign.best_extraction==6 and disk()[G]!=before[G]
+ check(not ExpeditionCase.is_wild(actor) and world.seed_reserve(actor).unknown.size()==3 and world.progress.campaign.best_extraction==6 and disk()[G]!=before[G]
   and UIFixture.control(world,"feedback").text.contains("Extracted with") and UIFixture.control(world,"feedback").text.contains(Tx.CLEANUP_NOTICE) and FileAccess.file_exists(G+".transaction"),
   "cleanup-pending extraction commits inventory and progression and retains notice")
  committed=disk()
  world.expedition_transitions.checkpoint(1,false)
- check(disk()==committed and world.progress.unknown.size()==3,"pending extraction cannot replay")
+ check(disk()==committed and world.seed_reserve(actor).unknown.size()==3,"pending extraction cannot replay")
  var report: Dictionary = world.ui.visible_expedition_result()
  check(report.get("outcome")=="Extraction" and report.floor==6 and report.clears==1 and report.party.elites==1 and report.players[0].cards==1 and report.players[0].falls==1,"one result after cleanup-pending extraction, confirmed clear, card and fall only")
  check(report==world.expedition_statistics.result_for(world.local_character.identity),"host reads its own frozen result")
@@ -393,16 +393,16 @@ func exercise() -> void:
  clear_floor(actor,2)
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  actor.carried_seeds=[1]
- var saved_seeds: int=world.progress.unknown.size()
+ var saved_seeds: int=world.seed_reserve(actor).unknown.size()
  IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 999)
- check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and world.status.contains("safe-pouch"),"wipe keeps only protected cargo")
+ check(not ExpeditionCase.is_wild(actor) and world.seed_reserve(actor).unknown.size()==saved_seeds+1 and world.status.contains("safe-pouch"),"wipe keeps only protected cargo")
  check(world.ui.visible_expedition_result().get("outcome")=="Party wipe","solo wipe presents its actual outcome")
  actor.pos=world.stage.gate_position()
  world.expedition_transitions.enter(1)
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
- saved_seeds=world.progress.unknown.size()
+ saved_seeds=world.seed_reserve(actor).unknown.size()
  world.expedition_transitions.abandon(1)
- check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds and world.status.contains("abandoned"),"abandonment discards safe pouch")
+ check(not ExpeditionCase.is_wild(actor) and world.seed_reserve(actor).unknown.size()==saved_seeds and world.status.contains("abandoned"),"abandonment discards safe pouch")
 
  actor.pos=world.stage.gate_position()
  world.expedition_transitions.enter(1)
@@ -415,7 +415,7 @@ func exercise() -> void:
  world.expedition_transitions.checkpoint(1,false)
  world.remove_meta(&"guarded_gameplay_test_fault")
  var split:=disk()
- check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and UIFixture.control(world,"loadout_menu").visible and world.persistence_session.pending_notice().contains("uncertain")
+ check(not ExpeditionCase.is_wild(actor) and world.seed_reserve(actor).unknown.size()==saved_seeds+1 and UIFixture.control(world,"loadout_menu").visible and world.persistence_session.pending_notice().contains("uncertain")
   and split[C]!=before[C] and split[G]==before[G] and not world.status.contains("Extracted with"),"uncertain extraction keeps tentative memory and withholds notice/closure")
  world.expedition_transitions.checkpoint(1,false)
  check(disk()==split,"uncertain operation does not replay")
@@ -458,15 +458,18 @@ func exercise() -> void:
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.session_world.remove(2)
+ # The retired dictionary may retain a wallet object, but cannot own spendable
+ # Essence: the participant is detached and no longer in the actor registry.
+ var retired_wallet = world.wallet_for(ally)
  check(not world.players.has(2) and world.departure_settlement.status(departed_identity)==world.DepartureSettlement.Phase.RETRYABLE
   and world.monster_rewards.pending_count()==1 and disk()==before
-  and not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,
+  and not ExpeditionCase.is_wild(ally) and world.run_wallet(ally)==0 and world._plan_essence_debit(ally,1)==null,
   "failed disconnect settlement retains cargo and frozen reward and clears run-only currency")
  var catalog: Dictionary = world.progress.ContentIDs.manifest()
  check(world.session_world.admission_error(departed_identity,catalog,world.Network.PROTOCOL).contains("still being saved"),
   "verified rollback does not release the character before rewards settle")
  world.grant_run_essence(2,ally,4)
- check(not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,"pending departure cannot receive a credit")
+ check(not world.players.has(2) and is_same(world.wallet_for(ally),retired_wallet) and world.run_wallet(ally)==0,"pending departure cannot receive a credit")
  world.remove_meta(&"guarded_gameplay_test_fault")
  ally.character.xp[departed_class]+=100
  ally.safe_items.clear()
@@ -481,7 +484,7 @@ func exercise() -> void:
   and earned_xp>0 and int(world.progress.character_records[departed_identity].profile.xp[departed_class])==xp_before+earned_xp
   and world.progress.character_records[departed_identity].profile.monsters[world.enemy_kind]==1
   and world.progress.reserve(departed_identity).unknown.size()==1
-  and not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,
+  and not world.players.has(2) and not ExpeditionCase.is_wild(ally) and is_same(world.wallet_for(ally),retired_wallet) and world.run_wallet(ally)==0 and world._plan_essence_debit(ally,1)==null,
   "flush credits detached Class XP and pouch once without restoring a run wallet")
  var settled_disk:=disk()
  world._queue_monster_reward(receipt.key.get_slice(":",1),int(receipt.kind),0,receipt.position,false)

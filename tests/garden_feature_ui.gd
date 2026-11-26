@@ -89,19 +89,25 @@ func run() -> void:
 	check(not ui.is_overlay_open(),"Altar access is determined outside the view")
 
 	var stock := [2,0,1]
-	ui.show_planting(2,stock)
+	var shared := [1,0,0]
+	ui.show_planting(2,stock,true,shared)
 	stock[0]=8
-	check(planting.grid.get_child_count()==2 and planting.counts[0]==2,"planting has one choice per available species and detached counts")
+	shared[0]=9
+	check(planting.grid.get_child_count()==2 and planting.counts[0]==2 and planting.communal[0]==1,"planting has one choice per available species and detached personal/shared counts")
 	planting.grid.get_child(0).pressed.emit()
-	check(not planting.confirm.disabled and "Base growth:" in planting.details.text,"a selected seed shows current authored cultivation details")
+	check(not planting.confirm.disabled and "Base growth " in planting.details.text and "Personal 2 · Shared 1" in planting.details.text,"a selected seed shows current authored cultivation details and both source quantities")
+	check(planting.source_pick.item_count==2 and planting.source_pick.get_selected_metadata()=="shared","shared and personal seeds can be selected explicitly")
 	ui.present_planting_access(false)
 	count=requests.size()
 	planting.confirm.pressed.emit()
 	check(requests.size()==count and planting.confirm.disabled,"a save hold prevents planting requests without exposing the persistence owner")
 	ui.present_planting_access(true)
 	planting.confirm.pressed.emit()
-	check(requests.back()=={"command":"garden_action","data":{"action":"plant_at_2_0"}},"planting submits the chosen bed and species without granting a crop")
-	check(planting.counts[0]==2,"a planting intent cannot spend a seed")
+	check(requests.back()=={"command":"garden_action","data":{"action":"plant_at_2_0_shared"}},"planting submits the chosen bed, species and shared source without granting a crop")
+	planting.source_pick.select(1)
+	planting.confirm.pressed.emit()
+	check(requests.back()=={"command":"garden_action","data":{"action":"plant_at_2_0_stash"}},"personal planting submits the explicit personal source")
+	check(planting.counts[0]==2 and planting.communal[0]==1,"a planting intent cannot spend a seed")
 	var cancel: Button = planting.find_children("*","Button",true,false).filter(func(button): return button.text=="Cancel · Esc")[0]
 	count=requests.size()
 	cancel.pressed.emit()

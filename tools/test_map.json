@@ -1540,7 +1540,7 @@
 
     "rootblade_attacks": {"kind":"unit", "systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","hex_terrain"], "package":false},
     "maul_attacks": {"kind":"unit", "systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","hex_terrain","world_snapshot"], "profile":"standard", "package":false},
-    "maul_attacks_coop": {"kind":"pair", "systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","world_snapshot","network_session","guest_replication"], "profile":"standard", "package":false},
+    "maul_attacks_coop": {"kind":"pair", "systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","world_snapshot","network_session","guest_replication","expedition_continuation","garden_returns"], "profile":"standard", "package":false},
     "reviewed_weapon_attacks": {"kind":"unit","systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","world_snapshot"],"package":false},
     "seed_focus_attacks": {"kind":"unit","systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","world_snapshot","hex_terrain"],"package":false},
     "wand_attacks": {"kind":"unit","systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","hex_terrain","world_snapshot"],"package":false},
@@ -1637,7 +1637,7 @@
     "garden_cultivation": {"kind":"unit", "systems":["garden_care","cultivation_growth","seeds","items"], "profile":"terrain", "package":false},
     "actor_presentation": {"kind":"unit", "systems":["actor_presentation","presentation","avatar_motion_view","player_weapon_actions","player_lifecycle","player_vitals","expedition_participation","life","items"], "profile":"terrain", "package":false},
     "garden_view_ports_coop": {"kind":"pair", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_cinematics","garden_returns","garden_life","garden_cultivation_structures","connection_flow","world_snapshot","garden","items","characters","seeds","knowledge","gameplay_ui"], "profile":"terrain", "package":true},
-    "garden_view_ports": {"kind":"unit", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_cultivation_structures","garden_returns","garden_life","garden_cinematics","gameplay_ui"], "package":false},
+    "garden_view_ports": {"kind":"unit", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_cultivation_structures","garden_returns","garden_life","garden_cinematics","gameplay_ui","items","inventory_custody"], "package":false},
     "world_presentation": {"kind":"unit", "systems":["world_presentation","presentation","terrain","event_audio","soundscape"], "package":false},
     "world_guidance": {"kind":"unit", "systems":["wild_flora", "world_guidance","gameplay_ui","presentation","party_ui","life","garden"], "package":false},
     "guest_replication": {"kind":"unit", "systems":["guest_replication","world_snapshot","presentation","connection_flow","network_session","life"], "package":false},
@@ -1650,7 +1650,7 @@
     "progression_ui": {"kind": "unit", "systems": ["progression_ui", "gameplay_ui", "classes", "knowledge", "seeds", "garden_returns"], "package": false},
     "player_build_ui": {"kind": "unit", "systems": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_summary", "progression_ui"], "package": false},
     "garden_cinematic_view": {"kind": "unit", "systems": ["garden_development", "garden_heart_view", "garden_cinematics", "gameplay_ui", "heart_growth_visual", "presentation"], "package": false},
-    "garden_feature_ui": {"kind": "unit", "systems": ["garden_development", "garden_feature_ui", "gameplay_ui", "seeds", "items", "expedition_grafts", "persistence_operations"], "package": false},
+    "garden_feature_ui": {"kind": "unit", "systems": ["garden_development", "garden_feature_ui", "gameplay_ui", "seeds", "items", "expedition_grafts", "persistence_operations", "inventory_custody"], "package": false},
     "gameplay_ui": {"kind": "unit", "systems": ["wild_flora", "gameplay_ui", "presentation", "affinity_cards", "party_ui"], "package": false},
     "player_hit_conditions": {"kind": "unit", "systems": ["player_hit_conditions", "combat", "life"], "package": true},
     "player_protection": {"kind": "unit", "systems": ["player_protection", "class_balance", "combat"], "package": true},
@@ -1912,7 +1912,7 @@
     },
     "candidate_release_party": {
       "kind": "party",
-      "systems": ["garden_development", "loot", "departure_settlement", "world_snapshot", "persistence_operations", "persistence_authorization", "menus", "characters", "connection_flow", "garden", "expeditions"],
+      "systems": ["garden_development", "loot", "departure_settlement", "world_snapshot", "persistence_operations", "persistence_authorization", "menus", "characters", "connection_flow", "garden", "expeditions", "expedition_continuation", "inventory_custody"],
       "package": true,
       "candidate_release": true
     },
@@ -1939,7 +1939,8 @@
         "connection_flow",
         "characters",
         "expeditions",
-        "garden"
+        "garden",
+        "inventory_custody"
       ],
       "package": true
     },
@@ -1970,7 +1971,9 @@
         "garden_cinematics",
         "diagnostics",
         "expedition_participation",
-        "network_session"
+        "network_session",
+        "expedition_continuation",
+        "inventory_custody"
       ],
       "package": true
     },
@@ -1993,12 +1996,12 @@
       ],
       "package": true
     },
-    "expedition_forfeiture": {"kind": "unit", "systems": ["wild_flora", "player_lifecycle", "player_vitals", "player_cooldowns", "departure_settlement", "expedition_wallet", "persistence_operations", "persistence_authorization", "persistence_recovery_plan", "combat", "life", "expeditions", "loot", "connection_flow", "garden_returns", "expedition_sustain", "characters", "event_audio", "encounter_roster", "enemy_tactics", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "network_session"], "package": false},
+    "expedition_forfeiture": {"kind": "unit", "systems": ["wild_flora", "player_lifecycle", "player_vitals", "player_cooldowns", "departure_settlement", "expedition_wallet", "persistence_operations", "persistence_authorization", "persistence_recovery_plan", "combat", "life", "expeditions", "loot", "connection_flow", "garden_returns", "expedition_sustain", "characters", "event_audio", "encounter_roster", "enemy_tactics", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "network_session", "expedition_continuation", "inventory_custody"], "package": false},
     "expedition_forfeiture_coop": {"kind": "pair", "systems": ["wild_flora", "expedition_statistics", "player_lifecycle", "player_vitals", "player_cooldowns", "departure_settlement", "expedition_wallet", "world_snapshot", "persistence_operations", "persistence_authorization", "persistence_recovery_plan", "combat", "life", "expeditions", "loot", "connection_flow", "garden_returns", "expedition_sustain", "characters", "event_audio", "encounter_roster", "enemy_tactics", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "network_session"], "package": false},
     "guarded_expedition": {
       "candidate_release": true,
       "kind": "unit",
-      "systems": ["expedition_statistics",
+      "systems": ["expedition_statistics", "inventory_custody",
         "player_lifecycle",
         "player_vitals",
         "player_cooldowns",
@@ -2063,7 +2066,7 @@
     "guarded_garden_actions": {
       "candidate_release": true,
       "kind": "unit",
-      "systems": ["living_archive", "wild_flora", "garden_development",
+      "systems": ["living_archive", "wild_flora", "garden_development", "inventory_custody",
         "expedition_wallet",
         "persistence_operations",
         "persistence_authorization",
@@ -2115,7 +2118,7 @@
     "persistence_destructive_slots": {
       "candidate_release": true,
       "kind": "unit",
-      "systems": ["persistence_operations", "persistence_recovery_plan", "persistence_authorization", "persistence_save_access", "characters", "menus"],
+      "systems": ["persistence_operations", "persistence_recovery_plan", "persistence_authorization", "persistence_save_access", "characters", "menus", "inventory_custody", "living_archive"],
       "package": true
     },
     "persistence_slot_roster": {
@@ -2174,7 +2177,8 @@
       "systems": [
         "persistence_save_access",
         "persistence_recovery_plan",
-        "persistence_authorization"
+        "persistence_authorization",
+        "expedition_continuation"
       ],
       "package": true
     },
@@ -2712,6 +2716,7 @@
         "classes",
         "garden_costs",
         "garden_care",
+        "inventory_custody",
         "cultivation_growth",
         "warden_progression"
       ],
@@ -2790,7 +2795,7 @@
     },
     "garden_cleanup_coop": {
       "kind": "pair",
-      "systems": ["garden_development",
+      "systems": ["garden_development", "progression_ui",
         "garden",
         "knowledge",
         "progression",
@@ -2970,7 +2975,7 @@
     },
     "garden_returns_coop": {
       "kind": "pair",
-      "systems": ["garden_development",
+      "systems": ["garden_development", "connection_flow", "inventory_custody", "world_snapshot",
         "garden_returns",
         "garden_cinematics",
         "garden_life",
@@ -3027,6 +3032,7 @@
       "kind": "unit",
       "systems": [
         "garden",
+        "inventory_custody",
         "seeds",
         "knowledge",
         "garden_observations",
@@ -3094,7 +3100,7 @@
     },
     "gate_garden_services": {
       "kind": "unit",
-      "systems": ["living_archive","garden_development",
+      "systems": ["living_archive","garden_development","inventory_custody",
         "garden",
         "seeds",
         "knowledge",

@@ -58,7 +58,7 @@ func host_run() -> void:
  mark("banked")
  if not await until(func():return marked("submitted")):check(false,"guest receives private inventory");return
  game.Altar.identify_all(game,game.players[1])
- if not await until(func():return Service.known(game.garden_commands.return_projection(id),"lantern_homecoming") and game.seed_reserve(game.players[id]).unknown.is_empty()):check(false,"both identify");return
+ if not await until(func():return game.players.has(id) and Service.known(game.garden_commands.return_projection(id),"lantern_homecoming") and game.seed_reserve(game.players[id]).unknown.is_empty()):check(false,"both identify");return
  check(game.progress.garden_interactions.growth.events.filter(func(e):return e.get("discovery","")=="lantern_homecoming").size()==1,"two players cannot duplicate a world event")
  mark("identified")
  if not await until(func():return marked("skipped") and Scenes.projection(game,id).pending.is_empty()):check(false,"guest acknowledgement");return
@@ -70,9 +70,9 @@ func host_run() -> void:
  check(await until(func():return marked("guest-offline") and game.multiplayer.get_peers().is_empty()),"host observes guest disconnect before teardown")
 func guest_run() -> void:
  check(game.session_world.join()==OK,"guest joins")
- if not await until(func():return marked("banked") and game.network_session.role()=="Guest" and game.players.has(game.local_player_id()) and not ExpeditionCase.is_wild(game.players[game.local_player_id()])):check(false,"banked snapshot");return
+ if not await until(func():return marked("banked") and game.network_session.role()=="Guest" and game.players.has(game.local_player_id()) and game.at_garden_altar(game.players[game.local_player_id()]) and game.guest_replication.inventory().size()>6 and game.guest_replication.inventory()[0]==1):check(false,"banked private inventory and altar position arrive");return
  check(game.garden_commands.return_projection(game.local_player_id()).get("entries",[]).is_empty(),"unidentified banking reveals no species/story")
- game.send_altar_action("identify_all",[],0);mark("submitted")
+ game.send_altar_action("identify_all",[],1);mark("submitted")
  if not await until(func():return marked("identified") and Service.known(game.garden_commands.return_projection(game.local_player_id()),"lantern_homecoming") and Scenes.projection(game,game.local_player_id()).get("pending",[]).size()==1):check(false,"shared discovery arrives");return
  var data = game.garden_commands.return_projection(game.local_player_id())
  check(not JSON.stringify(data).contains("credits") and not JSON.stringify(data).contains("members") and game.progress.garden_interactions.get("returns",{}).get("discoveries",{}).is_empty(),"host projection omits private provenance and does not alter guest world")

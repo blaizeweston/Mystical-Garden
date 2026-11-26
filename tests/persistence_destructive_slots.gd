@@ -61,9 +61,15 @@ func worlds_test() -> void:
  var replaced := expect("occupied_world", worlds.new_world_guarded(0, true), "completed", paths)
  check_archive(replaced, first.garden, garden)
  check(not replaced.archives.has(first.character) and Slots._save_digest(first.character) == character, "world leaves character intact")
+ # A new Garden now has its own stable origin. The next replacement must
+ # archive and authorize against the current bytes, not the first Garden.
+ check(Slots._save_digest(first.garden)!=garden,"replacement creates a distinct Garden identity")
+ garden = Slots._save_digest(first.garden)
  replaced = expect("occupied_pair", worlds.new_game_guarded(0, true), "completed", paths)
  check_archive(replaced, first.garden, garden)
  check_archive(replaced, first.character, character)
+ check(Slots._save_digest(first.garden)!=garden,"pair replacement creates another distinct Garden identity")
+ garden = Slots._save_digest(first.garden)
  character = Slots._save_digest(first.character)
  check(dev.new_game_guarded(0).value.error == OK, "developer fixture")
  var dev_character := Slots._save_digest(dev_slot.character)

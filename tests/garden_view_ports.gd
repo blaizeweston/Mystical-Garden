@@ -66,13 +66,13 @@ func run():
 	var known:Array=[];known.resize(24);known.fill(false);known[0]=true
 	var counts:Array=Parts.empty_counts();counts[Parts.HOOK]=1
 	var costs:Array=[];costs.resize(24);costs.fill(2)
-	frames.station={"present":true,"status":"Ready","counts":counts,"discoveries":known,"reclamation_costs":costs}
+	frames.station={"present":true,"status":"Ready","counts":counts,"available":{"stash":counts.duplicate(),"shared":Parts.empty_counts()},"discoveries":known,"reclamation_costs":costs}
 	frames.interaction.near_stations=["monster_studies"];frames.interaction.nearest_station="monster_studies"
 	frames.interaction.data.focus={"serial":2,"point":"monster_studies"}
 	view._process(0)
 	check(view.station_panel.visible and not view.station_controls.apply.disabled,"a stored trophy enables the Offering Altar view")
 	view.station_controls.apply.pressed.emit()
-	check(requests.size()==2 and requests[1].data.action=="care_offer_"+str(Parts.HOOK) and frames.station.counts[Parts.HOOK]==1,"station UI requests an offering without spending its displayed inventory")
+	check(requests.size()==2 and requests[1].data.action=="care_offer_"+str(Parts.HOOK)+"_stash" and frames.station.available.stash[Parts.HOOK]==1 and frames.station.counts[Parts.HOOK]==1,"station UI requests an offering from its explicit source without spending its displayed inventory")
 	ui.close_panels()
 	var bed:Dictionary={"slot":0,"species":0,"cycle":"crop-a","revision":3,"stage":2,"opportunity":"patient_bud","compatible":true,"available":true,"preserved":false,
 		"remaining":30.0,"growth_rate":1.0,"garden_remaining":30.0,"wild_remaining":15.0,"chance":.1,"base_chance":.1,"preserve_chance":.25,"extra_seconds":15.0,
@@ -86,8 +86,8 @@ func run():
 	check(crop.quick_water.visible,"watering control follows the nearby eligible crop and carried water facts")
 	crop.quick_water.pressed.emit()
 	check(payload(3).action=="water_crop" and payload(3).revision==3,"quick watering emits an ordinary Garden request")
-	crop.flower_shortcut()
-	check(payload(4).action=="flower_crop" and frames.crop.data.beds[0].stage==2,"the flower shortcut requests the real crop without changing its displayed maturity")
+	bed.stage=3;bed.revision=4;crop.flower_shortcut()
+	check(requests.size()==5 and payload(4).action=="flower_crop" and payload(4).stage==3 and payload(4).revision==4 and frames.crop.data.beds[0].stage==3,"the seed harvest shortcut requests the mature crop without changing its displayed maturity")
 	frames.crop.context="guest:2:new";frames.crop.data.focus={};crop._process(0)
 	check(crop.waiting_until==0 and crop.last_bed.is_empty() and not crop.panel.visible,"a new crop context retires pending inspector state")
 	frames["return"]={"context":"guest:2:b","wild":false,"motion":false,"diagnostic_source":"host_snapshot","pending":[],"data":{"version":1,"catalog":Returns.signature,"entries":[Returns.DEFINITIONS[0].duplicate(true)]}}

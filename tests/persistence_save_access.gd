@@ -123,8 +123,11 @@ func run() -> void:
 
  save_fixture(Garden, {"garden": {"knowledge": 17, "plots_v2": [{"species": 0}, {}]}, "campaign": {"best_clear": 8}})
  var garden := passive("healthy_garden", Garden, "healthy", "")
- check(garden.summary == {"knowledge":17, "plots":2, "best":8}, "Garden summary semantics")
+ check(garden.summary == {"knowledge":17, "plots":2, "best":8, "suspended_owner":""}, "Garden summary semantics with no suspended expedition")
  var id := "0123456789abcdef0123456789abcdef"
+ save_fixture(Garden, {"garden":{"knowledge":17,"plots_v2":[{"species":0},{}]},"campaign":{"best_clear":8},"expedition":{"suspended":{"owner":id}}})
+ var suspended := passive("suspended_garden", Garden, "healthy", "")
+ check(suspended.summary=={"knowledge":17,"plots":2,"best":8,"suspended_owner":id},"passive summary identifies the suspended expedition owner")
  save_fixture(Character, {"character": {"identity": id, "progress": {"name":"Traveller", "active_class":1, "xp":[0, 90]}},
   "content": {"manifest": Inspect.Profile.ContentIDs.manifest()}})
  var character := passive("healthy_character", Character, "healthy", "")

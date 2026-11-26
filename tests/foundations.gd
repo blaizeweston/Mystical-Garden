@@ -7,6 +7,7 @@ const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const IDs=preload("res://content_ids.gd")
 const Batch=preload("res://save_batch.gd")
 const Grafts=preload("res://expedition_grafts.gd")
+const CropState=preload("res://garden_crop_state.gd")
 var failed:=false
 func check(ok: bool,message: String):
  if not ok: failed=true;printerr("FAIL foundations: ",message)
@@ -64,11 +65,11 @@ func run():
  check(p.carried_parts[antler]==0 and improvements.copies.size()==1 and improvements.copies[0].id=="strike","earned trophy funds one cumulative reinforcement at a Wilds altar")
  # Complete a non-Thorn cultivation -> rare component -> weapon path.
  game.expedition_transitions.abandon(1);p.pos=game.stage.altar_position();reserve=game.seed_reserve(p);reserve.unknown.assign([1]);reserve.stock.fill(0);game.Altar.identify_all(game,p)
- g.plots[0]=game.Progress.empty_plot();p.pos=game.Stage.PLOTS[0];game.act(1,false);game.garden_action(1,"plant_at_0_1");g.advance_growth(86400.)
+ g.plots[0]=game.Progress.empty_plot();p.pos=game.Stage.PLOTS[0];game.act(1,false);game.garden_action(1,"plant_at_0_1_stash");g.advance_growth(86400.)
  var rare_part: int=game.Parts.rare_part(1);var rare_before: int=g.part_count(rare_part)
- for seed_value in 1000:
-  game.rng.seed=seed_value
-  if game.rng.randf()<preload("res://garden_cultivation.gd").rare_harvest_chance(p.character.plants[1]): game.rng.seed=seed_value;break
+ check(g.plots[0].species==1 and CropState.compatible(g.plots[0]),"non-Thorn crop has an authoritative planted cycle")
+ # The harvest draw is captured per planting, not from the combat RNG at harvest.
+ if CropState.compatible(g.plots[0]):g.plots[0].care.harvest_draw=0
  game.cultivation.harvest(1,0);check(g.part_count(rare_part)==rare_before+1,"non-Thorn plant can naturally yield its refined material")
  p.pos=game.stage.gate_position();p.prepared=rare_part;p.prepared_secondary=0;p.prepared_catalyst=0;game.expedition_transitions.enter(1)
  check(ExpeditionCase.is_wild(p) and p.weapon==rare_part and g.part_count(rare_part)==rare_before,"refined harvest component can craft an expedition weapon")

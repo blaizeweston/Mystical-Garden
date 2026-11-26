@@ -28,7 +28,7 @@ func _initialize():
 		check(bed==before,"outcome queries do not clear a bed or advance care")
 		bed.flowering=true
 		var seed_yield:=Rules.harvest_yield(bed,9999,0.0)
-		check(seed_yield.seeds==2 and seed_yield.parts==0 and seed_yield.rare_part==0,"Flowering pays two seeds without parts "+str(species))
+		check(seed_yield.seeds==2 and seed_yield.parts==0 and seed_yield.rare_part==0,"starting propagation pays two seeds without parts "+str(species))
 	var bed:=Rules.planted_bed(0,Care.new_cycle(0));bed.stage=2
 	var request={"point":"bed_1","cycle":bed.care.cycle,"revision":0,"stage":2,"action":"preserve_bud"}
 	var initial:=bed.duplicate(true)
