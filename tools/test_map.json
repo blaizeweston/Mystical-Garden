@@ -1536,7 +1536,7 @@
     "expedition_results_rejoin": {"kind":"pair","systems":["living_archive","expedition_statistics","expedition_participation","departure_settlement","network_session","persistence_operations"],"package":false},
     "expedition_statistics": {"kind":"unit","systems":["living_archive","expedition_statistics","expedition_participation","combat","incoming_player_hit","life","loot"],"package":false},
     "staff_attacks": {"kind": "unit", "systems": ["weapons", "weapon_attacks", "player_weapon_actions", "avatar_motion_view", "presentation", "combat", "hex_terrain", "world_snapshot", "network_session", "guest_replication"], "profile": "standard", "package": false},
-    "staff_attacks_coop": {"kind": "pair", "systems": ["weapons", "weapon_attacks", "player_weapon_actions", "avatar_motion_view", "presentation", "combat", "hex_terrain", "world_snapshot", "network_session", "guest_replication"], "profile": "standard", "package": false},
+    "staff_attacks_coop": {"kind": "pair", "systems": ["weapons", "weapon_attacks", "player_weapon_actions", "avatar_motion_view", "presentation", "combat", "hex_terrain", "world_snapshot", "network_session", "guest_replication", "expedition_continuation", "garden_returns"], "profile": "standard", "package": false},
 
     "rootblade_attacks": {"kind":"unit", "systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","hex_terrain"], "package":false},
     "maul_attacks": {"kind":"unit", "systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","hex_terrain","world_snapshot"], "profile":"standard", "package":false},
@@ -1544,7 +1544,7 @@
     "reviewed_weapon_attacks": {"kind":"unit","systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","world_snapshot"],"package":false},
     "seed_focus_attacks": {"kind":"unit","systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","world_snapshot","hex_terrain"],"package":false},
     "wand_attacks": {"kind":"unit","systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","hex_terrain","world_snapshot"],"package":false},
-    "wand_attacks_coop": {"kind":"pair","systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","network_session","guest_replication","world_snapshot"],"package":false},
+    "wand_attacks_coop": {"kind":"pair","systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","network_session","guest_replication","world_snapshot","expedition_continuation","garden_returns"],"package":false},
     "spear_attacks": {"kind":"unit", "systems":["weapons","weapon_attacks","player_weapon_actions","avatar_motion_view","presentation","combat","hex_terrain"], "package":false},
     "weapon_presentation": {"kind": "unit", "systems": ["characters", "weapons", "avatar_motion_view", "presentation", "ranged_release"], "package": true},
     "character_customization": {"kind": "unit", "systems": ["characters", "avatar_motion_view", "gameplay_ui", "world_snapshot", "network_session"], "package": false},
@@ -1946,7 +1946,7 @@
     },
     "serializer_integrity": {
       "kind": "unit",
-      "systems": ["garden_development",
+      "systems": ["garden_development", "inventory_custody", "living_archive",
         "persistence_operations",
         "persistence_authorization",
         "persistence_recovery_plan",
@@ -3843,7 +3843,8 @@
         "seeds",
         "presentation",
         "ui_copy",
-        "progression_ui"
+        "progression_ui",
+        "knowledge"
       ],
       "package": false
     },
@@ -3984,7 +3985,9 @@
         "terrain",
         "presentation",
         "event_audio",
-        "encounter_roster"
+        "encounter_roster",
+        "expedition_continuation",
+        "garden_returns"
       ],
       "package": true
     },

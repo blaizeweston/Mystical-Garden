@@ -48,15 +48,23 @@ func host_run() -> void:
 	if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return Session.ready_for(p))):check(false,"registration");return
 	var peer: int=game.players.keys().filter(func(id):return id!=1)[0]
 	var player: Dictionary=game.players[peer]
-	Expedition.set_membership(game,player,true)
+	var tree=game.Classes.connected_tree(int(player.frame))
+	if tree.focus(player.character).is_empty():
+		player.pos=game.Stage.HEART
+		game.handle_loadout_action(peer,player,"learn_%d_%d"%[player.frame,tree.REQUEST_OFFSET])
+	player.pos=game.stage.gate_position()
+	if not game.Transactions.run(game,func():return game.expedition_transitions.admit(peer)):
+		check(false,"real expedition admission for animation/disconnect case");return
+	check(Expedition.is_wild(player) and player.has("garden_run_id"),"admission provides real return provenance")
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	player.frame=1;player.weapon_kind=1;player.weapon=0;player.secondary=0;player.catalyst=0
 	player.pos=Vector3.ZERO;player[Actions.STATE]=Actions.State.new()
 	game.encounter.set_hp(-1,1000);game.encounter.clear_scouts()
 	game.tactics.position=Vector3(0,0,3.0);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false
 	mark("ready")
 	check(await until(func():return marked("checked")),"guest verifies both actions")
-	check(game.enemy_health()<1000,"host resolves real weapon damage")
-	check(player[Actions.STATE].basic_step()==2,"one admitted action per requested cast, no duplicate")
+	check(game.enemy_health()<1000,"host resolves real weapon damage (HP %s)"%game.enemy_health())
+	check(player[Actions.STATE].basic_step()==2,"one admitted action per requested cast, no duplicate (step %s)"%player[Actions.STATE].basic_step())
 	mark("done")
 	check(await until(func():return game.players.size()==1),"guest disconnects cleanly")
 
@@ -68,15 +76,20 @@ func guest_run() -> void:
 	var peer:=game.multiplayer.get_unique_id()
 	if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and game.guest_replication.has_details() and Expedition.is_wild(game.players.get(peer,{}))):check(false,"authoritative action-ready guest");return
 	check(not game.players[peer].has(Actions.STATE),"guest receives projection, no second host timeline")
+	if not await until(func():
+		var actor: Dictionary=game.stage.avatar_models.get(peer,{})
+		return not actor.is_empty() and is_instance_valid(actor.get("visual_weapon")) and str(actor.field_rig.player.current_animation)=="Ready_wand_authored"):
+		check(false,"guest's actual wand rig is initialized before the first short attack");return
 	var clips: Array[String]=[]
 	var returns: Array[String]=[]
 	for clip in ["Attack_wand_forward","Attack_wand_sweep"]:
 		var accepted:=false;var rendered:=false;var gripped:=false
-		var deadline:=Time.get_ticks_msec()+6000;var next_send:=0
+		# This tests one discrete attack, not the intentionally repeating
+		# mouse-hold input. Use the normal reliable keyboard action RPC.
+		game.send_action(true)
+		var deadline:=Time.get_ticks_msec()+6000
 		while Time.get_ticks_msec()<deadline and not (accepted and rendered and gripped):
 			record_casts()
-			var now:=Time.get_ticks_msec()
-			if now>=next_send:next_send=now+50;game.submit_combat.rpc_id(1,Vector2(0,1),true)
 			var projection: Dictionary=game.players[peer].get("attack_anim",{})
 			accepted=accepted or (projection.get("active",false) and projection.get("clip","")==clip)
 			var actor: Dictionary=game.stage.avatar_models.get(peer,{})
@@ -85,8 +98,7 @@ func guest_run() -> void:
 				var weapon: Node3D=actor.visual_weapon
 				gripped=weapon.to_global(weapon.get_meta("handle")).distance_to(Field.hand(actor,false))<.012
 			await process_frame
-		game.submit_combat.rpc_id(1,Vector2(0,1),false)
-		check(accepted and rendered and gripped,"replicated reviewed clip and closed-fist attachment "+clip)
+		check(accepted and rendered and gripped,"replicated reviewed clip and closed-fist attachment %s (accepted=%s rendered=%s gripped=%s)"%[clip,accepted,rendered,gripped])
 		if accepted:clips.append(clip)
 		var recovery: String="Recover_wand_sweep" if clip=="Attack_wand_sweep" else "Recover_wand_forward"
 		var ready: String="Ready_wand_authored"
@@ -102,6 +114,8 @@ func guest_run() -> void:
 			await process_frame
 		check(saw_recovery and saw_ready,"guest plays return and rests after single "+clip)
 		if saw_recovery:returns.append(recovery)
+		# The animation can finish before the 480 ms base attack cadence.
+		if clip=="Attack_wand_forward":await create_timer(.50).timeout
 	check(clips==["Attack_wand_forward","Attack_wand_sweep"] and returns.size()==2,"host alternation and both recoveries")
 	check(cast_clips==["Attack_wand_forward","Attack_wand_sweep"],"both authoritative wand-tip events arrive in order")
 	mark("checked");check(await until(func():return marked("done")),"host confirms damage")

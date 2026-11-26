@@ -43,7 +43,8 @@ func run():
 		check(texture!=null and texture.get_width()==256,"portrait exists for "+species.name)
 	panel.tabs.current_tab=1
 	panel.refresh()
-	tree.set_hover("heart_heart")
-	check(panel.details.text.contains("Sheltered Heart"),"shared Heart nodes support hover descriptions")
+	check(panel.research_list.is_visible_in_tree() and panel.research_list.item_count==2,"Heart uses the current Garden Development list")
+	panel.research_list.select(0);panel.research_list.item_selected.emit(0)
+	check(panel.details.text.contains("Sheltered Heart") and panel.details.text.contains("Reaching Roots"),"shared Heart purchases show their actual prerequisite and effect in the selection details")
 	if not failed: print("PASS: circular hit targets, 24 model portraits, hover/selection descriptions and hidden discoveries")
 	quit(1 if failed else 0)

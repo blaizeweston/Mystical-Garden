@@ -111,7 +111,8 @@ func run():
 	resume.pressed.emit()
 	check(not world.ui.is_overlay_open(),"Resume closes the menu")
 	world.ui.toggle_panel("pack")
-	var inventory_close: Button=UIFixture.control(world,"pack_menu").find_children("*","Button",true,false).filter(func(button):return button.text=="Close")[0]
+	var inventory_close: Button=UIFixture.control(world,"pack_menu").find_child("CloseInventory",true,false)
+	check(is_instance_valid(inventory_close) and inventory_close.is_visible_in_tree(),"current inventory exposes its close control")
 	inventory_close.grab_focus()
 	check(inventory_close.get_node("ReachingRoots").highlighted,"inventory buttons use the same keyboard highlight")
 	world.settings_dialog.begin(world.app_settings)

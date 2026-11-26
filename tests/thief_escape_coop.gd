@@ -55,6 +55,18 @@ func host() -> void:
 	if not await until(func(): return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
 		check(false,"guest profile reaches the host")
 		return
+	var members: Array=game.players.keys()
+	for peer: int in members:
+		var actor: Dictionary=game.players[peer]
+		var tree=game.Classes.connected_tree(int(actor.frame))
+		if tree.focus(actor.character).is_empty():
+			actor.pos=game.Stage.HEART;game.handle_loadout_action(peer,actor,"learn_%d_%d"%[actor.frame,tree.REQUEST_OFFSET])
+		actor.pos=game.stage.gate_position()
+	if not game.Transactions.run(game,func():
+		for peer: int in members:
+			if not game.expedition_transitions.admit(peer):return false
+		return true):
+		check(false,"real party admission establishes return and reward provenance");return
 	var at := Vector3(0,0,-6)
 	game.battlefield.configure(0,1,0)
 	ExpeditionCase.set_world(game, {"map_seed": 0})
@@ -62,11 +74,7 @@ func host() -> void:
 	game.tactics.winding_up = false
 	game.encounter_rewarded = false
 	for player in game.players.values():
-		ExpeditionCase.set_membership(game, player, true)
-		# Establish the same before-run reward baseline as real admission, so the
-		# unchanged voluntary leave path can forfeit this synthetic expedition.
-		var peer:int=SessionCase.Session.peer_for(player)
-		check(game.monster_rewards.begin_expedition(game._kill_reward_identity(peer,player),game.participation.run_id(),player.character.xp,player.character.monsters),"run reward boundary precedes the theft and normal leave")
+		check(ExpeditionCase.is_wild(player) and player.has("garden_run_id"),"admitted actor has a return receipt before the theft and normal leave")
 		player.pos = at + Vector3(1.0,0,0)
 	var thief: Dictionary = game.make_scout(Escape.KIND,at,2)
 	game.encounter.clear_scouts();game.encounter.register_scout(thief)
