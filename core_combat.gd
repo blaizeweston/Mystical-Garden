@@ -268,6 +268,7 @@ static func tick(game: Node, now: int) -> void:
 
 static func hints(game: Node) -> Array:
 	var result: Array=load("res://void_affinity.gd").hints(game)
+	result.append_array(load("res://spirit_affinity.gd").hints(game,game.CombatClock.now()))
 	for line in game.effect_timeline.core_records().values():
 		if not line.grown:
 			continue
@@ -279,7 +280,10 @@ static func hints(game: Node) -> Array:
 			hint.core_phase = maxi(0,elapsed-started)
 			result.append(hint)
 		elif line.skill.affinity_family == "void":
-			result.append(field_hint(line.id,line.center,maxf(0.0,(int(line.well_until)-elapsed)/1000.0),line.skill))
+			var hint:=field_hint(line.id,line.center,maxf(0.,(int(line.well_until)-elapsed)*.001),line.skill)
+			hint.radius=preload("res://void_affinity.gd").field_radius(line.affinity_action.potency())
+			hint.core_phase=maxi(0,preload("res://void_affinity.gd").GATHER_MS+elapsed-int(line.well_until))
+			result.append(hint)
 	return result
 
 

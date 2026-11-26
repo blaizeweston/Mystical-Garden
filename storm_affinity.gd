@@ -63,7 +63,7 @@ static func discharge(game: Node, actor: int, first: int, origin: Vector3, impac
 	for step in jumps+1:
 		if target== -2:break
 		visited[Contact.token(game,target)]=true
-		route.append({"target":target,"token":game.encounter.spawn_identity(target),"origin":previous,"point":center,"step":step,"secondary":false})
+		route.append({"target":target,"token":game.encounter.spawn_identity(target),"origin":previous,"point":center,"step":step,"art":source.get("slot","core"),"secondary":false})
 		previous=center
 		target=nearest(game,center,reach,visited)
 		if target!= -2:center=Hurt.contact(game,target,previous,true)
@@ -84,18 +84,18 @@ static func discharge(game: Node, actor: int, first: int, origin: Vector3, impac
 				var fork:=nearest(game,node.point,reach,visited)
 				if fork== -2:break
 				visited[Contact.token(game,fork)]=true
-				route.append({"target":fork,"token":game.encounter.spawn_identity(fork),"origin":node.point,"point":game.enemy_position(fork),"hp":maxi(1,roundi(int(node.hp)*float(tuning.fork_percent)/100.0)),"secondary":true})
+				route.append({"target":fork,"token":game.encounter.spawn_identity(fork),"art":"fork","origin":node.point,"point":game.enemy_position(fork),"hp":maxi(1,roundi(int(node.hp)*float(tuning.fork_percent)/100.0)),"secondary":true})
 		var return_from: Vector3=main.back().point
 		var return_to:=Hurt.contact(game,first,return_from,true)
 		if return_from.distance_to(return_to)<=reach and game.battlefield.projectile_clear(return_from,return_to):
-			route.append({"target":first,"token":main[0].token,"origin":return_from,"point":return_to,"hp":maxi(1,roundi(hp*float(tuning.return_percent)/100.0)),"secondary":true})
+			route.append({"target":first,"token":main[0].token,"art":"return","origin":return_from,"point":return_to,"hp":maxi(1,roundi(hp*float(tuning.return_percent)/100.0)),"secondary":true})
 	var damaged:=false
 	for row: Dictionary in route:
 		if game.persistence_session.is_blocked() or (not source.is_empty() and not Sources.current(game,source)):break
-		game.emit_combat_event("link","storm_arc",row.origin,row.point,.25,COLOR,0.0,actor)
 		if not game.encounter.alive(row.target,row.token):continue
+		game.emit_combat_event("link","storm_arc",row.origin,row.point,.25,COLOR,0.0,actor,{"form":row.art})
 		var before: int=game.encounter.hp(row.target)
-		OutgoingHits.affinity_and_clear(game,actor,row.target,int(row.hp),now,COLOR,bool(row.secondary))
+		OutgoingHits.affinity_and_clear(game,actor,row.target,int(row.hp),now,COLOR,bool(row.secondary),{"damage_cue":"storm_arc"})
 		damaged=damaged or game.encounter.hp(row.target)<before
 	if damaged and int(potency.get("tempo_percent",0))>0 and not source.is_empty() and Sources.current(game,source):
 		owner[TEMPO]={"source":source,"until":now+int(Catalog.DEFINITIONS.ionized_rhythm.tuning.duration_ms),"percent":int(potency.tempo_percent)}

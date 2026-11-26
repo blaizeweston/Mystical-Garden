@@ -34,7 +34,7 @@ static func cycle_option(value: Array, option: int) -> Array:
  if field >= 0: result[field]=(int(result[field])+1) % OPTIONS[option].size()
  return result
 
-static func apply(actor: Dictionary, values: Array) -> void:
+static func apply(actor: Dictionary, values: Array, tint_materials := true) -> void:
  var look=normalize(values)
  if actor.get("look_key","")==str(look): return
  if actor.has("rig_kind") and actor.rig_kind!=look[5]: preload("res://traveller_avatar.gd").swap(actor,look[5])
@@ -49,7 +49,7 @@ static func apply(actor: Dictionary, values: Array) -> void:
   for i in range(mesh.get_blend_shape_count()):
    var index=MORPHS.find(str(mesh.mesh.get_blend_shape_name(i)))
    if index>=0: mesh.set_blend_shape_value(i,(look[index+7]-50)/50.0)
-  for i in (mesh.mesh.get_surface_count() if DisplayServer.get_name()!="headless" else 0):
+  for i in (mesh.mesh.get_surface_count() if tint_materials and DisplayServer.get_name()!="headless" else 0):
    var original=mesh.mesh.surface_get_material(i)
    if original==null: continue
    var key=str(original.resource_name)

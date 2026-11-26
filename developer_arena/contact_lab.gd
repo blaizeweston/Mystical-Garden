@@ -3,13 +3,16 @@ extends VBoxContainer
 const Contacts = preload("res://contact_particles.gd")
 const Tune = preload("res://developer_arena/tuning.gd")
 const Exhibit = preload("res://developer_arena/garden_exhibit.gd")
+const Astral=preload("res://astral_visuals.gd")
 const Shelter=preload("res://shelter_visuals.gd")
+const VoidAffinity=preload("res://void_affinity.gd")
+const SpiritAffinity=preload("res://spirit_affinity.gd")
 const Affinities=preload("res://affinity_glyphs.gd")
 const Fire=preload("res://fire_combat.gd")
 const Thorn=preload("res://thorn_affinity.gd")
 const Frost=preload("res://frost_balance.gd")
 const AFFINITY_START:=11
-const AFFINITY_KINDS:=["fire","open","thorn","burning","brittle","bleeding","patch"]+Shelter.PREVIEWS
+const AFFINITY_KINDS:=["fire","open","thorn","burning","brittle","bleeding","patch"]+Shelter.PREVIEWS+Astral.PREVIEWS
 var affinity_samples:Array[MeshInstance3D]=[]
 const WEAPON_SEQUENCE := 9
 const DODGE := 10
@@ -46,7 +49,7 @@ var started := false
 func setup(panel: Control, legacy_controls: Control) -> void:
 	world=panel.world
 	equipped=legacy_controls
-	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom","Reviewed weapon sequence","Dodge foot scuff","Ember Wake","Rime Bloom · both phases","Thorn Line","Burning · target","Brittle · two stacks","Bleed · target","Thorn Form patch"]+Shelter.TITLES:
+	for item in ["Weapon contact · melee","Weapon contact · projectile","Brittle rupture","Equipped skill replay","Heart fissure","Root energy","Water Intake","Living Sprinkler","Pollination Bloom","Reviewed weapon sequence","Dodge foot scuff","Ember Wake","Rime Bloom · both phases","Thorn Line","Burning · target","Brittle · two stacks","Bleed · target","Thorn Form patch"]+Shelter.TITLES+Astral.TITLES:
 		selection.add_item(item)
 	add_child(selection)
 	selection.item_selected.connect(func(_index): select_effect())
@@ -143,10 +146,23 @@ func select_effect() -> void:
 func frame_affinity() -> void:
 	camera.look_at(Vector3(0,.6,0))
 	camera.size=float([3.3,4.6,5.8][formation.selected])
+	if AFFINITY_KINDS[selection.selected-AFFINITY_START] in ["gravity_well","singularity","void_collapse"]:
+		camera.size+=3.4
 
 func duration() -> float:
 	if selection.selected>=AFFINITY_START:
 		match AFFINITY_KINDS[selection.selected-AFFINITY_START]:
+			"storm_arc","rift_shear":return .25
+			"void_collapse":return .55
+			"mirrorstep_attack":
+				var body:Dictionary=world.stage.spectral_body(1)
+				var weapon:Dictionary=Astral.Classes.DEFINITIONS[int(body.get("frame",0))].weapons[int(body.get("weapon_kind",0))]
+				return Astral.Motion.profile(weapon.visual).duration
+			"mirrorstep":return SpiritAffinity.Catalog.DEFINITIONS.mirrorstep.tuning.duration_ms*.001
+			"wraithcast_shadow":return SpiritAffinity.Catalog.DEFINITIONS.wraithcast.tuning.duration_ms*.001
+			"spirit_step":return .35
+			"singularity":return VoidAffinity.Catalog.DEFINITIONS.singularity.tuning.duration_ms*.001
+			"gravity_well":return VoidAffinity.GATHER_MS*.001
 			"dewfall":return preload("res://water_combat.gd").WAVE_MS*.001
 			"riptide","riptide_return":return preload("res://water_tidal_return.gd").PHASE_MS*.001
 			"ironbark","vital_bloom":return .55
@@ -167,7 +183,8 @@ func refresh_ambient() -> void:
 		if latest!=captured_values:
 			captured_values=latest
 			for glyph in affinity_samples:
-				if glyph.has_meta("shelter_kind"):Shelter.configure(glyph,latest)
+				if glyph.has_meta("astral_kind"):Astral.configure(glyph,latest)
+				elif glyph.has_meta("shelter_kind"):Shelter.configure(glyph,latest)
 				else:Affinities.configure(glyph,latest)
 			seek(clock)
 	if is_instance_valid(scuff) and mode.selected==1:
@@ -225,6 +242,16 @@ func play(advance: bool) -> void:
 		for point in origins():
 			var offset:=Vector3.UP*.24 if kind in Affinities.STATUS else Vector3.ZERO
 			var seed_value:=17+affinity_samples.size()
+			if kind in Astral.PREVIEWS:
+				var path:=Vector3(1.7,0,0) if kind in ["storm_arc","spirit_step"] else Vector3.ZERO
+				if kind=="spirit_step":path=Vector3.RIGHT*SpiritAffinity.STEP_DISTANCE
+				var width:=.7 if kind=="rift_shear" else .4
+				if kind in ["gravity_well","void_collapse"]:width=VoidAffinity.CORE_RADIUS
+				if kind=="singularity":width=VoidAffinity.Catalog.DEFINITIONS.singularity.tuning.radius_m
+				var body:Dictionary=world.stage.spectral_body(1)
+				if body.is_empty():body={"frame":0,"weapon_kind":0}
+				affinity_samples.append(Astral.create(scene,kind,point-path*.5,path,width,seed_value,captured_values,"",body))
+				continue
 			if kind in Shelter.PREVIEWS:
 				var width:=preload("res://water_combat.gd").WAVE_RADIUS if kind=="dewfall" else preload("res://water_tidal_return.gd").BASE_WIDTH
 				if kind=="riptide_return":width*=preload("res://water_tidal_return.gd").RETURN_WIDTH_SCALE
@@ -306,6 +333,10 @@ func seek(seconds: float) -> void:
 	for glyph in affinity_samples:
 		var phase_time:=clock
 		var end:=duration()
+		if glyph.has_meta("astral_kind"):
+			glyph.visible=clock<end
+			Astral.seek(glyph,clock,end)
+			continue
 		if glyph.has_meta("shelter_kind"):
 			glyph.visible=clock<end
 			if str(glyph.get_meta("shelter_kind")) in Shelter.TRAVEL:

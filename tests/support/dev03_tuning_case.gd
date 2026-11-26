@@ -280,6 +280,15 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 	if fx.hints[field.id].plants[0]!=plant:return "field rebuilt on repeated snapshot"
 	fx.sync([],[],"affinity-floor",Vector3.ZERO)
 	if not fx.hints.is_empty() or not plant.get_parent().is_queued_for_deletion():return "stale field after withdrawal"
+	var well:={"id":"well-6","role":"core_field","skill":"gravity_well","from":[2.,0.,1.],"to":[2.,0.,1.],"radius":2.8,"remaining":.8,"core_phase":240,"form":"singularity"}
+	var admission:={"id":960,"kind":"field","shape":"gravity_well","from":well.from,"to":well.to,"reach":2.8,"duration":1.04,"color":"ad8bcb","combo":1}
+	fx.sync([admission,admission],[well],"void-floor",Vector3.ZERO)
+	var current:MeshInstance3D=fx.hints[well.id].astral
+	if not fx.active.is_empty() or current.get_meta("astral_kind")!="singularity" or current.position!=Vector3(2,0,1) or not is_equal_approx(current.material_override.get_shader_parameter("extent"),2.8):return "duplicate or displaced field art"
+	fx.sync([],[well],"void-floor",Vector3.ZERO)
+	if fx.hints[well.id].astral!=current:return "field visual allocated again for unchanged snapshot"
+	fx.sync([],[],"void-floor",Vector3.ZERO)
+	if not fx.hints.is_empty() or not current.get_parent().is_queued_for_deletion():return "withdrawn field survived"
 	for payoff in ["flashover","wildfire","hemorrhagic_rupture"]:
 		var receipt:=wake.duplicate(true)
 		receipt.id+=payoff.length()
@@ -317,7 +326,7 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 			lab.seek(lab.Affinities.OPEN_SECONDS+.01)
 			if lab.affinity_samples[0].visible or not lab.affinity_samples[1].visible:return "opening/closing handoff"
 		var stamp:float=lab.clock
-		var id:String=["fire.height","frost.petals","thorn.bark","fire.embers","affinity.status","affinity.status","thorn.spines","water.crest","water.opacity","water.crest","water.opacity","wood.grain","wood.thickness","wood.grain","wood.thickness","vital.petals","vital.pollen","vital.pollen"][i]
+		var id:String=["fire.height","frost.petals","thorn.bark","fire.embers","affinity.status","affinity.status","thorn.spines","water.crest","water.opacity","water.crest","water.opacity","wood.grain","wood.thickness","wood.grain","wood.thickness","vital.petals","vital.pollen","vital.pollen","storm.width","spirit.wisp","spirit.veil","spirit.veil","void.flow","void.shade","void.flow","spirit.veil","void.flow"][i]
 		var proposed:float=Tune.PROPERTIES[id].maximum
 		if not tune.request(world,id,proposed):return "affinity slider "+id
 		lab.mode.select(1)
@@ -326,6 +335,13 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 		tune.reset(world,[id])
 		lab.stop()
 		if not lab.affinity_samples.is_empty():return "affinity reset"
+	if not tune.request(world,"storm.width",1.4) or not tune.request(world,"spirit.veil",.32) or not tune.request(world,"void.shade",.65):return "astral controls"
+	if not presets.save_new("Spectral currents").is_empty():return "astral preset save"
+	tune.reset(world,["storm.width","spirit.veil","void.shade"])
+	if not presets.load_named("Spectral currents").is_empty() or not is_equal_approx(tune.applied("spirit.veil"),.32):return "astral preset reload"
+	var review:String=presets.export_review("Spectral currents")
+	if not presets._read(review.path_join("changes.json")).differences.any(func(row):return row.id=="void.shade"):return "astral export"
+	tune.reset(world,["storm.width","spirit.veil","void.shade"])
 	if not tune.request(world,"water.crest",1.35) or not tune.request(world,"fire.smoke",.43) or not presets.save_new("Smoldering roots").is_empty():return "affinity preset write"
 	tune.reset(world,["fire.smoke","water.crest"])
 	if not presets.load_named("Smoldering roots").is_empty() or not is_equal_approx(tune.applied("water.crest"),1.35) or not is_equal_approx(tune.applied("fire.smoke"),.43):return "affinity preset read"

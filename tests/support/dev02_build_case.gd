@@ -40,6 +40,12 @@ static func verify(session: Node) -> String:
 	if not spawn.is_empty(): return spawn
 	arena.dodge_player(1,Vector2.RIGHT)
 	if old.get(Spirit.ECHOES,[]).is_empty() or old.get(Spirit.SHADOWS,[]).is_empty(): return "real dash failed to prepare echo and shadow"
+	await session.get_tree().process_frame
+	await session.get_tree().process_frame
+	var images:Array=arena.stage.get_node("CombatEffects").hints.values().filter(func(h):return h.event.role=="spirit_image" and h.has("astral"))
+	if images.size()!=2:return "dash images missing from practice stage"
+	var echo_mesh:MeshInstance3D=images[0].astral
+	var shadow_mesh:MeshInstance3D=images[1].astral
 	var now: int=arena.CombatClock.now()
 	arena.weapon_attacks.try_start(arena.weapon_attack_world,1,old.pos,now)
 	var old_life: int=arena.PlayerLifecycle.generation(old)
@@ -53,6 +59,7 @@ static func verify(session: Node) -> String:
 	await session.get_tree().process_frame
 	await session.get_tree().process_frame
 	if is_instance_valid(arena): return "old world survived"
+	if is_instance_valid(echo_mesh) or is_instance_valid(shadow_mesh):return "spectral geometry survived build replacement"
 	arena=session.combat
 	var actor: Dictionary=arena.players[1]
 	var build=arena.combat_build(actor)

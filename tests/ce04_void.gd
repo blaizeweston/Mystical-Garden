@@ -100,6 +100,8 @@ func run():
  field(1,Vector3(0,0,-2));advance(700)
  check(Void.sustained_bonus(g,-1,c.action(1,"core").potency())==2,"actual continuous field exposure enables independently acquired pressure damage")
  Active.command(g,1,p,Active.request(g,p,"singularity",Vector2.UP,12,2.0))
+ var projection:=Void.hints(g)
+ check(projection.any(func(h):return h.form=="singularity" and h.radius==g.effect_timeline.native_records()[1].radius) and projection.any(func(h):return h.form=="lingering"),"field projections distinguish actual gathering radii and lifetimes")
  check(g.effect_timeline.native_count()==2,"Singularity and ordinary lingering Well coexist independently")
  advance(1700)
  check(g.enemy_health()<999944,"combined genuine overlap and pressure add damage without duplicating whole implosions")

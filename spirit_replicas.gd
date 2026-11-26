@@ -49,7 +49,8 @@ static func weapon(game: Node,peer: int,stats: Dictionary,form: String,now: int,
 		copy[Events.CONTEXT]=event.replicated(game,q,now)
 		var direction: Vector3=player.get("aim_direction",player.facing) if player.get("mouse_aim",false) else player.facing
 		var pose:={"direction":direction.normalized(),"mouse":false,"sequence":-1,"epoch":echo.epoch,"life":echo.life,"binding":echo.binding}
-		game.weapon_attacks.schedule(game.weapon_attack_world,peer,echo.point,copy,now,form,duration,-2,pose)
+		if game.weapon_attacks.schedule(game.weapon_attack_world,peer,echo.point,copy,now,form,duration,-2,pose)>0:
+			game.emit_combat_event("ability","mirrorstep_attack",echo.point,echo.point+direction,duration*.001,Spirit.COLOR,float(stats.reach),peer,{"label":"","clip":stats.get("weapon_variant","")})
 	Journal_event("mirrorstep_released",peer,echoes.size())
 
 static func Journal_event(kind: String,peer: int,count: int) -> void:

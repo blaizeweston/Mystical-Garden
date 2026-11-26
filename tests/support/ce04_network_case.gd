@@ -76,6 +76,9 @@ static func guest(test: RefCounted,game: Node,peer: int) -> bool:
  var offset: Vector3=game.tactics.position-local.pos
  var request:=Active.request(game,local,unique,Vector2(offset.x,offset.z).normalized(),100000+peer) if family in ["wood","vital"] else Core.request(game,local,Vector2(offset.x,offset.z).normalized(),1.1)
  game.send_garden_action(request);game.send_garden_action(request)
+ if family=="storm":
+  var renderer=preload("res://tests/support/world_presentation_case.gd").component(game,"combat")
+  if not test.check(await test.until(func():return renderer.active.values().any(func(e):return e.event.shape=="storm_arc" and e.has("astral") and e.event.get("form") in ["core","return"])),"guest draws a resolved discharge from host endpoints"):return false
  if family=="vital":
   if not test.check(await test.until(func():return test.read("ce04-attack-"+str(peer))=="ok"),"host accepted Harvest toggle before ordinary attack"):return false
   game.send_action(true)
@@ -134,6 +137,8 @@ static func spirit_guest(test: RefCounted,game: Node,peer: int) -> bool:
  if not test.check(await test.until(func():return test.read("ce04-dash-"+str(peer))=="ok"),"host admits actual dash input"):return false
  game.request_dodge.rpc_id(1,Vector2.RIGHT);game.request_dodge.rpc_id(1,Vector2.LEFT)
  if not test.check(await test.until(func():return test.read("ce04-copy-"+str(peer))=="ok"),"host observes both departure-position preparations"):return false
+ var renderer=preload("res://tests/support/world_presentation_case.gd").component(game,"combat")
+ if not test.check(await test.until(func():return ["mirrorstep","wraithcast_shadow"].all(func(kind):return renderer.hints.values().any(func(h):return h.event.get("owner")==peer and h.event.get("skill")==kind and h.has("astral")))),"guest sees its two independent manifestations at the authoritative positions"):return false
  game.send_action(true)
  game.send_garden_action("class_skill");game.send_garden_action("class_skill")
  if not test.check(await test.until(func():return test.read("ce04-accepted-"+str(peer))=="ok" and not game.players.get(peer,{}).get("skill_ready",true) and int(game.players.get(peer,{}).get("spirit_prepared",{}).get("shadows",-1))==0),"guest receives one Q cooldown and cleared shadows after duplicate class input"):return false
@@ -194,6 +199,8 @@ static func void_guest(test: RefCounted,game: Node,peer: int) -> bool:
  game.send_garden_action(request);game.send_garden_action(request)
  if not test.check(await test.until(func():return test.read("ce04-cast-"+str(peer))=="ok"),"host observes ordinary Well before extra ability"):return false
  p=game.players[peer];offset=game.tactics.position-p.pos
+ var renderer=preload("res://tests/support/world_presentation_case.gd").component(game,"combat")
+ if not test.check(await test.until(func():return renderer.hints.values().any(func(h):return h.event.get("form")=="lingering" and h.has("astral"))),"guest draws the host's gathering field"):return false
  request=Active.request(game,p,"singularity",Vector2(offset.x,offset.z).normalized(),200000+peer,offset.length())
  game.send_garden_action(request);game.send_garden_action(request)
  if not test.check(await test.until(func():return test.read("ce04-accepted-"+str(peer))=="ok" and game.players.get(peer,{}).get("card_actions_state",[]).any(func(row):return row.id=="singularity" and row.remaining>0)),"guest sees one host-owned cooldown after implosion"):return false

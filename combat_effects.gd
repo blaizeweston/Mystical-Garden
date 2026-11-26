@@ -6,6 +6,7 @@ var stage: Node3D
 const Contacts = preload("res://contact_particles.gd")
 const Delivery = preload("res://weapon_delivery_visuals.gd")
 const Affinities = preload("res://affinity_glyphs.gd")
+const Astral = preload("res://astral_visuals.gd")
 const Shelter = preload("res://shelter_visuals.gd")
 var affinity_overrides := {}
 var motion_overrides := {}
@@ -30,12 +31,15 @@ func set_affinity_tuning(values:Dictionary) -> void:
  affinity_overrides=values
  statuses.settings=values
  for hint in hints.values():
+  if hint.has("astral"):Astral.configure(hint.astral,values)
   for plant in hint.get("plants",[]): Affinities.configure(plant,values)
  for effect in active.values():
+  if effect.has("astral"):Astral.configure(effect.astral,values)
   if effect.has("shelter"):Shelter.configure(effect.shelter,values)
   for key in ["petals","mist","payoff"]:
    if effect.has(key):Affinities.configure(effect[key],values)
  for item in statuses.active.values():
+  if item.has("astral"):Astral.configure(item.astral,values)
   if item.has("shelter"):Shelter.configure(item.shelter,values)
   if item.has("mark"):Affinities.configure(item.mark,values)
 
@@ -56,6 +60,8 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
   seen[event.id]=true
   if event.kind in ["status","status_end"]:statuses.consume(event);continue
   if event.kind=="windup":continue
+  # Field hints own these visuals. A spent charge already has its resolved discharge.
+  if (event.kind=="field" and event.shape=="gravity_well") or (event.kind=="link" and event.shape=="storm_charge"):continue
   if event.kind=="projectile_end":
    var ended:=int(event.shape)
    seen[ended]=true
@@ -84,15 +90,30 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
   var family:=Contacts.kind(event)
   if event.kind=="impact" and event.shape!="heal" and visible_hit:
    var flash:=float(contact_overrides.get("impact.flash",Contacts.DEFAULTS["impact.flash"])) if family=="impact" else 1.0
+   if event.get("damage_cue")=="storm_arc":flash*=.16
    feedback.confirmed(event,at,0.0 if event.get("damage_cue","") in ["frost_rupture","burn_tick","bleed_tick"] else flash)
   # The rupture already supplies the contact visual; its damage receipt still shows HP.
-  if event.get("damage_cue","") in ["frost_rupture","burn_tick","bleed_tick"]:continue
+  if event.get("damage_cue","") in ["frost_rupture","burn_tick","bleed_tick","storm_arc"]:continue
   var age:=float(event.get("age",0))
   var effect: Dictionary
   if not family.is_empty():
    if age>=float(contact_overrides.get(family+".lifetime",Contacts.DEFAULTS[family+".lifetime"])):continue
    var strike:=point(event.strike_point) if event.has("strike_point") else at
    effect=Contacts.create(self,family,stage.WILD_OFFSET+strike,strike-point(event.from),event.get("form",""),int(event.id),contact_overrides,impact_emission,event.has("strike_point"))
+  elif event.kind in ["link","ability"] and event.shape in Astral.RECEIPTS:
+   var root:=Node3D.new()
+   add_child(root)
+   root.position=stage.WILD_OFFSET
+   var start:=point(event.from)
+   var path:=at-start
+   var body:Dictionary=stage.spectral_body(int(event.combo)) if event.shape in Astral.BODIES else {}
+   if not body.is_empty():
+    if path.length_squared()>.001:body.yaw=atan2(path.x,path.z)
+    body.clip=event.get("clip","")
+    if event.shape=="mirrorstep_attack":body.reach=event.reach
+   var extent:=float(event.reach)
+   if event.shape=="void_pulse" and event.get("form")=="compression":extent=.55
+   effect={"root":root,"astral":Astral.create(root,event.shape,start,path,extent,int(event.id),affinity_overrides,event.get("form",""),body)}
   else:
    var art:String=event.shape if event.shape in Shelter.RECEIPTS and event.kind in ["projectile","ability","link"] else ""
    if event.kind=="impact" and event.shape=="heal":art=event.form
@@ -124,7 +145,7 @@ func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,ra
    if event.shape=="pulled":feedback.text_at("Pulled",point(event.to),Color(event.color),int(event.id),true,3.45)
    elif event.shape=="restored" and int(event.reach)>0:feedback.text_at("+%d"%int(event.reach),point(event.to),Color(event.color),int(event.id))
    elif event.shape=="trophy":feedback.text_at("Trophy stolen",point(event.to),Color(event.color),int(event.id),true)
-  var phase_caption: bool=event.shape in ["frost_close","ironbark","vital_bloom","wood_splinters","riptide_return","tidal_ring_return"] and motion_overrides.get("text.detail",Delivery.CONTROLS["text.detail"][0])==0
+  var phase_caption: bool=event.shape in ["rift_shear","wraithcast","frost_close","ironbark","vital_bloom","wood_splinters","riptide_return","tidal_ring_return"] and motion_overrides.get("text.detail",Delivery.CONTROLS["text.detail"][0])==0
   if event.kind=="ability" and visible_hit and not phase_caption and not str(event.get("label",event.shape)).is_empty():
    if event.shape in ["tidal_ring","riptide"]:
     feedback.proc_caption(str(event.get("label",event.shape)),at,Color("#bcebdd"),int(event.id),motion_overrides.get("text.detail",Delivery.CONTROLS["text.detail"][0])>0)
@@ -205,6 +226,14 @@ func circle(mesh: ImmediateMesh,center: Vector3,radius: float,width: float=.06) 
   ribbon(mesh,center+Vector3(cos(first),0,sin(first))*radius,center+Vector3(cos(second),0,sin(second))*radius,width)
 func pose(effect: Dictionary) -> void:
  var event: Dictionary=effect.event
+ if effect.has("astral"):
+  var start:=point(event.from)
+  var end:=point(event.to)
+  var near:=start if start.is_equal_approx(end) else Geometry3D.get_closest_point_to_segment(observer,start,end)
+  var present:bool=event.shape not in Astral.BODIES or stage.avatar_models.get(int(event.combo),{}).get("living_in_wilds",false)
+  effect.root.visible=present and near.distance_to(observer)<=sight+float(event.reach)
+  Astral.seek(effect.astral,effect.age,event.duration)
+  return
  if effect.has("shelter"):
   var start:=point(event.from)
   var end:=point(event.to)
@@ -447,6 +476,19 @@ func snare_roots(mesh: ImmediateMesh, center: Vector3, radius: float, count: int
 
 func draw_hint(hint: Dictionary) -> void:
  var event: Dictionary=hint.event
+ if event.role=="spirit_image" or (event.role=="core_field" and event.get("skill")=="gravity_well"):
+  if not hint.has("astral"):
+   var art:String="singularity" if event.get("form")=="singularity" else event.skill
+   var body:Dictionary=stage.spectral_body(int(event.owner)) if event.role=="spirit_image" else {}
+   if event.role=="spirit_image" and body.is_empty():return
+   body.yaw=event.get("yaw",0.)
+   hint.astral=Astral.create(hint.root,art,point(event.from),Vector3.ZERO,event.radius,str(event.id).hash(),affinity_overrides,event.get("form",""),body)
+  hint.phase_anchor=maxf(0.,event.get("core_phase",0)*.001)
+  hint.ttl_anchor=float(event.remaining)
+  hint.age=clampf(hint.age,hint.phase_anchor,hint.phase_anchor+.10)
+  hint.root.visible=point(event.from).distance_to(observer)<=sight+float(event.radius)
+  Astral.seek(hint.astral,hint.age,hint.phase_anchor+hint.ttl_anchor)
+  return
  if event.role=="core_field" and event.get("skill","") in ["ember_wake","thorn_line"] and not event.get("core_shapes",[]).is_empty():
   if not hint.has("plants"):
    hint.plants=[]
@@ -691,6 +733,9 @@ func step(delta: float) -> void:
  feedback.step(delta)
  statuses.step(delta)
  for hint in hints.values():
+  if hint.has("astral") and hint.root.visible:
+   hint.age=minf(hint.phase_anchor+.10,float(hint.age)+delta)
+   Astral.seek(hint.astral,hint.age,hint.phase_anchor+hint.ttl_anchor)
   if hint.has("plants") and hint.root.visible:
    hint.age=minf(hint.phase_anchor+.10,float(hint.age)+delta)
    hint.left=maxf(maxf(0.,hint.ttl_anchor-.10),float(hint.left)-delta)

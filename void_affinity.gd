@@ -154,7 +154,7 @@ static func resolve_motion(game: Node, elapsed: int, now: int) -> void:
 
 static func pulse(game: Node, event: RefCounted, center: Vector3, inward: bool, now: int, targets: Array, preserve_native := false) -> bool:
 	var q: Dictionary=event.potency()
-	game.emit_combat_event("ability","void_pulse",center,center,.46,COLOR,area_radius(q),event.actor,{"label":"Compression" if inward else "Void repulsion"})
+	game.emit_combat_event("ability","void_pulse",center,center,.46,COLOR,area_radius(q),event.actor,{"label":"Compression" if inward else "Void repulsion","form":"compression" if inward else "repulsion"})
 	var accepted:=false
 	for target in targets:
 		if game.persistence_session.is_blocked():break
@@ -192,7 +192,7 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 	match kind:
 		"core_action":
 			var center: Vector3=details.center
-			game.emit_combat_event("ability","void_collapse",center,center,.55,COLOR,float(details.get("radius",field_radius(q))),event.actor,{"label":"Gravity Well collapse"})
+			game.emit_combat_event("ability","void_collapse",center,center,.55,COLOR,float(details.get("radius",field_radius(q))),event.actor,{"label":"Gravity Well collapse","form":"singularity" if details.get("secondary",false) else "collapse"})
 			for target in game.skill_area_targets(center,float(details.get("radius",field_radius(q))),center):
 				if game.persistence_session.is_blocked(): break
 				OutgoingHits.affinity_and_clear(game,event.actor,target,int(details.get("damage_hp",q.collapse))+claim_compression(game,event,now)+sustained_bonus(game,target,q),now,COLOR,bool(details.get("secondary",false)))
@@ -203,6 +203,8 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 			p[FORM_READY]=elapsed+maxi(1,FORM_INTERVAL-int(q.get("interval_reduction_ms",0)))
 			if not details.get("native_displacement",false):
 				queue_motion(game,event,details.enemy,p.pos,true,q.form_force)
+			var point:Vector3=details.get("point",game.enemy_position(details.enemy))
+			game.emit_combat_event("ability","void_grip",point,point,.25,COLOR,.40,event.actor,{"label":""})
 			OutgoingHits.affinity_and_clear(game,event.actor,details.enemy,q.form_hp+claim_compression(game,event,now)+sustained_bonus(game,details.enemy,q),now,COLOR)
 		"actual_block":
 			if pulse(game,event,details.center,false,now,game.skill_area_targets(details.center,area_radius(q),details.center)):prepare_compression(game,event,now)
@@ -327,8 +329,9 @@ static func tick_fields(game: Node,elapsed: int,now: int) -> void:
 		if Sources.target_current(game,target,last) and now<int(last.until):continue
 		var chosen: Dictionary=owners[0]
 		body[SHEAR]={"epoch":game.participation.epoch(),"token":game.encounter.spawn_identity(target),"until":now+int(Catalog.DEFINITIONS.rift_shear.tuning.interval_ms)}
+		var point:Vector3=game.enemy_position(target)
 		OutgoingHits.affinity_and_clear(game,int(chosen.source.actor),target,int(chosen.potency.shear_hp),now,COLOR,true)
-		game.emit_combat_event("ability","rift_shear",game.enemy_position(target),game.enemy_position(target),.25,COLOR,.7,int(chosen.source.actor),{"label":"Rift Shear"})
+		game.emit_combat_event("ability","rift_shear",point,point,.25,COLOR,.7,int(chosen.source.actor),{"label":"Rift Shear"})
 
 static func hints(game: Node) -> Array:
 	var result:=[]
@@ -337,7 +340,7 @@ static func hints(game: Node) -> Array:
 		if field.kind!="void_field" or now<int(field.start) or now>=int(field.until):continue
 		var point: Vector3=field.position
 		var at:=[point.x,0,point.z]
-		result.append({"id":field.cast_id,"role":"core_field","from":at,"to":at,"radius":field.radius,"remaining":(int(field.until)-now)/1000.0,"color":"#ad8bcb","skill":"gravity_well","decoy":false})
+		result.append({"id":field.cast_id,"role":"core_field","from":at,"to":at,"radius":field.radius,"remaining":(int(field.until)-now)/1000.0,"color":"#ad8bcb","skill":"gravity_well","form":"singularity" if field.secondary else "lingering","core_phase":maxi(0,now-int(field.start)),"decoy":false})
 	return result
 
 static func singularity(game: Node,peer: int,center: Vector3,now: int) -> bool:

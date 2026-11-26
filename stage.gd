@@ -491,6 +491,7 @@ func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, world_po
 	actor.gait_phase=fposmod(float(actor.get("gait_phase",0.0))+travel.length()/2.0,1.0)
 	actor.gait_travel=travel.length()
 	apply_appearance(actor, Array(player.appearance))
+	actor.spectral_appearance=player.appearance
 	var yaw:=float(player.yaw)
 	var swing:=float(player.swing)
 	var animation: Dictionary=player.attack_anim
@@ -539,9 +540,17 @@ func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, world_po
 			var other:=preload("res://weapon_visuals.gd").build(self,class_id,weapon_id);other.reparent(actor.model,false);actor.secondary_weapon=other
 		actor.visual_weapon=effect_visual
 		actor.weapon_key=visual_key
+		actor.spectral_frame=class_id
+		actor.spectral_weapon=weapon_id
 	preload("res://weapon_visuals.gd").animate(actor,str(player.weapon_form),attack_phase,active,yaw,float(motion.reach),motion)
 	motion.interrupt=fallen or not motion.equipped or motion.ability or teleport or actor.get("trail_floor_changed",false)
 	preload("res://weapon_motion_trail.gd").sample_actor(actor,str(player.weapon_form),attack_phase,active and not animation.is_empty(),motion,delta,weapon_vfx_values)
+
+
+func spectral_body(owner:int) -> Dictionary:
+	var actor:Dictionary=avatar_models.get(owner,{})
+	if not actor.has("spectral_frame"):return {}
+	return {"frame":actor.spectral_frame,"weapon_kind":actor.spectral_weapon,"appearance":actor.spectral_appearance,"yaw":actor.model.rotation.y}
 
 
 func attack_material(tint: Color) -> StandardMaterial3D:

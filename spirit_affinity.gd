@@ -264,11 +264,31 @@ static func voluntary(game: Node, id: int, before: Vector3, after: Vector3, now:
 	for data in [["mirrorstep_unlock",ECHOES,"mirrorstep"],["wraithcast_unlock",SHADOWS,"wraithcast"]]:
 		if int(passives.get(data[0],0))<=0:continue
 		var row:=source.duplicate(true)
-		row.merge({"point":before,"until":now+int(Catalog.DEFINITIONS[data[2]].tuning.duration_ms)+int(passives.get("echo_duration_ms",0))})
+		var duration:=int(Catalog.DEFINITIONS[data[2]].tuning.duration_ms)+int(passives.get("echo_duration_ms",0))
+		row.merge({"point":before,"duration_ms":duration,"yaw":atan2(after.x-before.x,after.z-before.z),"until":now+duration})
 		if not player.has(data[1]):player[data[1]]=[]
 		player[data[1]].append(row)
-		game.emit_combat_event("ability","spirit_"+str(data[2]),before,before,(int(row.until)-now)/1000.0,COLOR,.35,id,{"label":str(data[2]).capitalize()})
 	Journal.event("combat","spirit_movement_prepared",{"actor":id,"echoes":player.get(ECHOES,[]).size(),"shadows":player.get(SHADOWS,[]).size()})
+
+## Detached images follow only preparations still owned by a living participant.
+static func hints(game:Node,now:int) -> Array:
+	var result:=[]
+	for peer:int in game.players:
+		var player:Dictionary=game.players[peer]
+		if not represents(game,peer):continue
+		for field in [ECHOES,SHADOWS]:
+			for row:Dictionary in player.get(field,[]):
+				if int(row.until)<=now or not Sources.current(game,row):continue
+				var point:Vector3=row.point
+				var at:=[point.x,point.y,point.z]
+				var remaining:=int(row.until)-now
+				# Older suspended preparations only have a deadline. Show them already formed.
+				var age:=maxi(0,int(row.duration_ms)-remaining) if row.has("duration_ms") else 150
+				result.append({"id":"spirit/%s/%s/%s"%[field,peer,row.activation],"role":"spirit_image",
+					"skill":"mirrorstep" if field==ECHOES else "wraithcast_shadow","owner":peer,
+					"from":at,"to":at,"radius":.4,"remaining":remaining*.001,
+					"core_phase":age,"yaw":row.get("yaw",0.)})
+	return result
 
 static func prune_preparations(game: Node,player: Dictionary,now: int) -> void:
 	for field in [ECHOES,SHADOWS]:

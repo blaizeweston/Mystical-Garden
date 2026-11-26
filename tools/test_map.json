@@ -301,7 +301,7 @@
     },
     "presentation": {
       "label": "HUD, world drawing, animation and effects",
-      "files": ["traveller_avatar.gd", "root_ui.gd", "stage.gd", "combat_effects.gd", "contact_particles.gd", "contact_particles.gd.uid", "affinity_glyphs.gd", "affinity_glyphs.gd.uid", "shelter_visuals.gd", "shelter_visuals.gd.uid", "assets/shaders/shelter_affinities.gdshader", "assets/shaders/shelter_affinities.gdshader.uid", "assets/shaders/affinity_growth.gdshader", "assets/shaders/affinity_growth.gdshader.uid", "assets/shaders/affinity_masks.svg", "assets/shaders/affinity_masks.svg.import", "weapon_delivery_visuals.gd", "weapon_delivery_visuals.gd.uid", "weapon_motion_trail.gd", "weapon_motion_trail.gd.uid", "assets/shaders/weapon_edge.gdshader", "assets/shaders/weapon_edge.gdshader.uid", "assets/shaders/contact_fragments.gdshader", "assets/shaders/contact_fragments.gdshader.uid", "enemy_death_effects.gd", "boss_lair_visuals.gd", "weapon_visuals.gd", "game_metrics.gd", "network_movement.gd", "network_movement.gd.uid", "combat_feedback.gd", "combat_feedback.gd.uid", "assets/characters/weapon_actions.json", "status_feedback.gd", "status_feedback.gd.uid"]
+      "files": ["traveller_avatar.gd", "root_ui.gd", "stage.gd", "combat_effects.gd", "contact_particles.gd", "contact_particles.gd.uid", "affinity_glyphs.gd", "affinity_glyphs.gd.uid", "astral_visuals.gd", "astral_visuals.gd.uid", "assets/shaders/astral_currents.gdshader", "assets/shaders/astral_currents.gdshader.uid", "assets/shaders/spectral_skin.gdshader", "assets/shaders/spectral_skin.gdshader.uid", "shelter_visuals.gd", "shelter_visuals.gd.uid", "assets/shaders/shelter_affinities.gdshader", "assets/shaders/shelter_affinities.gdshader.uid", "assets/shaders/affinity_growth.gdshader", "assets/shaders/affinity_growth.gdshader.uid", "assets/shaders/affinity_masks.svg", "assets/shaders/affinity_masks.svg.import", "weapon_delivery_visuals.gd", "weapon_delivery_visuals.gd.uid", "weapon_motion_trail.gd", "weapon_motion_trail.gd.uid", "assets/shaders/weapon_edge.gdshader", "assets/shaders/weapon_edge.gdshader.uid", "assets/shaders/contact_fragments.gdshader", "assets/shaders/contact_fragments.gdshader.uid", "enemy_death_effects.gd", "boss_lair_visuals.gd", "weapon_visuals.gd", "game_metrics.gd", "network_movement.gd", "network_movement.gd.uid", "combat_feedback.gd", "combat_feedback.gd.uid", "assets/characters/weapon_actions.json", "status_feedback.gd", "status_feedback.gd.uid"]
     },
     "diagnostics": {
       "label": "Saved diagnostic logs and report export",
@@ -7091,6 +7091,13 @@
     "weapon_visuals.gd": {
       "newline": "crlf",
       "regions": {
+          "vfx05c_98": {"systems":["presentation"]},
+          "vfx05c_89": {"systems":["presentation"]},
+          "vfx05c_83": {"systems":["presentation"]},
+          "vfx05c_56": {"systems":["presentation"]},
+          "vfx05c_50": {"systems":["presentation"]},
+          "vfx05c_13": {"systems":["presentation"]},
+          "vfx05c_11": {"systems":["presentation"]},
           "vfx04_weapon_mount": {"systems":["presentation"]},
         "botanical_weapon_dynamics": {
           "systems": [
@@ -7201,6 +7208,10 @@
     "combat_effects.gd": {
       "newline": "crlf",
       "regions": {
+          "vfx05c_479": {"systems":["presentation"]},
+          "vfx05c_148": {"systems":["presentation"]},
+
+
           "vfx05b_tide_captions": {"systems":["presentation"]},
           "vfx05b_tide_color": {"systems":["presentation"]},
           "vfx05b_tide_geometry": {"systems":["presentation"]},

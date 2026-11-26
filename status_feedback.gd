@@ -2,6 +2,7 @@ extends Node3D
 # Cosmetic host events only; icons follow rendered actors, not unsmoothed packets.
 const Catalog=preload("res://combat_status.gd")
 const Affinities=preload("res://affinity_glyphs.gd")
+const Astral=preload("res://astral_visuals.gd")
 const Shelter=preload("res://shelter_visuals.gd")
 var settings: Dictionary={}
 var stage: Node3D
@@ -42,6 +43,8 @@ func consume(event: Dictionary) -> void:
   elif event.shape=="drenched":label.text="Drenched · %d/%d"%[int(event.reach),Catalog.Water.SATURATION_THRESHOLD]
  if event.shape in ["echo","grave"]:label.text=Catalog.LABELS[event.shape]+" %d/3"%int(event.reach)
  active[event.id]={"node":root,"label":label,"event":event,"age":float(event.get("age",0)),"enemy":enemy}
+ if event.shape=="spirit_stride":
+  active[event.id].astral=Astral.create(root,"spirit_stride",Vector3.ZERO,Vector3(0,0,-.72),.25,int(event.combo),settings)
  if event.shape in Shelter.STATUS:
   var identity:="%s/%s/%s"%[event.combo,event.get("target_token",0),event.shape]
   var strength:=1.
@@ -73,11 +76,18 @@ func step(delta: float) -> void:
   var in_view: bool=target.visible and at.distance_to(observer)<=sight
   if in_view and not item.has("first_seen"):item.first_seen=item.age
   var visible_age: float=item.age-float(item.get("first_seen",item.age))
-  item.node.visible=in_view and (item.enemy or item.has("shelter") or visible_age<1.35)
+  item.node.visible=in_view and (item.enemy or item.has("shelter") or item.has("astral") or visible_age<1.35)
   item.node.position=target.position+Vector3(0.0,float(event.height)+slot*(.48 if item.enemy else .30),0)
   item.label.visible=visible_age<1.35 or event.shape in ["brittle","burning","drenched"]
   var text_color:=Color(event.color);text_color.a=1.0 if event.shape in ["brittle","burning","drenched"] else 1-smoothstep(.95,1.35,visible_age);item.label.modulate=text_color
   item.node.scale=Vector3.ONE*(1+.07*sin(item.age*5))
+  if item.has("astral") and item.node.visible:
+   var travel:Vector3=stage.avatar_models.get(int(event.combo),{}).get("gait_vector",Vector3.ZERO)
+   item.astral.visible=travel.length_squared()>.000004
+   if item.astral.visible:
+    item.astral.global_position=target.global_position
+    item.astral.rotation.y=atan2(travel.x,travel.z)
+    Astral.seek(item.astral,fmod(item.age,1.2),1.2)
   if item.has("shelter") and item.node.visible:
    item.shelter.global_position=target.global_position
    Shelter.seek(item.shelter,item.art_age,event.duration)

@@ -161,6 +161,7 @@ func populate_visual_properties() -> void:
 	var kind:String=lab.AFFINITY_KINDS[lab.selection.selected-lab.AFFINITY_START] if lab.selection.selected>=lab.AFFINITY_START else ""
 	for id: String in Catalog.PROPERTIES:
 		if not kind.is_empty():
+			if kind in lab.Astral.PREVIEWS and not id.begins_with(lab.Astral.family(kind)+"."):continue
 			if kind in lab.Shelter.PREVIEWS and not id.begins_with(lab.Shelter.family(kind)+"."):continue
 			match kind:
 				"fire":

@@ -39,6 +39,8 @@ func run():
  reset();c.equip(1,"storm",["core"]);c.own(1,["conductor"])
  for point in [Vector3(1,0,-2),Vector3(-1,0,-2),Vector3(0,0,-3),Vector3(1,0,-3)]:c.scout(point)
  cast()
+ var arcs:Array=g.combat_events.filter(func(row):return row.shape=="storm_arc")
+ check(arcs.filter(func(row):return row.form=="fork").size()==2 and arcs.back().form=="return" and arcs.back().from==arcs[2].to,"Conductor draws only its confirmed forks and returns from the last main node")
  check(g.combat_events.filter(func(row):return row.shape=="storm_arc").size()==6,"three normal nodes fork into only two remaining unique targets and make one return")
  reset();c.equip(1,"storm",["core"]);c.own(1,["conductor"])
  c.scout(Vector3(0,0,-4.4));c.scout(Vector3(0,0,-6.8))

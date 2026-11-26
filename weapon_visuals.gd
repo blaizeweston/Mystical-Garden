@@ -8,9 +8,9 @@ const Polearms=preload("res://plant_polearms.gd")
 const ROOTBLADE=preload("res://assets/weapons/rootblade.glb")
 const VINE_BOW=preload("res://assets/weapons/vine_bow.glb")
 const Models=preload("res://plant_weapon_models.gd")
-static func build(stage: Node3D,class_id: int,weapon_id: int) -> Node3D:
+static func build(parent: Node3D,class_id: int,weapon_id: int) -> Node3D:
  var root:=Node3D.new()
- stage.add_child(root)
+ parent.add_child(root)
  var form: String=Classes.DEFINITIONS[class_id].weapons[weapon_id].visual
  var wood:=Color("#684c2d")
  var steel:=Color("#d7dfc8")
@@ -47,14 +47,14 @@ static func build(stage: Node3D,class_id: int,weapon_id: int) -> Node3D:
     marker(root,"WeaponTip",Models.ARBALEST_TRACK)
    var nock:=Vector3(0,.2,-.20) if bow else Models.ARBALEST_NOCK
    for side in [-1.0,1.0]:
-    var string:=rod(stage,root,limb_tip(form,side),nock,.006,Color("#d9d0ae"))
+    var string:=rod(root,limb_tip(form,side),nock,.006,Color("#d9d0ae"))
     string.name="StringLower" if side<0 else "StringUpper"
    var arrow:=Node3D.new()
    arrow.name="NockedArrow"
    root.add_child(arrow)
    var tip:=Vector3(0,.2,.65) if bow else Models.ARBALEST_TRACK
-   rod(stage,arrow,nock,tip,.009,wood)
-   rod(stage,arrow,tip-Vector3.BACK*.10,tip,.023,steel)
+   rod(arrow,nock,tip,.009,wood)
+   rod(arrow,tip-Vector3.BACK*.10,tip,.023,steel)
   "whip":
    var segments: Array[Node3D]=[]
    for i in 18:
@@ -80,15 +80,21 @@ static func limb_tip(form: String, side: float) -> Vector3:
  if form=="bow":
   return Vector3(0,.2+side*.5,-.10)
  return Models.ARBALEST_TIP*Vector3(side,1,1)
-static func rod(stage: Node3D,root: Node3D,a: Vector3,b: Vector3,radius: float,color: Color) -> MeshInstance3D:
+static func rod(root: Node3D,a: Vector3,b: Vector3,radius: float,color: Color) -> MeshInstance3D:
  var shape:=CylinderMesh.new()
  shape.height=a.distance_to(b)
  shape.top_radius=radius*.8
  shape.bottom_radius=radius
  shape.radial_segments=8
- var node: MeshInstance3D=stage.mesh(shape,(a+b)/2,color)
+ var node:=MeshInstance3D.new()
+ var surface:=StandardMaterial3D.new()
+ surface.albedo_color=color
+ surface.roughness=.88
+ node.mesh=shape
+ node.material_override=surface
+ root.add_child(node)
+ node.position=(a+b)*.5
  node.basis=Basis(Quaternion(Vector3.UP,(b-a).normalized()))
- node.reparent(root,false)
  return node
 
 

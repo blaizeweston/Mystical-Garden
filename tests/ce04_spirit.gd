@@ -72,10 +72,13 @@ func run():
  Spirit.voluntary(g,1,Vector3.ZERO,Vector3.RIGHT,now)
  Spirit.voluntary(g,1,Vector3(.1,0,0),Vector3(1.1,0,0),now+10)
  check(p[Spirit.ECHOES].size()==2 and p[Spirit.SHADOWS].size()==2 and p[Spirit.SHADOWS][0].point==Vector3.ZERO,"each movement prepares both independent families at departure positions")
+ var images:=Spirit.hints(g,now+10)
+ check(images.size()==4 and images.map(func(h):return h.id).count(images[0].id)==1 and images.all(func(h):return h.owner==1),"each echo and shadow projects one owned departure position")
  check(int(p[Spirit.SHADOWS][0].until)==now+4500 and int(p[Spirit.ECHOES][0].until)==now+3500,"Lingering Echoes extends each preparation's own base lifetime")
  check(g.weapon_attacks.try_start(g.weapon_attack_world,1,p.pos,now),"primary basic attack admits through existing executor")
  var queued: Array=g.weapon_attacks.views()
  check(queued.size()==3 and p.get(Spirit.ECHOES,[]).is_empty() and p[Spirit.SHADOWS].size()==2,"next basic attack releases all echoes simultaneously without consuming shadows")
+ check(Spirit.hints(g,now+10).all(func(h):return h.skill=="wraithcast_shadow") and g.combat_events.filter(func(e):return e.shape=="mirrorstep_attack").size()==2,"accepted replicas consume exactly their own prepared images")
  var original: Dictionary=queued.filter(func(row):return not row.stats.get("spirit_replica",false))[0]
  for echo in queued.filter(func(row):return row.stats.get("spirit_replica",false)):
   check(echo.release==original.release and echo.stats.affinity_hp==maxi(1,roundi(int(original.stats.preview_strike_hp)*.4)),"phantom release timing and captured weapon potency match the authored scale")
@@ -87,6 +90,7 @@ func run():
  check(g.enemy_health()<1000000 and g.weapon_attacks.is_empty() and p.get(Spirit.ECHOES,[]).is_empty(),"real phantom attacks resolve without recursive copies")
  var skill: Dictionary=g.combat_build(p).class_skill(0)
  Replica.class_cast(g,1,skill,p.pos,g.tactics.position,float(skill.get("radius",2.0)),now,{"forward":Vector3.FORWARD,"endpoint":Vector3(0,0,-3)})
+ check(Spirit.hints(g,now+10).is_empty(),"released shadows disappear from the current manifest")
  check(p.get(Spirit.SHADOWS,[]).is_empty(),"compatible skill consumes every shadow once")
  var hp:int=g.enemy_health()
  Replica.class_cast(g,1,skill,p.pos,g.tactics.position,2.0,now)

@@ -191,6 +191,7 @@ func finish_contact(target: int, token: int, origin: Vector3, point: Vector3, co
 			load("res://oracle_combat.gd").ordinary_contact(_world, _actor, target, contact_point, stats, now)
 		var form := "magic" if stats.get("trait_secondary", false) else str(stats.get("audio_form", Motion.form(_actor)))
 		var presentation := {"form":form}
+		if stats.get("damage_cue")=="storm_arc":presentation.damage_cue="storm_arc"
 		if Motion.PROFILES.has(form):
 			# Swept projectiles already know their intersection. Melee admission
 			# uses a body footprint; mark its incoming face before knockback.

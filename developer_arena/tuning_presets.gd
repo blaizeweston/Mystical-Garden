@@ -14,6 +14,9 @@ func fingerprint(id: String) -> String:
 	if FileAccess.file_exists(path):
 		var hash := FileAccess.get_sha256(path)
 		if not hash.is_empty():
+			if Tune.Astral.CONTROLS.has(id):
+				for source in ["res://assets/shaders/astral_currents.gdshader","res://assets/shaders/spectral_skin.gdshader"]:
+					if FileAccess.file_exists(source):hash=(hash+FileAccess.get_sha256(source)).sha256_text()
 			if Tune.Shelter.CONTROLS.has(id):
 				for source in ["res://assets/shaders/shelter_affinities.gdshader","res://assets/terrain_m02/garden_motes.svg"]:
 					if FileAccess.file_exists(source):hash=(hash+FileAccess.get_sha256(source)).sha256_text()

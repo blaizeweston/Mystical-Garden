@@ -1,11 +1,11 @@
 extends RefCounted
 const FieldRig = preload("res://field_traveller.gd")
 
-static func build(parent: Node) -> Dictionary:
+static func build(parent: Node, kind := 0) -> Dictionary:
 	var model := Node3D.new()
 	parent.add_child(model)
 	var actor := {"model":model, "phase":0.0, "pace":0.0, "last":Vector3.INF}
-	swap(actor, 0)
+	swap(actor, kind)
 	return actor
 
 static func swap(actor: Dictionary, kind: int) -> void:

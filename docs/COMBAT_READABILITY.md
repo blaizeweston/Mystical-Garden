@@ -184,3 +184,51 @@ An earlier capped Monsoon run had a 263.17 ms frame. Two fresh-process follow-up
 Focused checks covered baseline and upgraded abilities, real HP changes, split Water contributions, recipient-based mitigation, expenditure, expedition statistics and Archive settlement. The developer lifecycle check exercised the eleven previews, six-target playback, same-frame tuning, presets, isolation and cleanup. Ordinary two-player Wood and Vital fixtures verified that guests received their own body art. Two- and four-player Water fixtures rendered a source-owned tide's positive healing on the receiving guests. The check correlates new host and guest receipts by serial because a later enemy hit can change the recipient's HP before inspection. Multiplayer checks ran headlessly. The graphical measurements and recordings are solo.
 
 The two previously recorded Garden layout mismatches and the long-path OpenGL startup evidence remain documented above. Artistic review should focus on Bark contrast against brown terrain, the resting leaves at ordinary zoom, and legibility of overlapping amounts in a Monsoon.
+
+## Storm, Spirit and Void visual review (VFX05C)
+
+**Storm.** Chain Spark sends a narrow, irregular filament between each pair of resolved contact positions. Short secondary filaments rejoin that same segment. Conductor forks and its return use their own confirmed paths. A zero-length discharge gives a small contact spark. Form and Catalyst use finer filaments. The Storm damage receipt retains the number and a restrained body flash, so the electrical path stays visible through a cluster.
+
+**Spirit.** Phantom Step draws soft threads between the actual departure and landing. Spiritstride wisps follow the moving traveller's feet. Ordinary dodge retains its short foot scuff. Mirrorstep has a pale upper silhouette and the equipped weapon. On release it plays the captured attack clip, with a short trail for suitable weapons. Wraithcast has weight around the feet, a dark lower silhouette and a broken anchor. Each stored manifestation disappears independently on consumption, expiry or invalidation. Fading Trace and supported shadow casts retain their own cues.
+
+**Void.** Gravity Well has a broken perimeter at the resolved radius, inward-curving dust and a small dark center. A lingering Well continues to gather after the first collapse. The additional Singularity has a denser spiral and its own implosion. Rift Shear draws a brief crossing pinch at the actual affected target. Form grip is smaller. Catalyst repulsion moves outward. All curves use local geometry and soft shader edges, keeping silhouettes and the terrain visible through overlapping fields.
+
+### Manual comparison
+
+Open the Developer Garden from Settings, enter the Testing Arena and press **F4 → Visuals**. Choose Chain Spark, Phantom Step, either Spirit manifestation, Mirrorstep release, Gravity Well, its collapse, Singularity or Rift Shear. Pause and switch between **Production baseline** and **Experimental** at the same time, or advance one frame. Formation selects one, three or six instances. The existing Presets tab supports saving and exporting these six local controls.
+
+| Control | Baseline | Allowed range |
+|---|---:|---:|
+| Storm filament width | 1× | 0.45–1.70× |
+| Storm irregularity | 1× | 0.20–1.60× |
+| Spirit silhouette opacity | 0.49 | 0.15–0.80 |
+| Spirit wisp visibility | 0.72 | 0.15–1.00 |
+| Void dust speed | 1× | 0.40–1.80× |
+| Void dark-core opacity | 0.48 | 0.10–0.70 |
+
+For actual combat, use **Sustained damage** with Storm Reed, Ghost Fern or Void Willow. The **Spirit echoes** scenario provides a legal dual-transformation build. Dash, use a basic attack, then cast a supported class ability to see the separate releases. A Void Willow Core with Rift Shear and Singularity allows a lingering field and an additional field to overlap. A Storm Reed Core with Conductor and six clustered targets shows branching and returns.
+
+The recordings pair independent fights at the normal game camera. The comparison recording includes both the viewport and a detail crop. The timings and selected builds correspond across the two runs. Enemy decisions, attack rolls and damage numbers can differ. [Before and after](vfx05c-comparison.jpg) · [Three families in motion](vfx05c-affinity-motion.webp) · [Ordinary dodge, single contact, fields and mixed encounters](vfx05c-encounters.webp)
+
+### Render measurements
+
+Godot 4.7.2, OpenGL Compatibility, RTX 5080, 1100 × 720, VSync off. Each workload ran for 6.5 seconds on a fresh practice round at 120 FPS, then on a second round at 120 FPS and a third uncapped. All four workloads used the seed-zero, depth-one practice floor and a Vanguard Warden with a Rootblade. Storm used six clustered targets and Conductor. Spirit used three targets and both transformations. Void used three targets, Rare Rift Shear and Singularity. The mixed run used six targets. Practice invincibility and ability cooldown bypass were enabled. Each trial exercised accepted attacks and casts. The trials share a process. “First” means the first encounter with that workload. The driver’s shader cache could already be warm. Readback, screenshot encoding and triangle sampling were disabled during timing.
+
+| Workload | VFX05B warm p95, capped / uncapped (ms) | VFX05C first capped p95 / worst (ms) | VFX05C warm capped median / p95 / worst (ms) | VFX05C uncapped median / p95 / worst (ms) |
+|---|---:|---:|---:|---:|
+| Six-target Conductor | 8.83 / 4.41 | 8.82 / 29.24 | 8.13 / 8.78 / 10.03 | 3.60 / 4.23 / 7.84 |
+| Coexisting echoes and shadows | 8.70 / 4.33 | 8.67 / 19.28 | 8.28 / 8.67 / 10.01 | 3.54 / 4.11 / 9.20 |
+| Overlapping Wells and Singularity | 9.15 / 5.58 | 9.12 / 9.79 | 8.58 / 9.14 / 9.68 | 3.77 / 4.66 / 9.29 |
+| Void Core with Storm Form and Spirit Catalyst | 9.10 / 4.51 | 9.08 / 9.70 | 8.62 / 9.09 / 9.65 | 3.69 / 4.42 / 9.03 |
+
+An earlier uncaptured first-use Storm trial recorded **310.41 ms** at 570 ms into the round. The immediate repeat peaked at 10.24 ms. An earlier screenshot run saw 338.77 ms and included image readback. The final fresh-process Storm trial peaked at 29.24 ms and its repeat at 10.03 ms. The Compatibility pipeline counters reported zero changes during the final samples. This evidence leaves the first-use spike unattributed. The separate VFX05B Monsoon spike of **263.17 ms** remains unexplained.
+
+An early Spirit prototype repeatedly initialized a practice battlefield to assemble each weapon. That version reached 113.58 ms in a warmed run. Attaching the prop directly to its temporary rig brought the equivalent final maximum to 10.01 ms. Each strip silhouette shares a mesh. Each visible manifestation owns its rig and private skin material. The shader shades translucent surfaces locally without copying the screen. CPU/GPU separation, lower-end hardware and rendered four-player performance remain unmeasured.
+
+During separate gameplay captures, seven simultaneous Storm strips used 812 triangles. The Spirit sequence reached four manifestations and seven strip batches, with 968 strip triangles in addition to the traveller meshes. Overlapping Void effects reached nine batches and 3,252 strip triangles. Sampling can miss very brief peaks. After the last lingering field expired, the renderer reported zero live field hints and zero transient combat effects.
+
+### Verification and artistic review
+
+Focused solo fixtures checked accepted contacts, immunity and displacement, independent preparations, duplicate requests, real HP, weighted attribution, recipient mitigation, Archive rollback and settlement. The developer lifecycle fixture checked build replacement, display-only playback, formation changes, frame-matched comparisons, named presets, reset, export and ordinary-session isolation. Ordinary two- and four-player loopback fixtures exercised all three families, guest-side art and normal admission. Multiplayer verification used headless processes. One repeat of the two-player Spirit fixture (run `vfx05c17956529139401`) completed the manifestation and cooldown assertions, then timed out waiting for the guest's ordinary three-card checkpoint offer. Both the earlier run and the immediate retry (`vfx05c17956530072710`) completed the entire fixture. The checkpoint timeout remains unexplained.
+
+At ordinary zoom the reduced Storm flash exposes the enemies under the branches. Simultaneous Spirit preparations can share one position. The darker anchor remains visible underneath the brighter traveller, although individual weapons become difficult to count. The Void rim remains thin around enemy sweeps and its darker center draws attention where several wells coincide. The movement recording includes actual hostile sweeps. In the Ranger sequence Mirrorstep releases two arrows. Bramble Snare leaves the separate Wraithcast shadows waiting for a supported cast or their own expiry. The relative brightness of Storm, co-located Spirit bodies and stacked Void centers are the main artistic review decisions. The two existing Garden layout validation mismatches and the long-path OpenGL startup issue remain recorded above.

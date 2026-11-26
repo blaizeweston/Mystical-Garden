@@ -2000,6 +2000,14 @@ Ironbark plates follow the recipient’s current Bark status. Their opacity vari
 
 Vital Bloom opens around its actual cast center. Low leaves follow an active Vitality recipient. The regeneration owner emits a recipient-local cue after HP increases, summing any catch-up ticks into one displayed amount per update. Existing per-tick provider attribution remains with expedition statistics. Increasing maximum health and spending bonus HP produce no restorative cue. None of these meshes participate in targeting, status admission or settlement.
 
+### Storm, Spirit and Void presentation
+
+`storm_affinity.gd::discharge` projects the accepted main, fork and return edges with the two positions already chosen by combat. The damage receipt retains its amount and carries a local flash cue. `spirit_affinity.gd::hints` projects each current preparation with its owner, activation identity, departure position and remaining time. Consuming an echo withdraws only that echo. The accepted replica carries the weapon clip, reach, direction and attack duration. A supported shadow cast uses the existing Wraithcast receipt. Historical suspended preparations with only a deadline appear already formed and expire at that deadline.
+
+`core_combat.gd::hints` and `void_affinity.gd::hints` supply the real field center, radius, age and remaining time. The host identifies extra Singularity fields and emits separate collapse and target-local Rift Shear receipts. A lingering Well can keep gathering after its initial collapse. Clients reconcile field and preparation hints by identity on the existing combat projection. Reliable receipts retain their normal serial deduplication.
+
+`astral_visuals.gd` owns the cached strip meshes and six artistic settings. The two project-authored shaders draw the local currents and the translucent traveller skin. The manifestation uses the displayed owner's rig and equipment with private pose state. Its weapon attaches straight to that model. The Workbench and live stage share this assembly and the reviewed weapon animation paths. Each scene owns its projection nodes. Expiry, hint withdrawal and round replacement release them. The Workbench comparison uses the existing tuning allowlist, per-property source fingerprints, local presets and presentation clock.
+
 ### Living Garden presentation
 
 The five authored Heart meshes retain their bark, fissure pigment, development scale and reclamation light. An additional material pass breathes only over emissive fissure surfaces. Structure and frontier roots carry distance from the Heart in their second UV channel. A branch inherits the distance at its actual attachment point, including forks. The bark shader uses this distance to move a broken band of color through the existing grain. Its ordinary crest travels at 2.1 m/s with a 0.72 m half-width. The Heart and roots share a slightly irregular 0.18 Hz rhythm at their production settings.
