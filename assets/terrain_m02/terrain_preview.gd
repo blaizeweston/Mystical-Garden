@@ -279,6 +279,7 @@ func _rebuild_wilds(started: int) -> void:
 	FeatureMask.bind(natural_material, FeatureMask.bake(wilds.layout, spacing, RADII[map_size.selected]))
 	natural_material.set_shader_parameter("feature_mode", true)
 	natural_material.set_shader_parameter("continuity_mode", true)
+	preload("res://assets/terrain_m02/wilds_surface_art.gd").bind(natural_material, climate.weights)
 	natural_material.set_shader_parameter("wilds_mode", true)
 	natural_material.set_shader_parameter("wilds_moisture", climate.moisture)
 	natural_material.set_shader_parameter("wilds_floor", climate.floor)

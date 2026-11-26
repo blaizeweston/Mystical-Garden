@@ -128,6 +128,14 @@ static func make_environment() -> Environment:
 	return env
 
 
+var wilds_art_values: Dictionary = {}
+
+func set_wilds_art(values: Dictionary) -> void:
+	wilds_art_values = values
+	var floor_surface := terrain.get_node_or_null("Wilds/Ground") as MeshInstance3D if terrain != null else null
+	if floor_surface != null:
+		preload("res://assets/terrain_m02/wilds_surface_art.gd").apply(floor_surface.material_override, values)
+
 var production_sun_energy: float
 var preview_sun_energy := NAN
 
@@ -694,6 +702,7 @@ func redraw_terrain(site: int, depth: int, map_seed: int, boss: int = -1, phase:
 	for detail: Node3D in deeper_gate.get_children():
 		if detail!=wild_portal and not detail is Label3D:detail.hide()
 	experimental_exit=preload("res://assets/terrain_m02/experimental/experiment_terrain_view.gd").draw_wilds(terrain,WILD_OFFSET,visual_field.generated,map_seed)
+	if not wilds_art_values.is_empty(): set_wilds_art(wilds_art_values)
 	if boss>=0:preload("res://boss_lair_visuals.gd").build(self,terrain,visual_field)
 	preload("res://game_metrics.gd").record("floor_generation",{"seed":map_seed,"biome":site,"depth":depth,
 		"terrain":Battlefield.SIGNATURE,"layout_kind":visual_field.generated.layout.get("layout_kind","generated"),

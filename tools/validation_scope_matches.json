@@ -567,6 +567,8 @@
         }
       },
       "assets/terrain_m02/terrain_natural.gdshader": {
+        "wilds_surface_334": {"match":"\tROUGHNESS = mix(0.90 + local_roughness - (wilds_mode ? wilds_moisture * 0.12 : 0.0) - 0.15 * damp - 0.14 * bank - 0.13 * land.w + 0.05 * flecks, 0.39 + 0.09 * eddy, cover);\n","baseline":"\tROUGHNESS = mix(0.90 - (wilds_mode ? wilds_moisture * 0.12 : 0.0) - 0.15 * damp - 0.14 * bank - 0.13 * land.w + 0.05 * flecks, 0.39 + 0.09 * eddy, cover);\n"},
+        "wilds_surface_322": {"match":"\t\t// The signed water field still owns coverage. Ripples follow its shallow inner edge.\n\t\tvec3 pool = mix(vec3(0.15,0.32,0.283), vec3(0.10,0.263,0.265), biome_mix.y);\n\t\tpool = mix(pool, vec3(0.167,0.205,0.302), biome_mix.z);\n\t\tfloat shore_wave = 0.5 + 0.5*cos(depth*20.0 + eddy*5.0 + detail.g*2.5 - water_clock*1.32);\n\t\tfloat lace = smoothstep(0.36,0.82,curl + (detail.g-0.5)*0.8) * pow(shore_wave,3.4) * (1.0-smoothstep(0.12,0.75,depth));\n\t\twater_surface = mix(earth * vec3(0.78,0.9,0.85), pool * (0.88+0.22*eddy), water_tint * (0.54 + 0.46*depth));\n\t\twater_surface += vec3(0.11,0.15,0.14) * (0.36*shimmer + lace*0.38);\n\t\tNORMAL = normalize(NORMAL + (mat3(VIEW_MATRIX) * vec3(wave_b * 0.019,0.0,wave_a * 0.028)) * cover);\n","baseline":"\t\twater_surface = mix(water_surface, wilds_water * (0.53 + 0.19 * eddy), 0.58);\n"},
         "saved_garden_layout_1": {
           "match": "shader_type spatial;\nuniform float garden_water_resonance : hint_range(0.0, 1.0) = 0.0;\n\nuniform sampler2D cell_labels : filter_nearest, repeat_disable;\nuniform ivec2 label_origin;\n",
           "baseline": "shader_type spatial;\n\nuniform sampler2D cell_labels : filter_nearest, repeat_disable;\nuniform ivec2 label_origin;\n"

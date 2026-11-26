@@ -20,17 +20,20 @@ static func plane(parent: Node3D, surface: ShaderMaterial, extent: float) -> Mes
 	model.mesh = ground
 	model.material_override = surface
 	model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	model.name = "Ground"
 	parent.add_child(model)
 	return model
 
 static func draw_wilds(parent: Node3D, offset: Vector3, data: Dictionary, seed_value: int) -> Node3D:
 	var wild := Node3D.new()
+	wild.name = "Wilds"
 	wild.position = offset
 	parent.add_child(wild)
 	var shade := material(data.substrate, data.layout, seed_value, 14, 1.75)
 	shade.set_shader_parameter("terrain_origin", Vector2(wild.global_position.x, wild.global_position.z))
 	var climate: Dictionary = data.climate
 	var weights: Vector3 = climate.weights
+	preload("res://assets/terrain_m02/wilds_surface_art.gd").bind(shade, weights)
 	shade.set_shader_parameter("wilds_mode", true)
 	shade.set_shader_parameter("wilds_moisture", climate.moisture)
 	shade.set_shader_parameter("wilds_floor", climate.floor)

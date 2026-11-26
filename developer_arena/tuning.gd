@@ -1,6 +1,7 @@
 extends RefCounted
 ## One instance belongs to the title-issued developer world. Practice borrows it.
 const Developer = preload("res://developer_mode.gd")
+const WildsArt = preload("res://assets/terrain_m02/wilds_surface_art.gd")
 const Payoffs = preload("res://build_payoff_visuals.gd")
 const ClassArt = preload("res://class_release_visuals.gd")
 const Astral = preload("res://astral_visuals.gd")
@@ -77,6 +78,11 @@ static func _property_definitions() -> Dictionary:
 		properties[id]={"type":"float","category":"Visuals","object_name":Shelter.LABELS[id.get_slice(".",0)],
 			"label":d[4],"unit":d[5],"minimum":d[1],"maximum":d[2],"step":d[3],
 			"timing":"Local combat and experimental playback","source":"shelter_visuals.gd","symbol":"CONTROLS."+id}
+	for id: String in WildsArt.CONTROLS:
+		var d: Array = WildsArt.CONTROLS[id]
+		properties[id] = {"type":"float","category":"World","object_name":"Wilds environment",
+			"label":d[4],"unit":d[5],"minimum":d[1],"maximum":d[2],"step":d[3],
+			"timing":"Live on the current and subsequent Wilds floors","source":"assets/terrain_m02/wilds_surface_art.gd","symbol":"CONTROLS."+id}
 	for id:String in Payoffs.CONTROLS:
 		var d:Array=Payoffs.CONTROLS[id]
 		properties[id]={"type":"float","category":"Visuals","object_name":"Advanced build outcomes",
@@ -130,6 +136,7 @@ func baseline(id: String) -> float:
 		SPEAR: return preload("res://class_catalog.gd").DEFINITIONS[0].weapons[1].reach
 		WATER: return preload("res://garden_irrigation.gd").RADIUS_M
 		FLORA: return preload("res://wild_flora_generation.gd").SPAWN_CHANCE * 100.0
+	if WildsArt.CONTROLS.has(id): return WildsArt.CONTROLS[id][0]
 	if Payoffs.CONTROLS.has(id): return Payoffs.CONTROLS[id][0]
 	if ClassArt.CONTROLS.has(id): return ClassArt.CONTROLS[id][0]
 	if Astral.CONTROLS.has(id): return Astral.CONTROLS[id][0]
@@ -150,7 +157,7 @@ func applied(id: String) -> float: return _applied.get(id, baseline(id))
 func request(world: Node, id: String, value: Variant) -> bool:
 	if not authorized(world) or not valid(id,value): return false
 	_set_difference(_requested,id,value)
-	if id in [SUN,IMPACT] or Contacts.DEFAULTS.has(id) or Ambient.CONTROLS.has(id) or Delivery.CONTROLS.has(id) or Affinities.CONTROLS.has(id) or Shelter.CONTROLS.has(id) or Astral.CONTROLS.has(id) or ClassArt.CONTROLS.has(id) or Payoffs.CONTROLS.has(id): return apply(world,[id])
+	if WildsArt.CONTROLS.has(id) or id in [SUN,IMPACT] or Contacts.DEFAULTS.has(id) or Ambient.CONTROLS.has(id) or Delivery.CONTROLS.has(id) or Affinities.CONTROLS.has(id) or Shelter.CONTROLS.has(id) or Astral.CONTROLS.has(id) or ClassArt.CONTROLS.has(id) or Payoffs.CONTROLS.has(id): return apply(world,[id])
 	return true
 
 func _set_difference(values: Dictionary, id: String, value: float) -> void:
@@ -213,6 +220,10 @@ func discard_disabled(world: Node) -> void:
 func _set_scene(world: Node, sun: float, water: float, emission: float) -> void:
 	var restoring_disabled: bool = _owner != null and _owner.get_ref() == world and Developer.is_test_garden(world) and not world.app_settings.values.developer_mode and is_nan(sun) and is_equal_approx(water,baseline(WATER)) and is_equal_approx(emission,baseline(IMPACT))
 	if not authorized(world) and not restoring_disabled: return
+	var scenery := {}
+	for id: String in WildsArt.CONTROLS:
+		if _applied.has(id): scenery[id] = _applied[id]
+	world.stage.set_wilds_art(scenery)
 	world.stage.preview_sun_energy = sun
 	world.stage.apply_scene_sun(world.stage.production_sun_energy)
 	var effects: Node = world.stage.get_node("CombatEffects")

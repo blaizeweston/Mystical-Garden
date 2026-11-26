@@ -137,6 +137,22 @@ static func coverage(world: Node) -> String:
 
 static func arena(world: Node) -> String:
 	var tune: RefCounted=world.developer_tuning
+	var floor_key: Vector3i = world.battlefield.configured_key
+	# The headless practice fixture starts before its first presentation frame.
+	if not world.stage.terrain.has_node("Wilds/Ground"):
+		world.stage.redraw_terrain(floor_key.x,floor_key.y,floor_key.z)
+	var surface: MeshInstance3D = world.stage.terrain.get_node("Wilds/Ground")
+	var material: ShaderMaterial = surface.material_override
+	var cache_key: Vector3i = world.battlefield.configured_key
+	var art_store := Presets.new(world)
+	if not tune.request(world,"wilds.trail_blend",0.9) or tune.request(world,"wilds.trail_blend",-1): return "Wilds control bounds"
+	if not is_equal_approx(material.get_shader_parameter("trail_blend"),0.9) or world.battlefield.configured_key != cache_key: return "live ground blend"
+	if not art_store.save_new("River path").is_empty(): return "Wilds preset save"
+	tune.reset(world,["wilds.trail_blend"])
+	if not art_store.load_named("River path").is_empty() or not is_equal_approx(material.get_shader_parameter("trail_blend"),0.9): return "Wilds preset restore"
+	if not FileAccess.file_exists(art_store.export_review("River path").path_join("changes.json")): return "Wilds preset export"
+	tune.reset(world,["wilds.trail_blend"])
+	if not is_equal_approx(material.get_shader_parameter("trail_blend"),tune.baseline("wilds.trail_blend")): return "Wilds baseline restore"
 	var before: Dictionary=world.round_stats().party.duplicate(true)
 	var fx: Node=world.stage.get_node("CombatEffects")
 	var events: Array=world.combat_events.duplicate(true)

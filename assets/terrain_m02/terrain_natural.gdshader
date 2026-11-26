@@ -20,6 +20,14 @@ uniform vec3 scenic_cover = vec3(0.0, 1.0, 0.0);
 uniform bool garden_frontier = false;
 uniform sampler2D garden_perimeter : filter_nearest, repeat_enable;
 uniform float garden_reveal = 0.0;
+uniform sampler2D wilds_relief_tile : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform vec3 biome_mix;
+uniform float grain_scale;
+uniform float variation;
+uniform float trail_blend;
+uniform float relief;
+uniform float water_motion;
+uniform float water_tint;
 uniform float wilds_moisture = 0.0;
 uniform vec3 wilds_floor : source_color;
 uniform vec3 wilds_water : source_color;
@@ -133,8 +141,8 @@ void fragment() {
 	// to the welded M02 weights only when the continuous field loses support.
 	vec4 rim = vec4(UV, UV2);
 	if (scenic_exterior) {
-		float variation = noise2(grain * 0.19);
-		rim = vec4(0.0, scenic_cover * vec3(0.78 + 0.42 * variation, 0.75 + 0.33 * (1.0 - variation), 0.82 + 0.31 * variation));
+		float verge_noise = noise2(grain * 0.19);
+		rim = vec4(0.0, scenic_cover * vec3(0.78 + 0.42 * verge_noise, 0.75 + 0.33 * (1.0 - verge_noise), 0.82 + 0.31 * verge_noise));
 		rim /= max(dot(rim, vec4(1.0)), 0.001);
 	}
 	float rim_weight = 1.0 - smoothstep(0.004, 0.024, support);
@@ -185,8 +193,9 @@ void fragment() {
 		water = mix(0.51, 1.0, depth);
 		float trail = 1.0 - smoothstep(-0.32 + (patches - 0.5) * 0.3, 0.10, field.g);
 		if (continuity_mode) {
-			float lip = (patches - 0.5) * 0.21;
-			trail = 1.0 - smoothstep(-0.23 + lip, 0.12 + lip, field.g);
+			float lip = (patches - 0.5) * (wilds_mode ? 0.46 : 0.21);
+			float width = wilds_mode ? trail_blend : 0.35;
+			trail = 1.0 - smoothstep(lip - 0.66 * width, lip + 0.34 * width, field.g);
 		}
 		path_weight = show_paths ? trail : 0.0;
 	}
@@ -237,10 +246,11 @@ void fragment() {
 	dry *= mix(vec3(1.0), vec3(0.69, 0.77, 0.73), max(bank, damp * 0.46));
 
 	vec2 flow = vec2(p.x + p.y * 0.29, p.y - p.x * 0.36);
-	float eddy = noise2(flow * vec2(1.27, 0.59) + vec2(0.0, -TIME * 0.12));
-	float curl = noise2(flow * 1.9 + vec2(-TIME * 0.10, TIME * 0.06));
-	float wave_a = sin(2.3 * flow.x + 12.8 * flow.y + 6.0 * eddy - TIME * 1.3);
-	float wave_b = sin(-4.4 * flow.x + 5.7 * flow.y + 5.2 * curl - TIME * 0.82);
+	float water_clock = TIME * (wilds_mode ? water_motion : 1.0);
+	float eddy = noise2(flow * vec2(1.27, 0.59) + vec2(0.0, -water_clock * 0.12));
+	float curl = noise2(flow * 1.9 + vec2(-water_clock * 0.10, water_clock * 0.06));
+	float wave_a = sin(2.3 * flow.x + 12.8 * flow.y + 6.0 * eddy - water_clock * 1.3);
+	float wave_b = sin(-4.4 * flow.x + 5.7 * flow.y + 5.2 * curl - water_clock * 0.82);
 	float ripple = smoothstep(0.62, 1.0, 0.71 * wave_a + 0.29 * wave_b);
 	float shimmer = ripple * smoothstep(0.25, 0.85, curl);
 	vec3 shallow = mix(bed, water_color * vec3(0.67, 1.05, 1.01), 0.58);
@@ -280,14 +290,47 @@ void fragment() {
 		dry *= mix(vec3(1.0), botanical_ground, 0.40 - 0.16 * path_weight);
 		water_surface *= mix(vec3(1.0), botanical_water, 0.40);
 	}
+	float local_roughness = 0.0;
 	if (wilds_mode) {
+		// Packed, tileable relief: moss cushions, silt and leaf litter, laminated stone.
+		vec2 detail_uv = (p + seed_offset * 0.07 + 0.32 * vec2(patches, macro)) * grain_scale / 3.6;
+		vec3 detail = texture(wilds_relief_tile, detail_uv).rgb;
+		vec3 second = texture(wilds_relief_tile, vec2(-detail_uv.y, detail_uv.x) * 0.53 + 0.37).rgb;
+		detail = mix(detail, second, 0.2 + macro * 0.18);
+		float moss = smoothstep(0.22, 0.67, detail.r + (macro - 0.5) * 0.65);
+		float rock = clamp(land.w + biome_mix.z * (0.35 + 0.26 * patches), 0.0, 1.0) * (1.0 - path_weight * 0.66);
+		float litter = clamp(land.z * 0.9 + (1.0 - moss) * 0.55 + bank * 0.45, 0.0, 1.0);
+		vec3 humus = mix(vec3(0.235, 0.174, 0.103), vec3(0.32, 0.333, 0.17), moss);
+		vec3 peat = mix(vec3(0.138, 0.137, 0.10), vec3(0.28, 0.29, 0.18), moss * 0.76);
+		vec3 earth = humus * biome_mix.x + peat * biome_mix.y + vec3(0.25, 0.219, 0.241) * biome_mix.z;
+		earth *= 0.77 + 0.43 * mix(detail.r, detail.g, litter);
+		vec3 mineral = mix(vec3(0.186,0.185,0.177), vec3(0.40,0.394,0.38), detail.b);
+		earth = mix(earth, mineral, rock);
+		vec3 path_soil = mix(vec3(0.37,0.294,0.202), vec3(0.358,0.329,0.312), biome_mix.z);
+		earth = mix(earth, path_soil * (0.72 + detail.g * 0.58), path_weight * 0.92);
+		dry = mix(dry, earth, clamp(0.68 * variation, 0.0, 0.95));
+		float height = mix(mix(detail.r, detail.g, max(litter, path_weight)), detail.b, rock);
+		height *= relief * variation;
+		vec3 dx = dFdx(VERTEX), dy = dFdy(VERTEX);
+		vec3 r1 = cross(dy, NORMAL), r2 = cross(NORMAL, dx);
+		float det = dot(dx, r1);
+		NORMAL = normalize(max(abs(det), 0.000001) * NORMAL - sign(det) *
+			(dFdx(height) * r1 + dFdy(height) * r2) * (1.0 - cover));
+		local_roughness = variation * ((height - relief * 0.5) + 0.08 * (detail.b - 0.5) - biome_mix.y * (0.15 * damp + 0.09 * bank));
 		dry *= mix(vec3(1.0), wilds_floor, 0.42 + 0.24 * damp);
 		dry *= 1.0 - wilds_moisture * (0.10 + 0.21 * max(bank, damp));
-		water_surface = mix(water_surface, wilds_water * (0.53 + 0.19 * eddy), 0.58);
+		// The signed water field still owns coverage. Ripples follow its shallow inner edge.
+		vec3 pool = mix(vec3(0.15,0.32,0.283), vec3(0.10,0.263,0.265), biome_mix.y);
+		pool = mix(pool, vec3(0.167,0.205,0.302), biome_mix.z);
+		float shore_wave = 0.5 + 0.5*cos(depth*20.0 + eddy*5.0 + detail.g*2.5 - water_clock*1.32);
+		float lace = smoothstep(0.36,0.82,curl + (detail.g-0.5)*0.8) * pow(shore_wave,3.4) * (1.0-smoothstep(0.12,0.75,depth));
+		water_surface = mix(earth * vec3(0.78,0.9,0.85), pool * (0.88+0.22*eddy), water_tint * (0.54 + 0.46*depth));
+		water_surface += vec3(0.11,0.15,0.14) * (0.36*shimmer + lace*0.38);
+		NORMAL = normalize(NORMAL + (mat3(VIEW_MATRIX) * vec3(wave_b * 0.019,0.0,wave_a * 0.028)) * cover);
 	}
 	water_surface += vec3(0.025, 0.075, 0.065) * garden_water_resonance;
 	ALBEDO = mix(dry, water_surface, cover);
 
-	ROUGHNESS = mix(0.90 - (wilds_mode ? wilds_moisture * 0.12 : 0.0) - 0.15 * damp - 0.14 * bank - 0.13 * land.w + 0.05 * flecks, 0.39 + 0.09 * eddy, cover);
+	ROUGHNESS = mix(0.90 + local_roughness - (wilds_mode ? wilds_moisture * 0.12 : 0.0) - 0.15 * damp - 0.14 * bank - 0.13 * land.w + 0.05 * flecks, 0.39 + 0.09 * eddy, cover);
 	SPECULAR = mix(0.19 + 0.11 * bank, 0.34, cover);
 }
