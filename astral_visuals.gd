@@ -84,7 +84,7 @@ static func create(parent:Node3D,kind:String,at:Vector3,path:Vector3,radius:floa
 	mat.set_shader_parameter("standing",kind in ["mirrorstep","mirrorstep_attack","spirit_trace"] or (kind=="wraithcast" and path.length_squared()<.001))
 	mat.set_shader_parameter("burst",kind=="storm_burst")
 	mat.set_shader_parameter("singularity",kind=="singularity" or style=="singularity")
-	if kind in BODIES and not body.is_empty():mount_body(glyph,kind,body)
+	if kind in BODIES and not body.is_empty():mount_body(glyph,kind,body.duplicate(true))
 	configure(glyph,values)
 	return glyph
 
@@ -96,7 +96,7 @@ static func configure(glyph:MeshInstance3D,values:Dictionary) -> void:
 	if glyph.has_meta("spectral_body"):
 		glyph.get_meta("spectral_body").skin.set_shader_parameter("opacity",values.get("spirit.veil",CONTROLS["spirit.veil"][0]))
 
-static func mount_body(glyph:MeshInstance3D,kind:String,body:Dictionary) -> void:
+static func mount_body(glyph:MeshInstance3D,kind:String,body:Dictionary,skin:ShaderMaterial=null) -> void:
 	var appearance:=preload("res://character_appearance.gd").normalize(body.get("appearance",[]))
 	var actor:=Avatar.build(glyph,appearance[5])
 	var class_id:=clampi(int(body.get("frame",0)),0,Classes.DEFINITIONS.size()-1)
@@ -113,10 +113,11 @@ static func mount_body(glyph:MeshInstance3D,kind:String,body:Dictionary) -> void
 	action.merge({"equipped":true,"aim_yaw":yaw,"contact":Motion.profile(form).release,"delivery":Motion.profile(form).delivery,"reach":float(body.get("reach",Classes.DEFINITIONS[class_id].weapons[weapon_id].reach))})
 	var casting:=kind=="wraithcast"
 	if casting:action.ability=true
-	var skin:=ShaderMaterial.new()
-	skin.shader=SKIN
-	skin.set_shader_parameter("anchored",kind in ["wraithcast_shadow","wraithcast"])
-	skin.set_shader_parameter("ground_y",glyph.global_position.y)
+	if skin==null:
+		skin=ShaderMaterial.new()
+		skin.shader=SKIN
+		skin.set_shader_parameter("anchored",kind in ["wraithcast_shadow","wraithcast"])
+		skin.set_shader_parameter("ground_y",glyph.global_position.y)
 	for piece:MeshInstance3D in actor.model.find_children("*","MeshInstance3D",true,false):
 		piece.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		if piece.name=="MotionTrail" or piece.mesh==null:continue
@@ -124,7 +125,7 @@ static func mount_body(glyph:MeshInstance3D,kind:String,body:Dictionary) -> void
 			piece.material_override=skin
 		else:
 			for surface in piece.mesh.get_surface_count():piece.set_surface_override_material(surface,skin)
-	glyph.set_meta("spectral_body",{"actor":actor,"skin":skin,"form":form,"action":action,"yaw":yaw,"attack":kind=="mirrorstep_attack","last_frame":-1,"release":casting or kind=="mirrorstep_attack"})
+	glyph.set_meta("spectral_body",{"actor":actor,"source":body,"skin":skin,"form":form,"action":action,"yaw":yaw,"attack":kind=="mirrorstep_attack","last_frame":-1,"release":casting or kind=="mirrorstep_attack"})
 	# The image appears in a settled ready pose, including on its first rendered frame.
 	Avatar.animate(actor,false,0.,form,action,.45)
 	Weapons.animate(actor,form,0.,false,yaw,action.reach,action)
@@ -138,6 +139,11 @@ static func seek(glyph:MeshInstance3D,elapsed:float,lifetime:float) -> void:
 		b.skin.set_shader_parameter("veil",smoothstep(0.,.07,elapsed)*smoothstep(0.,.18,lifetime-elapsed))
 		if b.release:
 			var frame:=floori(elapsed*60.)
+			if frame<b.last_frame:
+				# Rewind the attachment, pose player and ribbon together; forward samples reuse this rig.
+				b.actor.model.free()
+				mount_body(glyph,glyph.get_meta("astral_kind"),b.source,b.skin)
+				b=glyph.get_meta("spectral_body")
 			for index in range(int(b.last_frame)+1,frame+1):
 				var pose:=clampf(index/(60.*lifetime),0.,1.)
 				Avatar.animate(b.actor,true,pose,b.form,b.action,1./60.)

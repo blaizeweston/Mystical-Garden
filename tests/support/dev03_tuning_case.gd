@@ -301,6 +301,70 @@ static func arena(world: Node) -> String:
 	world.clear_enemies()
 	return ""
 
+static func spectral_pose(glyph:MeshInstance3D) -> Dictionary:
+	var body:Dictionary=glyph.get_meta("spectral_body").actor
+	var skeleton:Skeleton3D=body.field_rig.skeleton
+	var transforms:Array[Transform3D]=[body.visual_weapon.global_transform]
+	for index in skeleton.get_bone_count(): transforms.append(skeleton.get_bone_pose(index))
+	var trail=body.visual_weapon.get_node("MotionTrail")
+	var player:AnimationPlayer=body.field_rig.player
+	return {"transforms":transforms,"clip":player.current_animation,"time":player.current_animation_position,
+		"tips":trail.tips.duplicate(),"edges":trail.edges.duplicate(),"samples":trail.times.duplicate(),"drawing":trail.visible}
+
+static func matching_pose(expected:Dictionary,actual:Dictionary) -> bool:
+	if expected.transforms.size()!=actual.transforms.size():return false
+	for i in expected.transforms.size():
+		if not expected.transforms[i].is_equal_approx(actual.transforms[i]): return false
+	return expected.clip==actual.clip and is_equal_approx(expected.time,actual.time) \
+		and expected.tips==actual.tips and expected.edges==actual.edges \
+		and expected.samples==actual.samples and expected.drawing==actual.drawing
+
+static func spectral_repeat(lab:Control,tune:RefCounted,world:Node) -> String:
+	lab.formation.select(0)
+	lab.arrange_targets()
+	lab.selection.select(lab.AFFINITY_START+lab.AFFINITY_KINDS.find("mirrorstep_attack"))
+	lab.select_effect()
+	lab.mode.select(0)
+	lab.play(false)
+	lab.seek(.02)
+	var fresh:=spectral_pose(lab.affinity_samples[0])
+	lab.single_step()
+	var stepped:=spectral_pose(lab.affinity_samples[0])
+	lab.seek(.40)
+	var glyph:MeshInstance3D=lab.affinity_samples[0]
+	if matching_pose(fresh,spectral_pose(glyph)): return "spectral release did not animate"
+	lab.seek(.02)
+	if not matching_pose(fresh,spectral_pose(glyph)): return "backward spectral seek retained pose or ribbon history"
+	lab.repeat.button_pressed=true
+	lab.running=true
+	var node_count:=glyph.find_children("*","",true,false).size()
+	for cycle in 6:
+		lab.seek(lab.duration()-.04)
+		var old_model:WeakRef=weakref(glyph.get_meta("spectral_body").actor.model)
+		lab._process(.06)
+		if old_model.get_ref()!=null and old_model.get_ref()!=glyph.get_meta("spectral_body").actor.model:
+			return "obsolete spectral actor retained on repeat"
+		if glyph.find_children("*","",true,false).size()!=node_count: return "spectral nodes accumulated on repeat"
+		if not matching_pose(fresh,spectral_pose(glyph)):return "looped spectral pose differs from first pass"
+		var forward_model:Node3D=glyph.get_meta("spectral_body").actor.model
+		lab.single_step()
+		if glyph.get_meta("spectral_body").actor.model!=forward_model or not matching_pose(stepped,spectral_pose(glyph)):return "spectral frame step after repeat"
+		lab.running=true
+	lab.repeat.button_pressed=false
+	if not tune.request(world,"spirit.veil",.32):return "spectral experimental request"
+	lab.mode.select(1)
+	lab.compare_at_phase()
+	if not matching_pose(stepped,spectral_pose(lab.affinity_samples[0])):return "experimental spectral pose changed"
+	lab.seek(.40)
+	lab.seek(.02)
+	if not is_equal_approx(lab.affinity_samples[0].get_meta("spectral_body").skin.get_shader_parameter("opacity"),.32):return "rewind lost experimental skin"
+	lab.play(false)
+	lab.seek(.02)
+	if not matching_pose(fresh,spectral_pose(lab.affinity_samples[0])):return "restarted spectral pose"
+	tune.reset(world,["spirit.veil"])
+	lab.stop()
+	return ""
+
 static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCounted) -> String:
 	var fx:Node=world.stage.get_node("CombatEffects")
 	var strip:={"kind":"capsule","from":[-1.,0.,0.],"to":[2.,0.,0.],"width":.68}
@@ -354,6 +418,8 @@ static func affinity_replay(world:Node,lab:Control,tune:RefCounted,presets:RefCo
 	fx.clear()
 	var combat_before:Dictionary=world.round_stats().party.duplicate(true)
 	var events_before:Array=world.combat_events.duplicate(true)
+	var spectral_error:=spectral_repeat(lab,tune,world)
+	if not spectral_error.is_empty(): return spectral_error
 	lab.formation.select(2)
 	lab.arrange_targets()
 	for i in lab.AFFINITY_KINDS.size():
