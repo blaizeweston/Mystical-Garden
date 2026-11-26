@@ -29,6 +29,7 @@ func _initialize() -> void:
 	schema = Schema.new()
 	settings = JSON.parse_string(FileAccess.get_file_as_string("res://ai/training/training.json")).episodes
 	test_game_pace()
+	test_fight_size()
 	test_starts()
 	test_episodes()
 	test_choice_replay()
@@ -93,6 +94,33 @@ func test_game_pace() -> void:
 
 
 ## Places mobs and the party as an episode would, without playing it: distances, awareness and balance.
+## mob_ratio_mix picks fights by mobs per player; without it the generator is consumed exactly as before, so the
+## benchmark's frozen fights (benchmark_episodes.json, no mix) stay the same fights.
+func test_fight_size() -> void:
+	var mixed := make_env({}, 31)
+	var counts := {"under": 0, "contested": 0, "over": 0}
+	var in_range := true
+	for draw in 3000:
+		var size := mixed._fight_size()
+		var ratio := float(size.y) / size.x
+		in_range = in_range and size.y >= 4 and size.y <= 16 and size.x >= 1 and size.x <= 4
+		counts["under" if ratio < 2.0 else "contested" if ratio < 5.0 else "over"] += 1
+	check(in_range, "mixed fights keep party sizes and mob counts in their ranges")
+	check(absf(counts.under / 3000.0 - 0.15) < 0.03 and absf(counts.contested / 3000.0 - 0.6) < 0.04 and absf(counts.over / 3000.0 - 0.25) < 0.03,
+		"fights follow the mobs-per-player mix (%s)" % counts)
+	var frozen: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://ai/training/benchmark_episodes.json")).episodes
+	check(not frozen.has("mob_ratio_mix"), "the benchmark's frozen fights have no mix")
+	var plain := Env.new(schema, Recorder.new(schema), frozen.duplicate(true), 77)
+	var reference := RandomNumberGenerator.new()
+	reference.seed = plain.rng.seed
+	reference.state = plain.rng.state
+	var same := true
+	for draw in 50:
+		var size := plain._fight_size()
+		same = same and size.y == -1 and size.x == reference.randi_range(int(frozen.party[0]), int(frozen.party[1]))
+	check(same and plain.rng.state == reference.state, "without a mix only the party size is drawn, as before")
+
+
 func test_starts() -> void:
 	var nearest_explore := INF
 	var farthest_engaged := 0.0
@@ -122,7 +150,9 @@ func test_starts() -> void:
 			check(int(placed.count) >= 3, "%s start %d places its mobs" % ["an explore" if explore else "an engaged", seed_value])
 			env.close()
 	report["starts"] = {"nearest_explore": snappedf(nearest_explore, 0.1), "farthest_engaged": snappedf(farthest_engaged, 0.1)}
-	check(nearest_explore >= 20.0, "explore starts keep every mob at least 20 m from the party (%.1f m)" % nearest_explore)
+	# Explore groups centre at least explore_distance[0] away, and each mob stands within 3 m of its centre.
+	var explore_floor := float(settings.explore_distance[0]) - 3.5
+	check(nearest_explore >= explore_floor, "explore starts keep every mob at least %.1f m from the party (%.1f m)" % [explore_floor, nearest_explore])
 	check(farthest_engaged <= 17.0, "engaged starts keep mobs within reach of the party (%.1f m)" % farthest_engaged)
 	check(sensed_at_start == 0, "no mob sees the party when an explore episode begins")
 	check(hp_ok and damage_ok, "floor 1 mobs have the game's health (20-90) and hits (6-20)")

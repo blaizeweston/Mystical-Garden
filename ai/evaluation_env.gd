@@ -97,7 +97,8 @@ func run_episode() -> Dictionary:
 	var difficulty := _uniform("difficulty")
 	var start: Vector2 = open[rng.randi() % open.size()]
 	var classes: Array[String] = []
-	for index in _range_int("party"):
+	var size := _fight_size()
+	for index in size.x:
 		classes.append(settings.classes[rng.randi() % settings.classes.size()])
 	party.reset(classes, _near(start, classes.size(), 2.5), difficulty, light)
 	if explore or rng.randf() < float(settings.engaged_patrol_share):
@@ -109,7 +110,7 @@ func run_episode() -> Dictionary:
 	brain.episode_start = sim.clock.tick
 	awake_counter.take()
 	idle_counter.take()
-	var spawned := _spawn_mobs(start, explore)
+	var spawned := _spawn_mobs(start, explore, size.y)
 	var report := {"episode": episodes, "mode": "explore" if explore else "engaged", "floor": floor_number, "night": night,
 		"party": classes.size(), "difficulty": snappedf(difficulty, 0.01), "light": snappedf(light, 0.01), "mobs": spawned.count,
 		"elite": spawned.elite}

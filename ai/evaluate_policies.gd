@@ -4,7 +4,7 @@ extends SceneTree
 ##
 ## godot --headless --path <project> --script res://ai/evaluate_policies.gd -- --policy <policy.bin>
 ##   --seed <n> --episodes <n> --out <results.jsonl> [--scripted] [--game-temperature] [--squad-mix <f>]
-##   [--shards <folder> --record <n>]
+##   [--shards <folder> --record <n>] [--episodes-file <settings.json>]
 ##
 ## --policy      the trained policy (ai/training/mob_net.py export). With --scripted the game's scripted brain
 ##               decides instead, and the policy only satisfies the episode setup.
@@ -13,7 +13,9 @@ extends SceneTree
 ##               instead of at temperature 1 as in training.
 ## --record      keeps every decision of the first n episodes and writes them as a rollout shard into
 ##               --shards, for the critic diagnosis. Never a training run folder.
-## Episode settings come from ai/training/training.json (and training.local.json), as in training.
+## Episode settings come from ai/training/training.json (and training.local.json), as in training, unless
+## --episodes-file names a file whose "episodes" replace them whole (the benchmark's frozen fight mix,
+## ai/training/benchmark_episodes.json).
 
 const NavWorld = preload("res://mob_sim/mob_nav_world.gd")
 const Recorder = preload("res://ai/rollout_recorder.gd")
@@ -33,6 +35,7 @@ var record := 0
 var scripted := false
 var game_temperature := false
 var squad_mix := -1.0
+var episodes_file := ""
 
 
 func _initialize() -> void:
@@ -54,6 +57,12 @@ func _run() -> int:
 	if settings.is_empty():
 		printerr("Could not read ", SETTINGS_PATH)
 		return 2
+	if not episodes_file.is_empty():
+		var frozen: Variant = JSON.parse_string(FileAccess.get_file_as_string(episodes_file))
+		if not frozen is Dictionary or not frozen.get("episodes") is Dictionary:
+			printerr("Could not read the episode settings in ", episodes_file)
+			return 2
+		settings.episodes = frozen.episodes
 	var weights := FileAccess.get_file_as_bytes(policy_path)
 	if weights.size() < 72 or weights.slice(8, 72).get_string_from_ascii() != schema.hash_hex:
 		printerr("The policy %s does not fit this schema." % policy_path)
@@ -147,4 +156,6 @@ func _parse_arguments() -> bool:
 				scripted = true
 			"--game-temperature":
 				game_temperature = true
+			"--episodes-file":
+				episodes_file = value
 	return not policy_path.is_empty() and not out_path.is_empty() and episode_count > 0

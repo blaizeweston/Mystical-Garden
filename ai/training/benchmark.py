@@ -1,7 +1,8 @@
 """The fixed benchmark: the same seeded fights every time, so a change is judged on brains, not on luck.
 
-Every brain plays the same BENCHMARK_EPISODES fights from BENCHMARK_SEED, set up exactly as in training (floors,
-parties, difficulty, light, mob groups), through evaluate.py's paired runs:
+Every brain plays the same BENCHMARK_EPISODES fights from BENCHMARK_SEED, set up as training did from phase 1 to the
+commanders (benchmark_episodes.json, frozen so a training curriculum never moves it: floors, parties, difficulty,
+light, mob groups), through evaluate.py's paired runs:
 - the game's scripted brain, the bar every checkpoint is measured against fight by fight;
 - the newest checkpoint (or --checkpoint), at temperature 1 as in training and as the game samples it
   (sharper for brighter mobs), since the game's way is how players meet it;
@@ -43,6 +44,8 @@ from train import default_run_dir, load_settings, pid_alive
 
 BENCHMARK_SEED = 20261125
 BENCHMARK_EPISODES = 600
+## The fight mix every benchmark plays, frozen apart from training.json so a training curriculum never moves it.
+FIGHT_MIX = Path(__file__).resolve().parent / "benchmark_episodes.json"
 LIT_THRESHOLD = 0.25
 
 # Headline measures: (key from evaluate.episode_metrics, label, kind).
@@ -206,7 +209,7 @@ def run(args, settings: dict, folder: Path) -> int:
         contestants += [brain, E.game_tempered(brain)]
     print("Brains: " + ", ".join(c.label for c in contestants))
     print(f"Results: {out}")
-    jobs = SimpleNamespace(episodes=args.episodes, seed=BENCHMARK_SEED, processes=args.processes, record=0)
+    jobs = SimpleNamespace(episodes=args.episodes, seed=BENCHMARK_SEED, processes=args.processes, record=0, episodes_file=FIGHT_MIX)
     E.run_jobs(contestants, settings, jobs, out)
     results = E.load_results(contestants, out)
     text, summary = build_report([c.label for c in contestants], results, args, newest.version)

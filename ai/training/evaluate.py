@@ -191,6 +191,8 @@ def run_jobs(contestants: list[Contestant], settings: dict, args, out: Path) -> 
             command = [godot, "--headless", "--path", str(PROJECT), "--script", "res://ai/evaluate_policies.gd", "--",
                        "--policy", str(contestant.policy_file), "--seed", str(args.seed * 1000 + block), "--episodes", str(count),
                        "--out", str(result), "--squad-mix", f"{mix:.4f}"]
+            if getattr(args, "episodes_file", None):
+                command += ["--episodes-file", str(args.episodes_file)]
             if contestant.scripted:
                 command.append("--scripted")
             elif contestant.kind == "game":

@@ -219,7 +219,8 @@ class ChoiceEnv extends "res://ai/training_env.gd":
 		var difficulty := _uniform("difficulty")
 		var start: Vector2 = open[rng.randi() % open.size()]
 		var classes: Array[String] = []
-		for index in _range_int("party"):
+		var size := _fight_size()
+		for index in size.x:
 			classes.append(settings.classes[rng.randi() % settings.classes.size()])
 		party.reset(classes, _near(start, classes.size(), 2.5), difficulty, light)
 		if explore or rng.randf() < float(settings.engaged_patrol_share):
@@ -229,7 +230,7 @@ class ChoiceEnv extends "res://ai/training_env.gd":
 		rewards = tally
 		recorder.rewards = rewards
 		brain.episode_start = sim.clock.tick
-		var spawned := _spawn_mobs(start, explore)
+		var spawned := _spawn_mobs(start, explore, size.y)
 		var limit := Clock.from_ms(float(settings.explore_seconds if explore else settings.engaged_seconds) * 1000.0)
 		var cursor := sim.events.head
 		var began := sim.clock.tick

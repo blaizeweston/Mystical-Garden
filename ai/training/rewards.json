@@ -1,7 +1,7 @@
 {
 	"unit": "One player's full health bar equals 1.0. Rewards v2: see ai/mob_rewards.gd.",
 	"mob": {
-		"damage_to_player_per_health_bar": 2.0,
+		"damage_to_player_per_health_bar": 3.0,
 		"healing_per_health_bar": 0.6,
 		"player_downed": 3.0,
 		"player_killing_blow": 1.0,
@@ -15,7 +15,7 @@
 		"support_alive_casting_per_second": 0.02,
 		"support_lost": 0.3,
 		"own_hp_lost_per_health_bar": 0.3,
-		"party_wipe": 6.5,
+		"party_wipe": 4.5,
 		"wipe_assist_window_seconds": 10.0,
 		"own_death_per_mob_value": -0.15,
 		"mob_value_basic": 1.0,

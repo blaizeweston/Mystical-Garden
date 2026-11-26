@@ -88,7 +88,8 @@ func run_episode() -> Dictionary:
 	var difficulty := _uniform("difficulty")
 	var start: Vector2 = open[rng.randi() % open.size()]
 	var classes: Array[String] = []
-	for index in _range_int("party"):
+	var size := _fight_size()
+	for index in size.x:
 		classes.append(settings.classes[rng.randi() % settings.classes.size()])
 	party.reset(classes, _near(start, classes.size(), 2.5), difficulty, light)
 	if explore or rng.randf() < float(settings.engaged_patrol_share):
@@ -99,7 +100,7 @@ func run_episode() -> Dictionary:
 	brain.episode_start = sim.clock.tick
 	brain.probe_symbol = int(settings.get("probe_symbol", -1))
 	brain.probe_reward = float(settings.get("probe_reward", 0.0))
-	var spawned := _spawn_mobs(start, explore)
+	var spawned := _spawn_mobs(start, explore, size.y)
 	var report := {"episode": episodes, "policy": policy_version, "mode": "explore" if explore else "engaged", "floor": floor_number,
 		"night": night, "party": classes.size(), "difficulty": snappedf(difficulty, 0.01), "mobs": spawned.count,
 		"elite": spawned.elite}
@@ -212,8 +213,8 @@ func _clear() -> void:
 	sim.perception.lights = PackedFloat32Array()
 
 
-func _spawn_mobs(start: Vector2, explore: bool) -> Dictionary:
-	var count := mini(_range_int("mobs"), int(settings.capacity))
+func _spawn_mobs(start: Vector2, explore: bool, mobs := -1) -> Dictionary:
+	var count := mini(mobs if mobs >= 0 else _range_int("mobs"), int(settings.capacity))
 	var places: Array[Vector2] = []
 	if explore:
 		var distance: Array = settings.explore_distance
@@ -303,6 +304,41 @@ func _near(centre: Vector2, count: int, radius: float, taken: Array[Vector2] = [
 			continue
 		chosen.append(nearby.pop_at(rng.randi() % nearby.size()))
 	return chosen
+
+
+## The party size, and the mob count when mob_ratio_mix chooses it (-1 otherwise: _spawn_mobs draws it later, so
+## the generator is consumed exactly as before for settings without a mix, such as the benchmark's frozen fights).
+## mob_ratio_mix lists bands of mobs per player as [share, from, to): a band is drawn by share, then a party size
+## that can meet it within the mobs range, then a mob count inside the band. A band no party size can meet falls
+## back to the independent draws.
+func _fight_size() -> Vector2i:
+	var mix: Array = settings.get("mob_ratio_mix", [])
+	if mix.is_empty():
+		return Vector2i(_range_int("party"), -1)
+	var total := 0.0
+	for band: Array in mix:
+		total += float(band[0])
+	var roll := rng.randf() * total
+	var chosen: Array = mix[mix.size() - 1]
+	for band: Array in mix:
+		roll -= float(band[0])
+		if roll <= 0.0:
+			chosen = band
+			break
+	var bounds: Array = settings.mobs
+	var fewest_mobs := int(bounds[0])
+	var most_mobs := mini(int(bounds[1]), int(settings.capacity))
+	var options: Array[Vector3i] = []
+	var sizes: Array = settings.party
+	for size in range(int(sizes[0]), int(sizes[1]) + 1):
+		var fewest := maxi(fewest_mobs, ceili(size * float(chosen[1])))
+		var most := mini(most_mobs, ceili(size * float(chosen[2])) - 1)
+		if fewest <= most:
+			options.append(Vector3i(size, fewest, most))
+	if options.is_empty():
+		return Vector2i(_range_int("party"), mini(_range_int("mobs"), int(settings.capacity)))
+	var option := options[rng.randi() % options.size()]
+	return Vector2i(option.x, rng.randi_range(option.y, option.z))
 
 
 func _uniform(key: String) -> float:

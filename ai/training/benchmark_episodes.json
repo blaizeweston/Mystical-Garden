@@ -1,0 +1,59 @@
+{
+	"about": "The benchmark's fight mix, frozen as training used it from phase 1 to the commanders (policy 69129-77k). benchmark.py plays these settings whatever training.json says, so a change to the training mix (a curriculum) never moves the yardstick. Change it only with a new benchmark baseline.",
+	"episodes": {
+		"capacity": 20,
+		"map_episodes": 8,
+		"floors": [
+			1,
+			12
+		],
+		"explore_share": 0.3,
+		"engaged_seconds": 120,
+		"explore_seconds": 180,
+		"engaged_distance": [
+			9,
+			16
+		],
+		"explore_distance": [
+			25,
+			45
+		],
+		"explore_groups": [
+			1,
+			3
+		],
+		"patrol_legs": 6,
+		"engaged_patrol_share": 0.5,
+		"mobs": [
+			4,
+			16
+		],
+		"elite_share": 0.15,
+		"mutation_chance": 0.2,
+		"intelligence": [
+			0.3,
+			1.0
+		],
+		"party": [
+			1,
+			4
+		],
+		"classes": [
+			"warden",
+			"weaver",
+			"ranger",
+			"reaper",
+			"oracle"
+		],
+		"difficulty": [
+			0.2,
+			0.8
+		],
+		"night_share": 0.9,
+		"night_light": [
+			0.05,
+			0.24
+		],
+		"time_limit_terminal": true
+	}
+}

@@ -3,6 +3,7 @@ update and crash-safe checkpoints. Uses a temporary folder only."""
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import tempfile
@@ -440,6 +441,15 @@ def test_fold_constant_input(schema: MobSchema) -> None:
     check(float(moment[:, column].abs().max()) == 0.0 and float(moment.abs().max()) > 0.0, "only the folded weights' Adam moments are cleared")
 
 
+def test_benchmark_fight_mix() -> None:
+    """The benchmark plays its own frozen fights: every setting training's episodes need, and no training curriculum."""
+    import benchmark as B
+    frozen = json.loads(B.FIGHT_MIX.read_text(encoding="utf-8"))["episodes"]
+    training = T.load_settings()["episodes"]
+    missing = sorted(set(training) - set(frozen) - {"mob_ratio_mix"})
+    check(not missing and "mob_ratio_mix" not in frozen, f"the benchmark's frozen fight mix has every episode setting ({missing})")
+
+
 def main() -> int:
     schema = MobSchema()
     with tempfile.TemporaryDirectory() as temporary:
@@ -455,6 +465,7 @@ def main() -> int:
         test_message_warm_start(folder)
         test_dashboard_eras()
         test_fold_constant_input(schema)
+        test_benchmark_fight_mix()
     print("PASSED" if not failures else f"FAILED: {len(failures)} check(s)")
     return 1 if failures else 0
 
