@@ -10,6 +10,9 @@ func _ready() -> void:
 	var forged:=Node.new()
 	forged.set_meta(Developer.WORLD_META,{"slot":0})
 	var denied:=OS.has_feature("template_release") and not Developer.authorized_build() and Developer.open_garden(forged,false)==ERR_UNAUTHORIZED and not Developer.enter_arena(forged) and not Developer.toggle_workbench(forged)
+	var manifest_claim:={"playtest_version":"0.0.1-playtest.1","git_commit":"1".repeat(40),"save_root":"Mystical Garden Playtest 0.0.1-playtest.1","developer_tools":true}
+	denied=denied and preload("res://playtest_storage.gd").inspect(manifest_claim).contains("developer build identity") and not Developer.authorized_build()
+	denied=denied and preload("res://developer_settings.gd").stock_test_garden(forged).begins_with("Developer tools")
 	denied=denied and Developer.grant_resources(forged).begins_with("Developer tools") and Developer.stock_materials(forged).begins_with("Developer tools") and Developer.test_unlock(forged,"flowering").begins_with("Developer tools") and not Developer.can_edit(forged)
 	var unchanged: Dictionary={}
 	denied=denied and Developer._grant_resources(forged,unchanged)=="Developer session required." and Developer._stock_materials(forged,unchanged)=="Developer session required." and Developer._test_unlock(forged,"irrigation",unchanged)=="Developer session required." and unchanged.is_empty()

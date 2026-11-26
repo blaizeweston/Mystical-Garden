@@ -1,8 +1,9 @@
-param([string]$Engine=(Join-Path $PSScriptRoot '../../Godot_v4.7.2-stable_win64_console.exe'),[Alias('Target')][string]$TargetPath='', [switch]$Full, [switch]$VerifyOnly, [string]$PlaytestVersion='', [string]$PlaytestCommit='', [string]$InputManifestSha256='', [switch]$ExperimentalTerrain, [switch]$CombatAffinities)
+param([string]$Engine=(Join-Path $PSScriptRoot '../../Godot_v4.7.2-stable_win64_console.exe'),[Alias('Target')][string]$TargetPath='', [switch]$Full, [switch]$VerifyOnly, [string]$PlaytestVersion='', [string]$PlaytestCommit='', [string]$InputManifestSha256='', [switch]$ExperimentalTerrain, [switch]$CombatAffinities, [switch]$DeveloperTools)
 $ErrorActionPreference='Stop'
 # Historical alias requests isolated terrain only; gameplay is always modern.
 if($CombatAffinities){$ExperimentalTerrain=$true}
 if($ExperimentalTerrain -and -not $PlaytestVersion){throw 'Experimental terrain requires a versioned VerifyOnly build.'}
+if($DeveloperTools -and (-not $PlaytestVersion -or -not $VerifyOnly)){throw 'Developer tools require an explicitly numbered VerifyOnly playtest.'}
 $project=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 if($PlaytestVersion){
  if(-not $VerifyOnly -or $TargetPath -or $PlaytestVersion -cnotmatch '\A(?:0|[1-9][0-9]{0,5})\.(?:0|[1-9][0-9]{0,5})\.(?:0|[1-9][0-9]{0,5})-playtest\.[1-9][0-9]{0,5}\z' -or $PlaytestCommit -cnotmatch '\A[0-9a-f]{40}\z' -or $InputManifestSha256 -cnotmatch '\A[0-9a-f]{64}\z'){
@@ -85,6 +86,7 @@ if($PlaytestVersion){
  $metadata.save_root="Mystical Garden Playtest $PlaytestVersion"
  $metadata.persistence='guarded sessions with a version-specific save root'
  $metadata.persistence_label='guarded'
+ if($DeveloperTools){$metadata.developer_tools=$true}
  if($ExperimentalTerrain){
   $mode=Get-Content -LiteralPath (Join-Path $project 'assets/terrain_m02/experimental/experiment_mode.gd') -Raw
   $modeVersion=[regex]::Match($mode,'const NETWORK_VERSION := "([a-z0-9-]+)"')
@@ -119,6 +121,11 @@ try {
  Copy-Item -LiteralPath $manifest -Destination (Join-Path $stageDirectory 'export-build.json')
  $text=Get-Content -LiteralPath $preset -Raw
  $text=$text.Replace(([regex]::Match($text,'(?m)^custom_template/release="[^"]*"')).Value,('custom_template/release="'+$template.Replace('\','/')+'"'))
+ if($DeveloperTools){
+  $developerPattern='(?m)^custom_features=""\r?$'
+  if([regex]::Matches($text,$developerPattern).Count -ne 1){throw 'Expected an unmarked Windows export preset.'}
+  $text=[regex]::Replace($text,$developerPattern,'custom_features="developer_tools"')
+ }
  [IO.File]::WriteAllText($preset,$text,[Text.UTF8Encoding]::new($false))
  if($PlaytestVersion){
   $configuration=[IO.File]::ReadAllText($settings)

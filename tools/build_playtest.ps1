@@ -11,6 +11,7 @@ param(
  [string[]]$HistoricalArchiveRoots=@(),
  [switch]$ExperimentalTerrain,
  [switch]$CombatAffinities,
+ [switch]$DeveloperTools,
  [switch]$PlanOnly
 )
 $ErrorActionPreference='Stop'
@@ -23,6 +24,7 @@ foreach($entry in $overrides.GetEnumerator()){if($entry.Value){$arguments+=@(('-
 foreach($root in $HistoricalArchiveRoots){$arguments+=@('--history',$root)}
 if($ExperimentalTerrain){$arguments+='--experimental-terrain'}
 if($CombatAffinities){$arguments+='--combat-affinities'}
+if($DeveloperTools){$arguments+='--developer-tools'}
 if($PlanOnly){$arguments+='--plan'}
 & $python @arguments
 if($LASTEXITCODE -ne 0){throw 'Playtest build failed. See the retained staging evidence.'}

@@ -212,6 +212,10 @@ void fragment() {
 		print("PLAYTEST READY: %s · protocol %d · %s" % [build_label.text,Network.PROTOCOL,"guarded" if production_route and guarded_persistence and production_backend_ready else "unavailable"])
 		label(sidebar,"Plant affinities",14,Color("#bfc594"))
 		print("PLAYTEST COMBAT: " + preload("res://combat_ruleset.gd").ID)
+		var developer_build := preload("res://developer_mode.gd").authorized_build()
+		print("PLAYTEST DEVELOPER TOOLS: " + ("enabled" if developer_build else "disabled"))
+		if developer_build:
+			label(sidebar,"Developer-enabled playtest",13,Color("#bfc594"))
 	var title_space:=Control.new()
 	title_space.custom_minimum_size.y=16
 	sidebar.add_child(title_space)

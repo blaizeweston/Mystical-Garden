@@ -9,6 +9,7 @@ param(
  [string]$EvidenceRoot='',
  [string]$Engine='',
  [string]$ExpectedRevision='',
+ [switch]$DeveloperTools,
  [switch]$LegacyDefaults,
  [switch]$PlanOnly
 )
@@ -77,9 +78,9 @@ try {
   foreach($name in @('WorkspaceRoot','StageRoot','EvidenceRoot','Engine','ExpectedRevision')){
    if(Get-Variable -Name $name -ValueOnly){$options[$name]=Get-Variable -Name $name -ValueOnly}
   }
-  & (Join-Path $project 'tools\build_playtest.ps1') @options -PlanOnly:$PlanOnly
+  & (Join-Path $project 'tools\build_playtest.ps1') @options -DeveloperTools:$DeveloperTools -PlanOnly:$PlanOnly
  }else{
-  if($WorkspaceRoot -or $StageRoot -or $EvidenceRoot -or $Engine -or $ExpectedRevision){
+  if($WorkspaceRoot -or $StageRoot -or $EvidenceRoot -or $Engine -or $ExpectedRevision -or $DeveloperTools){
    throw 'Build-only overrides are unavailable in Approve mode.'
   }
   $approve=Join-Path $PSScriptRoot 'approve_playtest.ps1'

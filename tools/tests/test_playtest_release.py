@@ -47,7 +47,7 @@ if sys.argv[1] == 'package-plan':
             put("assets/native/persistence_lock/b0_native_lock.dll", "fixture")
             put("combat_ruleset.gd", 'const ID := "modern-gameplay-1"\n')
             originals = [
-                put("export_presets.cfg", 'export_path="./custom.exe"\r\ncustom_template/release=""\r\n'),
+                put("export_presets.cfg", 'export_path="./custom.exe"\r\ncustom_template/release=""\r\ncustom_features=""\r\n'),
                 put("assets/content/build_manifest.json", ' { "local": true }\r\n'),
                 put("project.godot", '[application]\r\nconfig/custom_user_dir_name="Mystical Garden Prototype"\r\n'
                     'config/custom_user_dir_name.template_release="Mystical Garden Guarded 1"\r\n[debug]\r\n'),
@@ -58,6 +58,9 @@ $staged=$args[-1]
 if((Get-Content -Raw export_presets.cfg) -notmatch 'template\.exe'){throw 'template not installed'}
 $manifest=Get-Content -Raw assets/content/build_manifest.json | ConvertFrom-Json
 if($manifest.combat_ruleset -ne 'modern-gameplay-1'){throw 'metadata not installed'}
+$marked=$env:FAKE_DEVELOPER_TOOLS -eq 'yes'
+if(([bool]$manifest.developer_tools) -ne $marked){throw 'developer metadata mismatch'}
+if(((Get-Content -Raw export_presets.cfg) -match 'custom_features="developer_tools"') -ne $marked){throw 'developer feature mismatch'}
 [IO.File]::WriteAllText((Resolve-Path assets/sprite.png.import).Path,"[importer]`na=1`n")
 if($env:FAKE_EXPORT_FAILURE){exit 37}
 [IO.File]::WriteAllText($staged,'fixture')
@@ -68,24 +71,35 @@ exit 0
                          "-VerifyOnly", "-PlaytestVersion", "0.0.1-playtest.1", "-PlaytestCommit", "1" * 40,
                          "-InputManifestSha256", "2" * 64, "-Engine", str(engine)]
             env = dict(os.environ, APPDATA=str(project / "fake-profile"), MYSTICAL_GODOT_TEMPLATE_DIR=str(template.parent))
-            for fail in [True, False]:
-                with self.subTest(fail=fail):
-                    result = subprocess.run(arguments, cwd=project, env=dict(env, FAKE_EXPORT_FAILURE="yes" if fail else ""),
-                                            capture_output=True, text=True, timeout=30)
-                    self.assertEqual(result.returncode == 0, not fail, result.stdout + result.stderr)
-                    self.assertEqual([f.read_bytes() for f in originals], before)
-                    if fail:
-                        self.assertIn("Export failed", result.stderr)
-                    else:
-                        self.assertIn("VERIFIED ONLY", result.stdout)
-                        self.assertTrue(any(json.loads(p.read_bytes())["git_commit"] == "1" * 40
-                                            for p in (project / ".godot/release").glob("*/export-build.json")))
+            for developer in [False, True]:
+                for fail in [True, False]:
+                    with self.subTest(fail=fail, developer=developer):
+                        selected = arguments + (["-DeveloperTools"] if developer else [])
+                        result = subprocess.run(selected, cwd=project, env=dict(
+                            env, FAKE_EXPORT_FAILURE="yes" if fail else "",
+                            FAKE_DEVELOPER_TOOLS="yes" if developer else ""),
+                            capture_output=True, text=True, timeout=30)
+                        self.assertEqual(result.returncode == 0, not fail, result.stdout + result.stderr)
+                        self.assertEqual([f.read_bytes() for f in originals], before)
+                        if fail:
+                            self.assertIn("Export failed", result.stderr)
+                        else:
+                            self.assertIn("VERIFIED ONLY", result.stdout)
+                            self.assertTrue(any(
+                                json.loads(p.read_bytes())["git_commit"] == "1" * 40
+                                and bool(json.loads(p.read_bytes()).get("developer_tools", False)) == developer
+                                for p in (project / ".godot/release").glob("*/export-build.json")))
             target = put("Mystical Garden v0.0.1.exe", "existing executable, never executed")
             ordinary = arguments[:arguments.index("-PlaytestVersion")] + ["-TargetPath", str(target), "-Engine", str(engine)]
             result = subprocess.run(ordinary, cwd=project, env=env, capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual([f.read_bytes() for f in originals], before)
             self.assertEqual(target.read_text(), "existing executable, never executed")
+            refused = subprocess.run(ordinary + ["-DeveloperTools"], cwd=project, env=env,
+                                     capture_output=True, text=True, timeout=30)
+            self.assertNotEqual(refused.returncode, 0)
+            self.assertIn("explicitly numbered VerifyOnly playtest", refused.stderr)
+            self.assertEqual([f.read_bytes() for f in originals], before)
 
     def test_version_is_canonical_and_path_safe(self):
         self.assertEqual(release.version_name("0.1.0"), "0.1.0-playtest.1")
@@ -187,13 +201,16 @@ exit 0
             build = {"playtest_version": "0.1.0-playtest.1", "git_commit": "1" * 40, "built_utc": "2026-01-01T00:00:00Z",
                      "godot_version": "4.7.2", "protocol": 40, "input_manifest_sha256": "0" * 64,
                      "save_root": "Mystical Garden Playtest 0.1.0-playtest.1",
-                     "terrain_mode": "integrated-terrain-coop-fixture", "combat_ruleset": "plant-affinity-fixture"}
+                     "terrain_mode": "integrated-terrain-coop-fixture", "combat_ruleset": "plant-affinity-fixture",
+                     "developer_tools": True}
             release.bundle(root, exe, root, build, {"source_run_id": "s", "package_run_id": "p"}, {})
             manifest = json.loads((root / "manifest.json").read_text())
             self.assertEqual(manifest["exe_sha256"], release.sha(exe))
             self.assertEqual(len(manifest["files"]), 5)
             self.assertEqual(manifest["combat_ruleset"], build["combat_ruleset"])
+            self.assertTrue(manifest["developer_tools"])
             self.assertIn("opens in the affinity combat ruleset", (root / "game/README_PLAYTEST.txt").read_text())
+            self.assertIn("Developer-enabled playtest", (root / "game/README_PLAYTEST.txt").read_text())
             self.assertIsNone(manifest["git_tag"])
             self.assertIn(release.sha(next(root.glob("*.zip"))), (root / "SHA256SUMS.txt").read_text())
 

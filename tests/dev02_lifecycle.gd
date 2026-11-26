@@ -160,5 +160,25 @@ func guarded_round_trip(menu: Node, token: String) -> void:
 	if not check(garden==current_scene and garden.persistence_session.owns_leases() and before==FileAccess.get_sha256(garden.progress.path),"guarded lease and Garden retained"): return
 	garden.return_to_main_menu()
 	await process_frame
+	# An authorized build and saved Developer Mode preference still do not
+	# grant mutation rights to an ordinary title-issued Garden or host.
+	var ordinary_title := current_scene
+	if not check(ordinary_title.has_method("new_game"),"returned to guarded title"):return
+	ordinary_title.new_game()
+	ordinary_title.create_character("Ordinary control",0,preload("res://character_appearance.gd").DEFAULT)
+	var deadline := Time.get_ticks_msec()+10000
+	while current_scene==ordinary_title and Time.get_ticks_msec()<deadline:await process_frame
+	var ordinary:=current_scene
+	if not check(ordinary.has_method("seed_reserve") and not Developer.is_test_garden(ordinary),"ordinary Garden stays outside developer authority"):return
+	var garden_digest:=FileAccess.get_sha256(ordinary.progress.path)
+	var profile_digest:=FileAccess.get_sha256(ordinary.local_character.path)
+	if not check(Developer.grant_resources(ordinary).begins_with("Developer tools") and Developer.stock_materials(ordinary).begins_with("Developer tools")
+		and Developer.test_unlock(ordinary,"irrigation").begins_with("Developer tools")
+		and not Developer.toggle_workbench(ordinary) and not Developer.enter_arena(ordinary),"ordinary mutation boundaries reject enabled developer build"):return
+	if not check(ordinary.session_world.host()==OK and not Developer.can_edit(ordinary)
+		and Developer.grant_resources(ordinary).begins_with("Developer tools"),"ordinary multiplayer hosting grants no developer permissions"):return
+	if not check(FileAccess.get_sha256(ordinary.progress.path)==garden_digest and FileAccess.get_sha256(ordinary.local_character.path)==profile_digest,"rejected developer commands preserve ordinary custody saves"):return
+	ordinary.return_to_main_menu()
+	await process_frame
 	print("verified guarded")
 	quit()

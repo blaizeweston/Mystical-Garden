@@ -376,6 +376,7 @@ def _retail_probes(stage, pack, metadata, env, desktop_profile):
         raise ValueError("Numbered playtests require guarded saves in their version-specific root.")
     combat_ruleset = metadata.get("combat_ruleset", "")
     combat_line = f"PLAYTEST COMBAT: {combat_ruleset}" if combat_ruleset else ""
+    developer_line = "PLAYTEST DEVELOPER TOOLS: " + ("enabled" if metadata.get("developer_tools", False) else "disabled")
     ready = re.compile(rf"(?m)^PLAYTEST READY: {re.escape(version)} . protocol {metadata['protocol']} . {re.escape(persistence_label)}$")
     backend = "PLAYTEST BLOCKED: The playtest persistence library is missing or incompatible."
     expected_errors = [
@@ -474,6 +475,8 @@ def _retail_probes(stage, pack, metadata, env, desktop_profile):
             active_rulesets = re.findall(r"(?m)^PLAYTEST COMBAT: .+$", stdout)
             if active_rulesets != ([combat_line] if combat_line else []):
                 raise ValueError(f"Retail title did not activate the expected combat ruleset in {probe}.")
+            if re.findall(r"(?m)^PLAYTEST DEVELOPER TOOLS: .+$", stdout) != [developer_line]:
+                raise ValueError(f"Retail developer authorization did not match the requested build in {probe}.")
         elif probe in blocked:
             if blocked[probe] not in stdout or "PLAYTEST READY:" in stdout or (release_root / "diagnostics").exists():
                 raise ValueError(f"Retail did not refuse the {probe} probe before gameplay.")
@@ -493,7 +496,8 @@ def _retail_probes(stage, pack, metadata, env, desktop_profile):
             reopened = reopen.read_text(encoding="utf-8-sig", errors="replace")
             reopen_errors = (home / "reopen.stderr.log").read_text(encoding="utf-8-sig", errors="replace")
             if (reopen_exit or not ready.search(reopened) or evidence.ENGINE_ERROR.search(reopened + reopen_errors)
-                    or fingerprint != sha(identity) or combat_line and combat_line not in reopened):
+                    or fingerprint != sha(identity) or combat_line and combat_line not in reopened
+                    or developer_line not in reopened):
                 raise ValueError("Retail could not reopen its exact version and commit.")
             reopen_id = "desktop-reopen" if probe == "desktop" else "reopen"
             results[reopen_id] = {"exit": reopen_exit, "run_id": f"{version}-{reopen_id}",
@@ -542,6 +546,11 @@ def bundle(stage, pack, project, metadata, checks, retail):
                    "Choose a starting focus before departing. "
                    "Cleared upgrade checkpoints offer free cards, with Essence used for rerolls. "
                    "Spend carried monster trophies at the Wilds Grafting Altar for expedition improvements.\n")
+    if metadata.get("developer_tools"):
+        readme += ("\nDeveloper-enabled playtest\nFrom the title Settings, enable Developer Mode and open the separate "
+                   "Developer Garden. Enter its Testing Arena and use F4 or controller Start for the Workbench. "
+                   "The Developer Garden and Testing Arena are solo-only and isolated from ordinary character and Garden saves. "
+                   "For co-op, return to the title and use an ordinary Garden.\n")
     (payload / "README_PLAYTEST.txt").write_text(readme.replace("@VERSION@", version).replace("@ROOT@", metadata["save_root"]), encoding="utf-8")
     info = {
         "version": version, "git_commit": metadata["git_commit"], "git_tag": None,
@@ -549,6 +558,7 @@ def bundle(stage, pack, project, metadata, checks, retail):
         "multiplayer_protocol": metadata["protocol"], "persistence": metadata.get("persistence", "legacy route with native containment"),
         "terrain_mode": metadata.get("terrain_mode", "legacy"),
         "combat_ruleset": metadata["combat_ruleset"],
+        "developer_tools": bool(metadata.get("developer_tools", False)),
         "save_root": "%APPDATA%/" + metadata["save_root"], "compatibility": "Exact version and commit only. No automatic import.",
         "source_run_id": checks["source_run_id"], "package_run_id": checks["package_run_id"],
         "exe_sha256": sha(payload / GAME), "native_dll_sha256": sha(payload / evidence.LOCK_LIBRARY),
@@ -614,6 +624,7 @@ def build(args):
     combat_ruleset = match[1]
     # The historical flag only requests isolated terrain; gameplay is always modern.
     experimental_terrain = args.experimental_terrain or args.combat_affinities
+    developer_tools = bool(args.developer_tools)
     if not roots.engine:
         raise ValueError("Supply the Godot editor executable.")
     engine = Path(roots.engine).absolute()
@@ -648,6 +659,7 @@ def build(args):
     if args.plan:
         print(json.dumps({"commit": revision, "engine": str(engine), "version": version,
                           "combat_ruleset": combat_ruleset, "experimental_terrain": experimental_terrain,
+                          "developer_tools": developer_tools,
                           "workspace": str(work), "stage": str(stage), "evidence": str(output),
                           "archive": str(archive), "desktop_profile_parent": str(profile_parent)}, indent=2))
         return
@@ -715,6 +727,8 @@ def build(args):
                         "-Engine", engine]
         if experimental_terrain:
             release_args.append("-ExperimentalTerrain")
+        if developer_tools:
+            release_args.append("-DeveloperTools")
         if roots.configured:
             env["MYSTICAL_PLAYTEST_EXPORT_ROOT"] = str(export_root)
         run(release_args, project, env, output / "verifyonly.log")
@@ -724,6 +738,8 @@ def build(args):
         source_dll = project / evidence.LOCK_RESOURCE
         if bool(metadata.get("terrain_mode")) != experimental_terrain:
             raise ValueError("Staged build terrain mode does not match the request.")
+        if metadata.get("developer_tools", False) is not developer_tools:
+            raise ValueError("Staged developer authorization does not match the request.")
         if metadata.get("combat_ruleset", "") != combat_ruleset:
             raise ValueError("Staged build combat ruleset does not match the request.")
         if (metadata["playtest_version"] != version or metadata["git_commit"] != revision
@@ -885,6 +901,8 @@ def main():
     parser.add_argument("--experimental-terrain", action="store_true")
     parser.add_argument("--combat-affinities", action="store_true",
                         help="Deprecated alias for --experimental-terrain; modern gameplay is always enabled.")
+    parser.add_argument("--developer-tools", action="store_true",
+                        help="Authorize the isolated solo Developer Garden and Workbench in this numbered playtest.")
     parser.add_argument("--plan", action="store_true")
     parser.add_argument("--history", action="append", default=[])
     parser.add_argument("--expected-zip")
@@ -892,6 +910,8 @@ def main():
     try:
         args = parser.parse_args()
         if args.approve:
+            if args.developer_tools:
+                raise ValueError("Developer authorization must be selected at build time, not approval.")
             archive = output_options(args).archive
             if args.plan:
                 print(json.dumps(approval_selection(args.version, archive, args.history if not args.archive else []),

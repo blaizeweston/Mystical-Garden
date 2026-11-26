@@ -34,6 +34,8 @@ Connected is the default. Focused runs eligible unit suites; it cannot certify m
 
 Candidate persistence acceptance is registered in the source planner. Each Windows package must also run the candidate release suites with fresh per-peer verdicts, including the real title-based solo and party fixtures. Cached candidate verdicts cannot satisfy package commit. Catalog/exclusion and supplied network smoke remain independent checks. Fresh release saves use guarded storage. Migration of older save roots remains disabled. Candidate fixtures run externally through the Godot editor and the packaged resources in a disposable headless data root.
 
+For an explicitly developer-enabled numbered playtest, use `tools/build_playtest.ps1 -Version <version> -DeveloperTools`. This is a build flavor, not a player permission: the stamped manifest, exported feature and verified versioned save root must agree. The retail startup probes confirm the requested authorization state. Ordinary release exports and ordinary multiplayer do not gain developer mutation privileges; Workbench use remains isolated and solo.
+
 A focused candidate checkpoint provides current evidence for the affected acceptance routes only. A full release also requires complete current source evidence for every registered suite and a successful package commit. Manual desktop visual checks and separate-PC co-op are tracked separately.
 
 Do not edit runtime files, tests, the map or validation tools while a run is in progress. Complete focused fixes first, then start connected/release verification. New results are discarded if inputs change mid-run. Tests use isolated data under `.godot`, not the player's saves.

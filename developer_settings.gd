@@ -21,7 +21,7 @@ func _ready() -> void:
 	toggle = settings.check(self,"Developer Mode")
 	toggle.toggled.connect(func(_value): refresh_tools())
 	hint = settings.label(self,"")
-	if context != null:
+	if context != null and (not OS.has_feature("template_release") or Developer.is_test_garden(context)):
 		settings.button(self,"Stock affinity materials in isolated Garden",func():
 			settings.notice.text = stock_test_garden(context))
 	tools = VBoxContainer.new()
@@ -158,6 +158,11 @@ func run_tool(action: String) -> void:
 
 
 static func stock_test_garden(game: Node) -> String:
+	# The older source-editor affinity fixture permits an isolated host tool.
+	# A marked retail developer playtest must never grant to an ordinary Garden,
+	# even if the experimental-terrain presentation is enabled.
+	if OS.has_feature("template_release"):
+		return Developer.stock_materials(game) if Developer.can_edit(game) else "Developer tools are available only in the isolated solo Developer Garden."
 	var ruleset = load("res://combat_ruleset.gd")
 	if not Developer.authorized_build() or not game.has_meta(&"experimental_terrain") or not "participation" in game or not preload("res://assets/terrain_m02/experimental/experiment_mode.gd").verified() or not game.multiplayer.is_server() or game.participation.active() or not game.persistence_session.is_guarded():
 		return "Affinity supplies are available to the host in the isolated affinity Garden."

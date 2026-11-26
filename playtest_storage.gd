@@ -9,6 +9,7 @@ const IDENTITY := "user://playtest.identity"
 
 static var refusal := ""
 static var inspected := false
+static var _developer_tools := false
 
 static func build() -> Dictionary:
  var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(BUILD))
@@ -17,12 +18,22 @@ static func build() -> Dictionary:
 static func retail() -> bool:
  return OS.has_feature("template_release") and (bool(ProjectSettings.get_setting("application/config/mystical_playtest", false)) or build().has("playtest_version"))
 
+## A numbered retail playtest can opt into the developer build capability at
+## export. Neither a Settings preference nor a manifest claim by itself is
+## sufficient. Authorize only after the version-specific root is verified.
+static func developer_tools_allowed() -> bool:
+ return OS.has_feature("template_release") and inspected and _developer_tools
+
 static func inspect(info: Dictionary) -> String:
+ _developer_tools = false
  var version: String = str(info.get("playtest_version", ""))
  var identity := RegEx.create_from_string("\\A(?:0|[1-9][0-9]{0,5})\\.(?:0|[1-9][0-9]{0,5})\\.(?:0|[1-9][0-9]{0,5})-playtest\\.[1-9][0-9]{0,5}\\z")
  var commit: String = str(info.get("git_commit", ""))
  if not identity.search(version) or not RegEx.create_from_string("\\A[0-9a-f]{40}\\z").search(commit) or info.get("save_root") != PREFIX + version:
   return "The playtest build identity is missing or invalid."
+ var developer: Variant = info.get("developer_tools", false)
+ if not developer is bool or developer != OS.has_feature("developer_tools"):
+  return "The playtest developer build identity is missing or invalid."
  var profile := OS.get_environment("USERPROFILE").replace("\\", "/").trim_suffix("/")
  var roaming := OS.get_environment("APPDATA").replace("\\", "/").trim_suffix("/")
  var root := OS.get_user_data_dir().replace("\\", "/").trim_suffix("/")
@@ -71,6 +82,7 @@ static func inspect(info: Dictionary) -> String:
   return file.get_error() if stored else ERR_FILE_CANT_WRITE)
  if marked.error != OK or not marked.ran or marked.value != OK:
   return "The playtest save set does not match this version. Restore a matching backup."
+ _developer_tools = developer
  return ""
 
 # The desktop Compatibility renderer creates this cache before the title runs.

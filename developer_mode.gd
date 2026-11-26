@@ -17,7 +17,8 @@ const WORLD_META := &"developer_garden"
 static var _authorized_world: WeakRef
 
 static func authorized_build() -> bool:
-	return OS.has_feature("editor") or (OS.has_feature("template_debug") and OS.has_feature("developer_tools"))
+	return OS.has_feature("editor") or (OS.has_feature("template_debug") and OS.has_feature("developer_tools")) \
+		or preload("res://playtest_storage.gd").developer_tools_allowed()
 
 static func workbench_input(event: InputEvent) -> bool:
 	return event.is_action_pressed("developer_workbench") or (event is InputEventJoypadButton and event.pressed and event.button_index==JOY_BUTTON_START)
