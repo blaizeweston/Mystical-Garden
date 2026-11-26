@@ -38,8 +38,10 @@ static func _stamp(features: Array, channel: int, frame: Rect2, size: Vector2i, 
 		var band := bounds.grow(MAX_DISTANCE)
 		var lo := Vector2i(((band.position - frame.position) / step).floor()).clamp(Vector2i.ZERO, size)
 		var hi := Vector2i(((band.end - frame.position) / step).ceil()).clamp(Vector2i.ZERO, size - Vector2i.ONE)
+		if lo.x > hi.x or lo.y > hi.y: continue
+		var width := hi.x - lo.x + 1
 		var nearest := PackedFloat32Array()
-		nearest.resize(size.x * size.y)
+		nearest.resize(width * (hi.y - lo.y + 1))
 		nearest.fill(MAX_DISTANCE * MAX_DISTANCE)
 		var crossings: Array[PackedFloat32Array] = []
 		crossings.resize(size.y)
@@ -56,22 +58,34 @@ static func _stamp(features: Array, channel: int, frame: Rect2, size: Vector2i, 
 					var world_y := frame.position.y + y * step.y
 					if (previous.y > world_y) != (point.y > world_y):
 						crossings[y].append(previous.x + edge.x * (world_y - previous.y) / edge.y)
-					for x in range(start.x, end.x + 1):
+					# Only the segment within this scanline’s distance band can contribute.
+					var left := start.x
+					var right := end.x
+					if absf(edge.y) > 0.0001 and right - left > 20:
+						var t0 := clampf((world_y - MAX_DISTANCE - previous.y) / edge.y, 0.0, 1.0)
+						var t1 := clampf((world_y + MAX_DISTANCE - previous.y) / edge.y, 0.0, 1.0)
+						var x0 := previous.x + edge.x * t0
+						var x1 := previous.x + edge.x * t1
+						left = maxi(left, floori((minf(x0, x1) - MAX_DISTANCE - frame.position.x) / step.x))
+						right = mini(right, ceili((maxf(x0, x1) + MAX_DISTANCE - frame.position.x) / step.x))
+					var row := (y - lo.y) * width - lo.x
+					for x in range(left, right + 1):
 						var at := frame.position + Vector2(x, y) * step - previous
 						var t := clampf(at.dot(edge) * length_inv, 0.0, 1.0)
-						var index := y * size.x + x
+						var index := row + x
 						nearest[index] = minf(nearest[index], (at - edge * t).length_squared())
 				previous = point
 		for y in range(lo.y, hi.y + 1):
 			var intersections := crossings[y]
 			intersections.sort()
+			var row := (y - lo.y) * width - lo.x
 			var passed := 0
 			for x in range(lo.x, hi.x + 1):
 				var world_x := frame.position.x + x * step.x
 				while passed < intersections.size() and intersections[passed] <= world_x:
 					passed += 1
 				var index := y * size.x + x
-				var distance := sqrt(nearest[index]) * (-1.0 if passed % 2 == 1 else 1.0)
+				var distance := sqrt(nearest[row + x]) * (-1.0 if passed % 2 == 1 else 1.0)
 				var encoded := roundi(127.5 * (1.0 + distance / MAX_DISTANCE))
 				var texel := index * 3 + channel
 				pixels[texel] = mini(pixels[texel], encoded)

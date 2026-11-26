@@ -27,6 +27,7 @@ const SKILL_POSES := [
 	preload("res://assets/characters/field_skill_poses_female.res"),
 ]
 static var libraries: Dictionary = {}
+static var model_grips: Dictionary = {}
 
 
 static func build(model: Node3D, kind: int) -> Dictionary:
@@ -61,17 +62,23 @@ static func build(model: Node3D, kind: int) -> Dictionary:
 			var point := rest.origin
 			point.y = 0.006
 			soles.append({"bone":bone, "point":rest.affine_inverse() * point})
+	var pelvis := skeleton.find_bone("pelvis")
+	# Imported rest geometry is fixed for each of the two bodies. Separate each actor's mutable playback state.
+	if not model_grips.has(kind):
+		model_grips[kind] = {
+			"spear":Spear.calibration(skeleton,player,pelvis),
+			"staff":Staff.calibration(skeleton,player,pelvis),
+			"maul":Maul.calibration(skeleton,player,pelvis),
+			"wand":Wand.calibration(skeleton,player,pelvis),
+			"review_joints":Reviewed.grip_joints(skeleton), "focus_pelvis_basis": SeedFocus.idle_hip_basis(skeleton, player),
+			"rootblade":Rootblade.calibration(skeleton,player,pelvis),
+		}
 	var field: Dictionary={
 		"scene":visual, "skeleton":skeleton, "player":player, "skill_poses":SKILL_POSES[kind], "soles":soles,
 		"left":socket(skeleton,"l"), "right":socket(skeleton,"r"), "gait":0.0,
-		"pelvis":skeleton.find_bone("pelvis"), "carry": {}, "ready_elapsed": 0.0, "carry_form": "",
-		"spear":Spear.calibration(skeleton,player,skeleton.find_bone("pelvis")),
-		"staff":Staff.calibration(skeleton,player,skeleton.find_bone("pelvis")),
-		"maul":Maul.calibration(skeleton,player,skeleton.find_bone("pelvis")),
-		"wand":Wand.calibration(skeleton,player,skeleton.find_bone("pelvis")),
-		"review_joints":Reviewed.grip_joints(skeleton), "reviewed": {}, "focus": {}, "focus_pelvis_basis": SeedFocus.idle_hip_basis(skeleton, player),
-		"rootblade":Rootblade.calibration(skeleton,player,skeleton.find_bone("pelvis")),
+		"reviewed": {}, "focus": {}, "pelvis":pelvis, "carry": {}, "ready_elapsed": 0.0, "carry_form": "",
 	}
+	field.merge(model_grips[kind].duplicate(true))
 	cache_staff_releases(field,kind)
 	Reviewed.cache_releases(field, kind)
 	SeedFocus.cache_contacts(field, kind)

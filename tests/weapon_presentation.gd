@@ -28,6 +28,11 @@ func run() -> void:
 		var look := Appearance.DEFAULT.duplicate()
 		look[5]=body
 		Appearance.apply(actor,look)
+		var twin := Avatar.build(parent, body)
+		check(twin.field_rig.rootblade == actor.field_rig.rootblade, "same body has the same calibrated grip")
+		twin.field_rig.rootblade.last_clip = "test-only"
+		check(not actor.field_rig.rootblade.has("last_clip"), "actor playback state is independent")
+		twin.model.free()
 		inspect_library(actor)
 		inspect_sampling_independence(actor)
 		for class_id in 5:

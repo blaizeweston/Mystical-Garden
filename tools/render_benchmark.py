@@ -13,6 +13,7 @@ def main():
     parser.add_argument("--cases", default="garden,combat,world")
     parser.add_argument("--size", default="1100x720", choices=["1100x720", "1920x1080", "2560x1440"])
     parser.add_argument("--seconds", type=int, default=8, choices=range(3, 121), metavar="3..120")
+    parser.add_argument("--stalls", action="store_true", help="Trace main-loop and draw phases for frames above 50 ms")
     parser.add_argument("--capture", action="store_true", help="Record frames at 8 Hz during timed samples")
     args = parser.parse_args()
     project = Path(__file__).resolve().parents[1]
@@ -24,7 +25,7 @@ def main():
     for key in ("APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"):
         env[key] = str(storage)
     env.update(VFX08_ROOT=str(storage), VFX08_CASES=args.cases, VFX08_SECONDS=str(args.seconds),
-               VFX08_CAPTURE=str(int(args.capture)))
+               VFX08_CAPTURE=str(int(args.capture)), VFX08_STALLS=str(int(args.stalls)))
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=project, text=True).strip()
     command = [str(args.engine.resolve()), "--path", str(project), "--rendering-method", "gl_compatibility",
                "--resolution", args.size, "--log-file", str(storage / "engine.log"), "--script",

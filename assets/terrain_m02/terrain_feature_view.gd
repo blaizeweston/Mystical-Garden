@@ -16,6 +16,8 @@ const FERN_MASK := preload("res://assets/garden/field/fern_opacity.png")
 
 var variants := {}
 var botanical_variants := {}
+# Three fixed Wilds families. Per-floor transforms and atmospheric overrides stay on the batches.
+static var wilds_meshes := {}
 const Atmosphere = preload("res://assets/terrain_m02/wilds_atmosphere.gd")
 var atmosphere: Atmosphere
 var botanical_material: StandardMaterial3D
@@ -153,10 +155,9 @@ func _gate(at: Vector2, yaw: float) -> void:
 	massing.add_child(view)
 
 func _wilds_assets(family: int) -> Dictionary:
-	var key := family + 4
-	if not botanical_variants.has(key):
-		botanical_variants[key] = _make_botanicals(Art.profile(family + 1), family + 1, family)
-	return botanical_variants[key]
+	if not wilds_meshes.has(family):
+		wilds_meshes[family] = _make_botanicals(Art.profile(family + 1), family + 1, family)
+	return wilds_meshes[family]
 
 func _make_botanicals(profile: Dictionary, biome: int, family: int = -1) -> Dictionary:
 	_ensure_botanical_material()

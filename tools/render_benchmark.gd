@@ -18,6 +18,9 @@ var window_us: int
 var recording: bool
 var output_index := 0
 var failed := false
+var trace_stalls := false
+var draw_started := 0
+var draw_ended := 0
 var startup := Time.get_ticks_usec()
 
 func _initialize() -> void:
@@ -42,6 +45,10 @@ func run() -> void:
 		if name not in ["garden","world","combat","probe","isolate"] and not BUILDS.has(name):
 			printerr("REJECT unknown workload ", name); quit(2); return
 	window_us = clampi(OS.get_environment("VFX08_SECONDS").to_int(),3,120)*1000000
+	trace_stalls = OS.get_environment("VFX08_STALLS") == "1"
+	if trace_stalls:
+		RenderingServer.frame_pre_draw.connect(func(): draw_started=Time.get_ticks_usec())
+		RenderingServer.frame_post_draw.connect(func(): draw_ended=Time.get_ticks_usec())
 	recording = OS.get_environment("VFX08_CAPTURE")=="1"
 	report("device",{"adapter":RenderingServer.get_video_adapter_name(),"renderer":RenderingServer.get_current_rendering_method(),"size":str(root.size),"cpu":OS.get_processor_name(),"screen":str(DisplayServer.screen_get_size())})
 	var menu: Node = preload("res://main_menu.tscn").instantiate()
@@ -241,6 +248,7 @@ func sample(name: String, fighting: bool, pass_index: int) -> void:
 	var beat:=0
 	var next_observe:=0
 	var next_image:=125000
+	var previous_physics:=Engine.get_physics_frames()
 	var peak_effects:=0
 	var kinds: Dictionary={}
 	var process_peak_ms:=0.0
@@ -255,6 +263,9 @@ func sample(name: String, fighting: bool, pass_index: int) -> void:
 		await process_frame
 		var now:=Time.get_ticks_usec()
 		var dt:=(now-previous)*.001
+		if trace_stalls and dt>50.0:
+			report("stall",{"case":name,"pass":pass_index,"at_ms":(now-start)*.001,"frame_ms":dt,"until_pre_draw_ms":(draw_started-previous)*.001,"draw_submission_ms":(draw_ended-draw_started)*.001,"after_draw_ms":(now-draw_ended)*.001,"physics_steps":Engine.get_physics_frames()-previous_physics,"tweens":get_processed_tweens().size()})
+		if trace_stalls: previous_physics=Engine.get_physics_frames()
 		frames.append(dt)
 		previous=now
 		for i in thresholds.size():
