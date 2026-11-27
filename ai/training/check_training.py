@@ -110,6 +110,41 @@ def test_masked_terms(schema: MobSchema) -> None:
     check(torch.allclose(log_prob, expected, atol=1e-5), "an open head scores its choice by softmax over legal options")
 
 
+def test_fight_kl(schema: MobSchema) -> None:
+    """With kl_excludes_messages, the controller's KL leaves the message heads out and still counts every other head."""
+    from mob_schema import HEAD_NAMES
+    slices, cursor = [], 0
+    for size in schema.head_sizes.values():
+        slices.append((cursor, size))
+        cursor += size
+    message_heads = [i for i, name in enumerate(HEAD_NAMES) if name.startswith("message")]
+    generator = torch.Generator().manual_seed(3)
+    rows = 64
+    logits = torch.randn(rows, schema.logit_count, generator=generator)
+    masks = torch.ones(rows, schema.logit_count, dtype=torch.bool)
+    actions = torch.stack([torch.randint(0, max(1, size), (rows,), generator=generator) for _offset, size in slices], dim=1)
+    start: list[torch.Tensor] = []
+    old_log_prob, _ = T.masked_terms(logits, masks, actions, slices, chosen=start)
+    check(torch.allclose(sum(start), old_log_prob, atol=1e-5), "each head's chosen log-probability adds up to the joint one")
+    message_start = sum(start[i] for i in message_heads)
+    moved = logits.clone()
+    for head in message_heads:
+        offset, size = slices[head]
+        moved[:, offset:offset + size] += torch.randn(rows, size, generator=generator)
+    now: list[torch.Tensor] = []
+    log_prob, _ = T.masked_terms(moved, masks, actions, slices, chosen=now)
+    fight = T.fight_log_ratio(log_prob, now, message_heads, old_log_prob, message_start)
+    check(float(fight.abs().max()) < 1e-4 and float((log_prob - old_log_prob).abs().max()) > 1e-2,
+          "a change in the message heads alone leaves the fighting log-ratio at 0")
+    behaviour = HEAD_NAMES.index("behaviour")
+    offset, size = slices[behaviour]
+    moved[:, offset:offset + size] += torch.randn(rows, size, generator=generator)
+    now = []
+    log_prob, _ = T.masked_terms(moved, masks, actions, slices, chosen=now)
+    fight = T.fight_log_ratio(log_prob, now, message_heads, old_log_prob, message_start)
+    check(torch.allclose(fight, now[behaviour] - start[behaviour], atol=1e-4), "the fighting log-ratio counts the behaviour head's change")
+
+
 def test_trainer(schema: MobSchema, folder: Path) -> None:
     settings = T.load_settings()
     overrides = {"device": "cpu", "batch_rows": 40, "minibatch_sequences": 4, "epochs": 2, "checkpoint_minutes": 0, "keep_checkpoints": 2,
@@ -135,6 +170,8 @@ def test_trainer(schema: MobSchema, folder: Path) -> None:
     check(0.0 < line["trunk_alive"] <= 1.0 and 0.0 < line["trunk_a_alive"] <= 1.0 and line["obs_sensitivity"] > 0.0,
           "each update logs the live trunk units and how much choices react to the observation")
     check(line["policy_grad_norm"] > 0.0 and line["critic_grad_norm"] > 0.0, "each update logs the policy's and critic's gradient norms")
+    check(bool(settings["trainer"].get("kl_excludes_messages")) and line["approx_kl"] >= 0.0 and line["approx_kl_joint"] >= 0.0,
+          "the controller reads the fighting choices' KL and each update also logs the joint KL")
     configured = T.load_settings()["trainer"]
     check(T.entropy_weights(configured) == (float(configured["entropy_weight_fight"]), float(configured["entropy_weight_messages"])) and
           T.entropy_weights({"entropy_weight": 0.01}) == (0.01, 0.01), "fighting and message choices have their own entropy bonus")
@@ -519,6 +556,7 @@ def main() -> int:
         test_shards(schema, folder)
         test_advantages()
         test_masked_terms(schema)
+        test_fight_kl(schema)
         test_trainer(schema, folder)
         test_replace_waits_for_open_file(folder)
         test_evaluation(schema, folder)

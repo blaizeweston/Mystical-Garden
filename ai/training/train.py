@@ -83,21 +83,34 @@ def keep_awake(enabled: bool) -> None:
 
 
 def masked_terms(logits: torch.Tensor, masks: torch.Tensor, actions: torch.Tensor, slices: list[tuple[int, int]],
-                 heads: list[torch.Tensor] | None = None) -> tuple[torch.Tensor, torch.Tensor]:
+                 heads: list[torch.Tensor] | None = None,
+                 chosen: list[torch.Tensor] | None = None) -> tuple[torch.Tensor, torch.Tensor]:
     """Summed log-probability of the chosen options and summed entropy, each head limited to its legal options,
     exactly as ai/training_brain.gd sampled them. A head with one legal option adds nothing. When heads is a list,
-    each head's own entropy is appended to it, in head order."""
+    each head's own entropy is appended to it, in head order; when chosen is a list, each head's own log-probability
+    of its chosen option."""
     log_prob = torch.zeros(logits.shape[:-1], device=logits.device)
     entropy = torch.zeros(logits.shape[:-1], device=logits.device)
     for head, (offset, size) in enumerate(slices):
         legal = masks[..., offset:offset + size]
         logp = torch.log_softmax(logits[..., offset:offset + size].masked_fill(~legal, -1e9), dim=-1)
-        log_prob = log_prob + logp.gather(-1, actions[..., head:head + 1]).squeeze(-1)
+        picked = logp.gather(-1, actions[..., head:head + 1]).squeeze(-1)
+        log_prob = log_prob + picked
+        if chosen is not None:
+            chosen.append(picked)
         own = -(logp.exp() * logp).masked_fill(~legal, 0.0).sum(-1)
         entropy = entropy + own
         if heads is not None:
             heads.append(own)
     return log_prob, entropy
+
+
+def fight_log_ratio(log_prob: torch.Tensor, chosen: list[torch.Tensor], message_heads: list[int], old_log_prob: torch.Tensor,
+                    message_start: torch.Tensor) -> torch.Tensor:
+    """The log-ratio of the fighting choices alone: the joint log-ratio with the message heads' part taken out (their
+    log-probability now, and at the start of the update in place of their recorded part)."""
+    message_now = sum(chosen[i] for i in message_heads)
+    return (log_prob - message_now) - (old_log_prob - message_start)
 
 
 def choice_stats(masks: torch.Tensor, actions: torch.Tensor, slices: list[tuple[int, int]]) -> dict:
@@ -322,6 +335,23 @@ class Trainer:
             steps.append(logits)
         return torch.stack(steps, dim=1)
 
+    def _message_log_prob(self, obs: torch.Tensor, masks: torch.Tensor, actions: torch.Tensor, index: torch.Tensor,
+                          valid: torch.Tensor, start_memory: torch.Tensor, message_heads: list[int]) -> torch.Tensor:
+        """Each row's message log-probability under the policy as this update starts, unrolled over the same windows
+        as training. For rows played by this version it equals the recorded message part; for rows a few versions
+        old it differs by those versions' small drift."""
+        result = torch.zeros(obs.shape[0], device=obs.device)
+        size = 4096
+        with torch.no_grad():
+            for start in range(0, index.shape[0], size):
+                rows = index[start:start + size]
+                logits = self.unroll(obs, rows, start_memory[start:start + size])
+                chosen: list[torch.Tensor] = []
+                masked_terms(logits, masks[rows], actions[rows], self.slices, chosen=chosen)
+                keep = valid[start:start + size]
+                result[rows[keep]] = sum(chosen[i] for i in message_heads)[keep]
+        return result
+
     def update(self, batch: R.Rollout) -> dict:
         cfg, device = self.cfg, self.device
         tensor = lambda array, dtype=None: torch.as_tensor(np.ascontiguousarray(array), dtype=dtype, device=device)  # noqa: E731
@@ -348,8 +378,13 @@ class Trainer:
         start_memory = memory[index[:, 0]]
         stats = {"replay_gap": self._replay_gap(batch, obs, masks, actions, old_log_prob, index, valid, start_memory)}
         totals = {"policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0, "entropy_messages": 0.0, "entropy_fight": 0.0,
-                  "approx_kl": 0.0, "clip_fraction": 0.0, "policy_grad_norm": 0.0, "critic_grad_norm": 0.0}
+                  "approx_kl": 0.0, "approx_kl_joint": 0.0, "clip_fraction": 0.0, "policy_grad_norm": 0.0, "critic_grad_norm": 0.0}
         message_heads = [i for i, name in enumerate(HEAD_NAMES) if name.startswith("message")]
+        # With kl_excludes_messages the learning-rate controller reads the KL of the fighting choices only. The
+        # message heads took 33-60% of the joint KL (2026-11-27), so holding the joint KL at target_kl slowed the
+        # behaviour head. PPO still clips the joint ratio; approx_kl_joint keeps the old reading for comparison.
+        fight_kl = bool(cfg.get("kl_excludes_messages", False)) and bool(message_heads)
+        message_start = self._message_log_prob(obs, masks, actions, index, valid, start_memory, message_heads) if fight_kl else None
         # A decision is free when at least one fighting choice (behaviour, targets, manoeuvre) has more than one legal
         # option. A committed mob (winding up or inside a hold) has none, and its fighting choices cannot change, so
         # KL, clipping and fighting entropy are measured on free decisions only: averaged over every decision they
@@ -366,7 +401,7 @@ class Trainer:
         steps = 0
         # KL is reported from the final pass: by then the policy has moved as far as this update moves it. An
         # average over every step would include the first, which barely move it, and read about half as high.
-        final_kl, final_steps = 0.0, 0
+        final_kl, final_joint, final_steps = 0.0, 0.0, 0
         size = int(cfg["minibatch_sequences"])
         clip, value_clip = float(cfg["clip"]), float(cfg["value_clip"])
         epochs = int(cfg["epochs"])
@@ -378,7 +413,8 @@ class Trainer:
                 keep = valid[chosen]
                 logits = self.unroll(obs, rows, start_memory[chosen])
                 heads: list[torch.Tensor] = []
-                log_prob, entropy = masked_terms(logits, masks[rows], actions[rows], self.slices, heads)
+                chosen_terms: list[torch.Tensor] = []
+                log_prob, entropy = masked_terms(logits, masks[rows], actions[rows], self.slices, heads, chosen_terms)
                 log_ratio = (log_prob - old_log_prob[rows])[keep]
                 ratio = log_ratio.exp()
                 gain = advantage_t[rows][keep]
@@ -410,13 +446,20 @@ class Trainer:
                     if free.any():
                         fight_rows = (entropy - sum(heads[i] for i in message_heads))[keep]
                         totals["entropy_fight"] += fight_rows[free].mean().item()
-                        kl = ((ratio - 1) - log_ratio)[free].mean().item()
+                        joint = ((ratio - 1) - log_ratio)[free].mean().item()
+                        if fight_kl:
+                            fight = fight_log_ratio(log_prob, chosen_terms, message_heads, old_log_prob[rows], message_start[rows])[keep][free]
+                            kl = ((fight.exp() - 1) - fight).mean().item()
+                        else:
+                            kl = joint
                         totals["clip_fraction"] += ((ratio - 1).abs() > clip)[free].float().mean().item()
                     else:
-                        kl = 0.0
+                        kl = joint = 0.0
                     totals["approx_kl"] += kl
+                    totals["approx_kl_joint"] += joint
                     if epoch == epochs - 1:
                         final_kl += kl
+                        final_joint += joint
                         final_steps += 1
                         # Each head's entropy where it has a choice, so a summed rise can be traced to its head.
                         for head, (offset, width) in enumerate(self.slices):
@@ -429,6 +472,7 @@ class Trainer:
         stats["entropy_heads"] = {HEAD_NAMES[h]: round(head_entropy[h] / head_steps[h], 4) for h in range(len(self.slices)) if head_steps[h]}
         stats["mean_kl"] = stats["approx_kl"]
         stats["approx_kl"] = round(final_kl / max(1, final_steps), 5)
+        stats["approx_kl_joint"] = round(final_joint / max(1, final_steps), 5)
         stats["value_mean"] = round(values.mean().item(), 4)
         stats["explained_variance"] = round(explained, 4)
         stats.update(self._vision(obs, memory, free_all))

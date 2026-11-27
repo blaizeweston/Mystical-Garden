@@ -34,7 +34,7 @@ MAX_POINTS = 1500
 ## A pause longer than this between updates counts as a restart.
 RESTART_GAP = 120
 FIELDS = ("wipe_rate", "explore_found_rate", "explore_first_sight_s", "damage_to_party", "life_return",
-          "entropy", "entropy_fight", "entropy_messages", "approx_kl", "clip_fraction", "value_loss", "learning_rate",
+          "entropy", "entropy_fight", "entropy_messages", "approx_kl", "approx_kl_joint", "clip_fraction", "value_loss", "learning_rate",
           "squad_mix", "replay_gap", "explained_variance", "free_share", "wipe", "cleared", "timeout", "speed", "rows", "episodes",
           "entropy_behaviour", "entropy_enemy_target", "entropy_ally_target", "entropy_manoeuvre", "entropy_commit",
           "commit_set_share", "commit_long_share", "trunk_alive", "trunk_a_alive", "obs_sensitivity", "policy_grad_norm",
