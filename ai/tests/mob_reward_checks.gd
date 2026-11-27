@@ -242,6 +242,47 @@ func test_squad_mix() -> void:
 	step(sim, rewards, 60)
 	check(is_equal_approx(rewards.take(hitter), float(rewards.weights.retreat_per_second)) and is_zero_approx(rewards.take(mate)),
 		"the retreat cost is kept whole: allies share none of it")
+	test_share_skips_healthy_retreat()
+
+
+## A mob retreating while healthy gets no share of an ally's gain (the earner keeps it), but still shares losses.
+func test_share_skips_healthy_retreat() -> void:
+	var sim := make_sim()
+	var hitter := add_mob(sim, "rootbound", Vector2.ZERO)
+	var mate := add_mob(sim, "rootbound", Vector2(1.5, 0))
+	var third := add_mob(sim, "rootbound", Vector2(-1.5, 0))
+	sim.perception.refresh_allies(PackedInt32Array([hitter, mate, third]), sim.clock.tick)
+	var rewards := Rewards.new(sim)
+	for key in ["first_sight", "line_of_sight_per_second", "support_alive_casting_per_second", "retreat_per_second"]:
+		rewards.weights[key] = 0.0
+	var mix := rewards.squad_mix
+	var free_below := float(rewards.weights.retreat_free_below_hp_fraction)
+	check(bool(rewards.weights.get("squad_share_skips_healthy_retreat", false)), "the squad share skips healthy retreaters")
+	var earned := float(rewards.weights.damage_to_player_per_health_bar) * 0.5
+	var lost := -float(rewards.weights.own_hp_lost_per_health_bar) * 0.25
+	step(sim, rewards)
+	for slot in [hitter, mate, third]:
+		rewards.take(slot)
+	sim.pool.behaviour[mate] = sim.contract.id("take_cover")
+	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 50.0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(hitter), earned * (1.0 - mix)) and is_zero_approx(rewards.take(mate))
+		and is_equal_approx(rewards.take(third), earned * mix), "a healthy mate in cover gets no share; the fighting ally gets it all")
+	sim.pool.behaviour[third] = sim.contract.id("hide")
+	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 50.0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(hitter), earned) and is_zero_approx(rewards.take(mate)) and is_zero_approx(rewards.take(third)),
+		"with every ally hiding, the earner keeps the whole gain")
+	sim.pool.hp[mate] = (free_below - 0.05) * sim.pool.max_hp[mate]
+	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 50.0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(hitter), earned * (1.0 - mix)) and is_equal_approx(rewards.take(mate), earned * mix)
+		and is_zero_approx(rewards.take(third)), "a badly hurt mate in cover still gets its share")
+	sim.pool.hp[mate] = sim.pool.max_hp[mate]
+	sim.damage_mob(hitter, 25.0, 0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(hitter), lost * (1.0 - mix)) and is_equal_approx(rewards.take(mate), lost * mix / 2.0)
+		and is_equal_approx(rewards.take(third), lost * mix / 2.0), "losses are still shared with healthy retreaters")
 
 
 func test_retreat() -> void:

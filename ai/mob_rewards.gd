@@ -27,6 +27,8 @@ extends RefCounted
 ##   fight pays a little, since the squad share otherwise lets it earn from its allies' work while it hides.
 ## - Changing intent: an optional cost (intent_change, now 0: behaviour holds already stop thrashing).
 ## A share of every reward (squad mix) goes to the mob's nearest allies, so mobs also value their squad's success.
+##   With squad_share_skips_healthy_retreat, an ally that is retreating while healthy (the same rule as the retreat
+##   cost) gets no share of its allies' gains: it goes to the allies still fighting. Losses are still shared with it.
 ## - The fight's commander (MobCommand) also earns commander_team_share times the average of what its followers
 ##   earn, so its orders are judged by how the whole fight goes.
 
@@ -210,7 +212,7 @@ func _trickles() -> void:
 	var free_below := float(weights.get("retreat_free_below_hp_fraction", 0.0))
 	var players: int = sim.contract.players
 	for slot in pool.active:
-		if retreat != 0.0 and _retreat_ids.has(int(pool.behaviour[slot])) and pool.hp[slot] >= free_below * pool.max_hp[slot]:
+		if retreat != 0.0 and _retreating_healthy(slot, free_below):
 			_keep(slot, retreat, "retreat")
 		if found > 0.0 and _found[slot] == 0:
 			for player in players:
@@ -256,7 +258,7 @@ func _give(slot: int, value: float, kind: String) -> void:
 		return
 	totals[kind] = totals.get(kind, 0) + (1 if kind in ["downs", "wipes", "deaths", "found", "evaded", "dodged", "landed"] else value)
 	_relay(slot, value, kind)
-	var allies := _allies(slot) if squad_mix > 0.0 else PackedInt32Array()
+	var allies := _sharers(slot, value) if squad_mix > 0.0 else PackedInt32Array()
 	if allies.is_empty():
 		pending[slot] += value
 		return
@@ -274,6 +276,26 @@ func _allies(slot: int) -> PackedInt32Array:
 		if other >= 0 and sim.pool.alive[other] != 0:
 			result.append(other)
 	return result
+
+
+## The allies that receive a share of this reward: all live allies, except that a gain skips allies retreating
+## while healthy when squad_share_skips_healthy_retreat is set (they still share losses).
+func _sharers(slot: int, value: float) -> PackedInt32Array:
+	var allies := _allies(slot)
+	if value <= 0.0 or not bool(weights.get("squad_share_skips_healthy_retreat", false)):
+		return allies
+	var free_below := float(weights.get("retreat_free_below_hp_fraction", 0.0))
+	var result := PackedInt32Array()
+	for other in allies:
+		if not _retreating_healthy(other, free_below):
+			result.append(other)
+	return result
+
+
+## Whether a mob is retreating (take_cover, hide or flee) at or above free_below of its health.
+func _retreating_healthy(slot: int, free_below: float) -> bool:
+	var pool = sim.pool
+	return _retreat_ids.has(int(pool.behaviour[slot])) and pool.hp[slot] >= free_below * pool.max_hp[slot]
 
 
 func _value(slot: int) -> float:
