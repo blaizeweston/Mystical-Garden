@@ -22,6 +22,7 @@ func _initialize() -> void:
 	test_healing_death_and_intent()
 	test_supports()
 	test_sight_cap()
+	test_sight_skips_healthy_retreat()
 	test_first_sight()
 	test_dodges_and_abilities()
 	test_squad_mix()
@@ -167,6 +168,34 @@ func test_sight_cap() -> void:
 	var half_second := rewards.take(slot)
 	check(is_equal_approx(half_second, minf(cap, rate * 0.5)), "sight of the target earns %.3f a second, capped (%.4f in half a second)" % [rate, half_second])
 
+
+## A mob retreating while healthy earns no sight reward; one below the free line, or not retreating, still does.
+func test_sight_skips_healthy_retreat() -> void:
+	var sim := make_sim()
+	var slot := add_mob(sim, "rootbound", Vector2.ZERO)
+	var rewards := solo(sim)
+	rewards.weights["first_sight"] = 0.0
+	rewards.weights["retreat_per_second"] = 0.0
+	check(bool(rewards.weights.get("sight_skips_healthy_retreat", false)), "sight skips healthy retreaters")
+	var free_below := float(rewards.weights.retreat_free_below_hp_fraction)
+	var expected := minf(float(rewards.weights.line_of_sight_cap_per_decision), float(rewards.weights.line_of_sight_per_second) * 0.5)
+	sim.pool.enemy_target[slot] = 1
+	var row: int = slot * sim.contract.players
+	sim.perception.seen_tick[row] = sim.clock.tick
+	sim.perception.visible[row] = 1
+	step(sim, rewards)
+	rewards.take(slot)
+	for label in ["take_cover", "hide", "flee"]:
+		sim.pool.behaviour[slot] = sim.contract.id(label)
+		step(sim, rewards, 30)
+		check(is_zero_approx(rewards.take(slot)), "a healthy mob earns no sight reward during %s" % label)
+	sim.pool.behaviour[slot] = sim.contract.id("ranged_attack")
+	step(sim, rewards, 30)
+	check(is_equal_approx(rewards.take(slot), expected), "an attacking mob still earns the sight reward")
+	sim.pool.behaviour[slot] = sim.contract.id("take_cover")
+	sim.pool.hp[slot] = (free_below - 0.05) * sim.pool.max_hp[slot]
+	step(sim, rewards, 30)
+	check(is_equal_approx(rewards.take(slot), expected), "a badly hurt mob in cover still earns the sight reward")
 
 func test_first_sight() -> void:
 	var sim := make_sim()

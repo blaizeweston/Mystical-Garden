@@ -16,6 +16,8 @@ extends RefCounted
 ##   deal no damage (roots, pulls, slows) also pay.
 ## - Seeing its current target: a trickle per second, capped per decision, so a mob that keeps out of sight (camping
 ##   in cover) earns less than one that keeps pressure on, while a brief duck into cover costs little.
+##   With sight_skips_healthy_retreat, a mob retreating while healthy (the same rule as the retreat cost) earns no
+##   sight reward, so watching the party from cover does not pay.
 ## - A support ally alive and casting (winding up or channeling): a small trickle per second, for the mob's allies.
 ## - Health the mob loses: -own_hp_lost per health bar of its own.
 ## - Losing a support: -support_lost times the support's value, to each of the support's allies.
@@ -210,6 +212,7 @@ func _trickles() -> void:
 	var found := float(weights.get("first_sight", 0.0))
 	var retreat := float(weights.get("retreat_per_second", 0.0)) * seconds
 	var free_below := float(weights.get("retreat_free_below_hp_fraction", 0.0))
+	var sight_skips_retreat := bool(weights.get("sight_skips_healthy_retreat", false))
 	var players: int = sim.contract.players
 	for slot in pool.active:
 		if retreat != 0.0 and _retreating_healthy(slot, free_below):
@@ -221,7 +224,8 @@ func _trickles() -> void:
 					_give(slot, found, "found")
 					break
 		var target: int = pool.enemy_target[slot] - 1
-		if sight > 0.0 and target >= 0 and _sight_left[slot] > 0.0 and sim.perception.sees(slot, target):
+		if sight > 0.0 and target >= 0 and _sight_left[slot] > 0.0 and sim.perception.sees(slot, target) and \
+				not (sight_skips_retreat and _retreating_healthy(slot, free_below)):
 			var earned := minf(sight, _sight_left[slot])
 			_sight_left[slot] -= earned
 			_give(slot, earned, "sight")

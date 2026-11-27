@@ -24,6 +24,7 @@
 		"retreat_per_second": -0.0015,
 		"retreat_free_below_hp_fraction": 0.35,
 		"squad_share_skips_healthy_retreat": true,
+		"sight_skips_healthy_retreat": true,
 		"commander_team_share": 1.0,
 		"squad_mix_start": 0.45,
 		"squad_mix_end": 0.45
