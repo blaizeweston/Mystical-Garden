@@ -25,6 +25,10 @@
 		"retreat_free_below_hp_fraction": 0.35,
 		"squad_share_skips_healthy_retreat": true,
 		"sight_skips_healthy_retreat": true,
+		"squad_share_needs_contribution": true,
+		"contribution_window_seconds": 10.0,
+		"guard_unused": -0.02,
+		"guard_window_seconds": 5.0,
 		"commander_team_share": 1.0,
 		"squad_mix_start": 0.45,
 		"squad_mix_end": 0.45

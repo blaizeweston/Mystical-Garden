@@ -27,10 +27,18 @@ extends RefCounted
 ## - Retreating (take_cover, hide or flee): a small cost per second, kept whole, unless the mob's health is below
 ##   retreat_free_below_hp_fraction. A badly hurt mob may still fall back for free; a healthy one sitting out the
 ##   fight pays a little, since the squad share otherwise lets it earn from its allies' work while it hides.
+## - Guarding (defend_ally or block_enemy) that answers no attack: guard_unused, kept whole, for every
+##   guard_window_seconds of guarding in which neither the guard nor what it guards was attacked (took damage or
+##   dodged a hit). defend_ally guards its chosen ally; block_enemy guards its nearest allies. A window opens when
+##   the mob starts guarding and is judged when it ends, so a guard that a fight answers costs nothing.
 ## - Changing intent: an optional cost (intent_change, now 0: behaviour holds already stop thrashing).
 ## A share of every reward (squad mix) goes to the mob's nearest allies, so mobs also value their squad's success.
 ##   With squad_share_skips_healthy_retreat, an ally that is retreating while healthy (the same rule as the retreat
 ##   cost) gets no share of its allies' gains: it goes to the allies still fighting. Losses are still shared with it.
+##   With squad_share_needs_contribution, an ally also gets no share of gains unless, within
+##   contribution_window_seconds, it hit a player, landed an ability, made a player dodge, healed, cast as a support
+##   or guarded a support with defend_ally; or its health is below retreat_free_below_hp_fraction. Losses are still
+##   shared with it, so sitting out in any behaviour earns nothing from the squad's work.
 ## - The fight's commander (MobCommand) also earns commander_team_share times the average of what its followers
 ##   earn, so its orders are judged by how the whole fight goes.
 
@@ -66,6 +74,19 @@ var _assist_ticks := 0
 var _wipe_assist_ticks := 0
 ## Behaviour ids that count as retreating.
 var _retreat_ids := PackedInt32Array()
+## Last tick each mob contributed to the fight (hit, landed, made dodge, healed, cast, guarded a support).
+var _last_helped := PackedInt32Array()
+## Last tick each mob was attacked (took damage or dodged a hit).
+var _last_attacked := PackedInt32Array()
+## Each mob's open guard window: when it opened (-1 when none) and the ally it guards (-1: block_enemy's nearest
+## allies, or nobody for defend_ally without an ally).
+var _guard_since := PackedInt32Array()
+var _guard_ally := PackedInt32Array()
+var _guard_blocks := PackedByteArray()
+var _contribution_ticks := 0
+var _guard_ticks := 0
+var _defend_id := -1
+var _block_id := -1
 
 
 func _init(simulation: RefCounted, path: String = PATH) -> void:
@@ -95,13 +116,26 @@ func _init(simulation: RefCounted, path: String = PATH) -> void:
 		var id: int = sim.contract.id(label)
 		if id >= 0:
 			_retreat_ids.append(id)
+	for table: PackedInt32Array in [_last_helped, _last_attacked]:
+		table.resize(capacity)
+		table.fill(-1000000)
+	_guard_since.resize(capacity)
+	_guard_since.fill(-1)
+	_guard_ally.resize(capacity)
+	_guard_ally.fill(-1)
+	_guard_blocks.resize(capacity)
+	_guard_blocks.fill(0)
+	_contribution_ticks = Clock.from_ms(float(weights.get("contribution_window_seconds", 10.0)) * 1000.0)
+	_guard_ticks = maxi(1, Clock.from_ms(float(weights.get("guard_window_seconds", 5.0)) * 1000.0))
+	_defend_id = sim.contract.id("defend_ally")
+	_block_id = sim.contract.id("block_enemy")
 	_cursor = sim.events.head
 	reset_totals()
 
 
 func reset_totals() -> void:
 	totals = {"damage": 0.0, "healing": 0.0, "downs": 0, "killing_blows": 0, "wipes": 0, "found": 0, "evaded": 0, "dodged": 0, "landed": 0, "sight": 0.0, "support": 0.0, "hp_lost": 0.0,
-		"support_lost": 0.0, "deaths": 0, "intent": 0.0, "retreat": 0.0}
+		"support_lost": 0.0, "deaths": 0, "intent": 0.0, "retreat": 0.0, "guard_unused": 0.0}
 
 
 ## The reward a mob earned since it last decided. Resets its sight allowance.
@@ -134,20 +168,26 @@ func _event(event: Dictionary, now: int) -> void:
 			pending[slot] = 0.0
 			_found[slot] = 0
 			_released[slot] = -1
+			_last_helped[slot] = -1000000
+			_last_attacked[slot] = -1000000
+			_guard_since[slot] = -1
 			for player in players:
 				_last_hit[slot * players + player] = -1000000
 		Events.Kind.DAMAGE_DEALT:
 			var player := int(event.a)
 			var bar: float = maxf(1.0, sim.party.max_hp[player])
+			_last_helped[slot] = now
 			_give(slot, float(weights.get("damage_to_player_per_health_bar", 1.0)) * float(event.value) / bar, "damage")
 			if player >= 0 and player < players:
 				_last_hit[slot * players + player] = now
 		Events.Kind.HEALED:
 			var target := int(event.a)
 			var bar: float = maxf(1.0, pool.max_hp[target])
+			_last_helped[slot] = now
 			_give(slot, float(weights.get("healing_per_health_bar", 0.6)) * float(event.value) / bar, "healing")
 		Events.Kind.DAMAGE_TAKEN:
 			var bar: float = maxf(1.0, pool.max_hp[slot])
+			_last_attacked[slot] = now
 			_give(slot, -float(weights.get("own_hp_lost_per_health_bar", 0.3)) * float(event.value) / bar, "hp_lost")
 		Events.Kind.DEATH:
 			_give(slot, float(weights.get("own_death_per_mob_value", -0.15)) * _value(slot), "deaths")
@@ -163,11 +203,15 @@ func _event(event: Dictionary, now: int) -> void:
 			var target := int(event.a)
 			var dodging: bool = target >= 0 and target < players and \
 				int(event.tick) < sim.party.timers[target * Party.TIMER_COUNT + Party.Clocks.DODGE_UNTIL]
+			if target >= 0 and target < players and not dodging:
+				_last_helped[slot] = now
 			if _released[slot] >= 1 and not dodging:
 				_give(slot, float(weights.get("ability_landed", 0.0)), "landed")
 		Events.Kind.EVADED:
+			_last_helped[slot] = now
 			_give(slot, float(weights.get("made_player_dodge", 0.0)), "evaded")
 		Events.Kind.DODGED:
+			_last_attacked[slot] = now
 			_give(slot, float(weights.get("dodged_attack", 0.0)), "dodged")
 
 
@@ -229,17 +273,67 @@ func _trickles() -> void:
 			var earned := minf(sight, _sight_left[slot])
 			_sight_left[slot] -= earned
 			_give(slot, earned, "sight")
-		if support > 0.0 and sim.species.support[pool.species[slot]] != 0 and \
-				(pool.windup_until[slot] > 0 or now < pool.channel_until[slot]):
+		var casting: bool = sim.species.support[pool.species[slot]] != 0 and \
+				(pool.windup_until[slot] > 0 or now < pool.channel_until[slot])
+		if casting:
+			_last_helped[slot] = now
+		if support > 0.0 and casting:
 			for other in _allies(slot):
 				_give(other, support, "support")
+		_guard(slot, now)
 
 
-## Adds a reward the mob keeps whole, with no squad share. Totals count events, except retreat, which sums its cost.
+## Opens, judges and reopens the mob's guard windows. defend_ally on a support also counts as contributing.
+func _guard(slot: int, now: int) -> void:
+	var pool = sim.pool
+	var behaviour := int(pool.behaviour[slot])
+	var guarding := behaviour == _defend_id or behaviour == _block_id
+	var cost := float(weights.get("guard_unused", 0.0))
+	if behaviour == _defend_id:
+		var ally := _guarded_ally(slot)
+		if ally >= 0 and sim.species.support[pool.species[ally]] != 0:
+			_last_helped[slot] = now
+	var since := _guard_since[slot]
+	if since >= 0 and now - since >= _guard_ticks:
+		if not _guard_answered(slot, since):
+			_keep(slot, cost, "guard_unused")
+		_guard_since[slot] = -1
+	if guarding and _guard_since[slot] < 0 and cost != 0.0:
+		_guard_since[slot] = now
+		_guard_blocks[slot] = int(behaviour == _block_id)
+		_guard_ally[slot] = -1 if behaviour == _block_id else _guarded_ally(slot)
+
+
+## Whether the guard, or what it guards, was attacked since the window opened.
+func _guard_answered(slot: int, since: int) -> bool:
+	if _last_attacked[slot] >= since:
+		return true
+	if _guard_blocks[slot] != 0:
+		for other in _allies(slot):
+			if _last_attacked[other] >= since:
+				return true
+		return false
+	var ally := _guard_ally[slot]
+	return ally >= 0 and _last_attacked[ally] >= since
+
+
+## The ally defend_ally guards: its ally head's choice (the executor's rule), or -1.
+func _guarded_ally(slot: int) -> int:
+	var head: int = sim.pool.ally_target[slot]
+	if head == 0:
+		return -1
+	if head == sim.contract.allies + 1:
+		return sim.pool.leader_of(slot)
+	var ally: int = sim.perception.ally(slot, head - 1)
+	return ally if ally >= 0 and sim.pool.alive[ally] != 0 else -1
+
+
+## Adds a reward the mob keeps whole, with no squad share. Totals count events, except retreat and guard_unused,
+## which sum their cost.
 func _keep(slot: int, value: float, kind: String) -> void:
 	if value == 0.0 or slot < 0 or slot >= pending.size():
 		return
-	totals[kind] = totals.get(kind, 0) + (value if kind == "retreat" else 1)
+	totals[kind] = totals.get(kind, 0) + (value if kind in ["retreat", "guard_unused"] else 1)
 	pending[slot] += value
 	_relay(slot, value, kind)
 
@@ -283,16 +377,25 @@ func _allies(slot: int) -> PackedInt32Array:
 
 
 ## The allies that receive a share of this reward: all live allies, except that a gain skips allies retreating
-## while healthy when squad_share_skips_healthy_retreat is set (they still share losses).
+## while healthy when squad_share_skips_healthy_retreat is set, and allies that have not contributed within the
+## contribution window (unless badly hurt) when squad_share_needs_contribution is set. Losses are shared with all.
 func _sharers(slot: int, value: float) -> PackedInt32Array:
 	var allies := _allies(slot)
-	if value <= 0.0 or not bool(weights.get("squad_share_skips_healthy_retreat", false)):
+	var skip_retreat := bool(weights.get("squad_share_skips_healthy_retreat", false))
+	var need_help := bool(weights.get("squad_share_needs_contribution", false))
+	if value <= 0.0 or not (skip_retreat or need_help):
 		return allies
 	var free_below := float(weights.get("retreat_free_below_hp_fraction", 0.0))
+	var now: int = sim.clock.tick
+	var pool = sim.pool
 	var result := PackedInt32Array()
 	for other in allies:
-		if not _retreating_healthy(other, free_below):
-			result.append(other)
+		if skip_retreat and _retreating_healthy(other, free_below):
+			continue
+		var hurt: bool = pool.hp[other] < free_below * pool.max_hp[other]
+		if need_help and not hurt and now - _last_helped[other] > _contribution_ticks:
+			continue
+		result.append(other)
 	return result
 
 

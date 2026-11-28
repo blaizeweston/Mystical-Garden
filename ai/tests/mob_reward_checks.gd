@@ -27,6 +27,8 @@ func _initialize() -> void:
 	test_dodges_and_abilities()
 	test_squad_mix()
 	test_retreat()
+	test_share_needs_contribution()
+	test_guard_unused()
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)
 
@@ -245,6 +247,7 @@ func test_squad_mix() -> void:
 	var mate := add_mob(sim, "rootbound", Vector2(1.5, 0))
 	sim.perception.refresh_allies(PackedInt32Array([hitter, mate]), sim.clock.tick)
 	var rewards := Rewards.new(sim)
+	rewards.weights["squad_share_needs_contribution"] = false
 	var mix := float(rewards.weights.squad_mix_start)
 	check(mix > 0.0 and is_equal_approx(rewards.squad_mix, mix), "the squad mix starts at its configured share (%.2f)" % mix)
 	step(sim, rewards)
@@ -284,6 +287,7 @@ func test_share_skips_healthy_retreat() -> void:
 	var rewards := Rewards.new(sim)
 	for key in ["first_sight", "line_of_sight_per_second", "support_alive_casting_per_second", "retreat_per_second"]:
 		rewards.weights[key] = 0.0
+	rewards.weights["squad_share_needs_contribution"] = false
 	var mix := rewards.squad_mix
 	var free_below := float(rewards.weights.retreat_free_below_hp_fraction)
 	check(bool(rewards.weights.get("squad_share_skips_healthy_retreat", false)), "the squad share skips healthy retreaters")
@@ -320,6 +324,7 @@ func test_retreat() -> void:
 	var rewards := solo(sim)
 	rewards.weights["first_sight"] = 0.0
 	rewards.weights["line_of_sight_per_second"] = 0.0
+	rewards.weights["guard_unused"] = 0.0
 	var rate := float(rewards.weights.retreat_per_second)
 	var free_below := float(rewards.weights.retreat_free_below_hp_fraction)
 	check(rate < 0.0 and free_below > 0.0, "retreating costs %.4f a second above %.0f%% health" % [rate, free_below * 100.0])
@@ -343,3 +348,158 @@ func test_retreat() -> void:
 	step(sim, rewards, 60)
 	check(is_equal_approx(rewards.take(slot), rate), "a mob just above the line pays again")
 	check(is_equal_approx(float(rewards.totals.retreat), rate * 4.0), "the report sums the retreat cost (%.4f)" % float(rewards.totals.retreat))
+
+
+## Rewards with every trickle and the guard cost off, so only the shares under test move.
+func quiet(rewards: Rewards) -> Rewards:
+	for key in ["first_sight", "line_of_sight_per_second", "support_alive_casting_per_second", "retreat_per_second", "guard_unused"]:
+		rewards.weights[key] = 0.0
+	return rewards
+
+
+func take_all(rewards: Rewards, slots: Array) -> void:
+	for slot in slots:
+		rewards.take(slot)
+
+
+## An ally gets a share of gains only after contributing within the window (or while badly hurt); losses reach all.
+func test_share_needs_contribution() -> void:
+	var sim := make_sim()
+	var hitter := add_mob(sim, "rootbound", Vector2.ZERO)
+	var mate := add_mob(sim, "rootbound", Vector2(1.5, 0))
+	var third := add_mob(sim, "rootbound", Vector2(-1.5, 0))
+	var everyone := [hitter, mate, third]
+	sim.perception.refresh_allies(PackedInt32Array(everyone), sim.clock.tick)
+	var rewards := quiet(Rewards.new(sim))
+	var mix := rewards.squad_mix
+	var free_below := float(rewards.weights.retreat_free_below_hp_fraction)
+	var window := float(rewards.weights.contribution_window_seconds)
+	check(bool(rewards.weights.get("squad_share_needs_contribution", false)) and window > 0.0,
+		"the squad share needs a contribution within %.0f s" % window)
+	var earned := float(rewards.weights.damage_to_player_per_health_bar) * 0.5
+	var lost := -float(rewards.weights.own_hp_lost_per_health_bar) * 0.25
+	step(sim, rewards)
+	take_all(rewards, everyone)
+	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 50.0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(hitter), earned) and is_zero_approx(rewards.take(mate)) and is_zero_approx(rewards.take(third)),
+		"allies that have not contributed get no share: the earner keeps the whole gain")
+	sim.record_hit(mate, sim.pool.generation[mate], 0, 2.0)
+	step(sim, rewards)
+	take_all(rewards, everyone)
+	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 50.0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(hitter), earned * (1.0 - mix)) and is_equal_approx(rewards.take(mate), earned * mix)
+		and is_zero_approx(rewards.take(third)), "a mate that hit a player gets the squad's share")
+	step(sim, rewards, int(window * 60.0) + 6)
+	take_all(rewards, everyone)
+	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 50.0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(hitter), earned) and is_zero_approx(rewards.take(mate)),
+		"the share stops once the mate's last contribution is older than the window")
+	sim.pool.hp[third] = (free_below - 0.05) * sim.pool.max_hp[third]
+	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 50.0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(hitter), earned * (1.0 - mix)) and is_equal_approx(rewards.take(third), earned * mix),
+		"a badly hurt mate still gets its share without contributing")
+	sim.pool.hp[third] = sim.pool.max_hp[third]
+	sim.damage_mob(hitter, 25.0, 0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(hitter), lost * (1.0 - mix)) and is_equal_approx(rewards.take(mate), lost * mix / 2.0)
+		and is_equal_approx(rewards.take(third), lost * mix / 2.0), "losses are still shared with allies that did not contribute")
+	take_all(rewards, everyone)
+	sim.events.push(Events.Kind.EVADED, sim.clock.tick, mate, sim.pool.generation[mate], 0)
+	step(sim, rewards)
+	take_all(rewards, everyone)
+	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 50.0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(mate), earned * mix), "making a player dodge counts as contributing")
+	test_share_from_supports()
+
+
+## A casting support, and a mob guarding a support with defend_ally, count as contributing.
+func test_share_from_supports() -> void:
+	var sim := make_sim()
+	var hitter := add_mob(sim, "rootbound", Vector2.ZERO)
+	var support := add_mob(sim, "bellcap", Vector2(1.5, 0))
+	var guard := add_mob(sim, "rootbound", Vector2(-1.5, 0))
+	var everyone := [hitter, support, guard]
+	sim.perception.refresh_allies(PackedInt32Array(everyone), sim.clock.tick)
+	var rewards := quiet(Rewards.new(sim))
+	var mix := rewards.squad_mix
+	var earned := float(rewards.weights.damage_to_player_per_health_bar) * 0.5
+	step(sim, rewards)
+	sim.pool.windup_until[support] = sim.clock.tick + 120
+	for index in sim.contract.allies:
+		if sim.perception.ally(guard, index) == support:
+			sim.pool.ally_target[guard] = index + 1
+	sim.pool.behaviour[guard] = sim.contract.id("defend_ally")
+	step(sim, rewards, 6)
+	take_all(rewards, everyone)
+	sim.record_hit(hitter, sim.pool.generation[hitter], 0, 50.0)
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(support), earned * mix / 2.0) and is_equal_approx(rewards.take(guard), earned * mix / 2.0),
+		"a casting support and a mob defending it both get their share")
+
+
+## Guarding costs guard_unused for each window in which neither the guard nor what it guards was attacked.
+func test_guard_unused() -> void:
+	var sim := make_sim()
+	var guard := add_mob(sim, "rootbound", Vector2.ZERO)
+	var ward := add_mob(sim, "rootbound", Vector2(1.5, 0))
+	var other := add_mob(sim, "rootbound", Vector2(-1.5, 0))
+	var everyone := [guard, ward, other]
+	sim.perception.refresh_allies(PackedInt32Array(everyone), sim.clock.tick)
+	var rewards := solo(sim)
+	for key in ["first_sight", "line_of_sight_per_second", "support_alive_casting_per_second", "retreat_per_second"]:
+		rewards.weights[key] = 0.0
+	var cost := float(rewards.weights.guard_unused)
+	var window := int(float(rewards.weights.guard_window_seconds) * 60.0)
+	check(cost < 0.0 and window > 0, "guarding unanswered costs %.3f per %d s" % [cost, window / 60])
+	var lost := -float(rewards.weights.own_hp_lost_per_health_bar) * 0.1
+	var ward_index := -1
+	for index in sim.contract.allies:
+		if sim.perception.ally(guard, index) == ward:
+			ward_index = index
+	check(ward_index >= 0, "the guard sees its ward among its allies")
+	sim.pool.ally_target[guard] = ward_index + 1
+	# Line up so the next tick adds trickles, which opens the window on it.
+	while (sim.clock.tick + 1) % 6 != 0:
+		step(sim, rewards)
+	sim.pool.behaviour[guard] = sim.contract.id("defend_ally")
+	step(sim, rewards)
+	take_all(rewards, everyone)
+	step(sim, rewards, window - 1)
+	check(is_zero_approx(rewards.take(guard)), "nothing is charged before the window ends")
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(guard), cost), "defending an ally that nobody attacks for %d s costs %.3f" % [window / 60, cost])
+	# Each window below runs exactly `window` ticks and is judged on its last tick, which opens the next one.
+	step(sim, rewards, 60)
+	sim.damage_mob(ward, 10.0, 0)
+	step(sim, rewards, window - 60)
+	take_all(rewards, [ward, other])
+	check(is_zero_approx(rewards.take(guard)), "defending an ally that is attacked costs nothing")
+	step(sim, rewards, 60)
+	sim.damage_mob(other, 10.0, 0)
+	step(sim, rewards, window - 60)
+	take_all(rewards, [ward, other])
+	check(is_equal_approx(rewards.take(guard), cost), "an attack on a different ally does not answer defend_ally")
+	step(sim, rewards, 60)
+	sim.damage_mob(guard, 10.0, 0)
+	step(sim, rewards, window - 61)
+	sim.pool.behaviour[guard] = sim.contract.id("block_enemy")
+	step(sim, rewards)
+	check(is_equal_approx(rewards.take(guard), lost), "a guard that is attacked itself pays only for the hit")
+	step(sim, rewards, 60)
+	sim.events.push(Events.Kind.DODGED, sim.clock.tick, other, sim.pool.generation[other], 0)
+	step(sim, rewards, window - 60)
+	take_all(rewards, [ward, other])
+	check(is_zero_approx(rewards.take(guard)), "block_enemy is answered when any nearby ally is attacked (a dodge counts)")
+	step(sim, rewards, window)
+	check(is_equal_approx(rewards.take(guard), cost), "block_enemy with no attack on itself or its allies costs %.3f" % cost)
+	sim.pool.behaviour[guard] = sim.contract.id("ranged_attack")
+	step(sim, rewards, window)
+	check(is_equal_approx(rewards.take(guard), cost), "the window still judges the guard that was started, after the mob stops guarding")
+	step(sim, rewards, window * 2)
+	check(is_zero_approx(rewards.take(guard)), "a mob that is not guarding pays nothing")
+	check(is_equal_approx(float(rewards.totals.guard_unused), cost * 4.0), "the report sums the guard cost (%.3f)" % float(rewards.totals.guard_unused))
