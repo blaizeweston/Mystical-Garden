@@ -68,6 +68,8 @@ var use_scripted := false
 var keep_rows := false
 ## Adds at_limit to the report of a fight that times out. Off, reports are unchanged.
 var snapshot := false
+## Called with the episode's step every SAMPLE_TICKS (ai/stall_trace.gd records fights with it). It must only read.
+var on_sample := Callable()
 var awake_counter: CountingBrain
 var idle_counter: CountingBrain
 
@@ -161,6 +163,8 @@ func run_episode() -> Dictionary:
 		if step % SAMPLE_TICKS == 0:
 			if _sample_time(time) and first_contact < 0:
 				first_contact = sim.clock.tick - began
+			if on_sample.is_valid():
+				on_sample.call(step)
 		if party.wiped():
 			end = Recorder.End.TERMINAL
 			outcome = "wipe"
