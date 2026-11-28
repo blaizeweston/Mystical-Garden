@@ -1,6 +1,7 @@
 extends SceneTree
 ## Checks training episodes (ai/training_env.gd) with the training brain and recorder: exploration and engaged
-## starts, game-scale mobs, clean resets between episodes on one floor, and well-formed records and shards.
+## starts, game-scale mobs, clean resets between episodes on one floor, well-formed records and shards, the
+## hunting party in training (not in the frozen benchmark) and the evaluation's time-limit snapshot.
 ## Uses ai/training/out/policy.bin, which ai/training/check_model.py writes (run_checks.ps1 runs it first).
 
 const Catalog = preload("res://enemy_catalog.gd")
@@ -8,6 +9,7 @@ const Choice = preload("res://ai/choice_test.gd")
 const Pace = preload("res://ai/game_pace.gd")
 const Contract = preload("res://mob_sim/mob_contract.gd")
 const Env = preload("res://ai/training_env.gd")
+const EvalEnv = preload("res://ai/evaluation_env.gd")
 const NavWorld = preload("res://mob_sim/mob_nav_world.gd")
 const Recorder = preload("res://ai/rollout_recorder.gd")
 const Schema = preload("res://ai/mob_schema.gd")
@@ -32,6 +34,7 @@ func _initialize() -> void:
 	test_fight_size()
 	test_starts()
 	test_episodes()
+	test_hunt_and_snapshot()
 	test_choice_replay()
 	print("TRAINING_REPORT ", JSON.stringify(report))
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
@@ -119,6 +122,7 @@ func test_fight_size() -> void:
 		var size := plain._fight_size()
 		same = same and size.y == -1 and size.x == reference.randi_range(int(frozen.party[0]), int(frozen.party[1]))
 	check(same and plain.rng.state == reference.state, "without a mix only the party size is drawn, as before")
+	check(not frozen.has("party_hunt"), "the benchmark's frozen fights keep the party that does not hunt")
 
 
 func test_starts() -> void:
@@ -249,6 +253,42 @@ func test_episodes() -> void:
 	check(data.slice(0, 4).get_string_from_ascii() == "MOBR" and Recorder.sha256(body) == data.slice(data.size() - 32),
 		"a shard starts with its tag and ends with the SHA-256 of the rest")
 	env.close()
+
+
+## Training's party hunts and reports it; the frozen benchmark's does not. With snapshot on, an evaluation adds the
+## fight's state at its time limit to each timeout's report, and leaves the report alone with it off.
+func test_hunt_and_snapshot() -> void:
+	check(bool(settings.get("party_hunt", false)), "training's party hunts mobs it lost sight of")
+	var frozen: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://ai/training/benchmark_episodes.json")).episodes
+	var reports := {}
+	for snapshot: bool in [true, false]:
+		var episodes: Dictionary = settings.duplicate(true) if snapshot else frozen.duplicate(true)
+		episodes.merge({"map_episodes": 4, "engaged_seconds": 15, "explore_share": 0.0, "night_share": 1.0}, true)
+		var env := EvalEnv.new(schema, Recorder.new(schema), episodes, 41)
+		env.set_policy(FileAccess.get_file_as_bytes(POLICY), 1)
+		env.snapshot = snapshot
+		var played: Array = []
+		for episode in 3:
+			played.append(env.run_episode())
+		check(env.party.hunt == snapshot, "the party hunts in training settings and not in the benchmark's (%s)" % ("training" if snapshot else "benchmark"))
+		reports[snapshot] = played
+		env.close()
+	var timeouts: Array = reports[true].filter(func(r: Dictionary) -> bool: return r.outcome == "timeout")
+	check(not timeouts.is_empty() and timeouts.all(func(r: Dictionary) -> bool: return r.has("at_limit")),
+		"with snapshot on, %d timed-out fights report their state at the limit" % timeouts.size())
+	check(reports[false].all(func(r: Dictionary) -> bool: return not r.has("at_limit")), "with snapshot off the reports are unchanged")
+	if timeouts.is_empty():
+		return
+	var at: Dictionary = timeouts[0].at_limit
+	var share := 0.0
+	for name: String in at.final_behaviours:
+		share += float(at.final_behaviours[name])
+	report["at_limit"] = at
+	check(int(at.mobs_alive) > 0 and int(at.mobs_aware) <= int(at.mobs_alive) and int(at.mobs_seeing) <= int(at.mobs_aware),
+		"the snapshot counts live mobs, those aware of a player and those seeing one (%d, %d, %d)" % [at.mobs_alive, at.mobs_aware, at.mobs_seeing])
+	check((at.player_health as Array).size() == int(timeouts[0].party) and (at.player_modes as Array).size() == int(timeouts[0].party),
+		"the snapshot gives each player's health and party mode (%s)" % [at.player_modes])
+	check(absf(share - 1.0) < 0.01 and float(at.nearest) >= 0.0, "the final behaviour shares sum to 1 (%.3f), nearest mob %.1f m" % [share, at.nearest])
 
 
 ## The choice test (ai/choice_test.gd) replays a seeded fight to the same state, forces one behaviour there, and

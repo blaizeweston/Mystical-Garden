@@ -1,7 +1,7 @@
 extends SceneTree
 ## Checks the training party (ai/stand_in_party.gd): stats, classes and timers reach the simulation, dodges,
-## armour, guard, bark armour, healing, going down, darkness, skills, and that a harder party fights better against
-## the scripted brain.
+## armour, guard, bark armour, healing, going down, darkness, skills, hunting lost mobs, and that a harder party
+## fights better against the scripted brain.
 
 const Battlefield = preload("res://battlefield.gd")
 const Events = preload("res://mob_sim/mob_events.gd")
@@ -14,6 +14,13 @@ const StandIns = preload("res://ai/stand_in_party.gd")
 
 const ROSTER := ["rootbound", "rootbound", "thornmaw", "gallhorn", "nightbloom", "bellcap", "wasp", "willow"]
 const FULL_PARTY := ["warden", "ranger", "oracle", "weaver"]
+
+
+## A brain that keeps every mob standing idle where it is.
+class StillBrain extends "res://mob_sim/mob_brain.gd":
+	func decide(batch: Batch) -> void:
+		for index in batch.slots.size():
+			batch.write_intent(index, batch.contract.id("idle_wander"), 0, 0, 0)
 
 var failures := 0
 var checks := 0
@@ -30,6 +37,7 @@ func _initialize() -> void:
 	test_effects()
 	test_darkness()
 	test_patrol()
+	test_hunt()
 	test_fights()
 	print("PARTY_REPORT ", JSON.stringify(report))
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
@@ -202,6 +210,68 @@ func test_patrol() -> void:
 	check(placed == 5 and farthest > 12.0, "a patrol of four legs and the way home reaches %.0f m out" % farthest)
 	check(reached >= placed, "the patrolling party walks its whole route (%d points of %d, %.0f m)" % [reached, placed, travelled])
 	check(spread < 12.0, "the party keeps together on patrol (%.1f m apart at most)" % spread)
+
+
+
+## A party that hunts walks to where it last saw a mob, searches around it and then gives up; a hit marks where
+## it came from; a hurt player and an old lead do not hunt; without hunt the party stays put.
+func test_hunt() -> void:
+	var results := {}
+	for hunting: bool in [true, false]:
+		var world := make_world(9)
+		var sim: Sim = world[1]
+		var open: Array = world[2]
+		var party := StandIns.new(sim, world[0], 5)
+		party.hunt = hunting
+		var start: Vector2 = open[open.size() / 2]
+		# At night, with a mob that stands still far away: it keeps the fight going but is never seen.
+		party.reset(["warden", "ranger"], [start, start + Vector2(0.8, 0)], 0.5, 0.1)
+		sim.brain = StillBrain.new()
+		sim.idle_brain = StillBrain.new()
+		var far := start
+		for point: Vector2 in open:
+			if point.distance_to(start) > far.distance_to(start):
+				far = point
+		# A lead in plain view of the start, so the walk there needs no routing.
+		var world_nav = sim.locomotion.world
+		var lead := start
+		for point: Vector2 in open:
+			var length := point.distance_to(start)
+			if length > 8.0 and length < 14.0 and (lead == start or point.distance_to(far) > lead.distance_to(far)) 					and world_nav.line_clear(start.x, start.y, point.x, point.y, StandIns.BODY_CLEARANCE) != 0:
+				lead = point
+		check(lead.distance_to(start) > 8.0 and lead.distance_to(far) > 8.0, "the test lead lies %.0f m out, away from the mob" % lead.distance_to(start))
+		var mob := add_mob(sim, "rootbound", far)
+		party._note_lead(lead, sim.clock.tick)
+		var closest := INF
+		var hunted := false
+		var strayed := 0.0
+		for tick in 60 * 30:
+			party.before_tick()
+			sim.tick()
+			party.after_tick()
+			closest = minf(closest, party.position[0].distance_to(lead))
+			hunted = hunted or party.mode[0] == StandIns.Mode.HUNT
+			strayed = maxf(strayed, party.position[0].distance_to(start))
+		results[hunting] = {"closest": snappedf(closest, 0.1), "strayed": snappedf(strayed, 0.1), "hunts": party.hunts,
+			"failed": party.hunts_failed, "mode": party.mode[0], "far": snappedf(start.distance_to(far), 0.1)}
+		if not hunting:
+			check(not hunted and party.hunts == 0, "without hunt the party ignores a lead (closest %.1f m)" % closest)
+			continue
+		check(hunted and closest < float(StandIns.HUNT_REACHED) + 0.5,
+			"a hunting party walks to its lead %.0f m away (closest %.1f m)" % [start.distance_to(lead), closest])
+		check(party.hunts_failed >= 1 and party.mode[0] == StandIns.Mode.WANDER,
+			"after searching %d points around the lead the party gives up and wanders" % StandIns.HUNT_SEARCH_POINTS)
+		var mob_at := Vector2(sim.pool.xz[mob * 2], sim.pool.xz[mob * 2 + 1])
+		party._take_hit({"slot": mob, "generation": sim.pool.generation[mob], "a": 1, "b": 0, "value": 5.0, "radius": 0.0,
+			"from_x": 0.0, "from_z": 0.0}, sim.clock.tick)
+		check(party._lead_tick == sim.clock.tick and party._lead.distance_to(mob_at) < 0.01, "a hit marks where it came from as the lead")
+		check(party._hunting(0), "a healthy player hunts a fresh lead")
+		party.hp[0] = party.max_hp[0] * (StandIns.RETREAT_HEALTH - 0.05)
+		check(not party._hunting(0), "a badly hurt player does not hunt")
+		party.hp[0] = party.max_hp[0]
+		party._lead_tick = sim.clock.tick - roundi(float(StandIns.HUNT_MEMORY_S[1]) * 60.0) - 1
+		check(not party._hunting(0) and party._lead_tick == -1, "a lead older than the party's memory is forgotten")
+	report["hunt"] = {"on": results[true], "off": results[false]}
 
 
 ## The same fights at low and high difficulty, over three seeds, against the scripted brain.

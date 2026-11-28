@@ -9,6 +9,11 @@ extends RefCounted
 ## reset(). At night (darkness below 1) players carry lights and only see lit or nearby mobs, by the same rule
 ## as the arena (MobPerception.player_sees).
 ##
+## With hunt on (training's episodes.party_hunt), the party remembers where it last saw a mob or was hit from.
+## With no mob in sight it goes there and searches a few points around it before it gives up and wanders again,
+## so mobs that break sight are not safe for the rest of the fight. Memory grows with difficulty. Hunt off keeps
+## the older party exactly, random draws included (the frozen benchmark plays it).
+##
 ## Call before_tick() before MobSim.tick() and after_tick() after it.
 
 const Battlefield = preload("res://battlefield.gd")
@@ -74,6 +79,16 @@ const PATROL_GATHER := 5.0
 const STUCK_TICKS := 60
 const STUCK_DISTANCE := 0.5
 const DETOUR_TICKS := 45
+## Hunting: how long a sighting or hit is remembered (seconds, from difficulty 0 to 1), how many points are
+## searched around it, how close counts as there, and how far from the lead a search point lies.
+const HUNT_MEMORY_S := [10.0, 30.0]
+const HUNT_SEARCH_POINTS := 4
+const HUNT_REACHED := 2.5
+const HUNT_SEARCH_RADIUS := [3.0, 7.0]
+## What each player is doing, set as it plans (for reports): no target, fighting, retreating hurt, backing off a
+## close melee mob (ranged), or hunting a lead.
+enum Mode { WANDER, FIGHT, RETREAT, KITE, HUNT }
+const MODE_NAMES := ["wander", "fight", "retreat", "kite", "hunt"]
 
 var sim: RefCounted
 var field: RefCounted
@@ -114,6 +129,16 @@ var has_bark := PackedByteArray()
 var bark := PackedFloat32Array()
 var bark_until := PackedInt32Array()
 var bark_ready := PackedInt32Array()
+## Whether the party hunts mobs it has lost sight of (see the header). Kept across reset().
+var hunt := false
+## Each player's Mode.
+var mode := PackedByteArray()
+## The party's lead: where a mob was last seen or hit from, and when (-1: none). The party searches around it
+## at _hunt_point, with _search_left points to go.
+var _lead := Vector2.ZERO
+var _lead_tick := -1
+var _hunt_point := Vector2.ZERO
+var _search_left := 0
 ## Mob wind-ups already judged for dodging, by slot * 8 + player, mapped to the tick a dodge may start.
 var _reaction := {}
 var _cursor := 0
@@ -127,6 +152,9 @@ var detours := 0
 var blocked := 0
 var absorbed := 0.0
 var healed := 0.0
+## Times a player started hunting a lead, and leads searched out without finding anyone.
+var hunts := 0
+var hunts_failed := 0
 
 
 func _init(simulation: RefCounted, battlefield: RefCounted, seed_value: int) -> void:
@@ -149,9 +177,11 @@ func reset(party_classes: Array, points: Array, skill: float, light := 1.0) -> v
 	_progress_at.clear()
 	for table in [hp, max_hp]:
 		table.resize(count)
-	for table in [down, has_bark]:
+	for table in [down, has_bark, mode]:
 		table.resize(count)
 		table.fill(0)
+	_lead_tick = -1
+	_search_left = 0
 	bark.resize(count)
 	bark.fill(0.0)
 	for table: PackedInt32Array in [target, attack_ready, attack_due, attack_slot, dodge_ready, dodge_until, rooted_until, skill_ready,
@@ -192,6 +222,8 @@ func reset(party_classes: Array, points: Array, skill: float, light := 1.0) -> v
 	blocked = 0
 	absorbed = 0.0
 	healed = 0.0
+	hunts = 0
+	hunts_failed = 0
 	for player in count:
 		_progress_tick[player] = now
 	_publish()
@@ -280,6 +312,9 @@ func _take_hit(event: Dictionary, now: int) -> void:
 	var player := int(event.a)
 	if player < 0 or player >= count or down[player] != 0:
 		return
+	var source := int(event.slot)
+	if hunt and source >= 0 and source < sim.pool.alive.size() and sim.pool.alive[source] != 0:
+		_note_lead(Vector2(sim.pool.xz[source * 2], sim.pool.xz[source * 2 + 1]), now)
 	if now < dodge_until[player]:
 		hits_dodged += 1
 		return
@@ -315,6 +350,9 @@ func _act(player: int, now: int) -> void:
 		return
 	if (now + player) % PLAN_TICKS == 0:
 		target[player] = _choose_target(player, profile)
+		var slot := target[player]
+		if hunt and slot >= 0:
+			_note_lead(Vector2(sim.pool.xz[slot * 2], sim.pool.xz[slot * 2 + 1]), now)
 		goal[player] = _plan_goal(player, profile)
 		if now >= _detour_until[player]:
 			waypoint[player] = _waypoint(player)
@@ -359,16 +397,25 @@ func _choose_target(player: int, profile: Dictionary) -> int:
 
 
 ## Where to stand: melee closes in; ranged keeps its distance and backs off from melee mobs; a badly hurt
-## player retreats from its target at higher difficulty. With no target, players wander together.
+## player retreats from its target at higher difficulty. With no target, players hunt a lead (hunt on) or
+## wander together.
 func _plan_goal(player: int, profile: Dictionary) -> Vector2:
 	var slot := target[player]
 	var at := position[player]
 	if slot < 0 or sim.pool.alive[slot] == 0:
+		if hunt and _hunting(player):
+			if mode[player] != Mode.HUNT:
+				hunts += 1
+			mode[player] = Mode.HUNT
+			return _hunt_goal(player)
+		mode[player] = Mode.WANDER
 		return _wander(player)
+	mode[player] = Mode.FIGHT
 	var mob := Vector2(sim.pool.xz[slot * 2], sim.pool.xz[slot * 2 + 1])
 	var away := (at - mob).normalized() if not at.is_equal_approx(mob) else Vector2.RIGHT
 	var reach := float(profile.range)
 	if hp[player] / max_hp[player] < RETREAT_HEALTH and rng.randf() < difficulty:
+		mode[player] = Mode.RETREAT
 		return at + away * 4.0
 	if reach > 3.0:
 		var keep := reach * lerpf(0.9, 0.7, difficulty)
@@ -376,9 +423,54 @@ func _plan_goal(player: int, profile: Dictionary) -> Vector2:
 		if nearest >= 0 and difficulty > 0.3:
 			var threat := Vector2(sim.pool.xz[nearest * 2], sim.pool.xz[nearest * 2 + 1])
 			if at.distance_to(threat) < 3.0:
+				mode[player] = Mode.KITE
 				return at + (at - threat).normalized() * 3.0
 		return mob + away * keep + away.orthogonal() * rng.randf_range(-1.5, 1.5) * difficulty
 	return mob + away * reach * 0.6
+
+
+## A mob was seen or struck from here: the party's lead, searched from this point first.
+func _note_lead(at: Vector2, now: int) -> void:
+	_lead = at
+	_lead_tick = now
+	_hunt_point = at
+	_search_left = HUNT_SEARCH_POINTS
+
+
+## Whether this player hunts: the party has a lead it still remembers, mobs remain, and the player is not badly
+## hurt (a hurt player stays with the others).
+func _hunting(player: int) -> bool:
+	if _lead_tick < 0 or sim.pool.active.is_empty():
+		return false
+	var memory := Clock.from_ms(lerpf(HUNT_MEMORY_S[0], HUNT_MEMORY_S[1], difficulty) * 1000.0)
+	if sim.clock.tick - _lead_tick > memory:
+		_lead_tick = -1
+		return false
+	return hp[player] >= max_hp[player] * RETREAT_HEALTH
+
+
+## Walks to the lead, then to search points around it; after the last one the lead is dropped.
+func _hunt_goal(player: int) -> Vector2:
+	if position[player].distance_to(_hunt_point) >= HUNT_REACHED:
+		return _hunt_point
+	if _search_left <= 0:
+		_lead_tick = -1
+		hunts_failed += 1
+		mode[player] = Mode.WANDER
+		return _wander(player)
+	_search_left -= 1
+	_hunt_point = _search_point()
+	return _hunt_point
+
+
+## A clear point a few metres from the lead, in a random direction, or the lead itself.
+func _search_point() -> Vector2:
+	var world = sim.locomotion.world
+	for attempt in 12:
+		var point := _lead + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(HUNT_SEARCH_RADIUS[0], HUNT_SEARCH_RADIUS[1])
+		if world.clearance(point.x, point.y) >= BODY_CLEARANCE and world.line_clear(_lead.x, _lead.y, point.x, point.y, BODY_CLEARANCE) != 0:
+			return point
+	return _lead
 
 
 func _wander(player: int) -> Vector2:
@@ -445,7 +537,8 @@ func _waypoint(player: int) -> Vector2:
 
 
 ## The game's router can stall at some corners. A player that wants to move but has made no progress for a
-## while walks a short way in a clear random direction, and a patrolling leader moves on to its next point.
+## while walks a short way in a clear random direction, and a patrolling leader moves on to its next point (a
+## hunting one to its next search point).
 func _check_progress(player: int, now: int) -> void:
 	var at := position[player]
 	var waiting := now < rooted_until[player] or attack_due[player] >= 0 or at.distance_to(goal[player]) < 1.5
@@ -457,7 +550,15 @@ func _check_progress(player: int, now: int) -> void:
 		return
 	_progress_at[player] = at
 	_progress_tick[player] = now
-	if not patrol.is_empty() and target[player] < 0:
+	if mode[player] == Mode.HUNT:
+		# A search point the router cannot reach counts as searched.
+		if _search_left > 0:
+			_search_left -= 1
+			_hunt_point = _search_point()
+		else:
+			_lead_tick = -1
+			hunts_failed += 1
+	elif not patrol.is_empty() and target[player] < 0:
 		patrol_leg[player] += 1
 	var world = sim.locomotion.world
 	for attempt in 8:

@@ -141,6 +141,8 @@ func run_episode() -> Dictionary:
 		"mobs_killed": spawned.count - sim.pool.active.size(), "downs": classes.size() - party.alive_count(),
 		"damage_to_party": snappedf(party.damage_taken, 0.1), "damage_to_mobs": snappedf(party.damage_dealt, 0.1),
 		"dodged": party.hits_dodged, "rewards": rewards.totals.duplicate()})
+	if party.hunt:
+		report.merge({"party_hunts": party.hunts, "party_hunts_failed": party.hunts_failed})
 	recorder.episodes.append(report)
 	return report
 
@@ -180,6 +182,7 @@ func _new_map() -> bool:
 	# Mobs decide through the net even before they sense anyone, so they learn to search.
 	sim.idle_brain = brain
 	party = StandIns.new(sim, field, rng.randi())
+	party.hunt = bool(settings.get("party_hunt", false))
 	open.clear()
 	for x in range(-28, 29):
 		for z in range(-27, 28):

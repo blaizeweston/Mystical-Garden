@@ -4,13 +4,15 @@ extends SceneTree
 ##
 ## godot --headless --path <project> --script res://ai/evaluate_policies.gd -- --policy <policy.bin>
 ##   --seed <n> --episodes <n> --out <results.jsonl> [--scripted] [--game-temperature] [--squad-mix <f>]
-##   [--shards <folder> --record <n>] [--episodes-file <settings.json>]
+##   [--shards <folder> --record <n>] [--episodes-file <settings.json>] [--snapshot]
 ##
 ## --policy      the trained policy (ai/training/mob_net.py export). With --scripted the game's scripted brain
 ##               decides instead, and the policy only satisfies the episode setup.
 ## --seed        the same seed gives the same floors, parties and mob groups in the same order for every brain.
 ## --game-temperature  samples as the game does (ai/game_temperature_brain.gd: sharper for brighter mobs)
 ##               instead of at temperature 1 as in training.
+## --snapshot    adds at_limit, the fight's state at its time limit, to each timeout's line
+##               (ai/evaluation_env.gd _limit_snapshot). Without it the lines are unchanged.
 ## --record      keeps every decision of the first n episodes and writes them as a rollout shard into
 ##               --shards, for the critic diagnosis. Never a training run folder.
 ## Episode settings come from ai/training/training.json (and training.local.json), as in training, unless
@@ -36,6 +38,7 @@ var scripted := false
 var game_temperature := false
 var squad_mix := -1.0
 var episodes_file := ""
+var snapshot := false
 
 
 func _initialize() -> void:
@@ -70,6 +73,7 @@ func _run() -> int:
 	var recorder := Recorder.new(schema)
 	var env := EvalEnv.new(schema, recorder, settings.episodes.duplicate(true), seed_value)
 	env.use_scripted = scripted
+	env.snapshot = snapshot
 	if game_temperature:
 		env.brain_script = GameTemperatureBrain
 	env.set_policy(weights, 1)
@@ -158,4 +162,6 @@ func _parse_arguments() -> bool:
 				game_temperature = true
 			"--episodes-file":
 				episodes_file = value
+			"--snapshot":
+				snapshot = true
 	return not policy_path.is_empty() and not out_path.is_empty() and episode_count > 0

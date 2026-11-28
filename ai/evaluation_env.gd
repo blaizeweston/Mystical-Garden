@@ -4,7 +4,8 @@ extends "res://ai/training_env.gd"
 ## measures what training's reports leave out:
 ## - rewards as values, by kind (damage, hp_lost, deaths, ...), not counts;
 ## - which behaviours mobs choose, awake and before they have sensed anyone;
-## - how mobs spend their time: aware of the party or not, and how far from the nearest player.
+## - how mobs spend their time: aware of the party or not, and how far from the nearest player;
+## - with snapshot on, the state of a fight that reached its time limit (at_limit; see _limit_snapshot).
 ##
 ## The brain is the training brain (temperature 1, as in training) or, with use_scripted, the game's scripted
 ## brain. The episode setup consumes the seeded generator identically either way. Nothing here writes to a
@@ -18,6 +19,8 @@ const BANDS := [3.0, 8.0, 16.0]
 const BAND_NAMES := ["within_3m", "3_to_8m", "8_to_16m", "beyond_16m"]
 ## Positions are sampled this often (ticks).
 const SAMPLE_TICKS := 6
+## A time-limit snapshot shares out the mobs' behaviours over this last stretch of the fight.
+const LIMIT_WINDOW_S := 30.0
 
 
 ## Rewards with a running total of the reward given by kind, as values.
@@ -63,6 +66,8 @@ class CountingBrain extends "res://mob_sim/mob_brain.gd":
 
 var use_scripted := false
 var keep_rows := false
+## Adds at_limit to the report of a fight that times out. Off, reports are unchanged.
+var snapshot := false
 var awake_counter: CountingBrain
 var idle_counter: CountingBrain
 
@@ -124,6 +129,13 @@ func run_episode() -> Dictionary:
 	for name in BAND_NAMES:
 		time[name] = 0.0
 	var first_contact := -1
+	# Snapshot tracking: behaviour counts per sample over the last window, and the last tick each side lost health.
+	var recent: Array[PackedInt32Array] = []
+	var window := ceili(LIMIT_WINDOW_S * Clock.TICKS_PER_SECOND / SAMPLE_TICKS)
+	var taken: float = party.damage_taken
+	var dealt: float = party.damage_dealt
+	var party_hurt_at := -1
+	var mobs_hurt_at := -1
 	for step in limit:
 		party.before_tick()
 		sim.tick()
@@ -133,6 +145,17 @@ func run_episode() -> Dictionary:
 			if int(event.kind) == Events.Kind.DEATH:
 				recorder.close(int(event.slot), Recorder.End.TERMINAL)
 		cursor = sim.events.head
+		if snapshot:
+			if party.damage_taken > taken:
+				taken = party.damage_taken
+				party_hurt_at = sim.clock.tick
+			if party.damage_dealt > dealt:
+				dealt = party.damage_dealt
+				mobs_hurt_at = sim.clock.tick
+			if step % SAMPLE_TICKS == 0:
+				recent.append(_behaviour_sample())
+				if recent.size() > window:
+					recent.pop_front()
 		if first_found < 0 and int(rewards.totals.found) > 0:
 			first_found = sim.clock.tick - began
 		if step % SAMPLE_TICKS == 0:
@@ -164,6 +187,8 @@ func run_episode() -> Dictionary:
 	for name: String in time:
 		time[name] = snappedf(float(time[name]), 0.01)
 	report["time"] = time
+	if snapshot and outcome == "timeout":
+		report["at_limit"] = _limit_snapshot(recent, party_hurt_at, mobs_hurt_at)
 	if keep_rows:
 		recorder.episodes.append(report)
 	return report
@@ -197,6 +222,65 @@ func _sample_time(time: Dictionary) -> bool:
 		time[BAND_NAMES[band]] += seconds
 		close = close or band == 0
 	return close
+
+
+## How many living mobs are in each behaviour right now.
+func _behaviour_sample() -> PackedInt32Array:
+	var counts := PackedInt32Array()
+	counts.resize(sim.contract.behaviour_count)
+	counts.fill(0)
+	for slot in sim.pool.active:
+		var behaviour: int = sim.pool.behaviour[slot]
+		if behaviour < counts.size():
+			counts[behaviour] += 1
+	return counts
+
+
+## The state of a fight at its time limit:
+## - mobs: alive, aware of a standing player, seeing one; the nearest mob-to-player distance (-1 with none);
+## - players: standing, each one's health fraction and party mode (StandIns.MODE_NAMES);
+## - seconds since the party, and since any mob, last lost health (-1: never this fight);
+## - final_behaviours: each behaviour's share of living mob-time over the last LIMIT_WINDOW_S.
+func _limit_snapshot(recent: Array[PackedInt32Array], party_hurt_at: int, mobs_hurt_at: int) -> Dictionary:
+	var pool = sim.pool
+	var now: int = sim.clock.tick
+	var aware := 0
+	var seeing := 0
+	var nearest := INF
+	for slot in pool.active:
+		var at := Vector2(pool.xz[slot * 2], pool.xz[slot * 2 + 1])
+		var knows := false
+		var sees := false
+		for player in party.count:
+			if party.down[player] != 0:
+				continue
+			nearest = minf(nearest, at.distance_to(party.position[player]))
+			knows = knows or sim.perception.knows(slot, player)
+			sees = sees or sim.perception.sees(slot, player)
+		aware += int(knows)
+		seeing += int(sees)
+	var health := []
+	var modes := []
+	for player in party.count:
+		health.append(0.0 if party.down[player] != 0 else snappedf(party.hp[player] / maxf(1.0, party.max_hp[player]), 0.01))
+		modes.append("down" if party.down[player] != 0 else StandIns.MODE_NAMES[party.mode[player]])
+	var totals := PackedInt32Array()
+	totals.resize(sim.contract.behaviour_count)
+	totals.fill(0)
+	var samples := 0
+	for counts in recent:
+		for behaviour in counts.size():
+			totals[behaviour] += counts[behaviour]
+			samples += counts[behaviour]
+	var shares := {}
+	for behaviour in totals.size():
+		if totals[behaviour] > 0:
+			shares[sim.contract.names[behaviour]] = snappedf(float(totals[behaviour]) / samples, 0.001)
+	var since := func(tick: int) -> float: return snappedf(Clock.to_seconds(now - tick), 0.01) if tick >= 0 else -1.0
+	return {"mobs_alive": pool.active.size(), "mobs_aware": aware, "mobs_seeing": seeing,
+		"nearest": snappedf(nearest, 0.01) if nearest < INF else -1.0, "players_standing": party.alive_count(),
+		"player_health": health, "player_modes": modes, "party_hurt_seconds_ago": since.call(party_hurt_at),
+		"mobs_hurt_seconds_ago": since.call(mobs_hurt_at), "final_behaviours": shares}
 
 
 func _party_hp() -> float:
