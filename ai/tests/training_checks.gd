@@ -1,7 +1,8 @@
 extends SceneTree
 ## Checks training episodes (ai/training_env.gd) with the training brain and recorder: exploration and engaged
 ## starts, game-scale mobs, clean resets between episodes on one floor, well-formed records and shards, the
-## hunting party in training (not in the frozen benchmark) and the evaluation's time-limit snapshot.
+## hunting party in training (not in the frozen benchmark), starts only where the mobs' route grid connects, and
+## the evaluation's time-limit snapshot.
 ## Uses ai/training/out/policy.bin, which ai/training/check_model.py writes (run_checks.ps1 runs it first).
 
 const Catalog = preload("res://enemy_catalog.gd")
@@ -35,6 +36,7 @@ func _initialize() -> void:
 	test_starts()
 	test_episodes()
 	test_hunt_and_snapshot()
+	test_connected_spawns()
 	test_choice_replay()
 	print("TRAINING_REPORT ", JSON.stringify(report))
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
@@ -127,6 +129,7 @@ func test_fight_size() -> void:
 
 func test_starts() -> void:
 	var nearest_explore := INF
+	var explore_short := INF
 	var farthest_engaged := 0.0
 	var sensed_at_start := 0
 	var hp_ok := true
@@ -139,10 +142,18 @@ func test_starts() -> void:
 			env.party.reset(["warden"], [start], 0.5)
 			var placed: Dictionary = env._spawn_mobs(start, explore)
 			var pool = env.sim.pool
+			# Where the start's region has no point explore_distance away, groups use its farthest tenth instead.
+			var reach: Array = env.open.map(func(at: Vector2) -> float: return at.distance_to(start))
+			var in_band := reach.any(func(d: float) -> bool: return d >= float(settings.explore_distance[0]) and d <= float(settings.explore_distance[1]))
+			reach.sort()
+			reach.reverse()
+			var farthest_tenth: float = reach[maxi(1, reach.size() / 10) - 1]
 			for slot in pool.active:
 				var distance: float = pool.distance_to(slot, start.x, start.y)
-				if explore:
+				if explore and in_band:
 					nearest_explore = minf(nearest_explore, distance)
+				elif explore:
+					explore_short = minf(explore_short, distance - (farthest_tenth - 3.5))
 				else:
 					farthest_engaged = maxf(farthest_engaged, distance)
 				hp_ok = hp_ok and pool.max_hp[slot] >= 20.0 and pool.max_hp[slot] <= 90.0
@@ -153,10 +164,12 @@ func test_starts() -> void:
 					sensed_at_start += int(env.sim.perception.sees(slot, 0))
 			check(int(placed.count) >= 3, "%s start %d places its mobs" % ["an explore" if explore else "an engaged", seed_value])
 			env.close()
-	report["starts"] = {"nearest_explore": snappedf(nearest_explore, 0.1), "farthest_engaged": snappedf(farthest_engaged, 0.1)}
+	report["starts"] = {"nearest_explore": snappedf(nearest_explore, 0.1), "farthest_engaged": snappedf(farthest_engaged, 0.1),
+		"small_region_margin": snappedf(explore_short, 0.1) if explore_short < INF else null}
 	# Explore groups centre at least explore_distance[0] away, and each mob stands within 3 m of its centre.
 	var explore_floor := float(settings.explore_distance[0]) - 3.5
 	check(nearest_explore >= explore_floor, "explore starts keep every mob at least %.1f m from the party (%.1f m)" % [explore_floor, nearest_explore])
+	check(explore_short >= 0.0, "in a region too small for that, explore groups start among its farthest points")
 	check(farthest_engaged <= 17.0, "engaged starts keep mobs within reach of the party (%.1f m)" % farthest_engaged)
 	check(sensed_at_start == 0, "no mob sees the party when an explore episode begins")
 	check(hp_ok and damage_ok, "floor 1 mobs have the game's health (20-90) and hits (6-20)")
@@ -289,6 +302,46 @@ func test_hunt_and_snapshot() -> void:
 	check((at.player_health as Array).size() == int(timeouts[0].party) and (at.player_modes as Array).size() == int(timeouts[0].party),
 		"the snapshot gives each player's health and party mode (%s)" % [at.player_modes])
 	check(absf(share - 1.0) < 0.01 and float(at.nearest) >= 0.0, "the final behaviour shares sum to 1 (%.3f), nearest mob %.1f m" % [share, at.nearest])
+
+
+## With connected_spawns (training, not the frozen benchmark) every start point lies in one region the mobs' route
+## grid connects, the points left out have no route into it, and fights still play with lazy route fields.
+func test_connected_spawns() -> void:
+	check(bool(settings.get("connected_spawns", false)), "training starts the party and mobs only where routes connect")
+	var frozen: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://ai/training/benchmark_episodes.json")).episodes
+	check(not frozen.has("connected_spawns"), "the frozen benchmark keeps its own starts")
+	var kept := 0
+	var dropped := 0
+	var stray := 0
+	var cut_off := 0
+	for seed_value in [7, 8, 9]:
+		var everywhere := make_env({"connected_spawns": false, "map_episodes": 1}, seed_value)
+		var connected := make_env({"connected_spawns": true, "map_episodes": 1}, seed_value)
+		var plain: Dictionary = everywhere.run_episode()
+		var played: Dictionary = connected.run_episode()
+		check(not plain.is_empty() and not played.is_empty(), "both kinds of start play a fight (seed %d)" % seed_value)
+		check(connected.floor_number == everywhere.floor_number and connected.open.all(func(at: Vector2) -> bool: return everywhere.open.has(at)),
+			"the same floor keeps a subset of its open points (%d of %d, seed %d)" % [connected.open.size(), everywhere.open.size(), seed_value])
+		var world: RefCounted = connected.sim.locomotion.world
+		var hub: Vector2 = connected.open[connected.open.size() / 2]
+		world.set_lazy_fields(0)
+		world.set_targets(PackedFloat32Array([hub.x, hub.y]))
+		world.tick(0.0)
+		for at: Vector2 in everywhere.open:
+			var routed: bool = world.path_cost(0, at.x, at.y) >= 0.0
+			if connected.open.has(at):
+				kept += 1
+				stray += int(not routed)
+			else:
+				dropped += 1
+				cut_off += int(not routed)
+		world.set_lazy_fields(1)
+		world.set_targets(connected.sim.locomotion.targets)
+		everywhere.close()
+		connected.close()
+	report["connected_spawns"] = {"kept": kept, "dropped": dropped}
+	check(stray == 0, "every kept point has a route to the others (%d kept)" % kept)
+	check(cut_off == dropped, "no dropped point has a route into the kept region (%d dropped)" % dropped)
 
 
 ## The choice test (ai/choice_test.gd) replays a seeded fight to the same state, forces one behaviour there, and

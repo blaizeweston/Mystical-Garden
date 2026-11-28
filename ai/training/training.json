@@ -1,5 +1,5 @@
 {
-	"about": "Settings for ai/training. run_dir empty means Documents/Godot/mob-training/run. The trainer may override 'episodes' values through the policy manifest (curriculum). mob_ratio_mix picks fights by mobs per player: [share, from, to) bands (ai/training_env.gd _fight_size). party_hunt makes the stand-in party hunt mobs it lost sight of (ai/stand_in_party.gd). The benchmark plays its own frozen mix, benchmark_episodes.json.",
+	"about": "Settings for ai/training. run_dir empty means Documents/Godot/mob-training/run. The trainer may override 'episodes' values through the policy manifest (curriculum). mob_ratio_mix picks fights by mobs per player: [share, from, to) bands (ai/training_env.gd _fight_size). party_hunt makes the stand-in party hunt mobs it lost sight of (ai/stand_in_party.gd). connected_spawns starts the party and mobs only where the mobs' route grid connects (ai/training_env.gd _connected). The benchmark plays its own frozen mix, benchmark_episodes.json.",
 	"run_dir": "",
 	"workers": 12,
 	"godot": "C:/Users/Josiah/Documents/Godot/Godot_v4.7.2-stable_win64_console.exe",
@@ -27,7 +27,8 @@
 		"night_share": 0.9,
 		"night_light": [0.05, 0.24],
 		"time_limit_terminal": true,
-		"party_hunt": true
+		"party_hunt": true,
+		"connected_spawns": true
 	},
 	"shards": {
 		"rows": 8192,

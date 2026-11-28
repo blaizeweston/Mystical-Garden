@@ -11,7 +11,8 @@ extends RefCounted
 ## An episode ends when the party is wiped or every mob is dead, or at its time limit. With time_limit_terminal
 ## (the default) the time limit is a true end, worth nothing more: bootstrapping it from the critic (truncated)
 ## let mobs that hid until time ran out collect the critic's own unchecked estimate, which taught them to camp.
-## A floor is reused for map_episodes episodes, then a new one is generated.
+## A floor is reused for map_episodes episodes, then a new one is generated. With connected_spawns, the party and
+## mobs start only in the largest region the mobs' route grid connects (_connected); without it, any open point.
 
 const Balance = preload("res://enemy_balance.gd")
 const Battlefield = preload("res://battlefield.gd")
@@ -189,6 +190,8 @@ func _new_map() -> bool:
 			var at := Vector2(x, z)
 			if not field.occupied(Vector3(at.x, 0.0, at.y), OPEN_RADIUS) and sim.locomotion.world.clearance(at.x, at.y) >= OPEN_CLEARANCE:
 				open.append(at)
+	if bool(settings.get("connected_spawns", false)):
+		open = _connected(open)
 	if open.size() < 50:
 		error = "The floor has too little open ground."
 		return false
@@ -198,6 +201,37 @@ func _new_map() -> bool:
 				_species.append(kind)
 	episodes_on_map = 0
 	return true
+
+
+## The points of the largest region the mobs' route grid connects. Some open points sit in pockets whose ways
+## out are too narrow for a route (mob_nav.c PASS_CLEARANCE), so a mob spawned there can only stand and wait for
+## the party to come into sight. Each region is found by solving one complete route field from a point not yet
+## placed and reading every point's route cost. Uses no random numbers; runs before any mob is placed, and
+## leaves the route fields lazy and aimed at the locomotion's targets as before.
+func _connected(points: Array[Vector2]) -> Array[Vector2]:
+	var world: RefCounted = sim.locomotion.world
+	var left := points.duplicate()
+	var best: Array[Vector2] = []
+	world.set_lazy_fields(0)
+	while left.size() > best.size():
+		var seed: Vector2 = left[0]
+		world.set_targets(PackedFloat32Array([seed.x, seed.y]))
+		world.tick(0.0)
+		var region: Array[Vector2] = []
+		var rest: Array[Vector2] = []
+		for point: Vector2 in left:
+			if world.path_cost(0, point.x, point.y) >= 0.0:
+				region.append(point)
+			else:
+				rest.append(point)
+		if region.is_empty():
+			rest.erase(seed)
+		if region.size() > best.size():
+			best = region
+		left = rest
+	world.set_lazy_fields(1)
+	world.set_targets(sim.locomotion.targets)
+	return best
 
 
 ## Removes the last episode's mobs, attacks and fields without events, so nothing is credited for them.
